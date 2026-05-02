@@ -19,6 +19,7 @@ import ReceiptSupport from './pages/receipt-tax-tracker/Support.jsx';
 import LearnHome from './pages/learn-and-play/Home.jsx';
 import LearnPrivacy from './pages/learn-and-play/Privacy.jsx';
 import LearnSupport from './pages/learn-and-play/Support.jsx';
+import KentuckyDerbyTracker from './pages/kentucky-derby/Tracker.jsx';
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/learn-and-play" element={<LearnHome />} />
           <Route path="/learn-and-play/privacy" element={<LearnPrivacy />} />
           <Route path="/learn-and-play/support" element={<LearnSupport />} />
+          <Route path="/kentucky-derby" element={<KentuckyDerbyTracker />} />
         </Routes>
       </div>
       <Footer />
