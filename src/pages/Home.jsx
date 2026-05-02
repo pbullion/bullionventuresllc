@@ -3,6 +3,13 @@ import { Link } from 'react-router-dom';
 
 const products = [
   {
+    emoji: '🐎',
+    name: 'Kentucky Derby Tracker',
+    path: '/kentucky-derby',
+    description:
+      'Set the official 1st, 2nd, and 3rd place finishers and instantly grade all your win bets and trifecta tickets. Tracks straight and part-wheel trifectas automatically.',
+  },
+  {
     emoji: '📋',
     name: 'Debriefly',
     path: '/debriefly',
@@ -36,13 +43,6 @@ const products = [
     path: '/learn-and-play',
     description:
       'An educational mobile game for kids featuring Bubble Blast and Flashcard games. Learn animals, food, transportation and more through fun interactive gameplay.',
-  },
-  {
-    emoji: '🐎',
-    name: 'Kentucky Derby Tracker',
-    path: '/kentucky-derby',
-    description:
-      'Set the official 1st, 2nd, and 3rd place finishers and instantly grade all your win bets and trifecta tickets. Tracks straight and part-wheel trifectas automatically.',
   },
 ];
 
