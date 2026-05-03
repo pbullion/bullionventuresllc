@@ -91,6 +91,7 @@ export default function DebrieflyHome() {
       <div style={styles.content}>
         <div style={styles.subNav}>
           <Link to="/debriefly/privacy" style={styles.subNavLink}>Privacy Policy</Link>
+          <Link to="/debriefly/terms" style={styles.subNavLink}>Terms of Use</Link>
           <Link to="/debriefly/support" style={styles.subNavLink}>Support</Link>
         </div>
 

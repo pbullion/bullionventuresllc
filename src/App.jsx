@@ -7,6 +7,7 @@ import Home from './pages/Home.jsx';
 import DebrieflyHome from './pages/debriefly/Home.jsx';
 import DebrieflyPrivacy from './pages/debriefly/Privacy.jsx';
 import DebrieflySupport from './pages/debriefly/Support.jsx';
+import DebrieflyTerms from './pages/debriefly/Terms.jsx';
 import SlumbrHome from './pages/slumbr/Home.jsx';
 import SlumbrPrivacy from './pages/slumbr/Privacy.jsx';
 import SlumbrSupport from './pages/slumbr/Support.jsx';
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/debriefly" element={<DebrieflyHome />} />
           <Route path="/debriefly/privacy" element={<DebrieflyPrivacy />} />
           <Route path="/debriefly/support" element={<DebrieflySupport />} />
+          <Route path="/debriefly/terms" element={<DebrieflyTerms />} />
           <Route path="/slumbr" element={<SlumbrHome />} />
           <Route path="/slumbr/privacy" element={<SlumbrPrivacy />} />
           <Route path="/slumbr/support" element={<SlumbrSupport />} />
