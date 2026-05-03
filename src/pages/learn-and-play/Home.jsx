@@ -71,6 +71,7 @@ export default function LearnHome() {
       <div style={styles.content}>
         <div style={styles.subNav}>
           <Link to="/learn-and-play/privacy" style={styles.subNavLink}>Privacy Policy</Link>
+          <Link to="/learn-and-play/terms" style={styles.subNavLink}>Terms of Use</Link>
           <Link to="/learn-and-play/support" style={styles.subNavLink}>Support</Link>
         </div>
 
