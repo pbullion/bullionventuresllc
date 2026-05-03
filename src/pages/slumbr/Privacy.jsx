@@ -137,7 +137,7 @@ export default function SlumbrPrivacy() {
         <div style={styles.sectionTitle}>6. Contact Us</div>
         <p style={styles.body}>If you have questions about this policy, please contact us:</p>
         <div style={styles.contactBox}>
-          <a href="mailto:support@slumbr.app" style={styles.emailLink}>support@slumbr.app</a>
+          <a href="mailto:slumbr@bullionventuresllc.com" style={styles.emailLink}>slumbr@bullionventuresllc.com</a>
         </div>
 
         <Link to="/slumbr" style={styles.backLink}>← Back to Slumbr</Link>

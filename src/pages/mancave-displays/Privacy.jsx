@@ -118,7 +118,7 @@ export default function MancavePrivacy() {
         <div style={styles.sectionTitle}>6. Contact Us</div>
         <p style={styles.body}>If you have questions about this policy, please contact us:</p>
         <div style={styles.contactBox}>
-          <a href="mailto:support@mancavedisplays.app" style={styles.emailLink}>support@mancavedisplays.app</a>
+          <a href="mailto:patrick@bullionventuresllc.com" style={styles.emailLink}>patrick@bullionventuresllc.com</a>
         </div>
 
         <Link to="/mancave-displays" style={styles.backLink}>← Back to Mancave Displays</Link>

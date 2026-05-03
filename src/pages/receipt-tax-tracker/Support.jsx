@@ -75,7 +75,7 @@ const FAQS = [
   },
   {
     q: 'How do I contact support?',
-    a: 'Email pbullion@gmail.com',
+    a: 'Email patrick@bullionventuresllc.com',
   },
 ];
 
@@ -94,7 +94,7 @@ export default function ReceiptSupport() {
           <p style={styles.contactDesc}>
             Can't find what you're looking for? Send us an email and we'll get back to you as soon as possible.
           </p>
-          <a href="mailto:pbullion@gmail.com" style={styles.emailLink}>pbullion@gmail.com</a>
+          <a href="mailto:patrick@bullionventuresllc.com" style={styles.emailLink}>patrick@bullionventuresllc.com</a>
         </div>
 
         <div style={styles.sectionTitle}>Frequently Asked Questions</div>

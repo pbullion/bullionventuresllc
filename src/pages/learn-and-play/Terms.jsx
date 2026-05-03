@@ -124,7 +124,7 @@ export default function LearnAndPlayTerms() {
         <div style={s.contactBox}>
           <p style={{ ...s.body, margin: 0 }}>
             Questions about these Terms? Email us at{' '}
-            <a href="mailto:pbullion@gmail.com" style={s.emailLink}>pbullion@gmail.com</a>
+            <a href="mailto:patrick@bullionventuresllc.com" style={s.emailLink}>patrick@bullionventuresllc.com</a>
           </p>
         </div>
       </div>

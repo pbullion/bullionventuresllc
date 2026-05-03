@@ -114,7 +114,7 @@ export default function SlumbrSupport() {
           <p style={styles.contactDesc}>
             Can't find what you're looking for? Send us an email and we'll get back to you as soon as possible.
           </p>
-          <a href="mailto:support@slumbr.app" style={styles.emailLink}>support@slumbr.app</a>
+          <a href="mailto:slumbr@bullionventuresllc.com" style={styles.emailLink}>slumbr@bullionventuresllc.com</a>
         </div>
 
         <div style={styles.sectionTitle}>Frequently Asked Questions</div>

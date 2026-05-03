@@ -114,7 +114,7 @@ export default function MancaveSupport() {
           <p style={styles.contactDesc}>
             Can't find what you're looking for? Send us an email and we'll get back to you as soon as possible.
           </p>
-          <a href="mailto:support@mancavedisplays.app" style={styles.emailLink}>support@mancavedisplays.app</a>
+          <a href="mailto:patrick@bullionventuresllc.com" style={styles.emailLink}>patrick@bullionventuresllc.com</a>
         </div>
 
         <div style={styles.sectionTitle}>Frequently Asked Questions</div>

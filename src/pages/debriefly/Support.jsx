@@ -110,7 +110,7 @@ export default function DebrieflySupport() {
           <p style={styles.contactDesc}>
             Can't find what you're looking for? Send us an email and we'll get back to you as soon as possible.
           </p>
-          <a href="mailto:support@debriefly.app" style={styles.emailLink}>support@debriefly.app</a>
+          <a href="mailto:debriefly@bullionventuresllc.com" style={styles.emailLink}>debriefly@bullionventuresllc.com</a>
         </div>
 
         <div style={styles.sectionTitle}>Frequently Asked Questions</div>

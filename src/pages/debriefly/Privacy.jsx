@@ -150,7 +150,7 @@ export default function DebrieflyPrivacy() {
         </ul>
         <p style={styles.body}>
           To exercise any of these rights, contact us at{' '}
-          <a href="mailto:support@debriefly.app" style={styles.emailLink}>support@debriefly.app</a>.
+          <a href="mailto:debriefly@bullionventuresllc.com" style={styles.emailLink}>debriefly@bullionventuresllc.com</a>.
         </p>
 
         <hr style={styles.divider} />
@@ -173,7 +173,7 @@ export default function DebrieflyPrivacy() {
         <div style={styles.sectionTitle}>9. Contact</div>
         <div style={styles.contactBox}>
           <p style={{ ...styles.body, marginBottom: 4 }}>Questions about this Privacy Policy? Reach us at:</p>
-          <a href="mailto:support@debriefly.app" style={styles.emailLink}>support@debriefly.app</a>
+          <a href="mailto:debriefly@bullionventuresllc.com" style={styles.emailLink}>debriefly@bullionventuresllc.com</a>
         </div>
 
         <Link to="/debriefly" style={styles.backLink}>← Back to Debriefly</Link>

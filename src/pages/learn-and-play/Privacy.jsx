@@ -174,7 +174,7 @@ export default function LearnPrivacy() {
           If you have questions about this Privacy Policy or our privacy practices, please contact us:
         </p>
         <div style={styles.contactBox}>
-          <a href="mailto:pbullion@gmail.com" style={styles.emailLink}>pbullion@gmail.com</a>
+          <a href="mailto:patrick@bullionventuresllc.com" style={styles.emailLink}>patrick@bullionventuresllc.com</a>
         </div>
         <p style={{ ...styles.body, marginTop: 12 }}>We will respond to privacy inquiries within 30 days.</p>
 
