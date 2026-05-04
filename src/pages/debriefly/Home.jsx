@@ -1,82 +1,87 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React from "react";
+import { Link } from "react-router-dom";
 
-const APP_STORE_URL = 'https://apps.apple.com/us/app/debriefly/id6761771394';
+const APP_STORE_URL = "https://apps.apple.com/us/app/debriefly/id6761771394";
 
 const features = [
   {
-    title: 'Snap & Add Schedules',
-    desc: 'Take a photo of any schedule, AI extracts dates and adds them to your calendar.',
+    title: "Snap & Add Schedules",
+    desc: "Take a photo of any schedule, AI extracts dates and adds them to your calendar.",
   },
   {
-    title: 'Daily Briefings',
-    desc: 'Get a personalized morning summary delivered as a notification.',
+    title: "Daily Briefings",
+    desc: "Get a personalized morning summary delivered as a notification.",
   },
   {
-    title: 'Weekly Summaries',
-    desc: 'Recap of upcoming events every week so you\'re always prepared.',
+    title: "Weekly Summaries",
+    desc: "Recap of upcoming events every week so you're always prepared.",
   },
   {
-    title: 'Nightly Reminders',
-    desc: 'Never miss tomorrow\'s events with an evening heads-up.',
+    title: "Nightly Reminders",
+    desc: "Never miss tomorrow's events with an evening heads-up.",
   },
   {
-    title: 'Sports, News, Weather, Stocks',
-    desc: 'Customize exactly what appears in your daily briefing.',
+    title: "Sports, News, Weather, Stocks",
+    desc: "Customize exactly what appears in your daily briefing.",
   },
 ];
 
 const styles = {
-  page: { backgroundColor: '#0f0f12', color: '#f0f0f5', minHeight: '100%' },
+  page: { backgroundColor: "#0f0f12", color: "#f0f0f5", minHeight: "100%" },
   header: {
-    padding: '64px 24px 48px',
-    textAlign: 'center',
-    background: 'linear-gradient(160deg, #1a1a2e 0%, #0f0f12 60%)',
-    borderBottom: '1px solid #2a2a45',
+    padding: "64px 24px 48px",
+    textAlign: "center",
+    background: "linear-gradient(160deg, #1a1a2e 0%, #0f0f12 60%)",
+    borderBottom: "1px solid #2a2a45",
   },
-  emoji: { fontSize: 56, display: 'block', marginBottom: 16 },
-  title: { fontSize: 42, fontWeight: 800, margin: '0 0 12px', color: '#ffffff' },
-  tagline: { fontSize: 18, color: '#a0a0b8', margin: 0 },
-  content: { maxWidth: 800, margin: '0 auto', padding: '56px 24px 64px' },
+  emoji: { fontSize: 56, display: "block", marginBottom: 16 },
+  title: { fontSize: 42, fontWeight: 800, margin: "0 0 12px", color: "#ffffff" },
+  tagline: { fontSize: 18, color: "#a0a0b8", margin: 0 },
+  content: { maxWidth: 800, margin: "0 auto", padding: "56px 24px 64px" },
   subNav: {
-    display: 'flex', gap: 16, marginBottom: 48, flexWrap: 'wrap',
+    display: "flex",
+    gap: 16,
+    marginBottom: 48,
+    flexWrap: "wrap",
   },
   subNavLink: {
-    padding: '8px 18px',
-    backgroundColor: '#1a1a2e',
-    border: '1px solid #2a2a45',
+    padding: "8px 18px",
+    backgroundColor: "#1a1a2e",
+    border: "1px solid #2a2a45",
     borderRadius: 8,
     fontSize: 13,
-    color: '#a0a0b8',
+    color: "#a0a0b8",
     fontWeight: 500,
   },
   sectionTitle: {
-    fontSize: 22, fontWeight: 700, color: '#ffffff',
+    fontSize: 22,
+    fontWeight: 700,
+    color: "#ffffff",
     marginBottom: 24,
   },
-  featureList: { display: 'flex', flexDirection: 'column', gap: 16 },
+  featureList: { display: "flex", flexDirection: "column", gap: 16 },
   featureItem: {
-    backgroundColor: '#1a1a2e',
-    border: '1px solid #2a2a45',
+    backgroundColor: "#1a1a2e",
+    border: "1px solid #2a2a45",
     borderRadius: 12,
-    padding: '20px 24px',
+    padding: "20px 24px",
   },
-  featureTitle: { fontSize: 16, fontWeight: 700, color: '#6c63ff', marginBottom: 6 },
-  featureDesc: { fontSize: 14, color: '#a0a0b8', lineHeight: 1.65, margin: 0 },
+  featureTitle: { fontSize: 16, fontWeight: 700, color: "#6c63ff", marginBottom: 6 },
+  featureDesc: { fontSize: 14, color: "#a0a0b8", lineHeight: 1.65, margin: 0 },
   appStore: {
     marginTop: 48,
-    padding: '24px',
-    backgroundColor: '#1a1a2e',
-    border: '1px solid #2a2a45',
+    padding: "24px",
+    backgroundColor: "#1a1a2e",
+    border: "1px solid #2a2a45",
     borderRadius: 12,
-    textAlign: 'center',
+    textAlign: "center",
   },
-  appStoreText: { fontSize: 15, color: '#a0a0b8', margin: 0 },
+  appStoreText: { fontSize: 15, color: "#a0a0b8", margin: 0 },
   backLink: {
-    display: 'inline-block',
+    display: "inline-block",
     marginTop: 40,
     fontSize: 14,
-    color: '#6c63ff',
+    color: "#6c63ff",
     fontWeight: 500,
   },
 };
@@ -92,9 +97,15 @@ export default function DebrieflyHome() {
 
       <div style={styles.content}>
         <div style={styles.subNav}>
-          <Link to="/debriefly/privacy" style={styles.subNavLink}>Privacy Policy</Link>
-          <Link to="/debriefly/terms" style={styles.subNavLink}>Terms of Use</Link>
-          <Link to="/debriefly/support" style={styles.subNavLink}>Support</Link>
+          <Link to="/debriefly/privacy" style={styles.subNavLink}>
+            Privacy Policy
+          </Link>
+          <Link to="/debriefly/terms" style={styles.subNavLink}>
+            Terms of Use
+          </Link>
+          <Link to="/debriefly/support" style={styles.subNavLink}>
+            Support
+          </Link>
         </div>
 
         <h2 style={styles.sectionTitle}>Features</h2>
@@ -117,7 +128,9 @@ export default function DebrieflyHome() {
           </a>
         </div>
 
-        <Link to="/" style={styles.backLink}>← Back to Home</Link>
+        <Link to="/" style={styles.backLink}>
+          ← Back to Home
+        </Link>
       </div>
     </div>
   );
