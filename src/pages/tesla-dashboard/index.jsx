@@ -7,6 +7,7 @@ import ForecastWeatherWidget from "./ForecastWeather";
 import OddsScreen from "./OddsScreen";
 import AstrosNextGameWidget from "./AstrosNextGameWidget";
 import RocketsNextGameWidget from "./RocketsNextGameWidget";
+import Time from "./Time";
 import BaylorNextGameWidget from "./BaylorNextGameWidget";
 import CalendarWidget from "./CalendarWidget";
 
@@ -26,6 +27,7 @@ function TeslaDashboard() {
       <main style={{ backgroundColor: "#000", height: "100vh", paddingTop: 1 }}>
         <div style={{ display: "flex", margin: 10, justifyContent: "space-around" }}>
           {/* <DateTimeWidget /> */}
+          <Time />
           <CurrentWeatherWidget />
           <ForecastWeatherWidget />
           <AstrosNextGameWidget />
