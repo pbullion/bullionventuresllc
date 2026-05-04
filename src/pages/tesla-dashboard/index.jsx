@@ -25,7 +25,7 @@ function TeslaDashboard() {
     <React.Fragment>
       <main style={{ backgroundColor: "#000", height: "100vh", paddingTop: 1 }}>
         <div style={{ display: "flex", margin: 10, justifyContent: "space-around" }}>
-          <DateTimeWidget />
+          {/* <DateTimeWidget /> */}
           <CurrentWeatherWidget />
           <ForecastWeatherWidget />
           <AstrosNextGameWidget />

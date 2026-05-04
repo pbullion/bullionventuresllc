@@ -633,7 +633,7 @@ function OddsScreen(props) {
                   </Typography>
                 : null}
                 <Grid container>
-                  <Grid item xs={1} style={{ display: "flex", alignItems: "center" }}>
+                  <Grid size={1} style={{ display: "flex", alignItems: "center" }}>
                     {game.sport === "NFL" || game.sport === "NCAAFOOTBALL" ?
                       <SportsFootballIcon style={{ fontSize: `${textSize}rem`, color: "white" }} />
                     : game.sport === "NBA" || game.sport === "NCAABASKETBALL" ?
@@ -642,7 +642,7 @@ function OddsScreen(props) {
                       <SportsBaseballIcon style={{ fontSize: `${textSize}rem`, color: "white" }} />
                     : <SportsHockeyIcon style={{ fontSize: `${textSize}rem`, color: "white" }} />}
                   </Grid>
-                  <Grid item xs={5}>
+                  <Grid size={5}>
                     <div style={{ display: "flex", alignItems: "center" }}>
                       <Typography
                         variant={"h6"}
@@ -665,14 +665,13 @@ function OddsScreen(props) {
                   </Grid>
                   {game.awayScore ?
                     <React.Fragment>
-                      <Grid item xs={1}>
+                      <Grid size={1}>
                         <Typography variant={"h6"} style={{ fontSize: `${textSize}rem`, textAlign: "center" }}>
                           {game.awayScore}
                         </Typography>
                       </Grid>
                       <Grid
-                        item
-                        xs={1}
+                        size={1}
                         style={{
                           display: "flex",
                           alignItems: "flex-end",
@@ -696,7 +695,7 @@ function OddsScreen(props) {
                     </React.Fragment>
                   : game.sport === "MLB" ?
                     <>
-                      <Grid item xs={1}>
+                      <Grid size={1}>
                         <Typography variant={"h6"} style={{ textAlign: "right", fontSize: `${textSize - 0.4}rem` }}>
                           {game.awayStartingPitcher &&
                             game.awayStartingPitcher
@@ -707,9 +706,9 @@ function OddsScreen(props) {
                               .split(".")[1]}
                         </Typography>
                       </Grid>
-                      <Grid item xs={1}></Grid>
+                      <Grid size={1}></Grid>
                     </>
-                  : <Grid item xs={2} style={{ display: "flex", alignItems: "center", justifyContent: "end" }}>
+                  : <Grid size={2} style={{ display: "flex", alignItems: "center", justifyContent: "end" }}>
                       {/* <Typography variant={"h6"} style={{ fontSize: `${textSize - 0.2}rem`, textAlign: "center" }} color={"red"}>
                           {!game.timeUntilString.includes("day") &&
                             game.timeUntilString.replace("about ", "").replace("minutes", "min").replace("minute", "min")}
@@ -739,7 +738,7 @@ function OddsScreen(props) {
                       )}
                     </Grid>
                   }
-                  <Grid item xs={1}>
+                  <Grid size={1}>
                     <Typography
                       variant={"h6"}
                       style={{ textAlign: "center", fontSize: `${textSize}rem` }}
@@ -752,7 +751,7 @@ function OddsScreen(props) {
                       {game.sport !== "MLB" && game.awaySpread === "" ? "-" : game.awaySpread}
                     </Typography>
                   </Grid>
-                  <Grid item xs={2}>
+                  <Grid size={2}>
                     <Typography
                       variant={"h6"}
                       style={{
@@ -762,14 +761,14 @@ function OddsScreen(props) {
                       {game.awayMoneyLine === "" ? "-" : game.awayMoneyLine}
                     </Typography>
                   </Grid>
-                  <Grid item xs={1} style={{ display: "flex", alignItems: "flex-end" }}>
+                  <Grid size={1} style={{ display: "flex", alignItems: "flex-end" }}>
                     <Typography variant={"h6"} style={{ textAlign: "left", fontSize: `${textSize}rem` }}>
                       O/U
                     </Typography>
                   </Grid>
                 </Grid>
                 <Grid container>
-                  <Grid item xs={1}>
+                  <Grid size={1}>
                     <Typography
                       variant={"h6"}
                       style={{
@@ -792,7 +791,7 @@ function OddsScreen(props) {
                       }
                     </Typography>
                   </Grid>
-                  <Grid item xs={5}>
+                  <Grid size={5}>
                     <div style={{ display: "flex", alignItems: "center" }}>
                       <Typography
                         variant={"h6"}
@@ -813,7 +812,7 @@ function OddsScreen(props) {
                       : null}
                     </div>
                   </Grid>
-                  <Grid item xs={1}>
+                  <Grid size={1}>
                     {game.homeScore ?
                       <Typography variant={"h6"} style={{ textAlign: "center", fontSize: `${textSize}rem` }}>
                         {game.homeScore}
@@ -843,8 +842,7 @@ function OddsScreen(props) {
                     }
                   </Grid>
                   <Grid
-                    item
-                    xs={1}
+                    size={1}
                     style={{
                       justifyContent: "center",
                       display: "flex",
@@ -871,7 +869,7 @@ function OddsScreen(props) {
                       {game.clock}
                     </Typography>
                   </Grid>
-                  <Grid item xs={1}>
+                  <Grid size={1}>
                     <Typography
                       variant={"h6"}
                       style={{ textAlign: "center", fontSize: `${textSize}rem` }}
@@ -884,7 +882,7 @@ function OddsScreen(props) {
                       {game.homeSpread === "" ? "-" : game.homeSpread}
                     </Typography>
                   </Grid>
-                  <Grid item xs={2}>
+                  <Grid size={2}>
                     <Typography
                       variant={"h6"}
                       style={{
@@ -894,7 +892,7 @@ function OddsScreen(props) {
                       {game.homeMoneyLine === "" ? "-" : game.homeMoneyLine}
                     </Typography>
                   </Grid>
-                  <Grid item xs={1}>
+                  <Grid size={1}>
                     <Typography
                       variant={"h6"}
                       style={{

@@ -254,7 +254,7 @@ const WeatherWidget = () => {
         }}>
         <Box>
           {dailyForecasts?.slice(1, 7).map((day, index) => (
-            <Box key={index} display="flex" justifyContent="space-between" alignItems="center" style={{ marginTop: 3 }}>
+            <Box key={index} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "3px" }}>
               <Typography
                 variant="p"
                 style={{
@@ -277,7 +277,7 @@ const WeatherWidget = () => {
                   textAlign: "right",
                   fontFamily: "'Baloo Bhaijaan', cursive",
                 }}>
-                {day.precipitationChance.toLocaleString("en-us", {
+                {(day.precipitationChance * 100).toLocaleString("en-us", {
                   maximumFractionDigits: 0,
                 })}
                 %

@@ -32,10 +32,12 @@ import LearnTerms from "./pages/learn-and-play/Terms.jsx";
 import TeslaDashboard from "./pages/tesla-dashboard/index.jsx";
 
 export default function App() {
+  const location = useLocation();
+  const isTeslaDashboard = location.pathname.startsWith("/tesla-dashboard");
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ScrollToTop />
-      <Navbar />
+      {!isTeslaDashboard && <Navbar />}
       <div style={{ flex: 1 }}>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -59,7 +61,7 @@ export default function App() {
           <Route path="/tesla-dashboard" element={<TeslaDashboard />} />
         </Routes>
       </div>
-      <Footer />
+      {!isTeslaDashboard && <Footer />}
     </div>
   );
 }
