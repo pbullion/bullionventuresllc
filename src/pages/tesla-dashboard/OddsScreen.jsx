@@ -141,7 +141,7 @@ function OddsScreen(props) {
           console.log(data);
           const filteredData = data
             .filter((x) => {
-              if ((x[0][0].includes("logo") || x[0][0].includes("ncaa")) && !x[0][0].includes("mlb")) return x;
+              if (x[0][0].includes("logo") || x[0][0].includes("ncaa")) return x;
             })
             .map((x) => x.splice(0, 1) && x)
             .map((league) => {
