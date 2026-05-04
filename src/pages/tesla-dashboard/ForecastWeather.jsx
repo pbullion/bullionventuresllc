@@ -254,7 +254,9 @@ const WeatherWidget = () => {
         }}>
         <Box>
           {dailyForecasts?.slice(1, 7).map((day, index) => (
-            <Box key={index} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "3px" }}>
+            <Box
+              key={index}
+              sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "3px" }}>
               <Typography
                 variant="p"
                 style={{
