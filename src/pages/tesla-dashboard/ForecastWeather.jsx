@@ -253,7 +253,7 @@ const WeatherWidget = () => {
           color: "white",
         }}>
         <Box>
-          {dailyForecasts?.slice(1, 7).map((day, index) => (
+          {dailyForecasts?.slice(0, 6).map((day, index) => (
             <Box
               key={index}
               sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "3px" }}>
@@ -279,10 +279,9 @@ const WeatherWidget = () => {
                   textAlign: "right",
                   fontFamily: "'Baloo Bhaijaan', cursive",
                 }}>
-                {(day.precipitationChance * 100).toLocaleString("en-us", {
-                  maximumFractionDigits: 0,
-                })}
-                %
+                {day.precipitationType !== "clear" ?
+                  `${(day.precipitationChance * 100).toLocaleString("en-us", { maximumFractionDigits: 0 })}%`
+                : "0%"}
               </Typography>
               <Typography
                 variant="p"
