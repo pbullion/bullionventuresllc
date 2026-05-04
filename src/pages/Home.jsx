@@ -4,14 +4,14 @@ import { Link } from 'react-router-dom';
 const products = [
   {
     emoji: '📋',
-    name: 'Debriefly',
+    name: 'debriefly',
     path: '/debriefly',
     description:
       'Your personal daily briefing app. Snap photos of schedules, let AI extract the dates and times, and get nightly and weekly summaries delivered as notifications.',
   },
   {
     emoji: '🌙',
-    name: 'Slumbr',
+    name: 'slumbr',
     path: '/slumbr',
     description:
       'A smart baby monitor app. Stream live video from baby\'s room to your phone, get noise alerts, and play from a library of 13+ built-in lullabies.',
@@ -25,7 +25,7 @@ const products = [
   },
   {
     emoji: '🧾',
-    name: 'Sales Tax Tracker',
+    name: 'Receipt Tax Tracker',
     path: '/receipt-tax-tracker',
     description:
       'AI-powered receipt scanner that extracts retailer, date, total, and tax info from photos. Track your year-to-date sales tax automatically.',
@@ -36,6 +36,13 @@ const products = [
     path: '/learn-and-play',
     description:
       'An educational mobile game for kids featuring Bubble Blast and Flashcard games. Learn animals, food, transportation and more through fun interactive gameplay.',
+  },
+  {
+    emoji: '🚗',
+    name: 'Tesla Dashboard',
+    path: '/tesla-dashboard',
+    description:
+      'A live sports and weather dashboard designed for Tesla\'s in-car browser. See real-time odds, upcoming games, local weather, and news at a glance.',
   },
 ];
 

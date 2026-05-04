@@ -1,31 +1,38 @@
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar.jsx';
-import Footer from './components/Footer.jsx';
+import React, { useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 
-import Home from './pages/Home.jsx';
-import DebrieflyHome from './pages/debriefly/Home.jsx';
-import DebrieflyPrivacy from './pages/debriefly/Privacy.jsx';
-import DebrieflySupport from './pages/debriefly/Support.jsx';
-import DebrieflyTerms from './pages/debriefly/Terms.jsx';
-import SlumbrHome from './pages/slumbr/Home.jsx';
-import SlumbrPrivacy from './pages/slumbr/Privacy.jsx';
-import SlumbrSupport from './pages/slumbr/Support.jsx';
-import MancaveHome from './pages/mancave-displays/Home.jsx';
-import MancavePrivacy from './pages/mancave-displays/Privacy.jsx';
-import MancaveSupport from './pages/mancave-displays/Support.jsx';
-import ReceiptHome from './pages/receipt-tax-tracker/Home.jsx';
-import ReceiptPrivacy from './pages/receipt-tax-tracker/Privacy.jsx';
-import ReceiptSupport from './pages/receipt-tax-tracker/Support.jsx';
-import LearnHome from './pages/learn-and-play/Home.jsx';
-import LearnPrivacy from './pages/learn-and-play/Privacy.jsx';
-import LearnSupport from './pages/learn-and-play/Support.jsx';
-import LearnTerms from './pages/learn-and-play/Terms.jsx';
-import TeslaDashboard from './pages/tesla-dashboard/index.jsx';
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
+import Navbar from "./components/Navbar.jsx";
+import Footer from "./components/Footer.jsx";
+
+import Home from "./pages/Home.jsx";
+import DebrieflyHome from "./pages/debriefly/Home.jsx";
+import DebrieflyPrivacy from "./pages/debriefly/Privacy.jsx";
+import DebrieflySupport from "./pages/debriefly/Support.jsx";
+import DebrieflyTerms from "./pages/debriefly/Terms.jsx";
+import SlumbrHome from "./pages/slumbr/Home.jsx";
+import SlumbrPrivacy from "./pages/slumbr/Privacy.jsx";
+import SlumbrSupport from "./pages/slumbr/Support.jsx";
+import MancaveHome from "./pages/mancave-displays/Home.jsx";
+import MancavePrivacy from "./pages/mancave-displays/Privacy.jsx";
+import MancaveSupport from "./pages/mancave-displays/Support.jsx";
+import ReceiptHome from "./pages/receipt-tax-tracker/Home.jsx";
+import ReceiptPrivacy from "./pages/receipt-tax-tracker/Privacy.jsx";
+import ReceiptSupport from "./pages/receipt-tax-tracker/Support.jsx";
+import LearnHome from "./pages/learn-and-play/Home.jsx";
+import LearnPrivacy from "./pages/learn-and-play/Privacy.jsx";
+import LearnSupport from "./pages/learn-and-play/Support.jsx";
+import LearnTerms from "./pages/learn-and-play/Terms.jsx";
+import TeslaDashboard from "./pages/tesla-dashboard/index.jsx";
 
 export default function App() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <ScrollToTop />
       <Navbar />
       <div style={{ flex: 1 }}>
         <Routes>

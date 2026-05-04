@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const APP_STORE_URL = 'https://apps.apple.com/app/slumbr/id6744504434';
+const APP_STORE_URL = 'https://apps.apple.com/us/app/slumbr-baby/id6764625978';
 
 export default function SlumbrHome() {
   return (

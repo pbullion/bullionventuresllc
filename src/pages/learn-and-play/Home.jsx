@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+const APP_STORE_URL = 'https://apps.apple.com/us/app/learn-play/id6758175596';
+
 const features = [
   {
     title: 'Bubble Blast',
@@ -66,6 +68,15 @@ export default function LearnHome() {
         <span style={styles.emoji}>🎮</span>
         <h1 style={styles.title}>Learn & Play!</h1>
         <p style={styles.tagline}>Educational Games for Kids</p>
+        <div style={{ marginTop: 28 }}>
+          <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+              alt="Download on the App Store"
+              style={{ height: 48 }}
+            />
+          </a>
+        </div>
       </div>
 
       <div style={styles.content}>

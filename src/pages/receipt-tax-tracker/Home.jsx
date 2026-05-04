@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+const APP_STORE_URL = 'https://apps.apple.com/us/app/receipt-tax-tracker/id6758107110';
+
 const features = [
   {
     title: 'Photo OCR',
@@ -64,8 +66,17 @@ export default function ReceiptHome() {
     <div style={styles.page}>
       <div style={styles.header}>
         <span style={styles.emoji}>🧾</span>
-        <h1 style={styles.title}>Sales Tax Tracker</h1>
+        <h1 style={styles.title}>Receipt Tax Tracker</h1>
         <p style={styles.tagline}>AI-Powered Receipt Scanner</p>
+        <div style={{ marginTop: 28 }}>
+          <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+              alt="Download on the App Store"
+              style={{ height: 48 }}
+            />
+          </a>
+        </div>
       </div>
 
       <div style={styles.content}>

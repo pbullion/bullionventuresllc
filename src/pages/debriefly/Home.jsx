@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+const APP_STORE_URL = 'https://apps.apple.com/us/app/debriefly/id6761771394';
+
 const features = [
   {
     title: 'Snap & Add Schedules',
@@ -106,7 +108,13 @@ export default function DebrieflyHome() {
         </div>
 
         <div style={styles.appStore}>
-          <p style={styles.appStoreText}>Available on the App Store</p>
+          <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+              alt="Download on the App Store"
+              style={{ height: 48 }}
+            />
+          </a>
         </div>
 
         <Link to="/" style={styles.backLink}>← Back to Home</Link>
