@@ -1,0 +1,48 @@
+/* LightFancyClock.css */
+
+.light-fancy-clock-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.react-clock {
+  width: 250px;
+  height: 250px;
+  background-color: #ffffff; /* White background for the clock face */
+  border-radius: 50%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1); /* Light shadow for subtle depth */
+  border: 3px solid #e0e0e0; /* Light gray border for a clean look */
+}
+
+.react-clock__mark.react-clock__mark__minute {
+  background-color: #b0b0b0; /* Light gray minute marks */
+}
+
+.react-clock__mark.react-clock__mark__hour {
+  background-color: #606060; /* Medium gray hour marks */
+}
+
+.react-clock__hand {
+  background-color: #333333; /* Dark gray hands */
+}
+
+.react-clock__hand.react-clock__second-hand {
+  background-color: #ff0000; /* Red second hand */
+}
+
+.react-clock__hand__point {
+  background-color: #ffffff; /* White center point */
+  border-radius: 50%;
+}
+
+.react-clock__center {
+  background-color: #333333; /* Dark gray center cap */
+  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  position: absolute;
+}

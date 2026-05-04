@@ -21,6 +21,7 @@ import LearnHome from './pages/learn-and-play/Home.jsx';
 import LearnPrivacy from './pages/learn-and-play/Privacy.jsx';
 import LearnSupport from './pages/learn-and-play/Support.jsx';
 import LearnTerms from './pages/learn-and-play/Terms.jsx';
+import TeslaDashboard from './pages/tesla-dashboard/index.jsx';
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/learn-and-play/privacy" element={<LearnPrivacy />} />
           <Route path="/learn-and-play/support" element={<LearnSupport />} />
           <Route path="/learn-and-play/terms" element={<LearnTerms />} />
+          <Route path="/tesla-dashboard" element={<TeslaDashboard />} />
         </Routes>
       </div>
       <Footer />

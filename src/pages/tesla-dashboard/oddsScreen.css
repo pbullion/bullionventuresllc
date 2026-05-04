@@ -1,0 +1,10 @@
+.truncate {
+  white-space: nowrap; /* Prevent text from wrapping to the next line */
+  overflow: hidden; /* Hide any overflowing text */
+}
+.textClass {
+  font-size: 1rem;
+}
+.MuiDialog-paper {
+  max-width: 40vw;
+}

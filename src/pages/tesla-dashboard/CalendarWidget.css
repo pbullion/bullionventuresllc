@@ -1,0 +1,49 @@
+.calendar-widget {
+  width: 200px; /* Reverted width adjustment */
+  background-color: #2c2c2e;
+  border-radius: 15px;
+  padding: 10px;
+  color: white;
+  font-family: Arial, sans-serif;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.calendar-header {
+  text-align: center; /* Center the header text within the widget */
+  font-size: 18px;
+  font-weight: bold;
+  color: red;
+  margin-bottom: 10px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr); /* 7 columns for days of the week */
+  gap: 5px;
+  justify-content: center; /* Center the grid within the widget */
+  align-items: start; /* Align items to the top of each column */
+}
+
+.calendar-day {
+  width: 23px;
+  height: 23px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: transparent;
+  color: white;
+  font-size: 15px;
+}
+
+.calendar-day-header {
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 5px; /* Add spacing between headers and days */
+}
+
+.calendar-day.current-day {
+  background-color: #ff3b30;
+  color: white;
+  font-weight: bold;
+}

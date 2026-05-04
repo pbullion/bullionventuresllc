@@ -1,0 +1,29 @@
+.date-time-widget {
+  color: #fff;
+  border-radius: 10px;
+  width: 250px;
+  text-align: center;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.clock-background {
+  background-color: #21ad44;
+  color: #fff;
+  border-radius: 10px;
+  padding: 15px;
+  width: 250px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+
+.date-time-value {
+  font-size: "2rem";
+  margin-top: 5px;
+}
+.react-clock {
+  border: 5px solid #ffffff; /* Change the outer circle color */
+  border-radius: 50%;
+  color: white;
+}
