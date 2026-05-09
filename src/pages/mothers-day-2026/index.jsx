@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const PETALS = [
   { e: "🌸", l: "4%", d: "0s", dur: "13s", s: "1.3rem" },
@@ -18,13 +18,6 @@ const PHOTOS = [
   "/images/spa/trellis3.png",
   "/images/spa/trellis4.png",
   "/images/spa/trellis6.png",
-];
-
-const SERVICES = [
-  { icon: "💆‍♀️", name: "Massage Therapy" },
-  { icon: "✨", name: "Luxury Facial" },
-  { icon: "🛁", name: "Body Ritual" },
-  { icon: "🍷", name: "Wine & Dining" },
 ];
 
 const CSS = `
@@ -412,18 +405,149 @@ const CSS = `
   .md-msg-divider { width: 42px; height: 1px; background: linear-gradient(to right, transparent, #b06aaf, transparent); margin: 0 auto 20px; }
   .md-msg-sig { font-family: 'Dancing Script', cursive; font-size: 27px; color: #9b3faa; font-weight: 600; }
 
-  /* ── Footer ──────────────────────────────────────────────── */
-  .md-footer {
-    background: #3a1248;
-    padding: 34px 24px;
+  /* ── Photo Tiles ───────────────────────────────────────── */
+  .md-photos-section {
+    padding: 52px 20px 60px;
+    background: #fdf5f9;
     text-align: center;
   }
-  .md-footer-text { color: rgba(245,198,232,0.45); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
-  .md-footer-star { color: #f9c0e0; font-size: 16px; }
+  .md-photos-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    max-width: 900px;
+    margin: 24px auto 0;
+  }
+  @media (min-width: 600px) {
+    .md-photos-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  }
+  .md-photo-tile {
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+  }
+  .md-photo-tile img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.25s;
+  }
+  .md-photo-tile:hover img { transform: scale(1.05); }
+
+  /* ── Lightbox ───────────────────────────────────────────── */
+  .md-lightbox {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.92);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    touch-action: pan-y;
+  }
+  .md-lightbox-img {
+    max-width: 96vw; max-height: 86vh;
+    border-radius: 10px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    user-select: none;
+    pointer-events: none;
+    transition: transform 0.2s;
+  }
+  .md-lightbox-hint {
+    color: rgba(255,255,255,0.4);
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 18px;
+  }
+  .md-lightbox-nav {
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.12);
+    border: none; border-radius: 50%;
+    width: 44px; height: 44px;
+    font-size: 20px; color: #fff;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .md-lightbox-prev { left: 12px; }
+  .md-lightbox-next { right: 12px; }
+  .md-lightbox-close {
+    position: absolute; top: 14px; right: 14px;
+    background: rgba(255,255,255,0.12); border: none; border-radius: 50%;
+    width: 38px; height: 38px; font-size: 18px; color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
 `;
+
+const FAMILY_PICS = [
+  "/mothers-day-2026/pics/IMG_0239 3.jpg",
+  "/mothers-day-2026/pics/IMG_0345.jpg",
+  "/mothers-day-2026/pics/IMG_0346.jpg",
+  "/mothers-day-2026/pics/IMG_0481.jpg",
+  "/mothers-day-2026/pics/IMG_0762.jpg",
+  "/mothers-day-2026/pics/IMG_0829.jpg",
+  "/mothers-day-2026/pics/IMG_0892.jpg",
+  "/mothers-day-2026/pics/IMG_0900.jpg",
+  "/mothers-day-2026/pics/IMG_0923.jpg",
+  "/mothers-day-2026/pics/IMG_0967.jpg",
+  "/mothers-day-2026/pics/IMG_1001.jpg",
+  "/mothers-day-2026/pics/IMG_1024.jpg",
+  "/mothers-day-2026/pics/IMG_1135.jpg",
+  "/mothers-day-2026/pics/IMG_1225.jpg",
+  "/mothers-day-2026/pics/IMG_1603.jpg",
+  "/mothers-day-2026/pics/IMG_1901.jpg",
+  "/mothers-day-2026/pics/IMG_2827.jpg",
+  "/mothers-day-2026/pics/IMG_2976.jpg",
+  "/mothers-day-2026/pics/IMG_3113.jpg",
+  "/mothers-day-2026/pics/IMG_3707.jpg",
+  "/mothers-day-2026/pics/IMG_4416.jpg",
+  "/mothers-day-2026/pics/IMG_4686.jpg",
+  "/mothers-day-2026/pics/IMG_4687.jpg",
+  "/mothers-day-2026/pics/4673379B-2676-44E3-9531-8CE2F1DE96BE.jpg",
+  "/mothers-day-2026/pics/FFA59120-2790-4177-9DE3-0B86350FDCFF.jpg",
+];
 
 export default function MothersDayGiftCard() {
   const [flipped, setFlipped] = useState(false);
+  const [lightbox, setLightbox] = useState(null); // index or null
+  const touchStartY = useRef(null);
+  const touchStartX = useRef(null);
+
+  function openLightbox(i) {
+    setLightbox(i);
+  }
+  function closeLightbox() {
+    setLightbox(null);
+  }
+  function prevPhoto() {
+    setLightbox((i) => (i - 1 + FAMILY_PICS.length) % FAMILY_PICS.length);
+  }
+  function nextPhoto() {
+    setLightbox((i) => (i + 1) % FAMILY_PICS.length);
+  }
+
+  function onTouchStart(e) {
+    touchStartY.current = e.touches[0].clientY;
+    touchStartX.current = e.touches[0].clientX;
+  }
+  function onTouchEnd(e) {
+    if (touchStartY.current === null) return;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (dy > 60 && Math.abs(dx) < Math.abs(dy)) {
+      closeLightbox();
+      return;
+    }
+    if (dx < -50 && Math.abs(dx) > Math.abs(dy)) {
+      nextPhoto();
+      return;
+    }
+    if (dx > 50 && Math.abs(dx) > Math.abs(dy)) {
+      prevPhoto();
+    }
+    touchStartY.current = null;
+    touchStartX.current = null;
+  }
 
   useEffect(() => {
     const style = document.createElement("style");
@@ -534,11 +658,49 @@ export default function MothersDayGiftCard() {
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="md-footer">
-        <div className="md-footer-text">Trellis Spa · The Houstonian · Houston, TX</div>
-        <div className="md-footer-star">✦</div>
-      </footer>
+      {/* ── Photo Tiles ── */}
+      <section className="md-photos-section">
+        <h2 className="md-section-title">Ashley & Thomas 💜</h2>
+        <div className="md-photos-grid">
+          {FAMILY_PICS.map((src, i) => (
+            <div key={src} className="md-photo-tile" onClick={() => openLightbox(i)}>
+              <img src={src} alt={`family photo ${i + 1}`} loading="lazy" />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Lightbox ── */}
+      {lightbox !== null && (
+        <div className="md-lightbox" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onClick={closeLightbox}>
+          <button className="md-lightbox-close" onClick={closeLightbox}>
+            ✕
+          </button>
+          <button
+            className="md-lightbox-nav md-lightbox-prev"
+            onClick={(e) => {
+              e.stopPropagation();
+              prevPhoto();
+            }}>
+            ‹
+          </button>
+          <img
+            className="md-lightbox-img"
+            src={FAMILY_PICS[lightbox]}
+            alt={`family photo ${lightbox + 1}`}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            className="md-lightbox-nav md-lightbox-next"
+            onClick={(e) => {
+              e.stopPropagation();
+              nextPhoto();
+            }}>
+            ›
+          </button>
+          <div className="md-lightbox-hint">swipe down to close · swipe left/right to browse</div>
+        </div>
+      )}
     </div>
   );
 }
