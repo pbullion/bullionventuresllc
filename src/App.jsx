@@ -30,14 +30,17 @@ import LearnPrivacy from "./pages/learn-and-play/Privacy.jsx";
 import LearnSupport from "./pages/learn-and-play/Support.jsx";
 import LearnTerms from "./pages/learn-and-play/Terms.jsx";
 import TeslaDashboard from "./pages/tesla-dashboard/index.jsx";
+import MothersDayGiftCard from "./pages/mothers-day-2026/index.jsx";
+import FarkleTracker from "./pages/farkle/index.jsx";
 
 export default function App() {
   const location = useLocation();
   const isTeslaDashboard = location.pathname.startsWith("/tesla-dashboard");
+  const isMothersDay = location.pathname.startsWith("/mothers-day-2026");
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ScrollToTop />
-      {!isTeslaDashboard && <Navbar />}
+      {!isTeslaDashboard && !isMothersDay && <Navbar />}
       <div style={{ flex: 1 }}>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -59,9 +62,11 @@ export default function App() {
           <Route path="/learn-and-play/support" element={<LearnSupport />} />
           <Route path="/learn-and-play/terms" element={<LearnTerms />} />
           <Route path="/tesla-dashboard" element={<TeslaDashboard />} />
+          <Route path="/mothers-day-2026" element={<MothersDayGiftCard />} />
+          <Route path="/farkle" element={<FarkleTracker />} />
         </Routes>
       </div>
-      {!isTeslaDashboard && <Footer />}
+      {!isTeslaDashboard && !isMothersDay && <Footer />}
     </div>
   );
 }

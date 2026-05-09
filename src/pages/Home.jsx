@@ -3,6 +3,13 @@ import { Link } from "react-router-dom";
 
 const products = [
   {
+    emoji: "🎲",
+    name: "Farkle Scorer",
+    path: "/farkle",
+    description:
+      "A digital score tracker for the classic dice game Farkle. Enter player names, set your dice with the visual pip display, and let it auto-calculate scores. First to 10,000 wins!",
+  },
+  {
     emoji: "📋",
     name: "debriefly",
     path: "/debriefly",
