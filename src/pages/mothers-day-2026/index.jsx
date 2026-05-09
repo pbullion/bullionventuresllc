@@ -180,7 +180,7 @@ const CSS = `
 
   /* ── Gift Card Section ───────────────────────────────────── */
   .md-gift-section {
-    padding: 52px 24px 52px;
+    padding: 0 24px 0;
     position: relative;
     z-index: 1;
     background: #fdf5f9;
@@ -452,13 +452,12 @@ export default function MothersDayGiftCard() {
       <section className="md-hero">
         <div className="md-hero-dots" />
         <h1 className="md-hero-title">Happy Mother's Day</h1>
-        <span className="md-hero-name">Ashley</span>
+        <span className="md-hero-name">MAMA</span>
         <p className="md-hero-sub">from the two who love you most</p>
       </section>
 
       {/* ── Gift Card ── */}
       <section className="md-gift-section">
-        <p className="md-section-label">Your Gift</p>
         <h2 className="md-section-title">A Day of Pure Bliss</h2>
 
         <div className="md-card-perspective">
