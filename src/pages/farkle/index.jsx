@@ -1,256 +1,10 @@
 import React, { useState } from "react";
 
 const WIN_SCORE = 10000;
-
-/* ─── Pip layout for each die face ─── */
-const PIP_MAP = {
-  1: [[1, 1]],
-  2: [
-    [0, 2],
-    [2, 0],
-  ],
-  3: [
-    [0, 2],
-    [1, 1],
-    [2, 0],
-  ],
-  4: [
-    [0, 0],
-    [0, 2],
-    [2, 0],
-    [2, 2],
-  ],
-  5: [
-    [0, 0],
-    [0, 2],
-    [1, 1],
-    [2, 0],
-    [2, 2],
-  ],
-  6: [
-    [0, 0],
-    [0, 2],
-    [1, 0],
-    [1, 2],
-    [2, 0],
-    [2, 2],
-  ],
-};
-
-/* ─── Score calculator ─── */
-function calcScore(values) {
-  if (!values.length) return { score: 0, parts: [] };
-  const counts = Array(7).fill(0);
-  values.forEach((v) => counts[v]++);
-
-  // Special 6-dice combos
-  if (values.length === 6) {
-    if (counts.slice(1).every((c) => c === 1)) return { score: 1500, parts: ["1–6 Straight!"] };
-    if (counts.slice(1).filter((c) => c === 2).length === 3) return { score: 1500, parts: ["Three Pairs!"] };
-  }
-
-  let score = 0;
-  const parts = [];
-  for (let f = 1; f <= 6; f++) {
-    const c = counts[f];
-    if (c >= 3) {
-      const base = f === 1 ? 1000 : f * 100;
-      const mult =
-        c === 3 ? 1
-        : c === 4 ? 2
-        : c === 5 ? 3
-        : 4;
-      const pts = base * mult;
-      score += pts;
-      const label = ["", "", "", "Triple", "4-of-a-kind", "5-of-a-kind", "6-of-a-kind"][c];
-      parts.push(`${label} ${f}s = ${pts}`);
-    } else {
-      if (f === 1 && c) {
-        score += c * 100;
-        parts.push(`${c}× 1 = ${c * 100}`);
-      }
-      if (f === 5 && c) {
-        score += c * 50;
-        parts.push(`${c}× 5 = ${c * 50}`);
-      }
-    }
-  }
-  return { score, parts };
-}
-
-/* ─── Best-keep finder (tries all 2^n subsets of free dice) ─── */
-function findBestKeep(diceList) {
-  const free = diceList.map((d, i) => ({ ...d, origIdx: i })).filter((d) => !d.locked);
-  if (!free.length) return new Set();
-  let best = { score: 0, indices: new Set() };
-  for (let mask = 1; mask < 1 << free.length; mask++) {
-    const sel = [],
-      vals = [];
-    for (let j = 0; j < free.length; j++) {
-      if (mask & (1 << j)) {
-        sel.push(free[j].origIdx);
-        vals.push(free[j].value);
-      }
-    }
-    const { score } = calcScore(vals);
-    if (score > best.score) best = { score, indices: new Set(sel) };
-  }
-  return best.indices;
-}
-
-/* ─── P(not farkling) with N dice remaining ─── */
-const ROLL_ODDS = [0, 33, 56, 72, 84, 92, 98];
-
-/* ─── Die face SVG-like pip display ─── */
-function DieFace({ value, size = 60, color = "#1e1b4b" }) {
-  const pips = PIP_MAP[value] || [];
-  const pip = Math.round(size * 0.17);
-  const pad = Math.round(size * 0.13);
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        padding: pad,
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gridTemplateRows: "repeat(3, 1fr)",
-        boxSizing: "border-box",
-      }}>
-      {Array.from({ length: 9 }, (_, i) => {
-        const r = Math.floor(i / 3),
-          c = i % 3;
-        const hasPip = pips.some(([pr, pc]) => pr === r && pc === c);
-        return (
-          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {hasPip && <div style={{ width: pip, height: pip, borderRadius: "50%", background: color }} />}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ─── Individual Die Card ─── */
-function DieCard({ die, onInc, onDec, onToggle, suggested }) {
-  const { value, kept, locked } = die;
-  const showSug = suggested && !kept && !locked;
-
-  const bg =
-    locked ? "#1e1734"
-    : kept ? "#fef3c7"
-    : showSug ? "#f0fdf4"
-    : "#ffffff";
-  const border =
-    locked ? "#3b2f6e"
-    : kept ? "#f59e0b"
-    : showSug ? "#22c55e"
-    : "#e5e7eb";
-  const pipColor =
-    locked ? "#6b5b95"
-    : kept ? "#92400e"
-    : showSug ? "#15803d"
-    : "#1e1b4b";
-  const arrowClr =
-    locked ? "#3b2f6e"
-    : kept ? "#b45309"
-    : showSug ? "#16a34a"
-    : "#9ca3af";
-  const shadow =
-    kept ? "0 0 18px rgba(245,158,11,0.35)"
-    : showSug ? "0 0 14px rgba(34,197,94,0.32)"
-    : "0 2px 8px rgba(0,0,0,0.1)";
-
-  const btnBase = {
-    background: "none",
-    border: "none",
-    color: arrowClr,
-    fontSize: 14,
-    cursor: locked ? "default" : "pointer",
-    padding: "2px 14px",
-    lineHeight: 1,
-    borderRadius: 4,
-  };
-
-  return (
-    <div
-      style={{
-        background: bg,
-        border: `2px solid ${border}`,
-        borderRadius: 12,
-        padding: "6px 6px 8px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4,
-        boxShadow: shadow,
-        transition: "all 0.15s",
-        userSelect: "none",
-      }}>
-      {/* ▲ increment */}
-      <button onClick={!locked ? onInc : undefined} style={btnBase} aria-label="increase">
-        ▲
-      </button>
-
-      {/* Pip face — tap to toggle keep */}
-      <div onClick={!locked ? onToggle : undefined} style={{ cursor: locked ? "default" : "pointer", borderRadius: 6 }}>
-        <DieFace value={value} size={60} color={pipColor} />
-      </div>
-
-      {/* ▼ decrement */}
-      <button onClick={!locked ? onDec : undefined} style={btnBase} aria-label="decrease">
-        ▼
-      </button>
-
-      {/* Keep toggle or locked badge */}
-      {locked ?
-        <div
-          style={{
-            fontSize: 9,
-            color: "#6b5b95",
-            letterSpacing: 1.5,
-            textTransform: "uppercase",
-            fontWeight: 700,
-          }}>
-          LOCKED
-        </div>
-      : <button
-          onClick={onToggle}
-          style={{
-            background:
-              kept ? "#f59e0b"
-              : showSug ? "#22c55e"
-              : "#f3f4f6",
-            color:
-              kept ? "#fff"
-              : showSug ? "#fff"
-              : "#6b7280",
-            border: "none",
-            borderRadius: 6,
-            padding: "4px 0",
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: 0.8,
-            cursor: "pointer",
-            width: "100%",
-            textTransform: "uppercase",
-          }}>
-          {kept ?
-            "✓ KEPT"
-          : showSug ?
-            "★ KEEP"
-          : "KEEP"}
-        </button>
-      }
-    </div>
-  );
-}
+const QUICK_ADD = [50, 100, 150, 200, 250, 300, 400, 500, 600, 1000, 1500, 2000, 2500, 3000];
 
 /* ─── Persistence ─── */
 const STORAGE_KEY = "farkle_game";
-function initDice() {
-  return Array.from({ length: 6 }, () => ({ value: 1, kept: false, locked: false }));
-}
 function loadSaved() {
   try {
     const r = localStorage.getItem(STORAGE_KEY);
@@ -267,21 +21,20 @@ export default function Farkle() {
   const [playerNames, setPlayerNames] = useState(saved?.playerNames ?? ["Player 1", "Player 2"]);
   const [scores, setScores] = useState(saved?.scores ?? []);
   const [currentIdx, setCurrentIdx] = useState(saved?.currentIdx ?? 0);
-  const [dice, setDice] = useState(() => saved?.dice ?? initDice());
-  const [turnBanked, setTurnBanked] = useState(saved?.turnBanked ?? 0);
+  const [turnScore, setTurnScore] = useState(saved?.turnScore ?? 0);
+  const [turnsTaken, setTurnsTaken] = useState(saved?.turnsTaken ?? []);
   const [flash, setFlash] = useState("");
   const [winnerIdx, setWinnerIdx] = useState(saved?.winnerIdx ?? null);
 
-  // Persist game state on every change (skip setup phase — nothing to save)
   React.useEffect(() => {
     if (phase === "setup") return;
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ phase, playerNames, scores, currentIdx, dice, turnBanked, winnerIdx }),
+        JSON.stringify({ phase, playerNames, scores, currentIdx, turnScore, turnsTaken, winnerIdx }),
       );
     } catch {}
-  }, [phase, playerNames, scores, currentIdx, dice, turnBanked, winnerIdx]);
+  }, [phase, playerNames, scores, currentIdx, turnScore, turnsTaken, winnerIdx]);
 
   function showFlash(msg) {
     setFlash(msg);
@@ -290,13 +43,12 @@ export default function Farkle() {
 
   const names = playerNames.map((n) => n.trim()).filter(Boolean);
 
-  /* ── Setup actions ── */
   function startGame() {
     if (names.length < 2) return;
     setScores(Array(names.length).fill(0));
     setCurrentIdx(0);
-    setDice(initDice());
-    setTurnBanked(0);
+    setTurnScore(0);
+    setTurnsTaken(Array(names.length).fill(0));
     setFlash("");
     setWinnerIdx(null);
     setPhase("playing");
@@ -314,78 +66,32 @@ export default function Farkle() {
     if (playerNames.length > 2) setPlayerNames((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  /* ── Playing computed values ── */
-  const keptValues = dice.filter((d) => d.kept && !d.locked).map((d) => d.value);
-  const { score: keptScore, parts: keptParts } = calcScore(keptValues);
-  const turnTotal = turnBanked + keptScore;
-
-  /* ── Suggestion + roll odds ── */
-  const suggestedIndices = findBestKeep(dice);
-  const remainingCount = dice.filter((d) => !d.locked && !d.kept).length;
-  const rollOdds = ROLL_ODDS[remainingCount] ?? 0;
-  const oddsColor =
-    rollOdds >= 80 ? "#4ade80"
-    : rollOdds >= 55 ? "#fbbf24"
-    : "#ef4444";
-
-  /* ── Dice actions ── */
-  function incDie(i) {
-    setDice((prev) => prev.map((d, idx) => (idx === i ? { ...d, value: d.value === 6 ? 1 : d.value + 1 } : d)));
+  function addToTurn(pts) {
+    setTurnScore((prev) => prev + pts);
   }
 
-  function decDie(i) {
-    setDice((prev) => prev.map((d, idx) => (idx === i ? { ...d, value: d.value === 1 ? 6 : d.value - 1 } : d)));
-  }
-
-  function toggleKept(i) {
-    setDice((prev) => prev.map((d, idx) => (idx === i ? { ...d, kept: !d.kept } : d)));
-  }
-
-  /* ── Turn actions ── */
   function doFarkle() {
-    showFlash(`🎲 Farkle! ${names[currentIdx]} scores 0 this turn.`);
+    showFlash(`Farkle! ${names[currentIdx]} scores 0 this turn.`);
     nextTurn(scores);
   }
 
-  function doKeepAndRoll() {
-    if (!keptScore) {
-      showFlash("Select at least one scoring die first!");
-      return;
-    }
-    const newBanked = turnBanked + keptScore;
-    const newDice = dice.map((d) => (d.kept && !d.locked ? { ...d, locked: true, kept: false } : d));
-    const allLocked = newDice.every((d) => d.locked);
-    if (allLocked) {
-      showFlash("🔥 Hot Dice! Roll all 6 again!");
-      setTurnBanked(newBanked);
-      setDice(initDice());
-    } else {
-      setTurnBanked(newBanked);
-      setDice(newDice);
-    }
-  }
-
   function doBankTurn() {
-    if (turnTotal <= 0) {
-      showFlash("No score to bank yet!");
-      return;
-    }
-    const newScores = scores.map((s, i) => (i === currentIdx ? s + turnTotal : s));
+    if (turnScore <= 0) return;
+    const newScores = scores.map((s, i) => (i === currentIdx ? s + turnScore : s));
     if (newScores[currentIdx] >= WIN_SCORE) {
       setScores(newScores);
       setWinnerIdx(currentIdx);
       setPhase("gameover");
       return;
     }
-    showFlash(`${names[currentIdx]} banked ${turnTotal.toLocaleString()} pts!`);
     nextTurn(newScores);
   }
 
   function nextTurn(updatedScores) {
     setScores(updatedScores);
+    setTurnsTaken((prev) => prev.map((t, i) => (i === currentIdx ? t + 1 : t)));
     setCurrentIdx((prev) => (prev + 1) % names.length);
-    setDice(initDice());
-    setTurnBanked(0);
+    setTurnScore(0);
   }
 
   function resetGame() {
@@ -394,29 +100,26 @@ export default function Farkle() {
     setPlayerNames(["Player 1", "Player 2"]);
     setScores([]);
     setCurrentIdx(0);
-    setDice(initDice());
-    setTurnBanked(0);
+    setTurnScore(0);
+    setTurnsTaken([]);
     setFlash("");
     setWinnerIdx(null);
   }
 
-  /* ─── Base page style ─── */
   const page = {
-    minHeight: "100%",
+    minHeight: "100vh",
     background: "#0f0f12",
     color: "#f0f0f5",
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    paddingBottom: 40,
+    display: "flex",
+    flexDirection: "column",
   };
 
-  /* ════════════════════════════════════════
-      SETUP PHASE
-  ════════════════════════════════════════ */
+  /* ══ SETUP ══ */
   if (phase === "setup") {
     return (
       <div style={page}>
         <div style={{ maxWidth: 480, margin: "0 auto", padding: "48px 20px" }}>
-          {/* Header */}
           <div style={{ textAlign: "center", marginBottom: 40 }}>
             <div style={{ fontSize: 56, marginBottom: 8 }}>🎲</div>
             <h1 style={{ fontSize: 36, fontWeight: 800, margin: "0 0 6px", color: "#fff", letterSpacing: "-0.5px" }}>
@@ -427,7 +130,6 @@ export default function Farkle() {
             </p>
           </div>
 
-          {/* Player setup */}
           <div style={{ background: "#1a1a2e", borderRadius: 16, padding: "24px 20px", marginBottom: 16 }}>
             <h2
               style={{
@@ -440,7 +142,6 @@ export default function Farkle() {
               }}>
               Players (2–8)
             </h2>
-
             {playerNames.map((name, i) => (
               <div key={i} style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                 <input
@@ -475,7 +176,6 @@ export default function Farkle() {
                 )}
               </div>
             ))}
-
             {playerNames.length < 8 && (
               <button
                 onClick={addPlayer}
@@ -495,7 +195,6 @@ export default function Farkle() {
             )}
           </div>
 
-          {/* Start button */}
           <button
             onClick={startGame}
             disabled={names.length < 2}
@@ -515,7 +214,6 @@ export default function Farkle() {
             Start Game →
           </button>
 
-          {/* Scoring reference */}
           <div style={{ background: "#1a1a2e", borderRadius: 12, padding: "16px 20px" }}>
             <h3
               style={{
@@ -551,22 +249,18 @@ export default function Farkle() {
     );
   }
 
-  /* ════════════════════════════════════════
-      GAME OVER PHASE
-  ════════════════════════════════════════ */
+  /* ══ GAME OVER ══ */
   if (phase === "gameover") {
     const sorted = names
       .map((name, i) => ({ name, score: scores[i], isWinner: i === winnerIdx }))
       .sort((a, b) => b.score - a.score);
     const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"];
-
     return (
       <div style={page}>
         <div style={{ maxWidth: 480, margin: "0 auto", padding: "48px 20px", textAlign: "center" }}>
           <div style={{ fontSize: 64, marginBottom: 8 }}>🏆</div>
           <h1 style={{ fontSize: 32, fontWeight: 800, color: "#fff", margin: "0 0 6px" }}>{names[winnerIdx]} Wins!</h1>
           <p style={{ color: "#606080", fontSize: 14, margin: "0 0 40px" }}>Reached {WIN_SCORE.toLocaleString()} points</p>
-
           <div style={{ background: "#1a1a2e", borderRadius: 16, overflow: "hidden", marginBottom: 24 }}>
             {sorted.map((p, i) => (
               <div
@@ -580,27 +274,15 @@ export default function Farkle() {
                   borderBottom: i < sorted.length - 1 ? "1px solid #2a2a45" : "none",
                 }}>
                 <span style={{ fontSize: 20, width: 28 }}>{medals[i]}</span>
-                <span
-                  style={{
-                    flex: 1,
-                    fontWeight: 600,
-                    textAlign: "left",
-                    color: p.isWinner ? "#a78bfa" : "#f0f0f5",
-                  }}>
+                <span style={{ flex: 1, fontWeight: 600, textAlign: "left", color: p.isWinner ? "#a78bfa" : "#f0f0f5" }}>
                   {p.name}
                 </span>
-                <span
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 800,
-                    color: p.isWinner ? "#a78bfa" : "#f0f0f5",
-                  }}>
+                <span style={{ fontSize: 18, fontWeight: 800, color: p.isWinner ? "#a78bfa" : "#f0f0f5" }}>
                   {p.score.toLocaleString()}
                 </span>
               </div>
             ))}
           </div>
-
           <button
             onClick={resetGame}
             style={{
@@ -621,61 +303,50 @@ export default function Farkle() {
     );
   }
 
-  /* ════════════════════════════════════════
-      PLAYING PHASE
-  ════════════════════════════════════════ */
+  /* ══ PLAYING ══ */
+  const leaderboardSorted = names
+    .map((name, i) => ({ name, score: scores[i], turns: turnsTaken[i] ?? 0, isCurrent: i === currentIdx }))
+    .sort((a, b) => b.score - a.score);
+  const leaderScore = leaderboardSorted[0]?.score ?? 0;
+  const maxTurns = leaderboardSorted.length > 0 ? Math.max(...leaderboardSorted.map((p) => p.turns)) : 0;
+
   return (
     <div style={page}>
-      {/* ── Scoreboard ── */}
-      <div
-        style={{
-          background: "#1a1a2e",
-          borderBottom: "1px solid #2a2a45",
-          padding: "10px 0",
-          overflowX: "auto",
-        }}>
+      {/* Scoreboard strip */}
+      <div style={{ background: "#1a1a2e", borderBottom: "1px solid #2a2a45", padding: "12px 16px" }}>
         <div
           style={{
             display: "flex",
-            gap: 8,
-            padding: "0 16px",
-            minWidth: "max-content",
-            margin: "0 auto",
-            justifyContent: names.length <= 4 ? "center" : "flex-start",
+            gap: 10,
+            width: "100%",
           }}>
           {names.map((name, i) => (
             <div
               key={i}
               style={{
+                flex: 1,
                 background: i === currentIdx ? "#6c63ff" : "#0f0f12",
                 border: `1px solid ${i === currentIdx ? "#6c63ff" : "#2a2a45"}`,
-                borderRadius: 10,
-                padding: "7px 14px",
+                borderRadius: 12,
+                padding: "10px 8px",
                 textAlign: "center",
-                minWidth: 80,
                 transition: "all 0.2s",
               }}>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: 600,
                   letterSpacing: 0.5,
                   textTransform: "uppercase",
-                  marginBottom: 2,
+                  marginBottom: 4,
                   color: i === currentIdx ? "rgba(255,255,255,0.75)" : "#606080",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
-                  maxWidth: 90,
                 }}>
                 {name}
               </div>
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 800,
-                  color: i === currentIdx ? "#fff" : "#f0f0f5",
-                }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: i === currentIdx ? "#fff" : "#f0f0f5" }}>
                 {scores[i].toLocaleString()}
               </div>
             </div>
@@ -683,54 +354,15 @@ export default function Farkle() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 520, margin: "0 auto", padding: "0 12px" }}>
-        {/* ── Turn info ── */}
+      <div style={{ padding: "0 20px" }}>
+        {/* Turn info */}
         <div style={{ textAlign: "center", padding: "14px 0 10px" }}>
           <div style={{ fontSize: 14, color: "#a0a0b8", marginBottom: 10 }}>
             <strong style={{ color: "#fff" }}>{names[currentIdx]}</strong>'s Turn
           </div>
-          <div style={{ display: "flex", justifyContent: "center", gap: 0 }}>
-            {[
-              { label: "Banked", value: turnBanked, color: turnBanked > 0 ? "#4ade80" : "#2a2a45" },
-              { label: "Selected", value: keptScore, color: keptScore > 0 ? "#fbbf24" : "#2a2a45" },
-              { label: "Turn Total", value: turnTotal, color: turnTotal > 0 ? "#ffffff" : "#2a2a45" },
-            ].map(({ label, value, color }, i) => (
-              <React.Fragment key={label}>
-                {i > 0 && <div style={{ width: 1, background: "#2a2a45", margin: "0 16px" }} />}
-                <div style={{ textAlign: "center", minWidth: 70 }}>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "#606080",
-                      textTransform: "uppercase",
-                      letterSpacing: 1,
-                      marginBottom: 2,
-                    }}>
-                    {label}
-                  </div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color }}>{value.toLocaleString()}</div>
-                </div>
-              </React.Fragment>
-            ))}
-          </div>
         </div>
 
-        {/* ── Score breakdown ── */}
-        {keptParts.length > 0 && (
-          <div
-            style={{
-              background: "rgba(251,191,36,0.08)",
-              border: "1px solid rgba(251,191,36,0.2)",
-              borderRadius: 10,
-              padding: "8px 14px",
-              marginBottom: 10,
-              textAlign: "center",
-            }}>
-            <span style={{ fontSize: 12, color: "#fbbf24" }}>{keptParts.join("  +  ")}</span>
-          </div>
-        )}
-
-        {/* ── Flash message ── */}
+        {/* Flash */}
         {flash && (
           <div
             style={{
@@ -747,120 +379,222 @@ export default function Farkle() {
           </div>
         )}
 
-        {/* ── Dice grid ── */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 10,
-            marginBottom: 14,
-          }}>
-          {dice.map((die, i) => (
-            <DieCard
-              key={i}
-              die={die}
-              onInc={() => incDie(i)}
-              onDec={() => decDie(i)}
-              onToggle={() => toggleKept(i)}
-              suggested={suggestedIndices.has(i)}
-            />
-          ))}
-        </div>
-
-        {/* ── Roll probability banner ── */}
-        {remainingCount > 0 && (
+        {/* Three-column layout: scoring ref | score entry | leaderboard */}
+        <div style={{ display: "flex", gap: 20, alignItems: "flex-start", width: "100%" }}>
+          {/* Scoring reference panel */}
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
               background: "#1a1a2e",
               border: "1px solid #2a2a45",
-              borderRadius: 10,
-              padding: "8px 14px",
-              marginBottom: 10,
+              borderRadius: 12,
+              padding: "14px 16px",
+              minWidth: 150,
+              flexShrink: 0,
             }}>
-            <span style={{ fontSize: 12, color: "#606080" }}>
-              Keep &amp; roll{" "}
-              <strong style={{ color: "#a0a0b8" }}>
-                {remainingCount} {remainingCount === 1 ? "die" : "dice"}
-              </strong>
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 800, color: oddsColor }}>{rollOdds}% to score</span>
+            <div
+              style={{
+                fontSize: 10,
+                color: "#606080",
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                fontWeight: 600,
+                marginBottom: 10,
+              }}>
+              Scoring
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 7, columnGap: 12 }}>
+              {[
+                ["Single 1", "100"],
+                ["Single 5", "50"],
+                ["Triple 1s", "300"],
+                ["Triple 2–6", "N×100"],
+                ["4 of a kind", "1,000"],
+                ["5 of a kind", "2,000"],
+                ["6 of a kind", "3,000"],
+                ["1–6 Straight", "1,500"],
+                ["3 Pairs", "1,500"],
+                ["4 + pair", "1,500"],
+                ["2 Triplets", "2,500"],
+              ].map(([rule, pts]) => (
+                <React.Fragment key={rule}>
+                  <span style={{ fontSize: 20, color: "#a0a0b8", fontWeight: 500 }}>{rule}</span>
+                  <span style={{ fontSize: 20, color: "#f0f0f5", fontWeight: 500, textAlign: "right" }}>{pts}</span>
+                </React.Fragment>
+              ))}
+            </div>
           </div>
-        )}
 
-        {/* ── Action buttons ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
-          {/* Farkle */}
-          <button
-            onClick={doFarkle}
-            style={{
-              background: "#2a1a1a",
-              border: "1px solid #ef4444",
-              borderRadius: 12,
-              color: "#ef4444",
-              padding: "12px 6px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-            }}>
-            <span style={{ fontSize: 22 }}>🎲</span>
-            <span>Farkle!</span>
-          </button>
+          {/* Score entry panel */}
+          <div style={{ flex: 1 }}>
+            {/* Turn score display */}
+            <div
+              style={{
+                background: turnScore > 0 ? "#2a1e00" : "#1a1a2e",
+                border: `2px solid ${turnScore > 0 ? "#f59e0b" : "#2a2a45"}`,
+                borderRadius: 16,
+                padding: "18px 20px",
+                textAlign: "center",
+                marginBottom: 12,
+              }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#606080",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  fontWeight: 600,
+                  marginBottom: 6,
+                }}>
+                Turn Score
+              </div>
+              <div style={{ fontSize: 48, fontWeight: 900, color: turnScore > 0 ? "#f59e0b" : "#2a2a45", lineHeight: 1 }}>
+                {turnScore.toLocaleString()}
+              </div>
+              {turnScore > 0 && (
+                <button
+                  onClick={() => setTurnScore(0)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#604020",
+                    fontSize: 11,
+                    cursor: "pointer",
+                    marginTop: 6,
+                    textDecoration: "underline",
+                  }}>
+                  clear
+                </button>
+              )}
+            </div>
 
-          {/* Keep & Roll */}
-          <button
-            onClick={doKeepAndRoll}
-            style={{
-              background: keptScore > 0 ? "#1a1a3e" : "#1a1a2e",
-              border: `1px solid ${keptScore > 0 ? "#6c63ff" : "#2a2a45"}`,
-              borderRadius: 12,
-              color: keptScore > 0 ? "#a78bfa" : "#404060",
-              padding: "12px 6px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: keptScore > 0 ? "pointer" : "default",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-            }}>
-            <span style={{ fontSize: 22 }}>🔒</span>
-            <span>Keep &amp; Roll</span>
-          </button>
+            {/* Quick-add grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
+              {QUICK_ADD.map((pts) => (
+                <button
+                  key={pts}
+                  onClick={() => addToTurn(pts)}
+                  style={{
+                    background: "#1e1e32",
+                    border: "1px solid #2a2a45",
+                    borderRadius: 10,
+                    color: "#c0c0d8",
+                    padding: 25,
+                    fontSize: 25,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}>
+                  +{pts >= 1000 ? `${pts / 1000}k` : pts}
+                </button>
+              ))}
+            </div>
 
-          {/* Bank */}
-          <button
-            onClick={doBankTurn}
+            {/* Action buttons */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <button
+                onClick={doFarkle}
+                style={{
+                  background: "#2a1a1a",
+                  border: "2px solid #ef4444",
+                  borderRadius: 14,
+                  color: "#ef4444",
+                  padding: "20px 6px",
+                  fontSize: 20,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}>
+                Farkle!
+              </button>
+              <button
+                onClick={doBankTurn}
+                disabled={turnScore <= 0}
+                style={{
+                  background: turnScore > 0 ? "#1a3a1a" : "#1a1a2e",
+                  border: `2px solid ${turnScore > 0 ? "#4ade80" : "#2a2a45"}`,
+                  borderRadius: 14,
+                  color: turnScore > 0 ? "#4ade80" : "#404060",
+                  padding: "20px 6px",
+                  fontSize: 20,
+                  fontWeight: 700,
+                  cursor: turnScore > 0 ? "pointer" : "default",
+                }}>
+                {turnScore > 0 ? `Bank ${turnScore.toLocaleString()}` : "Bank"}
+              </button>
+            </div>
+          </div>
+
+          {/* Leaderboard panel */}
+          <div
             style={{
-              background: turnTotal > 0 ? "#1a3a1a" : "#1a1a2e",
-              border: `1px solid ${turnTotal > 0 ? "#4ade80" : "#2a2a45"}`,
+              background: "#1a1a2e",
+              border: "1px solid #2a2a45",
               borderRadius: 12,
-              color: turnTotal > 0 ? "#4ade80" : "#404060",
-              padding: "12px 6px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: turnTotal > 0 ? "pointer" : "default",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
+              padding: "20px 24px",
+              width: 260,
+              flexShrink: 0,
             }}>
-            <span style={{ fontSize: 22 }}>✅</span>
-            <span>Bank {turnTotal > 0 ? turnTotal.toLocaleString() : ""}</span>
-          </button>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#606080",
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                fontWeight: 600,
+                marginBottom: 14,
+              }}>
+              Standings
+            </div>
+            {leaderboardSorted.map((p, rank) => {
+              const ptsBehind = leaderScore - p.score;
+              const turnsBehind = maxTurns - p.turns;
+              return (
+                <div
+                  key={p.name}
+                  style={{
+                    padding: "9px 0",
+                    borderBottom: rank < leaderboardSorted.length - 1 ? "1px solid #2a2a45" : "none",
+                  }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                      <span style={{ fontSize: 13, color: "#404060", width: 16, flexShrink: 0 }}>{rank + 1}</span>
+                      <span
+                        style={{
+                          fontSize: 16,
+                          fontWeight: p.isCurrent ? 700 : 500,
+                          color: p.isCurrent ? "#a78bfa" : "#c0c0d8",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          maxWidth: 100,
+                        }}>
+                        {p.name}
+                      </span>
+                    </div>
+                    <span
+                      style={{ fontSize: 18, fontWeight: 800, color: p.isCurrent ? "#a78bfa" : "#f0f0f5", flexShrink: 0 }}>
+                      {p.score.toLocaleString()}
+                    </span>
+                  </div>
+                  {rank > 0 && (ptsBehind > 0 || turnsBehind > 0) && (
+                    <div style={{ paddingLeft: 21, marginTop: 3, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {ptsBehind > 0 && (
+                        <span style={{ fontSize: 12, color: "#ef4444" }}>-{ptsBehind.toLocaleString()} pts</span>
+                      )}
+                      {turnsBehind > 0 && (
+                        <span style={{ fontSize: 12, color: "#f59e0b" }}>
+                          {ptsBehind > 0 ? "· " : ""}
+                          {turnsBehind} turn{turnsBehind > 1 ? "s" : ""} behind
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* ── Help / New game ── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: "#404060", lineHeight: 1.6 }}>
-            ▲▼ set value&nbsp;&nbsp;•&nbsp;&nbsp;tap pip or KEEP to select
-          </span>
+        {/* New game link */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
           <button
             onClick={resetGame}
             style={{

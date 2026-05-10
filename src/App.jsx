@@ -37,11 +37,13 @@ export default function App() {
   const location = useLocation();
   const isTeslaDashboard = location.pathname.startsWith("/tesla-dashboard");
   const isMothersDay = location.pathname.startsWith("/mothers-day-2026");
+  const isFarkle = location.pathname.startsWith("/farkle");
+  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle;
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ScrollToTop />
-      {!isTeslaDashboard && !isMothersDay && <Navbar />}
-      <div style={{ flex: 1 }}>
+      {!hideChrome && <Navbar />}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/debriefly" element={<DebrieflyHome />} />
@@ -66,7 +68,7 @@ export default function App() {
           <Route path="/farkle" element={<FarkleTracker />} />
         </Routes>
       </div>
-      {!isTeslaDashboard && !isMothersDay && <Footer />}
+      {!hideChrome && <Footer />}
     </div>
   );
 }
