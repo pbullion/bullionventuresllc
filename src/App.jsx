@@ -32,13 +32,18 @@ import LearnTerms from "./pages/learn-and-play/Terms.jsx";
 import TeslaDashboard from "./pages/tesla-dashboard/index.jsx";
 import MothersDayGiftCard from "./pages/mothers-day-2026/index.jsx";
 import FarkleTracker from "./pages/farkle/index.jsx";
+import ZargleHome from "./pages/zargle/Home.jsx";
+import ZarglePrivacy from "./pages/zargle/Privacy.jsx";
+import ZargleSupport from "./pages/zargle/Support.jsx";
+import ZargleTerms from "./pages/zargle/Terms.jsx";
 
 export default function App() {
   const location = useLocation();
   const isTeslaDashboard = location.pathname.startsWith("/tesla-dashboard");
   const isMothersDay = location.pathname.startsWith("/mothers-day-2026");
   const isFarkle = location.pathname.startsWith("/farkle");
-  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle;
+  const isZargle = location.pathname.startsWith("/zargle");
+  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle;
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ScrollToTop />
@@ -66,6 +71,10 @@ export default function App() {
           <Route path="/tesla-dashboard" element={<TeslaDashboard />} />
           <Route path="/mothers-day-2026" element={<MothersDayGiftCard />} />
           <Route path="/farkle" element={<FarkleTracker />} />
+          <Route path="/zargle" element={<ZargleHome />} />
+          <Route path="/zargle/privacy" element={<ZarglePrivacy />} />
+          <Route path="/zargle/support" element={<ZargleSupport />} />
+          <Route path="/zargle/terms" element={<ZargleTerms />} />
         </Routes>
       </div>
       {!hideChrome && <Footer />}
