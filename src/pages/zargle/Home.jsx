@@ -132,7 +132,7 @@ export default function ZargleHome() {
           <span style={s.badge}>2–8 Players</span>
           <span style={s.badge}>Free</span>
         </div>
-        <a href="https://apps.apple.com/us/app/zargle/id0000000000" style={s.ctaBtn}>
+        <a href="https://apps.apple.com/us/app/zargle/id6769046324" style={s.ctaBtn}>
           Download on the App Store
         </a>
       </div>
@@ -177,7 +177,7 @@ export default function ZargleHome() {
           <p style={{ fontSize: 15, color: "#a0a0b8", marginBottom: 24, lineHeight: 1.7 }}>
             Zargle is free to download. Create an account, challenge your friends, and start rolling.
           </p>
-          <a href="https://apps.apple.com/us/app/zargle/id0000000000" style={s.ctaBtn}>
+          <a href="https://apps.apple.com/us/app/zargle/id6769046324" style={s.ctaBtn}>
             Get Zargle — Free
           </a>
         </div>
