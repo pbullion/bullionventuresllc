@@ -36,6 +36,10 @@ import ZargleHome from "./pages/zargle/Home.jsx";
 import ZarglePrivacy from "./pages/zargle/Privacy.jsx";
 import ZargleSupport from "./pages/zargle/Support.jsx";
 import ZargleTerms from "./pages/zargle/Terms.jsx";
+import EliteEdgeAdmin from "./pages/elite-edge/AdminScreen.jsx";
+import EliteEdgeBets from "./pages/elite-edge/AccountScreen.jsx";
+import Palladium2026Privacy from "./pages/palladium-2026/Privacy.jsx";
+import Palladium2026Support from "./pages/palladium-2026/Support.jsx";
 
 export default function App() {
   const location = useLocation();
@@ -43,7 +47,8 @@ export default function App() {
   const isMothersDay = location.pathname.startsWith("/mothers-day-2026");
   const isFarkle = location.pathname.startsWith("/farkle");
   const isZargle = location.pathname.startsWith("/zargle");
-  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle;
+  const isEliteEdge = location.pathname.startsWith("/elite-edge");
+  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isEliteEdge;
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ScrollToTop />
@@ -75,6 +80,10 @@ export default function App() {
           <Route path="/zargle/privacy" element={<ZarglePrivacy />} />
           <Route path="/zargle/support" element={<ZargleSupport />} />
           <Route path="/zargle/terms" element={<ZargleTerms />} />
+          <Route path="/elite-edge/admin" element={<EliteEdgeAdmin />} />
+          <Route path="/elite-edge/bets" element={<EliteEdgeBets />} />
+          <Route path="/palladium-2026/privacy" element={<Palladium2026Privacy />} />
+          <Route path="/palladium-2026/support" element={<Palladium2026Support />} />
         </Routes>
       </div>
       {!hideChrome && <Footer />}
