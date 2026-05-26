@@ -18,7 +18,15 @@ const styles = {
   },
   emoji: { fontSize: 56, display: "block", marginBottom: 20 },
   title: { fontSize: 40, fontWeight: 800, margin: "0 0 12px", color: "#ffffff", letterSpacing: "-0.5px" },
-  tagline: { fontSize: 18, color: "#7abfa0", margin: "0 0 32px", maxWidth: 480, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 },
+  tagline: {
+    fontSize: 18,
+    color: "#7abfa0",
+    margin: "0 0 32px",
+    maxWidth: 480,
+    marginLeft: "auto",
+    marginRight: "auto",
+    lineHeight: 1.6,
+  },
   subNav: {
     display: "flex",
     justifyContent: "center",
@@ -62,11 +70,31 @@ const styles = {
 };
 
 const features = [
-  { emoji: "✈️", title: "Flights", desc: "All three family flight itineraries in one place — departures, arrivals, and flight numbers." },
-  { emoji: "🏨", title: "Resort Info", desc: "Grand Palladium Costa Mujeres details, interactive resort map, and what's different for the Family Select side." },
-  { emoji: "🍽️", title: "Dining & Drinks", desc: "Browse all restaurants and bars at the resort with hours, cuisine type, and reservation tips." },
-  { emoji: "🌤️", title: "Cancún Weather", desc: "Live daily forecast for Cancún during the trip — highs, lows, and rain chances." },
-  { emoji: "👨‍👩‍👧‍👦", title: "Family Profiles", desc: "Select your family (Bullions, Angelles, or Hays) to get personalized info for your section of the resort." },
+  {
+    emoji: "✈️",
+    title: "Flights",
+    desc: "All three family flight itineraries in one place — departures, arrivals, and flight numbers.",
+  },
+  {
+    emoji: "🏨",
+    title: "Resort Info",
+    desc: "Grand Palladium Costa Mujeres details, interactive resort map, and what's different for the Family Select side.",
+  },
+  {
+    emoji: "🍽️",
+    title: "Dining & Drinks",
+    desc: "Browse all restaurants and bars at the resort with hours, cuisine type, and reservation tips.",
+  },
+  {
+    emoji: "🌤️",
+    title: "Cancún Weather",
+    desc: "Live daily forecast for Cancún during the trip — highs, lows, and rain chances.",
+  },
+  {
+    emoji: "👨‍👩‍👧‍👦",
+    title: "Family Profiles",
+    desc: "Select your family (Bullions, Angelles, or Hays) to get personalized info for your section of the resort.",
+  },
   { emoji: "📅", title: "Countdown", desc: "See how many days until the trip right from the home screen." },
 ];
 
@@ -77,7 +105,11 @@ export default function Palladium2026Home() {
         <span style={styles.emoji}>🌴</span>
         <h1 style={styles.title}>Palladium 2026</h1>
         <p style={styles.tagline}>A private trip companion for our Cancún vacation at Grand Palladium Costa Mujeres.</p>
-        <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginBottom: 28 }}>
+        <a
+          href={APP_STORE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "inline-block", marginBottom: 28 }}>
           <img
             src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
             alt="Download on the App Store"
@@ -85,8 +117,12 @@ export default function Palladium2026Home() {
           />
         </a>
         <div style={styles.subNav}>
-          <Link to="/palladium-2026/privacy" style={styles.subNavLink}>Privacy Policy</Link>
-          <Link to="/palladium-2026/support" style={styles.subNavLink}>Support</Link>
+          <Link to="/palladium-2026/privacy" style={styles.subNavLink}>
+            Privacy Policy
+          </Link>
+          <Link to="/palladium-2026/support" style={styles.subNavLink}>
+            Support
+          </Link>
         </div>
       </div>
 
@@ -101,8 +137,6 @@ export default function Palladium2026Home() {
             </div>
           ))}
         </div>
-
-
       </div>
     </div>
   );

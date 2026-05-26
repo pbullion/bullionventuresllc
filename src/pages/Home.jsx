@@ -139,15 +139,9 @@ export default function Home() {
                 flexDirection: "column",
                 gap: 12,
               }}>
-              {p.icon ? (
-                <img
-                  src={p.icon}
-                  alt={p.name}
-                  style={{ width: 64, height: 64, borderRadius: 14, objectFit: "cover" }}
-                />
-              ) : (
-                <div style={{ fontSize: 40 }}>{p.emoji}</div>
-              )}
+              {p.icon ?
+                <img src={p.icon} alt={p.name} style={{ width: 64, height: 64, borderRadius: 14, objectFit: "cover" }} />
+              : <div style={{ fontSize: 40 }}>{p.emoji}</div>}
               <h3 style={{ fontSize: 20, fontWeight: 700, color: "#ffffff", margin: 0 }}>{p.name}</h3>
               <p style={{ fontSize: 14, color: "#a0a0b8", lineHeight: 1.65, margin: 0, flex: 1 }}>{p.description}</p>
               <Link
