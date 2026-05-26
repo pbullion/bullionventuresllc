@@ -3,53 +3,67 @@ import { Link } from "react-router-dom";
 
 const products = [
   {
+    icon: "/images/app-icons/tesla.svg",
+    name: "Tesla Dashboard",
+    path: "/tesla-dashboard",
+    description:
+      "A live sports and weather dashboard designed for Tesla's in-car browser. See real-time odds, upcoming games, local weather, and news at a glance.",
+  },
+  {
+    icon: "/images/app-icons/palladium-2026.png",
+    name: "Cancún Trip Planner",
+    path: "/palladium-2026",
+    description:
+      "A private trip companion app for our Cancún vacation at Grand Palladium Costa Mujeres. Flights, resort maps, dining, and itinerary — all in one place for the three families.",
+  },
+  {
+    icon: "/images/app-icons/zargle.png",
+    name: "Zargle",
+    path: "/zargle",
+    description:
+      "Async multiplayer Farkle on your phone. Challenge friends, take turns on your own time, and race to 10,000 points. Push notifications fire when it's your turn.",
+  },
+  {
     emoji: "🎲",
     name: "Farkle Scorer",
     path: "/farkle",
     description:
-      "A digital score tracker for the classic dice game Farkle. Enter player names, set your dice with the visual pip display, and let it auto-calculate scores. First to 10,000 wins!",
+      "A digital score tracker for the classic dice game Farkle. Enter player names, add your points with quick-tap buttons, and track everyone's score. First to 10,000 wins!",
   },
   {
-    emoji: "📋",
+    icon: "/images/app-icons/debriefly.png",
     name: "debriefly",
     path: "/debriefly",
     description:
       "Your personal daily briefing app. Snap photos of schedules, let AI extract the dates and times, and get nightly and weekly summaries delivered as notifications.",
   },
   {
-    emoji: "🌙",
+    icon: "/images/app-icons/slumbr.png",
     name: "slumbr",
     path: "/slumbr",
     description:
       "A smart baby monitor app. Stream live video from baby's room to your phone, get noise alerts, and play from a library of 13+ built-in lullabies.",
   },
   {
-    emoji: "📺",
+    icon: "/images/app-icons/mancave.png",
     name: "Mancave Displays",
     path: "/mancave-displays",
     description:
       "Live sports odds displays and LED sports tickers for your space. Show real-time betting lines and live scores on a dedicated screen or LED matrix wall.",
   },
   {
-    emoji: "🧾",
+    icon: "/images/app-icons/receipt-tracker.png",
     name: "Receipt Tax Tracker",
     path: "/receipt-tax-tracker",
     description:
       "AI-powered receipt scanner that extracts retailer, date, total, and tax info from photos. Track your year-to-date sales tax automatically.",
   },
   {
-    emoji: "🎮",
+    icon: "/images/app-icons/learn-and-play.png",
     name: "Learn & Play!",
     path: "/learn-and-play",
     description:
       "An educational mobile game for kids featuring Bubble Blast and Flashcard games. Learn animals, food, transportation and more through fun interactive gameplay.",
-  },
-  {
-    emoji: "🚗",
-    name: "Tesla Dashboard",
-    path: "/tesla-dashboard",
-    description:
-      "A live sports and weather dashboard designed for Tesla's in-car browser. See real-time odds, upcoming games, local weather, and news at a glance.",
   },
 ];
 
@@ -125,7 +139,15 @@ export default function Home() {
                 flexDirection: "column",
                 gap: 12,
               }}>
-              <div style={{ fontSize: 40 }}>{p.emoji}</div>
+              {p.icon ? (
+                <img
+                  src={p.icon}
+                  alt={p.name}
+                  style={{ width: 64, height: 64, borderRadius: 14, objectFit: "cover" }}
+                />
+              ) : (
+                <div style={{ fontSize: 40 }}>{p.emoji}</div>
+              )}
               <h3 style={{ fontSize: 20, fontWeight: 700, color: "#ffffff", margin: 0 }}>{p.name}</h3>
               <p style={{ fontSize: 14, color: "#a0a0b8", lineHeight: 1.65, margin: 0, flex: 1 }}>{p.description}</p>
               <Link

@@ -38,6 +38,7 @@ import ZargleSupport from "./pages/zargle/Support.jsx";
 import ZargleTerms from "./pages/zargle/Terms.jsx";
 import EliteEdgeAdmin from "./pages/elite-edge/AdminScreen.jsx";
 import EliteEdgeBets from "./pages/elite-edge/AccountScreen.jsx";
+import Palladium2026Home from "./pages/palladium-2026/Home.jsx";
 import Palladium2026Privacy from "./pages/palladium-2026/Privacy.jsx";
 import Palladium2026Support from "./pages/palladium-2026/Support.jsx";
 
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/zargle/terms" element={<ZargleTerms />} />
           <Route path="/elite-edge/admin" element={<EliteEdgeAdmin />} />
           <Route path="/elite-edge/bets" element={<EliteEdgeBets />} />
+          <Route path="/palladium-2026" element={<Palladium2026Home />} />
           <Route path="/palladium-2026/privacy" element={<Palladium2026Privacy />} />
           <Route path="/palladium-2026/support" element={<Palladium2026Support />} />
         </Routes>
