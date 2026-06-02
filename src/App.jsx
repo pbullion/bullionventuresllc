@@ -41,6 +41,9 @@ import EliteEdgeBets from "./pages/elite-edge/AccountScreen.jsx";
 import Palladium2026Home from "./pages/palladium-2026/Home.jsx";
 import Palladium2026Privacy from "./pages/palladium-2026/Privacy.jsx";
 import Palladium2026Support from "./pages/palladium-2026/Support.jsx";
+import WeddingPhotosHome from "./pages/wedding-photos/Home.jsx";
+import WeddingPhotosPrivacy from "./pages/wedding-photos/Privacy.jsx";
+import WeddingPhotosSupport from "./pages/wedding-photos/Support.jsx";
 
 export default function App() {
   const location = useLocation();
@@ -86,6 +89,9 @@ export default function App() {
           <Route path="/palladium-2026" element={<Palladium2026Home />} />
           <Route path="/palladium-2026/privacy" element={<Palladium2026Privacy />} />
           <Route path="/palladium-2026/support" element={<Palladium2026Support />} />
+          <Route path="/wedding-photos" element={<WeddingPhotosHome />} />
+          <Route path="/wedding-photos/privacy" element={<WeddingPhotosPrivacy />} />
+          <Route path="/wedding-photos/support" element={<WeddingPhotosSupport />} />
         </Routes>
       </div>
       {!hideChrome && <Footer />}
