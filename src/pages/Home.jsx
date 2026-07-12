@@ -3,6 +3,13 @@ import { Link } from "react-router-dom";
 
 const products = [
   {
+    icon: "/images/app-icons/daycare-memory-vault.png",
+    name: "Daycare Memory Vault",
+    path: "/daycare-memory-vault",
+    description:
+      "Every photo and video your daycare posted of your child to Procare — collected, organized by month, and saved forever in a private vault. Download everything or browse a themed website with filters and captions.",
+  },
+  {
     icon: "/images/app-icons/tesla.svg",
     name: "Tesla Dashboard",
     path: "/tesla-dashboard",

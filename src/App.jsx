@@ -42,6 +42,9 @@ import Palladium2026Support from "./pages/palladium-2026/Support.jsx";
 import WeddingPhotosHome from "./pages/wedding-photos/Home.jsx";
 import WeddingPhotosPrivacy from "./pages/wedding-photos/Privacy.jsx";
 import WeddingPhotosSupport from "./pages/wedding-photos/Support.jsx";
+import DaycareMemoryVaultHome from "./pages/daycare-memory-vault/Home.jsx";
+import DaycareMemoryVaultPrivacy from "./pages/daycare-memory-vault/Privacy.jsx";
+import DaycareMemoryVaultSupport from "./pages/daycare-memory-vault/Support.jsx";
 
 export default function App() {
   const location = useLocation();
@@ -87,6 +90,9 @@ export default function App() {
           <Route path="/wedding-photos" element={<WeddingPhotosHome />} />
           <Route path="/wedding-photos/privacy" element={<WeddingPhotosPrivacy />} />
           <Route path="/wedding-photos/support" element={<WeddingPhotosSupport />} />
+          <Route path="/daycare-memory-vault" element={<DaycareMemoryVaultHome />} />
+          <Route path="/daycare-memory-vault/privacy" element={<DaycareMemoryVaultPrivacy />} />
+          <Route path="/daycare-memory-vault/support" element={<DaycareMemoryVaultSupport />} />
         </Routes>
       </div>
       {!hideChrome && <Footer />}
