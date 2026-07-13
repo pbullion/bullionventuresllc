@@ -23,7 +23,6 @@
     "react-clock": "^6.0.0",
     "react-dom": "^19.2.5",
     "react-loading": "^2.0.3",
-    "react-material-ui-carousel": "^3.4.2",
     "react-router-dom": "^7.14.2",
     "weather-icons-react": "^1.2.0"
   },
