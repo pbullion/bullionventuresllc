@@ -31,6 +31,13 @@ const products = [
       "Async multiplayer Farkle on your phone. Challenge friends, take turns on your own time, and race to 10,000 points. Push notifications fire when it's your turn.",
   },
   {
+    emoji: "🎯",
+    name: "My Bets",
+    path: "/my-bets",
+    description:
+      "A live tracker for my Kalshi positions. See open parlays and single bets with real-time prices, leg-by-leg breakdowns, and how each position is doing.",
+  },
+  {
     emoji: "🎲",
     name: "Farkle Scorer",
     path: "/farkle",
