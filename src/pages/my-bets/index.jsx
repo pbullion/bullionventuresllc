@@ -356,7 +356,10 @@ export default function MyBets() {
       if (!balRes.ok) throw new Error(`Balance request failed (${balRes.status})`);
       if (!posRes.ok) throw new Error(`Positions request failed (${posRes.status})`);
       setBalance(await balRes.json());
-      setPositions(await posRes.json());
+      const pos = await posRes.json();
+      setPositions(pos);
+      // Start with every bet card expanded.
+      setExpanded(new Set((pos?.market_positions || []).map((b) => b.ticker)));
     } catch (e) {
       setError(e.message || "Something went wrong loading your bets.");
     } finally {
