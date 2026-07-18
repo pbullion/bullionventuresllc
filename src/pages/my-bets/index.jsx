@@ -258,12 +258,21 @@ const S = {
 const pnlColor = (v) => (v > 0 ? C.green : v < 0 ? C.red : C.text);
 const pnlStr = (v) => `${v > 0 ? "+" : ""}${usd(v)}`;
 
-/* Green when winning/won, red when losing/lost, neutral otherwise. */
+/* Green when winning/won, red when losing/lost, neutral otherwise. During a
+   live game ESPN only sets `winner` at the final whistle, so `pick_is_winner`
+   is false the whole time a game is in progress — use the live score to tell
+   whether the pick is currently ahead (matches the score row's pickLead). */
 const legAccent = (leg) => {
   if (leg.state === "won") return C.green;
   if (leg.state === "lost") return C.red;
   if (leg.game && leg.game.state === "in") {
-    return leg.game.pick_is_winner ? C.green : C.red;
+    const { pick_score, opp_score, pick_is_winner } = leg.game;
+    if (pick_score != null && opp_score != null) {
+      if (pick_score > opp_score) return C.green;
+      if (pick_score < opp_score) return C.red;
+      return C.muted; // tied
+    }
+    return pick_is_winner ? C.green : C.muted;
   }
   return C.muted;
 };
