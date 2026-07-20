@@ -273,14 +273,21 @@ const sideIsLeading = (g) => {
 const legAccent = (leg) => {
   if (leg.state === "won") return C.green;
   if (leg.state === "lost") return C.red;
-  if (leg.game && leg.game.state === "in") {
-    const leading = sideIsLeading(leg.game);
+  const g = leg.game;
+  // Live OR final: color by the score. Kalshi often hasn't settled the market
+  // right after a game ends (leg.state stays "open"), so a FINAL must still turn
+  // green/red from the ESPN result instead of falling through to gray.
+  if (g && (g.state === "in" || g.state === "post")) {
+    const leading = sideIsLeading(g);
     if (leading !== null) return leading ? C.green : C.red;
-    // No live score yet: fall back to ESPN's completed-game winner flag,
-    // flipping it for a NO team bet (win when the pick team did not win).
-    const pickWon = leg.game.pick_is_winner === true;
-    const sideWon = leg.game.side === "no" ? !pickWon : pickWon;
-    return sideWon ? C.green : C.muted;
+    // No usable score. For a final, fall back to ESPN's winner flag (flipped for
+    // a NO team bet — you win when the pick team did not win).
+    if (g.state === "post" && (g.pick_is_winner === true || g.opp_is_winner === true)) {
+      const pickWon = g.pick_is_winner === true;
+      const sideWon = g.side === "no" ? !pickWon : pickWon;
+      return sideWon ? C.green : C.red;
+    }
+    return C.muted; // tied or no score yet
   }
   return C.muted;
 };
