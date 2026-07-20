@@ -153,12 +153,12 @@ const S = {
   mLabel: { fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 3 },
   mValue: { fontSize: 15, fontWeight: 700 },
 
-  /* Expanded per-leg bet slip */
+  /* Expanded per-leg bet slip — 2 legs across, collapsing to 1 when narrow */
   slip: {
     marginTop: 14,
     paddingTop: 4,
-    display: "flex",
-    flexDirection: "column",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
     gap: 10,
   },
   legCard: {
