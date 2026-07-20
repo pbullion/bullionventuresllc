@@ -2,20 +2,28 @@ import React, { useEffect, useState } from "react";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
-/* ─── Kalshi palette ─── */
+/* ─── Dark palette ─── */
 const C = {
-  bg: "#ffffff",
-  panel: "#f6f7f9",
-  card: "#ffffff",
-  border: "#e6e8eb",
-  text: "#16181c",
-  muted: "#6b7280",
-  green: "#009e6a",
-  greenSoft: "#e7f6ef",
-  red: "#e5484d",
-  redSoft: "#fdecec",
-  accent: "#00b87c",
-  chipBg: "#f2f4f6",
+  bg: "#0b0e14", // page
+  panel: "#151a24", // bet card
+  card: "#151a24",
+  border: "#252c3a", // neutral borders
+  text: "#e8eaed",
+  muted: "#8a93a6",
+  green: "#22c55e",
+  greenSoft: "#123021", // green-tinted fill for leg interiors
+  greenBorder: "#2f7d55", // darker green border
+  red: "#ef4444",
+  redSoft: "#301416", // red-tinted fill
+  redBorder: "#8a3a3d", // darker red border
+  accent: "#22c55e",
+  chipBg: "#1c2430",
+  legNeutral: "#1a2029", // undecided leg interior
+  legNeutralBorder: "#303845",
+  // A finished (settled) card is rendered darker than a live/open one.
+  legFinishedGreen: "#0d1f16",
+  legFinishedRed: "#210f11",
+  legFinishedNeutral: "#12161e",
 };
 
 /* ─── Formatters ─── */
@@ -25,6 +33,25 @@ const usd = (n) =>
   );
 // Kalshi shows contract prices in cents (e.g. 57¢).
 const cents = (dollars) => `${Math.round((Number(dollars) || 0) * 100)}¢`;
+
+// Format an ISO game time as "M/D · 6:40 PM ET / 5:40 PM CT" so both zones show.
+const formatKickoff = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const day = new Intl.DateTimeFormat("en-US", {
+    month: "numeric",
+    day: "numeric",
+    timeZone: "America/New_York",
+  }).format(d);
+  const time = (tz, label) =>
+    `${new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: tz,
+    }).format(d)} ${label}`;
+  return `${day} · ${time("America/New_York", "ET")} / ${time("America/Chicago", "CT")}`;
+};
 
 // Fallback: parse combo title "yes Boston,yes San Antonio,..." into legs.
 const parseTitleLegs = (title) =>
@@ -71,13 +98,13 @@ const S = {
   },
   brandName: { fontSize: 17, fontWeight: 700, letterSpacing: -0.2 },
   refreshBtn: {
-    backgroundColor: C.text,
-    color: "#fff",
+    backgroundColor: C.accent,
+    color: "#06210f",
     border: "none",
     borderRadius: 999,
     padding: "8px 18px",
     fontSize: 14,
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: "pointer",
   },
   inner: { maxWidth: 720, margin: "0 auto", padding: "0 16px" },
@@ -155,6 +182,7 @@ const S = {
   // Highlighted metric cell (Max payout, Value) — pops from the plainer stats.
   mCellHi: {
     backgroundColor: C.greenSoft,
+    border: `1px solid ${C.greenBorder}`,
     borderRadius: 10,
     padding: "8px 10px",
     margin: "-4px 0",
@@ -177,11 +205,27 @@ const S = {
     gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
     gap: 10,
   },
-  legCard: {
-    border: `1px solid ${C.border}`,
-    borderRadius: 12,
-    padding: "12px 14px",
-    backgroundColor: C.panel,
+  // Colorized by state: darker border + light-tinted interior when leaning
+  // win/lose; a finished game is rendered noticeably darker than a live one.
+  legCard: ({ lean, finished }) => {
+    let bg = C.legNeutral;
+    let border = C.legNeutralBorder;
+    if (lean === "win") {
+      bg = finished ? C.legFinishedGreen : C.greenSoft;
+      border = C.greenBorder;
+    } else if (lean === "lose") {
+      bg = finished ? C.legFinishedRed : C.redSoft;
+      border = C.redBorder;
+    } else if (finished) {
+      bg = C.legFinishedNeutral;
+    }
+    return {
+      border: `1.5px solid ${border}`,
+      borderRadius: 12,
+      padding: "12px 14px",
+      backgroundColor: bg,
+      opacity: finished ? 0.85 : 1,
+    };
   },
   legTopRow: {
     display: "flex",
@@ -196,6 +240,7 @@ const S = {
     color: C.muted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    flexShrink: 0,
   },
   legStatus: (state) => ({
     fontSize: 11,
@@ -203,6 +248,8 @@ const S = {
     letterSpacing: 0.3,
     color: state === "in" ? C.green : C.muted,
     textTransform: "uppercase",
+    textAlign: "right",
+    whiteSpace: "nowrap",
   }),
   legMatchup: { fontSize: 15, fontWeight: 700, marginBottom: 8 },
   pickRow: {
@@ -363,8 +410,28 @@ const legAccent = (leg) => {
   return C.muted;
 };
 
+/* Classify a leg for coloring: which way it's leaning (win/lose/neutral) and
+ * whether the game is finished (settled or ESPN post). Drives the card fill,
+ * border, and the "finished = darker" treatment. */
+const legKind = (leg) => {
+  const g = leg.game;
+  const finished =
+    leg.state === "won" ||
+    leg.state === "lost" ||
+    (g && (g.state === "post" || g.completed === true));
+  const accent = legAccent(leg);
+  const lean =
+    accent === C.green ? "win" : accent === C.red ? "lose" : "neutral";
+  return { finished, lean };
+};
+
 const StatusLabel = ({ leg }) => {
   const g = leg.game;
+  // Pre-game: show scheduled time in both ET and CT instead of ESPN's EDT-only
+  // string. Live/final keep ESPN's detail ("Bot 7th", "Final").
+  if (g && g.state === "pre") {
+    return formatKickoff(g.date) || g.detail || "Scheduled";
+  }
   if (g && g.detail) return g.detail;
   if (leg.state === "won") return "Won";
   if (leg.state === "lost") return "Lost";
@@ -410,13 +477,14 @@ function LiveSituation({ sit }) {
 
 function LegSlip({ leg }) {
   const accent = legAccent(leg);
+  const kind = legKind(leg);
   const g = leg.game;
   const pickLead =
     g && g.pick_score != null && g.opp_score != null
       ? g.pick_score >= g.opp_score
       : leg.state === "won";
   return (
-    <div style={S.legCard}>
+    <div style={S.legCard(kind)}>
       <div style={S.legTopRow}>
         <span style={S.legLeague}>{leg.league || "Market"}</span>
         <span style={S.legStatus(g ? g.state : leg.state)}>
