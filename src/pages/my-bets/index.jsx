@@ -169,13 +169,26 @@ const S = {
     border: `1px solid ${C.border}`,
     color: C.text,
   },
+  // Metrics area: a hero row (the big green numbers) stacked over a plain row,
+  // so the emphasized cells never sit unevenly beside the plain ones.
   metrics: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(84px, 1fr))",
-    gap: 10,
     marginTop: 14,
     paddingTop: 14,
     borderTop: `1px solid ${C.border}`,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  // Hero row: equal columns that stay side-by-side even on a phone.
+  metricsHero: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+  },
+  metricsPlain: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 10,
   },
   mLabel: { fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 3 },
   mValue: { fontSize: 15, fontWeight: 700 },
@@ -184,8 +197,7 @@ const S = {
     backgroundColor: C.greenSoft,
     border: `1px solid ${C.greenBorder}`,
     borderRadius: 10,
-    padding: "8px 10px",
-    margin: "-4px 0",
+    padding: "10px 12px",
   },
   mLabelHi: {
     fontSize: 11,
@@ -193,9 +205,16 @@ const S = {
     fontWeight: 800,
     letterSpacing: 0.3,
     textTransform: "uppercase",
-    marginBottom: 3,
+    marginBottom: 4,
+    whiteSpace: "nowrap",
   },
-  mValueHi: { fontSize: 20, fontWeight: 900, color: C.green, letterSpacing: -0.3 },
+  mValueHi: {
+    fontSize: 19,
+    fontWeight: 900,
+    color: C.green,
+    letterSpacing: -0.3,
+    whiteSpace: "nowrap",
+  },
 
   /* Expanded per-leg bet slip — 2 legs across, collapsing to 1 when narrow */
   slip: {
@@ -699,33 +718,32 @@ export default function MyBets() {
                 ) : null}
 
                 <div style={S.metrics}>
-                  <div>
-                    <div style={S.mLabel}>Cost</div>
-                    <div style={S.mValue}>{usd(d.cost_dollars)}</div>
-                  </div>
-                  {isCombo ? (
+                  <div style={S.metricsHero}>
                     <div style={S.mCellHi}>
-                      <div style={S.mLabelHi}>Max payout</div>
-                      <div style={S.mValueHi}>{usd(d.max_payout_dollars)}</div>
+                      <div style={S.mLabelHi}>{isCombo ? "Max payout" : "Avg price"}</div>
+                      <div style={S.mValueHi}>
+                        {isCombo ? usd(d.max_payout_dollars) : cents(d.avg_price_dollars)}
+                      </div>
                     </div>
-                  ) : (
+                    <div style={S.mCellHi}>
+                      <div style={S.mLabelHi}>Value</div>
+                      <div style={S.mValueHi}>{usd(d.current_value_dollars)}</div>
+                    </div>
+                  </div>
+                  <div style={S.metricsPlain}>
                     <div>
-                      <div style={S.mLabel}>Avg price</div>
-                      <div style={S.mValue}>{cents(d.avg_price_dollars)}</div>
+                      <div style={S.mLabel}>Cost</div>
+                      <div style={S.mValue}>{usd(d.cost_dollars)}</div>
                     </div>
-                  )}
-                  <div>
-                    <div style={S.mLabel}>Contracts</div>
-                    <div style={S.mValue}>{Math.round(d.count) || 0}</div>
-                  </div>
-                  <div style={S.mCellHi}>
-                    <div style={S.mLabelHi}>Value</div>
-                    <div style={S.mValueHi}>{usd(d.current_value_dollars)}</div>
-                  </div>
-                  <div>
-                    <div style={S.mLabel}>P&L</div>
-                    <div style={{ ...S.mValue, color: pnlColor(pnl) }}>
-                      {pnlStr(pnl)}
+                    <div>
+                      <div style={S.mLabel}>Contracts</div>
+                      <div style={S.mValue}>{Math.round(d.count) || 0}</div>
+                    </div>
+                    <div>
+                      <div style={S.mLabel}>P&L</div>
+                      <div style={{ ...S.mValue, color: pnlColor(pnl) }}>
+                        {pnlStr(pnl)}
+                      </div>
                     </div>
                   </div>
                 </div>
