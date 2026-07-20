@@ -152,6 +152,22 @@ const S = {
   },
   mLabel: { fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 3 },
   mValue: { fontSize: 15, fontWeight: 700 },
+  // Highlighted metric cell (Max payout, Value) — pops from the plainer stats.
+  mCellHi: {
+    backgroundColor: C.greenSoft,
+    borderRadius: 10,
+    padding: "8px 10px",
+    margin: "-4px 0",
+  },
+  mLabelHi: {
+    fontSize: 11,
+    color: C.green,
+    fontWeight: 800,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+    marginBottom: 3,
+  },
+  mValueHi: { fontSize: 20, fontWeight: 900, color: C.green, letterSpacing: -0.3 },
 
   /* Expanded per-leg bet slip — 2 legs across, collapsing to 1 when narrow */
   slip: {
@@ -243,6 +259,61 @@ const S = {
   },
   noGame: { fontSize: 12, color: C.muted, marginTop: 8, fontStyle: "italic" },
 
+  /* Live baseball situation: base diamond + count/outs */
+  sitRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTop: `1px solid ${C.border}`,
+    flexWrap: "wrap",
+  },
+  // Rotated-square "diamond" that holds the three base pips.
+  diamond: {
+    position: "relative",
+    width: 34,
+    height: 34,
+    flexShrink: 0,
+  },
+  base: (on, pos) => {
+    const size = 11;
+    const common = {
+      position: "absolute",
+      width: size,
+      height: size,
+      transform: "rotate(45deg)",
+      border: `1.5px solid ${on ? C.green : C.border}`,
+      backgroundColor: on ? C.green : "transparent",
+      borderRadius: 2,
+    };
+    // pos: second (top), third (left), first (right)
+    if (pos === "second") return { ...common, top: 0, left: 11.5 };
+    if (pos === "third") return { ...common, top: 11.5, left: 0 };
+    return { ...common, top: 11.5, left: 23 }; // first
+  },
+  sitMeta: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 },
+  sitCount: { fontSize: 13, fontWeight: 800, color: C.text },
+  sitOuts: { fontSize: 12, fontWeight: 700, color: C.muted },
+  outDots: { display: "inline-flex", gap: 4, marginLeft: 6, verticalAlign: "middle" },
+  outDot: (filled) => ({
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    display: "inline-block",
+    backgroundColor: filled ? C.red : "transparent",
+    border: `1.5px solid ${filled ? C.red : C.border}`,
+  }),
+  sitPlay: {
+    fontSize: 11,
+    color: C.muted,
+    marginTop: 2,
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+
   muted: { color: C.muted, fontSize: 14, padding: "8px 4px" },
   error: {
     backgroundColor: C.redSoft,
@@ -300,6 +371,43 @@ const StatusLabel = ({ leg }) => {
   return "Open";
 };
 
+/* Live baseball situation: base-runner diamond, count, and outs. */
+function LiveSituation({ sit }) {
+  if (!sit) return null;
+  const hasCount = sit.balls != null && sit.strikes != null;
+  const hasOuts = sit.outs != null;
+  // Nothing meaningful to show (e.g. between innings with no data)
+  if (!hasCount && !hasOuts && !sit.on_first && !sit.on_second && !sit.on_third)
+    return null;
+  return (
+    <div style={S.sitRow}>
+      <div style={S.diamond} aria-label="Base runners">
+        <span style={S.base(sit.on_second, "second")} />
+        <span style={S.base(sit.on_third, "third")} />
+        <span style={S.base(sit.on_first, "first")} />
+      </div>
+      <div style={S.sitMeta}>
+        {hasCount ? (
+          <span style={S.sitCount}>
+            {sit.balls}-{sit.strikes}
+          </span>
+        ) : null}
+        {hasOuts ? (
+          <span style={S.sitOuts}>
+            {sit.outs} {sit.outs === 1 ? "out" : "outs"}
+            <span style={S.outDots}>
+              {[0, 1, 2].map((i) => (
+                <span key={i} style={S.outDot(i < sit.outs)} />
+              ))}
+            </span>
+          </span>
+        ) : null}
+      </div>
+      {sit.last_play ? <div style={S.sitPlay}>{sit.last_play}</div> : null}
+    </div>
+  );
+}
+
 function LegSlip({ leg }) {
   const accent = legAccent(leg);
   const g = leg.game;
@@ -341,6 +449,8 @@ function LegSlip({ leg }) {
       ) : (
         <div style={S.noGame}>Live score unavailable</div>
       )}
+
+      {g && g.state === "in" ? <LiveSituation sit={g.situation} /> : null}
     </div>
   );
 }
@@ -508,9 +618,9 @@ export default function MyBets() {
                     <div style={S.mValue}>{usd(d.cost_dollars)}</div>
                   </div>
                   {isCombo ? (
-                    <div>
-                      <div style={S.mLabel}>Max payout</div>
-                      <div style={S.mValue}>{usd(d.max_payout_dollars)}</div>
+                    <div style={S.mCellHi}>
+                      <div style={S.mLabelHi}>Max payout</div>
+                      <div style={S.mValueHi}>{usd(d.max_payout_dollars)}</div>
                     </div>
                   ) : (
                     <div>
@@ -522,9 +632,9 @@ export default function MyBets() {
                     <div style={S.mLabel}>Contracts</div>
                     <div style={S.mValue}>{Math.round(d.count) || 0}</div>
                   </div>
-                  <div>
-                    <div style={S.mLabel}>Value</div>
-                    <div style={S.mValue}>{usd(d.current_value_dollars)}</div>
+                  <div style={S.mCellHi}>
+                    <div style={S.mLabelHi}>Value</div>
+                    <div style={S.mValueHi}>{usd(d.current_value_dollars)}</div>
                   </div>
                   <div>
                     <div style={S.mLabel}>P&L</div>
