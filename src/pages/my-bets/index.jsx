@@ -470,8 +470,10 @@ export default function MyBets() {
       return next;
     });
 
-  const load = async () => {
-    setLoading(true);
+  // background=true for the 15s auto-refresh: update data silently without
+  // toggling the loading state or clobbering which cards the user expanded.
+  const load = async ({ background = false } = {}) => {
+    if (!background) setLoading(true);
     setError("");
     try {
       const [balRes, posRes] = await Promise.all([
@@ -483,17 +485,25 @@ export default function MyBets() {
       setBalance(await balRes.json());
       const pos = await posRes.json();
       setPositions(pos);
-      // Start with every bet card expanded.
-      setExpanded(new Set((pos?.market_positions || []).map((b) => b.ticker)));
+      // On the first (foreground) load, start with every bet card expanded.
+      // Background refreshes leave the user's expand/collapse choices intact.
+      if (!background) {
+        setExpanded(new Set((pos?.market_positions || []).map((b) => b.ticker)));
+      }
     } catch (e) {
-      setError(e.message || "Something went wrong loading your bets.");
+      // Don't blow away good data on a transient background failure; only
+      // surface errors from an explicit/initial load.
+      if (!background) setError(e.message || "Something went wrong loading your bets.");
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
   useEffect(() => {
     load();
+    // Auto-refresh every 15s so live scores/situations stay current.
+    const id = setInterval(() => load({ background: true }), 15000);
+    return () => clearInterval(id);
   }, []);
 
   const bets = positions?.market_positions || [];
@@ -522,7 +532,7 @@ export default function MyBets() {
           <div style={S.logoDot}>K</div>
           <div style={S.brandName}>My Bets</div>
         </div>
-        <button style={S.refreshBtn} onClick={load} disabled={loading}>
+        <button style={S.refreshBtn} onClick={() => load()} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
         </button>
       </div>
