@@ -506,7 +506,15 @@ export default function MyBets() {
     return () => clearInterval(id);
   }, []);
 
-  const bets = positions?.market_positions || [];
+  // Show highest-payout bets first. Single bets have no max payout, so fall
+  // back to their current value to keep the ordering meaningful.
+  const payoutOf = (b) =>
+    Number(b.display?.max_payout_dollars) ||
+    Number(b.display?.current_value_dollars) ||
+    0;
+  const bets = [...(positions?.market_positions || [])].sort(
+    (a, b) => payoutOf(b) - payoutOf(a),
+  );
   const totalPnl = bets.reduce(
     (acc, b) => acc + (Number(b.display?.total_pnl_dollars) || 0),
     0,
