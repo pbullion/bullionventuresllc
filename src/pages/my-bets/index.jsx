@@ -16,6 +16,9 @@ const C = {
   red: "#ef4444",
   redSoft: "#301416", // red-tinted fill
   redBorder: "#8a3a3d", // darker red border
+  amber: "#eab308", // a live tied game — "in play, dead heat"
+  amberSoft: "#2a2410", // amber-tinted fill
+  amberBorder: "#8a7420", // darker amber border
   accent: "#22c55e",
   chipBg: "#1c2430",
   legNeutral: "#1a2029", // undecided leg interior
@@ -278,6 +281,10 @@ const S = {
     } else if (lean === "lose") {
       bg = finished ? C.legFinishedRed : C.redSoft;
       border = C.redBorder;
+    } else if (lean === "tie") {
+      // Live dead heat — amber (a tie only happens mid-game, never "finished").
+      bg = C.amberSoft;
+      border = C.amberBorder;
     } else if (finished) {
       bg = C.legFinishedNeutral;
     }
@@ -478,20 +485,40 @@ const sideIsLeading = (g) => {
   return g.side === "no" ? !pickAhead : pickAhead;
 };
 
-/* Green when winning/won, red when losing/lost, neutral otherwise. */
+/* A live game that's currently tied on the scoreboard (both scores present and
+ * equal, still in progress). Only meaningful for a straight winner bet — a
+ * spread/total "tie" isn't a dead heat, so exclude those. */
+const legIsLiveTie = (leg) => {
+  const g = leg.game;
+  if (!g || g.state !== "in") return false;
+  if (g.pick_score == null || g.opp_score == null) return false;
+  if (leg.market_type && leg.market_type !== "moneyline") return false;
+  return Number(g.pick_score) === Number(g.opp_score);
+};
+
+/* Green when winning/won, red when losing/lost, amber on a live tie, neutral
+ * otherwise. */
 const legAccent = (leg) => {
   if (leg.state === "won") return C.green;
   if (leg.state === "lost") return C.red;
+  // A live tied game reads as amber ("dead heat") rather than gray "no data".
+  if (legIsLiveTie(leg)) return C.amber;
   // The backend computes an authoritative live lean per market type — a spread
   // or total can't be judged by "who's ahead" (a favorite up 3 still fails a
   // -9.5 spread), so trust live_lean when it's provided and only fall back to
   // the score-based heuristic for legs without it (older API responses).
   if (leg.live_lean === "win") return C.green;
   if (leg.live_lean === "lose") return C.red;
-  if (leg.live_lean === null && leg.market_type) {
-    // Backend evaluated it and it's genuinely undecided -> stay neutral rather
-    // than letting the moneyline score heuristic mis-color a spread/total.
-    if (leg.market_type !== "moneyline") return C.muted;
+  if (leg.live_lean === null && leg.market_type && leg.market_type !== "moneyline") {
+    // A spread/total can't be judged by the live score mid-game, so lean on the
+    // market's own implied probability (win_pct = the held side's price). Over
+    // half -> winning, under -> losing, with a small dead-band so a coin-flip
+    // stays neutral instead of flickering green/red on tiny price moves.
+    if (leg.win_pct != null) {
+      if (leg.win_pct >= 55) return C.green;
+      if (leg.win_pct <= 45) return C.red;
+    }
+    return C.muted;
   }
   const g = leg.game;
   // Live OR final: color by the score. Kalshi often hasn't settled the market
@@ -523,7 +550,13 @@ const legKind = (leg) => {
     (g && (g.state === "post" || g.completed === true));
   const accent = legAccent(leg);
   const lean =
-    accent === C.green ? "win" : accent === C.red ? "lose" : "neutral";
+    accent === C.green
+      ? "win"
+      : accent === C.red
+        ? "lose"
+        : accent === C.amber
+          ? "tie"
+          : "neutral";
   return { finished, lean };
 };
 
