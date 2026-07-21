@@ -168,13 +168,29 @@ const S = {
   // `mb-inner` class (see the injected media query) lets it fill the width.
   inner: { maxWidth: 720, margin: "0 auto", padding: "0 16px" },
 
-  hero: { padding: "28px 4px 20px" },
-  heroLabel: { fontSize: 13, color: C.muted, fontWeight: 600, marginBottom: 6 },
-  heroValue: { fontSize: 40, fontWeight: 800, letterSpacing: -1 },
-  heroSub: { display: "flex", gap: 20, marginTop: 14, flexWrap: "wrap" },
-  stat: {},
-  statLabel: { fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 2 },
-  statValue: { fontSize: 18, fontWeight: 700 },
+  // Desktop: compact portfolio numbers inline in the top bar. `display` is
+  // controlled by the .mb-topstats CSS class (per-breakpoint), so it's omitted
+  // here — an inline display would override the media query and always show.
+  topStats: { alignItems: "center", gap: 22, flex: 1, justifyContent: "flex-end", marginRight: 20 },
+  topStat: { display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.2 },
+  topStatLabel: {
+    fontSize: 10,
+    color: C.muted,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  topStatValue: { fontSize: 16, fontWeight: 800 },
+  // Mobile: one slim line instead of the old tall hero. `display` is controlled
+  // by the .mb-hero-mobile CSS class so the ≥900px media query can hide it.
+  heroMobile: {
+    alignItems: "baseline",
+    flexWrap: "wrap",
+    gap: 12,
+    padding: "12px 4px 6px",
+  },
+  heroMobilePV: { fontSize: 22, fontWeight: 800, letterSpacing: -0.5 },
+  heroMobileStat: { fontSize: 13, fontWeight: 700, color: C.muted },
 
   sectionHeader: {
     display: "flex",
@@ -576,7 +592,13 @@ const S = {
  * friendly 720px cap; at ≥900px it stretches nearly edge-to-edge so the bet
  * cards and parlay slips use the full screen. */
 const MB_CSS = `
+/* Portfolio numbers: inline in the top bar on desktop, a slim strip on mobile.
+   Default (mobile-first) hides the desktop top-bar stats. */
+.mb-topstats { display: none; }
+.mb-hero-mobile { display: flex; }
 @media (min-width: 900px) {
+  .mb-topstats { display: flex; }
+  .mb-hero-mobile { display: none; }
   .mb-inner { max-width: 1600px !important; padding: 0 32px !important; }
   /* Bet cards flow into a multi-column grid so several parlays are visible at
      once without scrolling. auto-fill keeps as many ~420px columns as fit. */
@@ -1172,6 +1194,28 @@ export default function MyBets() {
           <div style={S.logoDot}>K</div>
           <div style={S.brandName}>My Bets</div>
         </div>
+        {/* Desktop: portfolio numbers live inline in the top bar (hidden on
+            mobile via CSS — mobile gets the compact strip below instead). */}
+        <div className="mb-topstats" style={S.topStats}>
+          <div style={S.topStat}>
+            <span style={S.topStatLabel}>Portfolio</span>
+            <span style={S.topStatValue}>{portfolioValue}</span>
+          </div>
+          <div style={S.topStat}>
+            <span style={S.topStatLabel}>Available</span>
+            <span style={S.topStatValue}>{available}</span>
+          </div>
+          <div style={S.topStat}>
+            <span style={S.topStatLabel}>Total P&L</span>
+            <span style={{ ...S.topStatValue, color: pnlColor(totalPnl) }}>
+              {pnlStr(totalPnl)}
+            </span>
+          </div>
+          <div style={S.topStat}>
+            <span style={S.topStatLabel}>Open</span>
+            <span style={S.topStatValue}>{bets.length}</span>
+          </div>
+        </div>
         <button
           style={S.refreshBtn}
           onClick={() => (tab === "history" ? loadSettlements() : load())}
@@ -1184,25 +1228,17 @@ export default function MyBets() {
       <div className="mb-inner" style={S.inner}>
         {error ? <div style={S.error}>{error}</div> : null}
 
-        <div style={S.hero}>
-          <div style={S.heroLabel}>Portfolio value</div>
-          <div style={S.heroValue}>{portfolioValue}</div>
-          <div style={S.heroSub}>
-            <div style={S.stat}>
-              <div style={S.statLabel}>Available balance</div>
-              <div style={S.statValue}>{available}</div>
-            </div>
-            <div style={S.stat}>
-              <div style={S.statLabel}>Total P&L</div>
-              <div style={{ ...S.statValue, color: pnlColor(totalPnl) }}>
-                {pnlStr(totalPnl)}
-              </div>
-            </div>
-            <div style={S.stat}>
-              <div style={S.statLabel}>Open bets</div>
-              <div style={S.statValue}>{bets.length}</div>
-            </div>
-          </div>
+        {/* Mobile-only compact summary (the big hero + the desktop top-bar
+            strip are both hidden on the other breakpoint via CSS). */}
+        <div className="mb-hero-mobile" style={S.heroMobile}>
+          <span style={S.heroMobilePV}>{portfolioValue}</span>
+          <span style={S.heroMobileStat}>
+            {available} avail
+          </span>
+          <span style={{ ...S.heroMobileStat, color: pnlColor(totalPnl) }}>
+            {pnlStr(totalPnl)}
+          </span>
+          <span style={S.heroMobileStat}>{bets.length} open</span>
         </div>
 
         {/* Open / History tabs */}
