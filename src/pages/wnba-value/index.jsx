@@ -93,6 +93,15 @@ function StateChip({ state, detail }) {
   return <Chip color={C.amber}>No game match</Chip>;
 }
 
+// The pick text for a row: totals read "Over 165.5"; margin markets carry a
+// phrase label ("Indiana wins by over 6.5 points"), negated on the NO side.
+const pickText = (bet, side) =>
+  bet.label
+    ? side === "over"
+      ? bet.label
+      : `No: ${bet.label}`
+    : `${side === "over" ? "Over" : "Under"} ${bet.strike}`;
+
 // Big highlighted card for a recommended value bet.
 function ValueBetCard({ game, bet }) {
   const side = bet.best.side;
@@ -112,8 +121,7 @@ function ValueBetCard({ game, bet }) {
     >
       <div style={{ flex: "1 1 220px", minWidth: 0 }}>
         <div style={{ fontWeight: 800, fontSize: 16 }}>
-          {side === "over" ? "Over" : "Under"} {bet.strike}{" "}
-          {bet.locked_over && "🔒"}
+          {pickText(bet, side)} {bet.locked_over && "🔒"}
         </div>
         <div style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>
           {game.title}
@@ -143,6 +151,9 @@ function ValueBetCard({ game, bet }) {
 // The strike ladder for one game.
 function Ladder({ game }) {
   const live = game.state === "in";
+  const isMargin = game.market_type && game.market_type !== "total";
+  const yesLabel = isMargin ? "YES" : "OVER";
+  const noLabel = isMargin ? "NO" : "UNDER";
   const th = {
     textAlign: "right",
     padding: "6px 10px",
@@ -167,9 +178,9 @@ function Ladder({ game }) {
             <th style={{ ...th, textAlign: "left" }}>LINE</th>
             <th style={th}>BID</th>
             <th style={th}>ASK</th>
-            {live && <th style={th}>MODEL P(OVER)</th>}
-            {live && <th style={th}>OVER EDGE</th>}
-            {live && <th style={th}>UNDER EDGE</th>}
+            {live && <th style={th}>MODEL P({yesLabel})</th>}
+            {live && <th style={th}>{yesLabel} EDGE</th>}
+            {live && <th style={th}>{noLabel} EDGE</th>}
           </tr>
         </thead>
         <tbody>
@@ -185,10 +196,10 @@ function Ladder({ game }) {
                 }}
               >
                 <td style={{ ...td, textAlign: "left", fontWeight: 700 }}>
-                  {m.strike} {m.locked_over && "🔒"}
+                  {isMargin ? m.label : m.strike} {m.locked_over && "🔒"}
                   {rec && (
                     <span style={{ color: C.green, marginLeft: 6, fontSize: 11 }}>
-                      {m.best.side === "over" ? "BUY OVER" : "BUY UNDER"}
+                      {m.best.side === "over" ? `BUY ${yesLabel}` : `BUY ${noLabel}`}
                     </span>
                   )}
                 </td>
@@ -251,6 +262,11 @@ function GameCard({ game }) {
           </div>
           <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
             {game.league_label && <Chip color={C.text}>{game.league_label}</Chip>}
+            {game.market_type && game.market_type !== "total" && (
+              <Chip color={C.amber}>
+                {game.market_type === "spread" ? "Spread" : "Moneyline"}
+              </Chip>
+            )}
             <StateChip
               state={game.state}
               detail={game.state === "pre" ? tipTime(g.date) : g.detail}
@@ -497,7 +513,11 @@ function PerformancePanel() {
                   >
                     <span style={{ fontWeight: 700 }}>
                       {b.league ? `${b.league.toUpperCase()} · ` : ""}
-                      {b.side === "over" ? "Over" : "Under"} {b.strike}
+                      {b.market_type === "spread"
+                        ? `${b.side === "over" ? "" : "Not "}${b.pick_abbr} by ${b.strike}+`
+                        : b.market_type === "moneyline"
+                        ? `${b.pick_abbr} ML ${b.side === "over" ? "✓" : "✗"}`
+                        : `${b.side === "over" ? "Over" : "Under"} ${b.strike}`}
                     </span>
                     <span style={{ color: C.muted, flex: 1, minWidth: 120 }}>{b.title}</span>
                     <span>{cents(b.buy_price_dollars)}</span>
