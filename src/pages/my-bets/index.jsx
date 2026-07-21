@@ -444,6 +444,24 @@ const S = {
     marginLeft: 4,
   },
   noGame: { fontSize: 12, color: C.muted, marginTop: 8, fontStyle: "italic" },
+  /* Total bet: points remaining to the line, shown for under + over. */
+  totalRow: {
+    display: "flex",
+    gap: 20,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTop: `1px solid ${C.border}`,
+    flexWrap: "wrap",
+  },
+  totalCell: { display: "flex", alignItems: "baseline", gap: 6 },
+  totalNum: { fontSize: 17, fontWeight: 800, letterSpacing: -0.3 },
+  totalLabel: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: C.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
 
   /* Live baseball situation: base diamond + count/outs */
   sitRow: {
@@ -731,10 +749,29 @@ function LegSlip({ leg }) {
   const accent = legAccent(leg);
   const kind = legKind(leg);
   const g = leg.game;
+  const isTotal = leg.market_type === "total";
+  // For a total, "who's leading" is meaningless — don't highlight a team.
   const pickLead =
-    g && g.pick_score != null && g.opp_score != null
-      ? g.pick_score >= g.opp_score
-      : leg.state === "won";
+    isTotal
+      ? false
+      : g && g.pick_score != null && g.opp_score != null
+        ? g.pick_score >= g.opp_score
+        : leg.state === "won";
+  // Points remaining to the total line: how much cushion the under (NO) still
+  // has, and how many more points the over (YES) needs. Positive `remaining`
+  // means the line hasn't been crossed yet.
+  const totalInfo =
+    isTotal &&
+    leg.line != null &&
+    g &&
+    g.pick_score != null &&
+    g.opp_score != null
+      ? (() => {
+          const scored = Number(g.pick_score) + Number(g.opp_score);
+          const remaining = Number(leg.line) - scored;
+          return { scored, remaining };
+        })()
+      : null;
   return (
     <div style={S.legCard(kind)}>
       <div style={S.legTopRow}>
@@ -757,11 +794,20 @@ function LegSlip({ leg }) {
 
       {g && (g.pick_score != null || g.opp_score != null) ? (
         <div style={S.scoreRow}>
-          <span style={S.scoreTeam(pickLead)}>{g.pick_team}</span>
-          <span style={S.scoreNum(pickLead)}>{g.pick_score ?? "-"}</span>
+          {/* For a total, neither team "leads" — render both neutral. */}
+          <span style={S.scoreTeam(isTotal ? false : pickLead)}>
+            {g.pick_team}
+          </span>
+          <span style={S.scoreNum(isTotal ? false : pickLead)}>
+            {g.pick_score ?? "-"}
+          </span>
           <span style={S.scoreDash}>–</span>
-          <span style={S.scoreNum(!pickLead)}>{g.opp_score ?? "-"}</span>
-          <span style={S.scoreTeam(!pickLead)}>{g.opp_team}</span>
+          <span style={S.scoreNum(isTotal ? false : !pickLead)}>
+            {g.opp_score ?? "-"}
+          </span>
+          <span style={S.scoreTeam(isTotal ? false : !pickLead)}>
+            {g.opp_team}
+          </span>
           {g.data_delayed ? <span style={S.delayed}>DATA DELAYED</span> : null}
         </div>
       ) : g ? (
@@ -769,6 +815,38 @@ function LegSlip({ leg }) {
       ) : (
         <div style={S.noGame}>Live score unavailable</div>
       )}
+
+      {/* Total: points remaining to the line, framed for both sides. */}
+      {totalInfo ? (
+        <div style={S.totalRow}>
+          {totalInfo.remaining > 0 ? (
+            <>
+              <span style={S.totalCell}>
+                <span style={{ ...S.totalNum, color: C.green }}>
+                  {totalInfo.remaining}
+                </span>
+                <span style={S.totalLabel}>under cushion</span>
+              </span>
+              <span style={S.totalCell}>
+                <span style={{ ...S.totalNum, color: C.text }}>
+                  {totalInfo.remaining}
+                </span>
+                <span style={S.totalLabel}>over needs</span>
+              </span>
+            </>
+          ) : (
+            // Line already crossed — the over has hit, the under is busted.
+            <span style={S.totalCell}>
+              <span style={{ ...S.totalNum, color: C.text }}>
+                {Math.abs(totalInfo.remaining)}
+              </span>
+              <span style={S.totalLabel}>
+                over the line ({totalInfo.scored} of {leg.line})
+              </span>
+            </span>
+          )}
+        </div>
+      ) : null}
 
       {g && g.state === "in" ? (
         <LiveSituation sit={g.situation} inning={g.detail} />
