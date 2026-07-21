@@ -403,7 +403,15 @@ const S = {
   },
   sitMeta: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 },
   sitCount: { fontSize: 13, fontWeight: 800, color: C.text },
-  sitOuts: { fontSize: 12, fontWeight: 700, color: C.muted },
+  sitOuts: { fontSize: 12, fontWeight: 700, color: C.muted, display: "flex", alignItems: "center" },
+  // Inning label (e.g. "Top 9th") shown where the "N out" words used to be.
+  sitInning: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: C.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
   outDots: { display: "inline-flex", gap: 4, marginLeft: 6, verticalAlign: "middle" },
   outDot: (filled) => ({
     width: 7,
@@ -519,21 +527,45 @@ const legKind = (leg) => {
   return { finished, lean };
 };
 
+/* True when a leg's game is over (settled, or ESPN post/completed). */
+const legIsFinished = (leg) => {
+  const g = leg.game;
+  return (
+    leg.state === "won" ||
+    leg.state === "lost" ||
+    (g && (g.state === "post" || g.completed === true))
+  );
+};
+
+/* Order legs so finished games sink to the bottom, leaving live/upcoming ones
+ * (the ones still in play) up top. Stable within each group — preserves the
+ * original leg order otherwise. */
+const sortLegs = (legs) =>
+  legs
+    .map((leg, i) => ({ leg, i, done: legIsFinished(leg) }))
+    .sort((a, b) => a.done - b.done || a.i - b.i)
+    .map((x) => x.leg);
+
 const StatusLabel = ({ leg }) => {
   const g = leg.game;
   // Pre-game: show scheduled time in both ET and CT instead of ESPN's EDT-only
-  // string. Live/final keep ESPN's detail ("Bot 7th", "Final").
+  // string.
   if (g && g.state === "pre") {
     return formatKickoff(g.date) || g.detail || "Scheduled";
   }
-  if (g && g.detail) return g.detail;
+  // Live: the inning ("Top 9th") now shows in the situation row beside the out
+  // dots, so keep the top-right corner empty to avoid duplicating it.
+  if (g && g.state === "in") return null;
+  if (g && g.detail) return g.detail; // final ("Final"), postponed, etc.
   if (leg.state === "won") return "Won";
   if (leg.state === "lost") return "Lost";
   return "Open";
 };
 
-/* Live baseball situation: base-runner diamond, count, and outs. */
-function LiveSituation({ sit }) {
+/* Live baseball situation: base-runner diamond, count, and outs. `inning` is
+ * the game's inning detail ("Top 9th") shown in place of the redundant "N out"
+ * words — the out count is already conveyed by the dots. */
+function LiveSituation({ sit, inning }) {
   if (!sit) return null;
   const hasCount = sit.balls != null && sit.strikes != null;
   const hasOuts = sit.outs != null;
@@ -553,16 +585,17 @@ function LiveSituation({ sit }) {
             {sit.balls}-{sit.strikes}
           </span>
         ) : null}
-        {hasOuts ? (
-          <span style={S.sitOuts}>
-            {sit.outs} {sit.outs === 1 ? "out" : "outs"}
-            <span style={S.outDots}>
+        {/* Inning label (replaces the "N out" words) + the out dots. */}
+        <span style={S.sitOuts}>
+          {inning ? <span style={S.sitInning}>{inning}</span> : null}
+          {hasOuts ? (
+            <span style={S.outDots} aria-label={`${sit.outs} out`}>
               {[0, 1, 2].map((i) => (
                 <span key={i} style={S.outDot(i < sit.outs)} />
               ))}
             </span>
-          </span>
-        ) : null}
+          ) : null}
+        </span>
       </div>
       {sit.last_play ? <div style={S.sitPlay}>{sit.last_play}</div> : null}
     </div>
@@ -612,7 +645,9 @@ function LegSlip({ leg }) {
         <div style={S.noGame}>Live score unavailable</div>
       )}
 
-      {g && g.state === "in" ? <LiveSituation sit={g.situation} /> : null}
+      {g && g.state === "in" ? (
+        <LiveSituation sit={g.situation} inning={g.detail} />
+      ) : null}
     </div>
   );
 }
@@ -790,7 +825,8 @@ export default function MyBets() {
           <div className="mb-bets">
           {bets.map((b) => {
             const d = b.display || {};
-            const legs = Array.isArray(d.legs) ? d.legs : [];
+            // Finished games sink to the bottom so the still-in-play legs lead.
+            const legs = sortLegs(Array.isArray(d.legs) ? d.legs : []);
             const isCombo = legs.length > 1 || (d.leg_count || 0) > 1;
             const chipLegs = legs.length
               ? legs.map((l) => ({
