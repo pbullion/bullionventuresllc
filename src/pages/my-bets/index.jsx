@@ -70,6 +70,40 @@ const formatSettled = (iso) => {
   }).format(d);
 };
 
+// Regulation structure per league, for pace math: how many periods and how
+// many seconds each. Basketball only (totals we track are hoops); returns null
+// for anything we don't model so the pace projection is simply skipped.
+const REGULATION = {
+  wnba: { periods: 4, periodSecs: 600 }, // 4 x 10:00
+  nba: { periods: 4, periodSecs: 720 }, // 4 x 12:00
+  "mens-college-basketball": { periods: 2, periodSecs: 1200 }, // 2 x 20:00
+  "womens-college-basketball": { periods: 2, periodSecs: 1200 },
+};
+const regulationFor = (league) => {
+  const key = String(league || "").toLowerCase();
+  if (!key.includes("basket") && !key.includes("nba")) return null;
+  // Women's hoops (WNBA / college women) — Kalshi labels it "Pro Basketball (W)"
+  // or "... women's ...". 4 x 10:00.
+  if (key.includes("wnba") || key.includes("women") || /\(w\)/.test(key))
+    return REGULATION.wnba;
+  if (key.includes("college")) return REGULATION["mens-college-basketball"];
+  // Default men's pro basketball ("Pro Basketball", NBA). 4 x 12:00.
+  return REGULATION.nba;
+};
+
+// Fraction of regulation elapsed from period + seconds-left-in-period. Returns
+// null when we can't tell (unknown league, missing clock, or in OT where the
+// projection stops being meaningful). Capped at 1.
+const gameElapsedFraction = (g, league) => {
+  const reg = regulationFor(league);
+  if (!reg || g.period == null || g.clock == null) return null;
+  if (g.period > reg.periods) return 1; // OT — treat as ~full regulation
+  const total = reg.periods * reg.periodSecs;
+  const elapsed = (g.period - 1) * reg.periodSecs + (reg.periodSecs - g.clock);
+  const frac = elapsed / total;
+  return frac > 0 && frac <= 1 ? frac : null;
+};
+
 // Fallback: parse combo title "yes Boston,yes San Antonio,..." into legs.
 const parseTitleLegs = (title) =>
   String(title || "")
@@ -389,7 +423,12 @@ const S = {
     textTransform: "uppercase",
     textAlign: "right",
     whiteSpace: "nowrap",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
   }),
+  // Small "open on ESPN" cue on a clickable leg card.
+  espnArrow: { color: C.muted, fontSize: 12, fontWeight: 700 },
   legMatchup: { fontSize: 15, fontWeight: 700, marginBottom: 8 },
   pickRow: {
     display: "flex",
@@ -757,9 +796,12 @@ function LegSlip({ leg }) {
       : g && g.pick_score != null && g.opp_score != null
         ? g.pick_score >= g.opp_score
         : leg.state === "won";
-  // Points remaining to the total line: how much cushion the under (NO) still
-  // has, and how many more points the over (YES) needs. Positive `remaining`
-  // means the line hasn't been crossed yet.
+  // Total bet, from the perspective of the side actually held. `remaining` is
+  // points to the line (cushion for the under, points-needed for the over).
+  // `projected` extrapolates the final total from current pace so we can say
+  // whether the held side is on track; `onTarget` is true when the projection
+  // favors the held side. Null pieces are simply omitted by the UI.
+  const heldOver = leg.side === "yes"; // YES on a total = the over
   const totalInfo =
     isTotal &&
     leg.line != null &&
@@ -767,17 +809,39 @@ function LegSlip({ leg }) {
     g.pick_score != null &&
     g.opp_score != null
       ? (() => {
+          const line = Number(leg.line);
           const scored = Number(g.pick_score) + Number(g.opp_score);
-          const remaining = Number(leg.line) - scored;
-          return { scored, remaining };
+          const remaining = line - scored;
+          const frac =
+            g.state === "in" ? gameElapsedFraction(g, leg.league) : null;
+          const projected = frac ? Math.round(scored / frac) : null;
+          // Under is on target if the projected final stays under the line;
+          // over is on target if it clears it.
+          const onTarget =
+            projected == null
+              ? null
+              : heldOver
+                ? projected > line
+                : projected < line;
+          return { line, scored, remaining, projected, onTarget, heldOver };
         })()
       : null;
+  // Clicking a leg opens its ESPN game page (new tab) when we matched one.
+  const link = g && g.link ? g.link : null;
+  const cardStyle = link
+    ? { ...S.legCard(kind), cursor: "pointer", textDecoration: "none" }
+    : S.legCard(kind);
+  const Card = link ? "a" : "div";
+  const linkProps = link
+    ? { href: link, target: "_blank", rel: "noopener noreferrer" }
+    : {};
   return (
-    <div style={S.legCard(kind)}>
+    <Card style={cardStyle} {...linkProps}>
       <div style={S.legTopRow}>
         <span style={S.legLeague}>{leg.league || "Market"}</span>
         <span style={S.legStatus(g ? g.state : leg.state)}>
           <StatusLabel leg={leg} />
+          {link ? <span style={S.espnArrow}>↗</span> : null}
         </span>
       </div>
       <div style={S.legMatchup}>{leg.matchup}</div>
@@ -816,42 +880,64 @@ function LegSlip({ leg }) {
         <div style={S.noGame}>Live score unavailable</div>
       )}
 
-      {/* Total: points remaining to the line, framed for both sides. */}
+      {/* Total: only the held side's figure, plus a pace projection. */}
       {totalInfo ? (
         <div style={S.totalRow}>
+          {/* Points remaining, framed for the side actually held. */}
           {totalInfo.remaining > 0 ? (
-            <>
-              <span style={S.totalCell}>
-                <span style={{ ...S.totalNum, color: C.green }}>
-                  {totalInfo.remaining}
-                </span>
-                <span style={S.totalLabel}>under cushion</span>
-              </span>
-              <span style={S.totalCell}>
-                <span style={{ ...S.totalNum, color: C.text }}>
-                  {totalInfo.remaining}
-                </span>
-                <span style={S.totalLabel}>over needs</span>
-              </span>
-            </>
-          ) : (
-            // Line already crossed — the over has hit, the under is busted.
             <span style={S.totalCell}>
-              <span style={{ ...S.totalNum, color: C.text }}>
+              <span
+                style={{
+                  ...S.totalNum,
+                  color: totalInfo.heldOver ? C.text : C.green,
+                }}
+              >
+                {totalInfo.remaining}
+              </span>
+              <span style={S.totalLabel}>
+                {totalInfo.heldOver ? "over needs" : "under cushion"}
+              </span>
+            </span>
+          ) : (
+            // Line crossed: over has already hit; under is busted.
+            <span style={S.totalCell}>
+              <span
+                style={{
+                  ...S.totalNum,
+                  color: totalInfo.heldOver ? C.green : C.red,
+                }}
+              >
                 {Math.abs(totalInfo.remaining)}
               </span>
               <span style={S.totalLabel}>
-                over the line ({totalInfo.scored} of {leg.line})
+                {totalInfo.heldOver ? "over the line" : "over — busted"}
               </span>
             </span>
           )}
+
+          {/* Pace projection: extrapolated final total + on/off target. */}
+          {totalInfo.projected != null ? (
+            <span style={S.totalCell}>
+              <span
+                style={{
+                  ...S.totalNum,
+                  color: totalInfo.onTarget ? C.green : C.red,
+                }}
+              >
+                {totalInfo.projected}
+              </span>
+              <span style={S.totalLabel}>
+                proj · {totalInfo.onTarget ? "on target" : "off pace"}
+              </span>
+            </span>
+          ) : null}
         </div>
       ) : null}
 
       {g && g.state === "in" ? (
         <LiveSituation sit={g.situation} inning={g.detail} />
       ) : null}
-    </div>
+    </Card>
   );
 }
 
