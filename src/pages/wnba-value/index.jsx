@@ -574,7 +574,7 @@ export default function WnbaValue() {
     }
   };
 
-  // Poll every 15s while a game is live, every 60s otherwise.
+  // Poll every 60s while a game is live, every 5s otherwise.
   useEffect(() => {
     let cancelled = false;
     const tick = async () => {
@@ -582,7 +582,7 @@ export default function WnbaValue() {
       if (cancelled) return;
       timerRef.current = setTimeout(
         tick,
-        liveCountRef.current > 0 ? 15000 : 60000
+        liveCountRef.current > 0 ? 60000 : 5000
       );
     };
     tick();
