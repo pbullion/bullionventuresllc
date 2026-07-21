@@ -581,12 +581,14 @@ const legAccent = (leg) => {
   if (leg.live_lean === "lose") return C.red;
   if (leg.live_lean === null && leg.market_type && leg.market_type !== "moneyline") {
     // A spread/total can't be judged by the live score mid-game, so lean on the
-    // market's own implied probability (win_pct = the held side's price). Over
-    // half -> winning, under -> losing, with a small dead-band so a coin-flip
-    // stays neutral instead of flickering green/red on tiny price moves.
+    // market's own implied probability (win_pct = the held side's price):
+    //   >= 53% clearly winning (green), <= 47% clearly losing (red), and the
+    // 48-52% coin-flip band shows amber ("too close to call") rather than gray,
+    // so a contested live leg still reads as in-play instead of "no data".
     if (leg.win_pct != null) {
-      if (leg.win_pct >= 55) return C.green;
-      if (leg.win_pct <= 45) return C.red;
+      if (leg.win_pct >= 53) return C.green;
+      if (leg.win_pct <= 47) return C.red;
+      return C.amber;
     }
     return C.muted;
   }
