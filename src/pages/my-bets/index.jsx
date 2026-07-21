@@ -56,6 +56,20 @@ const formatKickoff = (iso) => {
   return `${day} · ${time("America/New_York", "ET")} / ${time("America/Chicago", "CT")}`;
 };
 
+// Format a settled-time ISO string as "Jul 19, 8:29 PM CT" for the history list.
+const formatSettled = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Chicago",
+  }).format(d);
+};
+
 // Fallback: parse combo title "yes Boston,yes San Antonio,..." into legs.
 const parseTitleLegs = (title) =>
   String(title || "")
@@ -128,6 +142,62 @@ const S = {
     justifyContent: "space-between",
     gap: 12,
   },
+  /* Open / History tab toggle */
+  tabs: {
+    display: "flex",
+    gap: 6,
+    borderBottom: `1px solid ${C.border}`,
+    marginTop: 8,
+  },
+  tab: (active) => ({
+    background: "transparent",
+    border: "none",
+    borderBottom: `2px solid ${active ? C.accent : "transparent"}`,
+    color: active ? C.text : C.muted,
+    padding: "10px 6px",
+    marginBottom: -1,
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: "pointer",
+  }),
+  /* History card bits */
+  resultPill: (won) => ({
+    flexShrink: 0,
+    fontSize: 12,
+    fontWeight: 800,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    padding: "4px 10px",
+    borderRadius: 999,
+    color: won ? C.green : C.red,
+    backgroundColor: won ? C.greenSoft : C.redSoft,
+  }),
+  histSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
+  histLegs: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTop: `1px solid ${C.border}`,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  histLeg: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 },
+  histLegPick: { fontSize: 14, fontWeight: 700, flexShrink: 0 },
+  histLegMatchup: {
+    fontSize: 13,
+    color: C.muted,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  histRecord: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 14,
+    fontWeight: 800,
+  },
+  histRecordDash: { color: C.muted, fontWeight: 600 },
   sectionTitle: {
     fontSize: 15,
     fontWeight: 700,
@@ -705,12 +775,91 @@ function LegSlip({ leg }) {
   );
 }
 
+/* A settled (won/lost) bet in the History tab. Collapsed shows the result +
+ * P&L; expanded lists each leg's pick and whether it hit. */
+function HistoryCard({ item, isOpen, onToggle }) {
+  const d = item.display || {};
+  const legs = Array.isArray(d.legs) ? d.legs : [];
+  const isCombo = legs.length > 1 || (d.leg_count || 0) > 1;
+  const won = d.won;
+  const pnl = Number(d.total_pnl_dollars) || 0;
+  const title = isCombo
+    ? `${legs.length || d.leg_count}-Leg Parlay`
+    : legs[0]?.matchup || parseTitleLegs(d.title)[0]?.label || d.title;
+  return (
+    <div style={S.bet}>
+      <div
+        style={S.betHeader}
+        onClick={onToggle}
+        role="button"
+        aria-expanded={isOpen}
+      >
+        <div style={S.betTop}>
+          <div style={S.betTitleWrap}>
+            <span style={S.chevron(isOpen)}>▶</span>
+            <span style={S.betTitle}>{title}</span>
+          </div>
+          <div style={S.resultPill(won)}>{won ? "Won" : "Lost"}</div>
+        </div>
+        <div style={S.histSub}>{formatSettled(d.settled_time)}</div>
+      </div>
+
+      {isOpen && legs.length ? (
+        <div style={S.histLegs}>
+          {legs.map((leg, i) => (
+            <div style={S.histLeg} key={leg.market_ticker || i}>
+              <span
+                style={S.check(leg.state === "won" ? C.green : C.red)}
+              >
+                {leg.state === "won" ? "✓" : "✕"}
+              </span>
+              <span style={S.histLegPick}>{leg.pick}</span>
+              <span style={S.histLegMatchup}>{leg.matchup}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div style={S.metrics}>
+        <div style={S.metricsPlain}>
+          <div>
+            <div style={S.mLabel}>Cost</div>
+            <div style={S.mValue}>{usd(d.cost_dollars)}</div>
+          </div>
+          <div>
+            <div style={S.mLabel}>Payout</div>
+            <div style={S.mValue}>{usd(d.payout_dollars)}</div>
+          </div>
+          <div>
+            <div style={S.mLabel}>P&L</div>
+            <div style={{ ...S.mValue, color: pnlColor(pnl) }}>
+              {pnlStr(pnl)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MyBets() {
   const [balance, setBalance] = useState(null);
   const [positions, setPositions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState(() => new Set());
+  // "open" (live positions) or "history" (settled won/lost bets).
+  const [tab, setTab] = useState("open");
+  const [settlements, setSettlements] = useState(null);
+  const [histLoading, setHistLoading] = useState(false);
+  const [histExpanded, setHistExpanded] = useState(() => new Set());
+  const toggleHist = (id) =>
+    setHistExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   // Bets the user has dismissed (e.g. an obvious loser). Persisted in the
   // browser so they stay hidden across refreshes; restorable via "Show all".
   const [hidden, setHidden] = useState(() => {
@@ -778,12 +927,35 @@ export default function MyBets() {
     }
   };
 
+  // Settled history — fetched lazily the first time the History tab opens, then
+  // re-fetchable via the refresh button while on that tab.
+  const loadSettlements = async () => {
+    setHistLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/settlements`);
+      if (!res.ok) throw new Error(`History request failed (${res.status})`);
+      const data = await res.json();
+      setSettlements(data?.settlements || []);
+    } catch (e) {
+      setError(e.message || "Something went wrong loading your history.");
+    } finally {
+      setHistLoading(false);
+    }
+  };
+
   useEffect(() => {
     load();
     // Auto-refresh every 15s so live scores/situations stay current.
     const id = setInterval(() => load({ background: true }), 15000);
     return () => clearInterval(id);
   }, []);
+
+  // Fetch history once when the user first switches to the History tab.
+  useEffect(() => {
+    if (tab === "history" && settlements === null && !histLoading) {
+      loadSettlements();
+    }
+  }, [tab]);
 
   // Show highest-payout bets first. Single bets have no max payout, so fall
   // back to their current value to keep the ordering meaningful.
@@ -804,6 +976,15 @@ export default function MyBets() {
   );
   const positionsValue = allBets.reduce(
     (acc, b) => acc + (Number(b.display?.current_value_dollars) || 0),
+    0,
+  );
+
+  // History summary: W-L record and net realized P&L across settled bets.
+  const hist = settlements || [];
+  const histWins = hist.filter((s) => s.display?.won).length;
+  const histLosses = hist.length - histWins;
+  const histPnl = hist.reduce(
+    (acc, s) => acc + (Number(s.display?.total_pnl_dollars) || 0),
     0,
   );
 
@@ -828,8 +1009,12 @@ export default function MyBets() {
           <div style={S.logoDot}>K</div>
           <div style={S.brandName}>My Bets</div>
         </div>
-        <button style={S.refreshBtn} onClick={() => load()} disabled={loading}>
-          {loading ? "Loading…" : "Refresh"}
+        <button
+          style={S.refreshBtn}
+          onClick={() => (tab === "history" ? loadSettlements() : load())}
+          disabled={tab === "history" ? histLoading : loading}
+        >
+          {(tab === "history" ? histLoading : loading) ? "Loading…" : "Refresh"}
         </button>
       </div>
 
@@ -857,6 +1042,24 @@ export default function MyBets() {
           </div>
         </div>
 
+        {/* Open / History tabs */}
+        <div style={S.tabs}>
+          <button
+            style={S.tab(tab === "open")}
+            onClick={() => setTab("open")}
+          >
+            Open{bets.length ? ` (${bets.length})` : ""}
+          </button>
+          <button
+            style={S.tab(tab === "history")}
+            onClick={() => setTab("history")}
+          >
+            History
+          </button>
+        </div>
+
+        {tab === "open" ? (
+        <>
         <div style={S.sectionHeader}>
           <div style={S.sectionTitle}>Open positions</div>
           {hiddenCount > 0 ? (
@@ -994,6 +1197,43 @@ export default function MyBets() {
             );
           })}
           </div>
+        )}
+        </>
+        ) : (
+          /* ─── History tab ─── */
+          <>
+            <div style={S.sectionHeader}>
+              <div style={S.sectionTitle}>Settled bets</div>
+              {hist.length ? (
+                <div style={S.histRecord}>
+                  <span style={{ color: C.green }}>{histWins}W</span>
+                  <span style={S.histRecordDash}>·</span>
+                  <span style={{ color: C.red }}>{histLosses}L</span>
+                  <span style={S.histRecordDash}>·</span>
+                  <span style={{ color: pnlColor(histPnl) }}>
+                    {pnlStr(histPnl)}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            {histLoading && settlements === null ? (
+              <div style={S.muted}>Loading your history…</div>
+            ) : hist.length === 0 ? (
+              <div style={S.muted}>No settled bets yet.</div>
+            ) : (
+              <div className="mb-bets">
+                {hist.map((item) => (
+                  <HistoryCard
+                    key={item.ticker}
+                    item={item}
+                    isOpen={histExpanded.has(item.ticker)}
+                    onToggle={() => toggleHist(item.ticker)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
