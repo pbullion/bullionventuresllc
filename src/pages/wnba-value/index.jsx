@@ -571,6 +571,322 @@ function PerformancePanel() {
   );
 }
 
+/* ─── Auto-Bet panel (backend: routes/kalshi.js auto-bet section) ───
+ * Three tiers: status header (pill + config + daily-stake meter + kill/enable
+ * toggle), today's bets (the ledger), and the raw activity feed (every eval,
+ * including skips with their reason — the "why did/didn't it bet" answer).
+ * All read-only except the toggle. */
+
+const timeAgo = (iso) => {
+  if (!iso) return "—";
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 90) return `${s}s ago`;
+  if (s < 5400) return `${Math.round(s / 60)}m ago`;
+  return `${Math.round(s / 3600)}h ago`;
+};
+
+const BET_STATUS_STYLE = {
+  placed: { color: C.amber, label: "PLACED" },
+  filled: { color: C.amber, label: "FILLED" },
+  unfilled: { color: C.muted, label: "NO FILL" },
+  error: { color: C.red, label: "ERROR" },
+  settled: null, // colored by result below
+};
+
+function AutoBetPanel() {
+  const [status, setStatus] = useState(null);
+  const [bets, setBets] = useState([]);
+  const [activity, setActivity] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [feedOpen, setFeedOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const load = async () => {
+    try {
+      const [s, b, a] = await Promise.all([
+        fetch(`${API_BASE}/auto-bets/status`).then((r) =>
+          r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))
+        ),
+        fetch(`${API_BASE}/auto-bets`).then((r) => (r.ok ? r.json() : { bets: [] })),
+        fetch(`${API_BASE}/auto-bets/activity?limit=40`).then((r) =>
+          r.ok ? r.json() : { activity: [] }
+        ),
+      ]);
+      setStatus(s);
+      setBets(b.bets || []);
+      setActivity(a.activity || []);
+      setErr(null);
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (err || !status) return null; // endpoint not deployed yet — hide the panel
+
+  const mode = status.mode; // 'live' | 'paper' | 'off'
+  const pill =
+    mode === "live"
+      ? { text: "● LIVE", color: C.green, bg: C.greenSoft, border: C.greenBorder }
+      : mode === "paper"
+      ? { text: "PAPER", color: C.amber, bg: "#2b2410", border: "#7a651f" }
+      : { text: "OFF", color: C.muted, bg: C.chipBg, border: C.border };
+  const t = status.today || {};
+  const cfg = status.config || {};
+  const stakePct = t.daily_cap
+    ? Math.min(100, Math.round((t.daily_stake / t.daily_cap) * 100))
+    : 0;
+
+  const toggle = async () => {
+    const killing = !status.killed;
+    const msg = killing
+      ? "Trip the auto-bet kill switch? No orders will be placed until re-enabled."
+      : status.enabled_env
+      ? "Re-enable auto-betting? Real orders will be placed while games are live."
+      : "Clear the kill switch? (AUTOBET_ENABLED is still off on the server, so it stays in PAPER mode.)";
+    if (!window.confirm(msg)) return;
+    setBusy(true);
+    try {
+      const r = await fetch(
+        `${API_BASE}/auto-bets/${killing ? "kill" : "enable"}`,
+        { method: "POST" }
+      );
+      if (r.ok) setStatus(await r.json());
+    } catch (e) {
+      /* next poll refreshes */
+    }
+    setBusy(false);
+  };
+
+  const betRow = (b) => {
+    const settled = b.status === "settled";
+    const won = b.result === "won";
+    const pnl = b.pnl_dollars != null ? Number(b.pnl_dollars) : null;
+    const chip = settled
+      ? { color: won ? C.green : C.red, label: won ? "WON" : "LOST" }
+      : BET_STATUS_STYLE[b.status] || { color: C.muted, label: b.status };
+    return (
+      <div
+        key={b.id}
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          alignItems: "center",
+          fontSize: 13,
+          padding: "8px 10px",
+          borderRadius: 8,
+          background: settled ? (won ? C.greenSoft : C.redSoft) : C.rowAlt,
+          border: `1px solid ${settled ? (won ? C.greenBorder : C.redBorder) : C.border}`,
+        }}
+      >
+        <span style={{ fontWeight: 700 }}>
+          {b.league ? `${String(b.league).toUpperCase()} · ` : ""}
+          {b.pick_label}
+        </span>
+        <span style={{ color: C.muted, flex: 1, minWidth: 120 }}>{b.title}</span>
+        <span>
+          ${Number(b.stake_dollars).toFixed(0)} ({b.contracts}x @{" "}
+          {cents(b.limit_price)})
+        </span>
+        <span style={{ color: C.green }}>{edgeCents(b.edge)}</span>
+        <span style={{ color: chip.color, fontWeight: 800 }}>
+          {chip.label}
+          {settled && pnl != null
+            ? ` ${pnl >= 0 ? "+" : "−"}$${Math.abs(pnl).toFixed(2)}`
+            : ""}
+        </span>
+      </div>
+    );
+  };
+
+  const evalLine = (a) => {
+    const when = new Date(a.ran_at).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "America/Chicago",
+    });
+    const what = `${a.league ? `${String(a.league).toUpperCase()} · ` : ""}${
+      a.pick_label || a.market_ticker
+    }`;
+    const deco =
+      a.decision === "placed"
+        ? { icon: "🤖", color: C.green, text: `placed (${edgeCents(a.edge)})` }
+        : a.decision === "would-place"
+        ? { icon: "📝", color: C.amber, text: `would-place (${edgeCents(a.edge)})` }
+        : { icon: "·", color: C.muted, text: `skipped: ${a.skip_reason}` };
+    return (
+      <div
+        key={a.id}
+        style={{ display: "flex", gap: 8, fontSize: 12, padding: "3px 0" }}
+      >
+        <span style={{ color: C.muted, width: 66, flexShrink: 0 }}>{when}</span>
+        <span style={{ flexShrink: 0 }}>{deco.icon}</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          {what} —{" "}
+          <span style={{ color: deco.color, fontWeight: 600 }}>{deco.text}</span>
+        </span>
+      </div>
+    );
+  };
+
+  return (
+    <div
+      style={{
+        background: C.panel,
+        border: `1px solid ${C.border}`,
+        borderRadius: 14,
+        marginTop: 26,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          padding: "14px 16px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ fontWeight: 800, fontSize: 15 }}>🤖 Auto-Bet</div>
+        <Chip color={pill.color} bg={pill.bg} border={pill.border}>
+          {pill.text}
+        </Chip>
+        <span style={{ color: C.muted, fontSize: 12, flex: 1 }}>
+          {t.placed || 0} bet{(t.placed || 0) === 1 ? "" : "s"} today · $
+          {Number(t.daily_stake || 0).toFixed(0)} / ${t.daily_cap} ·{" "}
+          {status.loop_running ? "loop live" : "idle"} · run{" "}
+          {timeAgo(status.last_run_at)}
+        </span>
+        <div style={{ color: C.muted, fontSize: 18 }}>{open ? "▾" : "▸"}</div>
+      </div>
+
+      {open && (
+        <div style={{ borderTop: `1px solid ${C.border}`, padding: 16 }}>
+          {/* Tier 1: config + stake meter + toggle */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 12,
+              alignItems: "center",
+            }}
+          >
+            <span style={{ color: C.muted, fontSize: 12 }}>
+              ${cfg.unit_dollars}/u · edge-scaled ≤{cfg.max_units}u · $
+              {cfg.max_daily_dollars}/day · ${cfg.max_event_dollars}/game ·{" "}
+              {Math.round((cfg.min_edge || 0) * 100)}¢ edge ·{" "}
+              {Math.round((cfg.max_spread || 0) * 100)}¢ book ·{" "}
+              {(cfg.leagues || []).join("+").toUpperCase()} · every{" "}
+              {cfg.interval_secs}s
+            </span>
+            <button
+              onClick={toggle}
+              disabled={busy}
+              style={{
+                marginLeft: "auto",
+                padding: "6px 14px",
+                borderRadius: 8,
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: "pointer",
+                color: status.killed ? C.bg : "#fff",
+                background: status.killed ? C.green : C.red,
+                border: "none",
+                opacity: busy ? 0.5 : 1,
+              }}
+            >
+              {status.killed ? "ENABLE" : "KILL"}
+            </button>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div
+              style={{
+                height: 10,
+                background: C.rowAlt,
+                borderRadius: 5,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${stakePct}%`,
+                  height: "100%",
+                  background: stakePct >= 90 ? C.red : stakePct >= 60 ? C.amber : C.green,
+                }}
+              />
+            </div>
+            <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
+              ${Number(t.daily_stake || 0).toFixed(2)} of ${t.daily_cap} daily cap
+              {mode === "paper" && (
+                <span style={{ color: C.amber }}>
+                  {" "}
+                  · PAPER — evaluating only, would-place logged, no orders
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Tier 2: today's bets */}
+          <div style={{ marginTop: 16 }}>
+            <div
+              style={{ color: C.muted, fontSize: 11, fontWeight: 700, marginBottom: 8 }}
+            >
+              TODAY'S BETS
+            </div>
+            {bets.length ? (
+              <div style={{ display: "grid", gap: 6 }}>{bets.map(betRow)}</div>
+            ) : (
+              <div style={{ color: C.muted, fontSize: 13 }}>
+                No bets placed today.
+              </div>
+            )}
+          </div>
+
+          {/* Tier 3: activity feed */}
+          <div style={{ marginTop: 16 }}>
+            <div
+              onClick={() => setFeedOpen((o) => !o)}
+              style={{
+                color: C.muted,
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              ACTIVITY {feedOpen ? "▾" : "▸"}{" "}
+              <span style={{ fontWeight: 400 }}>
+                ({activity.length} recent evals · {t.skipped || 0} skips ·{" "}
+                {t.would_place || 0} would-place today)
+              </span>
+            </div>
+            {feedOpen && (
+              <div style={{ marginTop: 8 }}>
+                {activity.length ? (
+                  activity.map(evalLine)
+                ) : (
+                  <div style={{ color: C.muted, fontSize: 13 }}>
+                    Nothing evaluated yet — the feed fills in while games are live.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Page ─── */
 
 const EDGE_OPTIONS = [0.03, 0.05, 0.08, 0.1];
@@ -731,6 +1047,7 @@ export default function WnbaValue() {
           ))}
         </div>
 
+        <AutoBetPanel />
         <PerformancePanel />
       </div>
     </div>
