@@ -694,7 +694,9 @@ export default function WnbaValue() {
         {data && valueBets.length === 0 && (
           <div style={{ color: C.muted, fontSize: 13, marginBottom: 18 }}>
             No bets clear a {Math.round(minEdge * 100)}¢ edge right now
-            {data.live_count === 0 ? " — no WNBA games are live." : "."}
+            {data.live_count === 0
+              ? " — no games are live (the model only prices live games)."
+              : "."}
           </div>
         )}
 
