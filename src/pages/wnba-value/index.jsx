@@ -106,8 +106,15 @@ const pickText = (bet, side) =>
 function ValueBetCard({ game, bet }) {
   const side = bet.best.side;
   const sideP = side === "over" ? bet.p_over : 1 - bet.p_over;
+  const kalshiUrl = game.event_ticker
+    ? `https://kalshi.com/events/${game.event_ticker.toLowerCase()}`
+    : null;
+  const Wrapper = kalshiUrl ? "a" : "div";
   return (
-    <div
+    <Wrapper
+      {...(kalshiUrl
+        ? { href: kalshiUrl, target: "_blank", rel: "noreferrer" }
+        : {})}
       style={{
         background: C.greenSoft,
         border: `1px solid ${C.greenBorder}`,
@@ -117,11 +124,19 @@ function ValueBetCard({ game, bet }) {
         flexWrap: "wrap",
         alignItems: "center",
         gap: 12,
+        textDecoration: "none",
+        color: C.text,
+        cursor: kalshiUrl ? "pointer" : "default",
       }}
     >
       <div style={{ flex: "1 1 220px", minWidth: 0 }}>
         <div style={{ fontWeight: 800, fontSize: 16 }}>
           {pickText(bet, side)} {bet.locked_over && "🔒"}
+          {kalshiUrl && (
+            <span style={{ color: C.green, fontSize: 12, marginLeft: 8 }}>
+              Trade ↗
+            </span>
+          )}
         </div>
         <div style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>
           {game.title}
@@ -144,7 +159,7 @@ function ValueBetCard({ game, bet }) {
           </div>
         </div>
       </div>
-    </div>
+    </Wrapper>
   );
 }
 
@@ -301,8 +316,18 @@ function GameCard({ game }) {
       {open && (
         <div style={{ borderTop: `1px solid ${C.border}` }}>
           <Ladder game={game} />
-          {g.link && (
-            <div style={{ padding: "8px 16px" }}>
+          <div style={{ padding: "8px 16px", display: "flex", gap: 16 }}>
+            {game.event_ticker && (
+              <a
+                href={`https://kalshi.com/events/${game.event_ticker.toLowerCase()}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: C.green, fontSize: 12, fontWeight: 700 }}
+              >
+                Trade on Kalshi ↗
+              </a>
+            )}
+            {g.link && (
               <a
                 href={g.link}
                 target="_blank"
@@ -311,8 +336,8 @@ function GameCard({ game }) {
               >
                 View on ESPN ↗
               </a>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
