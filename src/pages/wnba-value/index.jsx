@@ -398,7 +398,7 @@ function PerformancePanel() {
         background: C.panel,
         border: `1px solid ${C.border}`,
         borderRadius: 14,
-        marginTop: 26,
+        marginBottom: 22,
         overflow: "hidden",
       }}
     >
@@ -593,11 +593,11 @@ const BET_STATUS_STYLE = {
   settled: null, // colored by result below
 };
 
-function AutoBetPanel() {
+function AutoBetPanel({ games }) {
   const [status, setStatus] = useState(null);
   const [bets, setBets] = useState([]);
   const [activity, setActivity] = useState([]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [feedOpen, setFeedOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -671,6 +671,20 @@ function AutoBetPanel() {
     const chip = settled
       ? { color: won ? C.green : C.red, label: won ? "WON" : "LOST" }
       : BET_STATUS_STYLE[b.status] || { color: C.muted, label: b.status };
+    // Current game state from the page's own scan (same event ticker), so an
+    // open bet shows the live score/clock instead of the score at bet time.
+    const scanGame = (games || []).find(
+      (g) => g.event_ticker === b.event_ticker
+    );
+    const gg = scanGame && scanGame.game;
+    const liveLine =
+      gg && gg.away && gg.home && gg.away.score != null && gg.home.score != null
+        ? `${gg.away.abbr || gg.away.team} ${gg.away.score}–${gg.home.score} ${
+            gg.home.abbr || gg.home.team
+          }${gg.detail ? ` · ${gg.detail}` : ""}`
+        : b.score_at
+        ? `${b.score_at} at bet`
+        : null;
     return (
       <div
         key={b.id}
@@ -690,7 +704,9 @@ function AutoBetPanel() {
           {b.league ? `${String(b.league).toUpperCase()} · ` : ""}
           {b.pick_label}
         </span>
-        <span style={{ color: C.muted, flex: 1, minWidth: 120 }}>{b.title}</span>
+        <span style={{ color: C.muted, flex: 1, minWidth: 120 }}>
+          {liveLine || b.title}
+        </span>
         <span>
           ${Number(b.stake_dollars).toFixed(0)} ({b.contracts}x @{" "}
           {cents(b.limit_price)})
@@ -742,7 +758,7 @@ function AutoBetPanel() {
         background: C.panel,
         border: `1px solid ${C.border}`,
         borderRadius: 14,
-        marginTop: 26,
+        marginBottom: 12,
         overflow: "hidden",
       }}
     >
@@ -853,20 +869,30 @@ function AutoBetPanel() {
           </div>
 
           {/* Tier 3: activity feed */}
-          <div style={{ marginTop: 16 }}>
+          <div
+            style={{
+              marginTop: 16,
+              borderTop: `1px solid ${C.border}`,
+              paddingTop: 12,
+            }}
+          >
             <div
               onClick={() => setFeedOpen((o) => !o)}
               style={{
-                color: C.muted,
-                fontSize: 11,
-                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
                 cursor: "pointer",
               }}
             >
-              ACTIVITY {feedOpen ? "▾" : "▸"}{" "}
-              <span style={{ fontWeight: 400 }}>
-                ({activity.length} recent evals · {t.skipped || 0} skips ·{" "}
-                {t.would_place || 0} would-place today)
+              <span style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>
+                ACTIVITY
+              </span>
+              <span style={{ color: C.muted, fontSize: 11, flex: 1 }}>
+                {t.skipped || 0} skips · {t.would_place || 0} would-place today
+              </span>
+              <span style={{ color: C.muted, fontSize: 14 }}>
+                {feedOpen ? "▾" : "▸"}
               </span>
             </div>
             {feedOpen && (
@@ -1007,6 +1033,9 @@ export default function WnbaValue() {
           ))}
         </div>
 
+        <AutoBetPanel games={games} />
+        <PerformancePanel />
+
         {error && (
           <div
             style={{
@@ -1047,8 +1076,6 @@ export default function WnbaValue() {
           ))}
         </div>
 
-        <AutoBetPanel />
-        <PerformancePanel />
       </div>
     </div>
   );
