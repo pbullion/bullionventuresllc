@@ -38,6 +38,13 @@ const products = [
       "A live tracker for my Kalshi positions. See open parlays and single bets with real-time prices, leg-by-leg breakdowns, and how each position is doing.",
   },
   {
+    emoji: "📈",
+    name: "Totals Value",
+    path: "/wnba-value",
+    description:
+      "A live value scanner for Kalshi WNBA and MLB over/unders. Projects each game's final total from its actual pace, prices every strike, and flags bets where the model beats the market — then tracks its own record and learns from the results.",
+  },
+  {
     emoji: "🎲",
     name: "Farkle Scorer",
     path: "/farkle",
