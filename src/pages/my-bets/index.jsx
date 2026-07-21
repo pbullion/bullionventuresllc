@@ -579,6 +579,22 @@ const sortLegs = (legs) =>
     .sort((a, b) => a.done - b.done || a.i - b.i)
     .map((x) => x.leg);
 
+/* Does the leg have a baseball situation row (count/outs/runners) that will
+ * render? Baseball shows its inning there; every other live sport (basketball,
+ * etc.) has no situation row, so its status must stay in the top-right label. */
+const hasLiveSituation = (leg) => {
+  const g = leg.game;
+  const sit = g && g.situation;
+  if (!g || g.state !== "in" || !sit) return false;
+  return (
+    (sit.balls != null && sit.strikes != null) ||
+    sit.outs != null ||
+    sit.on_first ||
+    sit.on_second ||
+    sit.on_third
+  );
+};
+
 const StatusLabel = ({ leg }) => {
   const g = leg.game;
   // Pre-game: show scheduled time in both ET and CT instead of ESPN's EDT-only
@@ -586,9 +602,13 @@ const StatusLabel = ({ leg }) => {
   if (g && g.state === "pre") {
     return formatKickoff(g.date) || g.detail || "Scheduled";
   }
-  // Live: the inning ("Top 9th") now shows in the situation row beside the out
-  // dots, so keep the top-right corner empty to avoid duplicating it.
-  if (g && g.state === "in") return null;
+  // Live: baseball shows its inning down in the situation row, so keep the
+  // top-right empty to avoid duplicating it. Sports WITHOUT a situation row
+  // (basketball, etc.) must still show their status here — quarter + clock,
+  // "Halftime", etc. — otherwise a live game looks like it has no status.
+  if (g && g.state === "in") {
+    return hasLiveSituation(leg) ? null : g.detail || "Live";
+  }
   if (g && g.detail) return g.detail; // final ("Final"), postponed, etc.
   if (leg.state === "won") return "Won";
   if (leg.state === "lost") return "Lost";
