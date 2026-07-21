@@ -629,6 +629,21 @@ const sideIsLeading = (g) => {
   return g.side === "no" ? !pickAhead : pickAhead;
 };
 
+/* A total whose line is already mathematically crossed is decided even mid-game
+ * — points only go up, so once scored > line the over has won and the under has
+ * lost, for good. Returns "won" | "lost" (from the held side) or null when not
+ * yet crossed / not a total. Lets the UI treat a busted total as a final. */
+const totalDecided = (leg) => {
+  if (leg.market_type !== "total" || leg.line == null) return null;
+  const g = leg.game;
+  if (!g || g.pick_score == null || g.opp_score == null) return null;
+  const scored = Number(g.pick_score) + Number(g.opp_score);
+  if (scored <= Number(leg.line)) return null; // line not crossed yet
+  const overWon = true; // scored is over the line
+  const heldOver = leg.side === "yes";
+  return heldOver === overWon ? "won" : "lost";
+};
+
 /* A live game that's currently tied on the scoreboard (both scores present and
  * equal, still in progress). Only meaningful for a straight winner bet — a
  * spread/total "tie" isn't a dead heat, so exclude those. */
@@ -645,6 +660,9 @@ const legIsLiveTie = (leg) => {
 const legAccent = (leg) => {
   if (leg.state === "won") return C.green;
   if (leg.state === "lost") return C.red;
+  // A busted/hit total is decided even before Kalshi settles — color it final.
+  const decided = totalDecided(leg);
+  if (decided) return decided === "won" ? C.green : C.red;
   // A live tied game reads as amber ("dead heat") rather than gray "no data".
   if (legIsLiveTie(leg)) return C.amber;
   // The backend computes an authoritative live lean per market type — a spread
@@ -693,6 +711,7 @@ const legKind = (leg) => {
   const finished =
     leg.state === "won" ||
     leg.state === "lost" ||
+    totalDecided(leg) != null ||
     (g && (g.state === "post" || g.completed === true));
   const accent = legAccent(leg);
   const lean =
@@ -706,12 +725,14 @@ const legKind = (leg) => {
   return { finished, lean };
 };
 
-/* True when a leg's game is over (settled, or ESPN post/completed). */
+/* True when a leg's game is over (settled, ESPN post/completed, or a total
+ * whose line is already crossed — decided even if the game clock runs on). */
 const legIsFinished = (leg) => {
   const g = leg.game;
   return (
     leg.state === "won" ||
     leg.state === "lost" ||
+    totalDecided(leg) != null ||
     (g && (g.state === "post" || g.completed === true))
   );
 };
@@ -743,6 +764,10 @@ const hasLiveSituation = (leg) => {
 
 const StatusLabel = ({ leg }) => {
   const g = leg.game;
+  // A decided total (line already crossed) reads as final even while the game
+  // clock runs on, so don't show the live quarter/clock.
+  const decidedTotal = totalDecided(leg);
+  if (decidedTotal) return decidedTotal === "won" ? "Won" : "Lost";
   // Pre-game: show scheduled time in both ET and CT instead of ESPN's EDT-only
   // string.
   if (g && g.state === "pre") {
@@ -829,8 +854,12 @@ function LegSlip({ leg }) {
           const line = Number(leg.line);
           const scored = Number(g.pick_score) + Number(g.opp_score);
           const remaining = line - scored;
+          // Once the line is crossed the total is decided — no more pace guess.
+          const decided = scored > line;
           const frac =
-            g.state === "in" ? gameElapsedFraction(g, leg.league) : null;
+            g.state === "in" && !decided
+              ? gameElapsedFraction(g, leg.league)
+              : null;
           const projected = frac ? Math.round(scored / frac) : null;
           // Under is on target if the projected final stays under the line;
           // over is on target if it clears it.
@@ -840,7 +869,15 @@ function LegSlip({ leg }) {
               : heldOver
                 ? projected > line
                 : projected < line;
-          return { line, scored, remaining, projected, onTarget, heldOver };
+          return {
+            line,
+            scored,
+            remaining,
+            projected,
+            onTarget,
+            heldOver,
+            decided,
+          };
         })()
       : null;
   // Clicking a leg opens its ESPN game page (new tab) when we matched one.
@@ -856,7 +893,13 @@ function LegSlip({ leg }) {
     <Card style={cardStyle} {...linkProps}>
       <div style={S.legTopRow}>
         <span style={S.legLeague}>{leg.league || "Market"}</span>
-        <span style={S.legStatus(g ? g.state : leg.state)}>
+        {/* A decided total is treated as finished, so color its status muted
+            (not the live green) even though the game clock is still "in". */}
+        <span
+          style={S.legStatus(
+            legIsFinished(leg) ? "post" : g ? g.state : leg.state
+          )}
+        >
           <StatusLabel leg={leg} />
           {link ? <span style={S.espnArrow}>↗</span> : null}
         </span>
@@ -953,7 +996,9 @@ function LegSlip({ leg }) {
         </div>
       ) : null}
 
-      {g && g.state === "in" ? (
+      {/* Live situation is irrelevant once the leg is decided (e.g. a busted
+          total whose game clock is still running). */}
+      {g && g.state === "in" && !legIsFinished(leg) ? (
         <LiveSituation sit={g.situation} inning={g.detail} />
       ) : null}
     </Card>
