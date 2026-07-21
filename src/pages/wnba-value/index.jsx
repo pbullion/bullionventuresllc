@@ -588,10 +588,10 @@ export default function WnbaValue() {
           }}
         >
           <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>
-            📈 Totals Value — WNBA · MLB · CBB
+            📈 Totals Value
           </h1>
           <span style={{ color: C.muted, fontSize: 12 }}>
-            Kalshi over/unders vs live pace model
+            Kalshi over/unders vs live pace model — WNBA · MLB · CBB · NFL · CFB
             {updatedAt
               ? ` · updated ${updatedAt.toLocaleTimeString("en-US", {
                   hour: "numeric",

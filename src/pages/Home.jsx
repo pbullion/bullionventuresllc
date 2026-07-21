@@ -42,7 +42,7 @@ const products = [
     name: "Totals Value",
     path: "/wnba-value",
     description:
-      "A live value scanner for Kalshi over/unders — WNBA, MLB, and college basketball. Projects each game's final total from its actual pace, prices every strike, and flags bets where the model beats the market — then tracks its own record and learns from the results.",
+      "A live value scanner for Kalshi over/unders — WNBA, MLB, NFL, and college basketball & football. Projects each game's final total from its actual pace, prices every strike, and flags bets where the model beats the market — then tracks its own record and learns from the results.",
   },
   {
     emoji: "🎲",
