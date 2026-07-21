@@ -36,6 +36,12 @@ const usd = (n) =>
   );
 // Kalshi shows contract prices in cents (e.g. 57¢).
 const cents = (dollars) => `${Math.round((Number(dollars) || 0) * 100)}¢`;
+// Contract quantity: Kalshi positions can be fractional (e.g. 31.4), so show up
+// to 2 decimals but trim trailing zeros (31 stays "31", 31.40 -> "31.4").
+const qty = (n) => {
+  const v = Number(n) || 0;
+  return Number(v.toFixed(2)).toString();
+};
 
 // Format an ISO game time as "M/D · 6:40 PM ET / 5:40 PM CT" so both zones show.
 const formatKickoff = (iso) => {
@@ -840,7 +846,9 @@ function LegSlip({ leg }) {
           <span style={S.check(accent)}>✓</span>
           <span style={S.pickTeam}>{leg.pick}</span>
         </div>
-        {leg.win_pct != null ? (
+        {/* Win % is a live-market read — meaningless once the game is final, so
+            hide it on finished legs (the ✓/✕ + Won/Lost already say the result). */}
+        {leg.win_pct != null && !legIsFinished(leg) ? (
           <span style={{ ...S.winPct, color: accent }}>{leg.win_pct}%</span>
         ) : null}
       </div>
@@ -1335,7 +1343,7 @@ export default function MyBets() {
                     </div>
                     <div>
                       <div style={S.mLabel}>Contracts</div>
-                      <div style={S.mValue}>{Math.round(d.count) || 0}</div>
+                      <div style={S.mValue}>{qty(d.count)}</div>
                     </div>
                     <div>
                       <div style={S.mLabel}>P&L</div>
