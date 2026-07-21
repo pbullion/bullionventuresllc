@@ -274,6 +274,10 @@ function GameCard({ game }) {
             {game.prior_source === "closing_line" && game.prior_total != null && (
               <Chip color={C.text}>Line {Number(game.prior_total).toFixed(1)}</Chip>
             )}
+            {game.state === "pre" && away.probable && home.probable && (
+              <Chip>SP {away.probable} v {home.probable}</Chip>
+            )}
+            {live && g.pitcher && <Chip>P: {g.pitcher}</Chip>}
             {live && game.projected_total != null && (
               <Chip color={C.text}>
                 Proj total {game.projected_total.toFixed(1)} ± {game.sigma?.toFixed(1)}
