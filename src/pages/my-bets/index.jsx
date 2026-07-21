@@ -107,6 +107,8 @@ const S = {
     fontWeight: 700,
     cursor: "pointer",
   },
+  // On phones this stays a comfortable single column; on desktop the
+  // `mb-inner` class (see the injected media query) lets it fill the width.
   inner: { maxWidth: 720, margin: "0 auto", padding: "0 16px" },
 
   hero: { padding: "28px 4px 20px" },
@@ -117,11 +119,44 @@ const S = {
   statLabel: { fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 2 },
   statValue: { fontSize: 18, fontWeight: 700 },
 
+  sectionHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: 700,
     color: C.text,
     margin: "18px 4px 12px",
+  },
+  showHiddenBtn: {
+    background: "transparent",
+    border: `1px solid ${C.border}`,
+    color: C.muted,
+    borderRadius: 999,
+    padding: "5px 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  betActions: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
+  hideBtn: {
+    background: "transparent",
+    border: `1px solid ${C.border}`,
+    color: C.muted,
+    borderRadius: 999,
+    width: 26,
+    height: 26,
+    lineHeight: 1,
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
 
   bet: {
@@ -213,6 +248,14 @@ const S = {
     fontWeight: 900,
     color: C.green,
     letterSpacing: -0.3,
+    whiteSpace: "nowrap",
+  },
+  // Sub-line under "Value": the actual bid-side cash-out amount + price.
+  cashOut: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: C.text,
+    marginTop: 4,
     whiteSpace: "nowrap",
   },
 
@@ -392,6 +435,27 @@ const S = {
   },
 };
 
+/* Desktop-only width fill. Below 900px the inner column keeps its phone-
+ * friendly 720px cap; at ≥900px it stretches nearly edge-to-edge so the bet
+ * cards and parlay slips use the full screen. */
+const MB_CSS = `
+@media (min-width: 900px) {
+  .mb-inner { max-width: 1600px !important; padding: 0 32px !important; }
+  /* Bet cards flow into a multi-column grid so several parlays are visible at
+     once without scrolling. auto-fill keeps as many ~420px columns as fit. */
+  .mb-bets {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  .mb-bets > * { margin-bottom: 0 !important; }
+  /* Inside a card the legs stack in one narrow column so the card stays a
+     compact grid cell (instead of the wide 2-across leg slip). */
+  .mb-slip { grid-template-columns: 1fr !important; }
+}
+`;
+
 const pnlColor = (v) => (v > 0 ? C.green : v < 0 ? C.red : C.text);
 const pnlStr = (v) => `${v > 0 ? "+" : ""}${usd(v)}`;
 
@@ -410,6 +474,17 @@ const sideIsLeading = (g) => {
 const legAccent = (leg) => {
   if (leg.state === "won") return C.green;
   if (leg.state === "lost") return C.red;
+  // The backend computes an authoritative live lean per market type — a spread
+  // or total can't be judged by "who's ahead" (a favorite up 3 still fails a
+  // -9.5 spread), so trust live_lean when it's provided and only fall back to
+  // the score-based heuristic for legs without it (older API responses).
+  if (leg.live_lean === "win") return C.green;
+  if (leg.live_lean === "lose") return C.red;
+  if (leg.live_lean === null && leg.market_type) {
+    // Backend evaluated it and it's genuinely undecided -> stay neutral rather
+    // than letting the moneyline score heuristic mis-color a spread/total.
+    if (leg.market_type !== "moneyline") return C.muted;
+  }
   const g = leg.game;
   // Live OR final: color by the score. Kalshi often hasn't settled the market
   // right after a game ends (leg.state stays "open"), so a FINAL must still turn
@@ -548,6 +623,35 @@ export default function MyBets() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState(() => new Set());
+  // Bets the user has dismissed (e.g. an obvious loser). Persisted in the
+  // browser so they stay hidden across refreshes; restorable via "Show all".
+  const [hidden, setHidden] = useState(() => {
+    try {
+      const raw = localStorage.getItem("mb_hidden");
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set();
+    }
+  });
+
+  const persistHidden = (set) => {
+    try {
+      localStorage.setItem("mb_hidden", JSON.stringify([...set]));
+    } catch {
+      /* ignore quota/availability errors — hiding still works this session */
+    }
+  };
+  const hideBet = (id) =>
+    setHidden((prev) => {
+      const next = new Set(prev).add(id);
+      persistHidden(next);
+      return next;
+    });
+  const unhideAll = () =>
+    setHidden(() => {
+      persistHidden(new Set());
+      return new Set();
+    });
 
   const toggle = (id) =>
     setExpanded((prev) => {
@@ -599,14 +703,18 @@ export default function MyBets() {
     Number(b.display?.max_payout_dollars) ||
     Number(b.display?.current_value_dollars) ||
     0;
-  const bets = [...(positions?.market_positions || [])].sort(
+  const allBets = [...(positions?.market_positions || [])].sort(
     (a, b) => payoutOf(b) - payoutOf(a),
   );
-  const totalPnl = bets.reduce(
+  // Cards actually shown: everything the user hasn't dismissed. Totals below
+  // still count every position so the P&L/portfolio figures stay accurate.
+  const bets = allBets.filter((b) => !hidden.has(b.ticker));
+  const hiddenCount = allBets.length - bets.length;
+  const totalPnl = allBets.reduce(
     (acc, b) => acc + (Number(b.display?.total_pnl_dollars) || 0),
     0,
   );
-  const positionsValue = bets.reduce(
+  const positionsValue = allBets.reduce(
     (acc, b) => acc + (Number(b.display?.current_value_dollars) || 0),
     0,
   );
@@ -622,6 +730,11 @@ export default function MyBets() {
 
   return (
     <div style={S.page}>
+      {/* Inline styles can't hold media queries, so the desktop width-fill
+          lives in a small injected stylesheet. The `.mb-inner` override widens
+          the centered column on wide viewports; the parlay slip grid then
+          auto-fills more leg columns on its own. */}
+      <style>{MB_CSS}</style>
       <div style={S.topbar}>
         <div style={S.brand}>
           <div style={S.logoDot}>K</div>
@@ -632,7 +745,7 @@ export default function MyBets() {
         </button>
       </div>
 
-      <div style={S.inner}>
+      <div className="mb-inner" style={S.inner}>
         {error ? <div style={S.error}>{error}</div> : null}
 
         <div style={S.hero}>
@@ -656,14 +769,26 @@ export default function MyBets() {
           </div>
         </div>
 
-        <div style={S.sectionTitle}>Open positions</div>
+        <div style={S.sectionHeader}>
+          <div style={S.sectionTitle}>Open positions</div>
+          {hiddenCount > 0 ? (
+            <button style={S.showHiddenBtn} onClick={unhideAll}>
+              {hiddenCount} hidden · Show all
+            </button>
+          ) : null}
+        </div>
 
         {loading && !positions ? (
           <div style={S.muted}>Loading your bets…</div>
         ) : bets.length === 0 ? (
-          <div style={S.muted}>No open positions.</div>
+          <div style={S.muted}>
+            {hiddenCount > 0
+              ? "All positions hidden. Use “Show all” to bring them back."
+              : "No open positions."}
+          </div>
         ) : (
-          bets.map((b) => {
+          <div className="mb-bets">
+          {bets.map((b) => {
             const d = b.display || {};
             const legs = Array.isArray(d.legs) ? d.legs : [];
             const isCombo = legs.length > 1 || (d.leg_count || 0) > 1;
@@ -693,8 +818,23 @@ export default function MyBets() {
                       <span style={S.chevron(isOpen)}>▶</span>
                       <span style={S.betTitle}>{title}</span>
                     </div>
-                    <div style={S.sidePill(d.side)}>
-                      {d.side === "no" ? "No" : "Yes"}
+                    <div style={S.betActions}>
+                      <div style={S.sidePill(d.side)}>
+                        {d.side === "no" ? "No" : "Yes"}
+                      </div>
+                      {/* Dismiss this bet (stopPropagation so it doesn't also
+                          toggle the card's expand/collapse). */}
+                      <button
+                        style={S.hideBtn}
+                        title="Hide this bet"
+                        aria-label="Hide this bet"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hideBet(b.ticker);
+                        }}
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
 
@@ -710,7 +850,7 @@ export default function MyBets() {
                 </div>
 
                 {isOpen && legs.length ? (
-                  <div style={S.slip}>
+                  <div className="mb-slip" style={S.slip}>
                     {legs.map((leg, i) => (
                       <LegSlip leg={leg} key={leg.market_ticker || i} />
                     ))}
@@ -728,6 +868,20 @@ export default function MyBets() {
                     <div style={S.mCellHi}>
                       <div style={S.mLabelHi}>Value</div>
                       <div style={S.mValueHi}>{usd(d.current_value_dollars)}</div>
+                      {/* Real sellable amount — what Kalshi's "Cash out" would
+                          pay. For a parlay this is the product of each leg's
+                          live sell price (the combo ticker has no book); for a
+                          single market it's that market's bid. Shown under the
+                          last-trade "Value" so the spread is visible. Hidden
+                          when any leg has no live bid (nothing to sell into). */}
+                      {d.cash_out_value_dollars != null ? (
+                        <div style={S.cashOut}>
+                          Cash out {usd(d.cash_out_value_dollars)}
+                          {d.cash_out_price_dollars != null
+                            ? ` · ${cents(d.cash_out_price_dollars)}`
+                            : ""}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div style={S.metricsPlain}>
@@ -749,7 +903,8 @@ export default function MyBets() {
                 </div>
               </div>
             );
-          })
+          })}
+          </div>
         )}
       </div>
     </div>
