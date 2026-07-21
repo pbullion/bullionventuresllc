@@ -255,6 +255,9 @@ function GameCard({ game }) {
               state={game.state}
               detail={game.state === "pre" ? tipTime(g.date) : g.detail}
             />
+            {game.prior_source === "closing_line" && game.prior_total != null && (
+              <Chip color={C.text}>Line {Number(game.prior_total).toFixed(1)}</Chip>
+            )}
             {live && game.projected_total != null && (
               <Chip color={C.text}>
                 Proj total {game.projected_total.toFixed(1)} ± {game.sigma?.toFixed(1)}
@@ -392,6 +395,12 @@ function PerformancePanel() {
               label="BRIER"
               value={perf.brier_score != null ? perf.brier_score.toFixed(3) : "—"}
             />
+            {perf.closing_line && perf.closing_line.events > 0 && (
+              <Stat
+                label={`MARKET LINE MAE (${perf.closing_line.events})`}
+                value={`±${perf.closing_line.mae_points.toFixed(1)} pts`}
+              />
+            )}
             <Stat
               label="LEARNED σ×"
               value={(() => {
