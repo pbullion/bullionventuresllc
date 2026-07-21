@@ -394,18 +394,18 @@ function PerformancePanel() {
             />
             <Stat
               label="LEARNED σ×"
-              value={
-                perf.model_state
-                  ? Object.entries(perf.model_state)
-                      .map(
-                        ([lg, s]) =>
-                          `${lg.toUpperCase().slice(0, 1)} ${Number(
-                            s.sigma_mult
-                          ).toFixed(2)}`
-                      )
-                      .join(" · ")
-                  : "1.00"
-              }
+              value={(() => {
+                const learned = Object.entries(perf.model_state || {}).filter(
+                  ([, s]) => Number(s.sample_n) > 0
+                );
+                if (!learned.length) return "not yet";
+                return learned
+                  .map(
+                    ([lg, s]) =>
+                      `${lg.toUpperCase()} ${Number(s.sigma_mult).toFixed(2)}`
+                  )
+                  .join(" · ");
+              })()}
             />
           </div>
 
@@ -588,7 +588,7 @@ export default function WnbaValue() {
           }}
         >
           <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>
-            📈 Totals Value — WNBA + MLB
+            📈 Totals Value — WNBA · MLB · CBB
           </h1>
           <span style={{ color: C.muted, fontSize: 12 }}>
             Kalshi over/unders vs live pace model
