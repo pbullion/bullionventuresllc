@@ -290,17 +290,6 @@ const S = {
     flexShrink: 0,
   }),
   betTitle: { fontSize: 15, fontWeight: 700, lineHeight: 1.3 },
-  sidePill: (side) => ({
-    flexShrink: 0,
-    fontSize: 12,
-    fontWeight: 800,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    padding: "4px 10px",
-    borderRadius: 999,
-    color: side === "no" ? C.red : C.green,
-    backgroundColor: side === "no" ? C.redSoft : C.greenSoft,
-  }),
   legChips: { display: "flex", flexWrap: "wrap", gap: 6, margin: "10px 0 4px" },
   legChip: {
     fontSize: 12,
@@ -1277,9 +1266,6 @@ export default function MyBets() {
                       <span style={S.betTitle}>{title}</span>
                     </div>
                     <div style={S.betActions}>
-                      <div style={S.sidePill(d.side)}>
-                        {d.side === "no" ? "No" : "Yes"}
-                      </div>
                       {/* Dismiss this bet (stopPropagation so it doesn't also
                           toggle the card's expand/collapse). */}
                       <button
