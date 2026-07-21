@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -55,7 +55,9 @@ export default function App() {
   const isMothersDay = location.pathname.startsWith("/mothers-day-2026");
   const isFarkle = location.pathname.startsWith("/farkle");
   const isMyBets = location.pathname.startsWith("/my-bets");
-  const isWnbaValue = location.pathname.startsWith("/wnba-value");
+  const isWnbaValue =
+    location.pathname.startsWith("/totals-value") ||
+    location.pathname.startsWith("/wnba-value");
   const isEliteEdge = location.pathname.startsWith("/elite-edge-advisors");
   const isZargle = location.pathname.startsWith("/zargle");
   const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isWnbaValue || isEliteEdge;
@@ -87,7 +89,8 @@ export default function App() {
           <Route path="/mothers-day-2026" element={<MothersDayGiftCard />} />
           <Route path="/farkle" element={<FarkleTracker />} />
           <Route path="/my-bets" element={<MyBets />} />
-          <Route path="/wnba-value" element={<WnbaValue />} />
+          <Route path="/totals-value" element={<WnbaValue />} />
+          <Route path="/wnba-value" element={<Navigate to="/totals-value" replace />} />
           <Route path="/elite-edge-advisors" element={<EliteEdgeAdvisors />} />
           <Route path="/zargle" element={<ZargleHome />} />
           <Route path="/zargle/privacy" element={<ZarglePrivacy />} />
