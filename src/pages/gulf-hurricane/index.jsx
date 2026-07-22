@@ -176,7 +176,10 @@ function StormCard({ storm, bust }) {
       </div>
       <div style={{ padding: "14px 12px 4px" }}>
         {(storm.graphics || []).map((g) => (
-          <Figure key={g.key} title={g.title} url={g.url} bust={bust} />
+          // Upgrade any "_sm" thumbnail URL to the full-resolution graphic so it
+          // stays crisp at full phone width (defensive — backend now emits
+          // full-res too).
+          <Figure key={g.key} title={g.title} url={g.url.replace("_sm+png/", "+png/")} bust={bust} />
         ))}
       </div>
     </section>
