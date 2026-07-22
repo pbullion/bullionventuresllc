@@ -750,7 +750,19 @@ function AutoBetPanel({ games }) {
         }
         if (r.ok) {
           window.localStorage.setItem("bv_autobet_pin", pin);
-          setStatus(await r.json());
+          const next = await r.json();
+          setStatus(next);
+          // The server clamps to the hard ceiling — say so instead of
+          // silently "ignoring" a bigger number (raising the ceiling itself
+          // is an env change: AUTOBET_MAX_DAILY_CEILING).
+          const asked = raw.trim() === "" ? null : Number(raw);
+          const saved = next.today && next.today.daily_cap;
+          if (asked != null && saved != null && asked > saved) {
+            window.alert(
+              `Saved at $${Math.round(saved)} — that's the hard ceiling. ` +
+                `Raising it takes a server config change (AUTOBET_MAX_DAILY_CEILING).`
+            );
+          }
         } else {
           const e = await r.json().catch(() => ({}));
           window.alert(e.error || `HTTP ${r.status}`);
