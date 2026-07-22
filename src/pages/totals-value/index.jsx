@@ -951,10 +951,27 @@ function AutoBetPanel({ games }) {
               {cfg.interval_secs}s
             </span>
             <button
-              onClick={toggle}
+              onClick={changeCap}
               disabled={busy}
               style={{
                 marginLeft: "auto",
+                padding: "6px 14px",
+                borderRadius: 8,
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: "pointer",
+                color: C.text,
+                background: C.chipBg,
+                border: `1px solid ${C.border}`,
+                opacity: busy ? 0.5 : 1,
+              }}
+            >
+              CAP ${t.daily_cap != null ? Math.round(t.daily_cap) : "—"} ✎
+            </button>
+            <button
+              onClick={toggle}
+              disabled={busy}
+              style={{
                 padding: "6px 14px",
                 borderRadius: 8,
                 fontWeight: 800,
@@ -1022,18 +1039,7 @@ function AutoBetPanel({ games }) {
               />
             </div>
             <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
-              ${Number(t.daily_stake || 0).toFixed(2)} of ${t.daily_cap} daily cap{" "}
-              <span
-                onClick={changeCap}
-                style={{
-                  color: C.green,
-                  cursor: "pointer",
-                  fontWeight: 700,
-                  marginLeft: 4,
-                }}
-              >
-                raise/lower ✎
-              </span>
+              ${Number(t.daily_stake || 0).toFixed(2)} of ${t.daily_cap} daily cap
               {t.daily_cap_override != null && (
                 <span style={{ color: C.amber }}> (override)</span>
               )}
