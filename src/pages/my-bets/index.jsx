@@ -653,8 +653,12 @@ const MB_CSS = `
   }
   .mb-bets > * {
     margin-bottom: 0 !important;
-    zoom: 0.88;
   }
+  /* Desktop density: tighter paddings via !important (the only way to win
+     over inline styles). No zoom/transform — both make grid row heights
+     disagree with rendered content and boxes overlap. */
+  .mb-bets .mb-card { padding: 10px 12px !important; }
+  .mb-bets .mb-leg { padding: 8px 9px !important; }
   /* Inside a card the legs stack in one narrow column so the card stays a
      compact grid cell (instead of the wide 2-across leg slip). */
   .mb-slip { grid-template-columns: 1fr !important; }
@@ -974,7 +978,7 @@ function LegSlip({ leg }) {
     ? { href: link, target: "_blank", rel: "noopener noreferrer" }
     : {};
   return (
-    <Card style={cardStyle} {...linkProps}>
+    <Card className="mb-leg" style={cardStyle} {...linkProps}>
       <div style={S.legTopRow}>
         <span style={S.legLeague}>{leg.league || "Market"}</span>
         {/* A decided total is treated as finished, so color its status muted
@@ -1526,7 +1530,7 @@ export default function MyBets() {
               ? `${legs.length || d.leg_count}-Leg Parlay`
               : legs[0]?.matchup || parseTitleLegs(d.title)[0]?.label || d.title;
             return (
-              <div style={S.bet} key={b.ticker}>
+              <div className="mb-card" style={S.bet} key={b.ticker}>
                 <div
                   style={S.betHeader}
                   onClick={() => toggle(b.ticker)}
