@@ -923,23 +923,40 @@ function LegSlip({ leg }) {
       </div>
 
       {g && (g.pick_score != null || g.opp_score != null) ? (
-        <div style={S.scoreRow}>
-          {/* For a total, neither team "leads" — render both neutral. */}
-          <span style={S.scoreTeam(isTotal ? false : pickLead)}>
-            {g.pick_team}
-          </span>
-          <span style={S.scoreNum(isTotal ? false : pickLead)}>
-            {g.pick_score ?? "-"}
-          </span>
-          <span style={S.scoreDash}>–</span>
-          <span style={S.scoreNum(isTotal ? false : !pickLead)}>
-            {g.opp_score ?? "-"}
-          </span>
-          <span style={S.scoreTeam(isTotal ? false : !pickLead)}>
-            {g.opp_team}
-          </span>
-          {g.data_delayed ? <span style={S.delayed}>DATA DELAYED</span> : null}
-        </div>
+        (() => {
+          // Scoreboard order: away on the left, home on the right (falls back
+          // to pick/opp when the backend hasn't sent orientation). Lead
+          // highlighting still follows the PICK side; totals stay neutral.
+          const [ta, tb] =
+            g.away_team && g.home_team
+              ? [
+                  {
+                    team: g.away_team,
+                    score: g.away_score,
+                    isPick: !g.pick_is_home,
+                  },
+                  {
+                    team: g.home_team,
+                    score: g.home_score,
+                    isPick: Boolean(g.pick_is_home),
+                  },
+                ]
+              : [
+                  { team: g.pick_team, score: g.pick_score, isPick: true },
+                  { team: g.opp_team, score: g.opp_score, isPick: false },
+                ];
+          const hot = (t) => (isTotal ? false : t.isPick ? pickLead : !pickLead);
+          return (
+            <div style={S.scoreRow}>
+              <span style={S.scoreTeam(hot(ta))}>{ta.team}</span>
+              <span style={S.scoreNum(hot(ta))}>{ta.score ?? "-"}</span>
+              <span style={S.scoreDash}>–</span>
+              <span style={S.scoreNum(hot(tb))}>{tb.score ?? "-"}</span>
+              <span style={S.scoreTeam(hot(tb))}>{tb.team}</span>
+              {g.data_delayed ? <span style={S.delayed}>DATA DELAYED</span> : null}
+            </div>
+          );
+        })()
       ) : g ? (
         <div style={S.noGame}>{g.detail || "Not started"}</div>
       ) : (

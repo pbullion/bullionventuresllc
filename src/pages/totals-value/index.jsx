@@ -666,6 +666,7 @@ function AutoBetPanel({ games }) {
   const [bets, setBets] = useState([]);
   const [activity, setActivity] = useState([]);
   const [scenarios, setScenarios] = useState([]);
+  const [review, setReview] = useState(null);
   const [open, setOpen] = useState(true);
   const [feedOpen, setFeedOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -673,7 +674,7 @@ function AutoBetPanel({ games }) {
 
   const load = async () => {
     try {
-      const [s, b, a, sc] = await Promise.all([
+      const [s, b, a, sc, rv] = await Promise.all([
         fetch(`${API_BASE}/auto-bets/status`).then((r) =>
           r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))
         ),
@@ -684,11 +685,15 @@ function AutoBetPanel({ games }) {
         fetch(`${API_BASE}/auto-bets/scenarios`).then((r) =>
           r.ok ? r.json() : { games: [] }
         ),
+        fetch(`${API_BASE}/auto-bets/review`).then((r) =>
+          r.ok ? r.json() : null
+        ),
       ]);
       setStatus(s);
       setBets(b.bets || []);
       setActivity(a.activity || []);
       setScenarios(sc.games || []);
+      setReview(rv && rv.report ? rv : null);
       setErr(null);
     } catch (e) {
       setErr(e.message);
@@ -1041,6 +1046,56 @@ function AutoBetPanel({ games }) {
             </div>
           </div>
 
+          {/* Yesterday's review: the nightly engine's narrative — what
+              happened, what hurt, and the plan. */}
+          {review && review.report && review.report.narrative && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: "12px 14px",
+                background: C.rowAlt,
+                border: `1px solid ${C.border}`,
+                borderRadius: 10,
+              }}
+            >
+              <div
+                style={{ color: C.muted, fontSize: 11, fontWeight: 700, marginBottom: 6 }}
+              >
+                📋 NIGHTLY REVIEW — {review.review_date ? String(review.review_date).slice(0, 10) : "yesterday"}
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+                {review.report.narrative.headline}
+              </div>
+              {(review.report.narrative.went_well || []).length > 0 && (
+                <div style={{ fontSize: 12, marginBottom: 6 }}>
+                  {review.report.narrative.went_well.map((l, i) => (
+                    <div key={i} style={{ padding: "1px 0" }}>
+                      <span style={{ color: C.green }}>✓</span> {l}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(review.report.narrative.went_wrong || []).length > 0 && (
+                <div style={{ fontSize: 12, marginBottom: 6 }}>
+                  {review.report.narrative.went_wrong.map((l, i) => (
+                    <div key={i} style={{ padding: "1px 0" }}>
+                      <span style={{ color: C.red }}>✗</span> {l}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(review.report.narrative.plan || []).length > 0 && (
+                <div style={{ fontSize: 12, color: C.muted }}>
+                  {review.report.narrative.plan.map((l, i) => (
+                    <div key={i} style={{ padding: "1px 0" }}>
+                      ▶ {l}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Tier 2: today's bets */}
           <div style={{ marginTop: 16 }}>
             <div
@@ -1181,7 +1236,7 @@ function AutoBetPanel({ games }) {
 
 const EDGE_OPTIONS = [0.03, 0.05, 0.08, 0.1];
 
-export default function WnbaValue() {
+export default function TotalsValue() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [minEdge, setMinEdge] = useState(0.05);

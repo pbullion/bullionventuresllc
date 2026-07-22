@@ -33,7 +33,7 @@ import TeslaDashboard from "./pages/tesla-dashboard/index.jsx";
 import MothersDayGiftCard from "./pages/mothers-day-2026/index.jsx";
 import FarkleTracker from "./pages/farkle/index.jsx";
 import MyBets from "./pages/my-bets/index.jsx";
-import WnbaValue from "./pages/wnba-value/index.jsx";
+import TotalsValue from "./pages/totals-value/index.jsx";
 import EliteEdgeAdvisors from "./pages/elite-edge-advisors/index.jsx";
 import ZargleHome from "./pages/zargle/Home.jsx";
 import ZarglePrivacy from "./pages/zargle/Privacy.jsx";
@@ -55,12 +55,12 @@ export default function App() {
   const isMothersDay = location.pathname.startsWith("/mothers-day-2026");
   const isFarkle = location.pathname.startsWith("/farkle");
   const isMyBets = location.pathname.startsWith("/my-bets");
-  const isWnbaValue =
+  const isTotalsValue =
     location.pathname.startsWith("/totals-value") ||
     location.pathname.startsWith("/wnba-value");
   const isEliteEdge = location.pathname.startsWith("/elite-edge-advisors");
   const isZargle = location.pathname.startsWith("/zargle");
-  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isWnbaValue || isEliteEdge;
+  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isTotalsValue || isEliteEdge;
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ScrollToTop />
@@ -89,7 +89,7 @@ export default function App() {
           <Route path="/mothers-day-2026" element={<MothersDayGiftCard />} />
           <Route path="/farkle" element={<FarkleTracker />} />
           <Route path="/my-bets" element={<MyBets />} />
-          <Route path="/totals-value" element={<WnbaValue />} />
+          <Route path="/totals-value" element={<TotalsValue />} />
           <Route path="/wnba-value" element={<Navigate to="/totals-value" replace />} />
           <Route path="/elite-edge-advisors" element={<EliteEdgeAdvisors />} />
           <Route path="/zargle" element={<ZargleHome />} />
