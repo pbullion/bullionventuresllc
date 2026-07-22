@@ -611,19 +611,21 @@ const MB_CSS = `
   .mb-topstats { display: flex; }
   .mb-hero-mobile { display: none; }
   .mb-inner { max-width: 1800px !important; padding: 0 24px !important; }
-  /* Bet cards flow into masonry-style CSS columns (as many ~330px columns as
-     fit). Unlike a grid, cards stack directly under each other regardless of
-     neighbors' heights — a short card next to a tall parlay leaves no dead
-     space. Fill order is column-major, so the highest-value bets run down the
-     first column. Narrower columns + the compact type below fit more cards
-     across and more per screen. */
+  /* Row-major grid: the sort order reads the way people scan — left to
+     right, then down. (CSS masonry columns filled top-to-bottom, which made
+     a correct value sort LOOK shuffled when read across a row.)
+     align-items:start keeps a short card from stretching to its row's
+     tallest neighbor. Narrower tracks + a mild zoom render cards ~12%
+     smaller on desktop so more fit per screen; mobile is untouched. */
   .mb-bets {
-    columns: 330px;
-    column-gap: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px;
+    align-items: start;
   }
   .mb-bets > * {
-    break-inside: avoid;
-    margin-bottom: 10px !important;
+    margin-bottom: 0 !important;
+    zoom: 0.88;
   }
   /* Inside a card the legs stack in one narrow column so the card stays a
      compact grid cell (instead of the wide 2-across leg slip). */
