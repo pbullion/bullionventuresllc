@@ -649,6 +649,8 @@ const SKIP_REASON_TEXT = {
   "not-recommended": "model guards",
   "spread-too-wide": "book too thin",
   "bad-price": "bad price",
+  "price-too-low": "long shot — model can't price these",
+  "opposite-direction": "already bet the other way on this total",
   "already-bet-today": "already bet this",
   "moneyline-mirror": "same bet, other side",
   "daily-cap": "daily limit reached",
@@ -893,6 +895,9 @@ function AutoBetPanel({ games }) {
               (bigger edge = bigger bet) · max ${cfg.max_daily_dollars}/day, $
               {cfg.max_event_dollars}/game · needs a{" "}
               {Math.round((cfg.min_edge || 0) * 100)}¢+ edge and a liquid book
+              {cfg.min_price
+                ? ` · no long shots (<${Math.round(cfg.min_price * 100)}¢)`
+                : ""}{" "}
               · {(cfg.leagues || []).join(" + ").toUpperCase()} · checks every{" "}
               {cfg.interval_secs}s
             </span>
