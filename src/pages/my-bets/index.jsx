@@ -291,9 +291,9 @@ const S = {
   bet: {
     backgroundColor: C.card,
     border: `1px solid ${C.border}`,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
     boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
   },
   betHeader: { cursor: "pointer", userSelect: "none" },
@@ -311,7 +311,7 @@ const S = {
     fontSize: 14,
     flexShrink: 0,
   }),
-  betTitle: { fontSize: 15, fontWeight: 700, lineHeight: 1.3 },
+  betTitle: { fontSize: 14, fontWeight: 700, lineHeight: 1.3 },
   legChips: { display: "flex", flexWrap: "wrap", gap: 6, margin: "10px 0 4px" },
   legChip: {
     fontSize: 12,
@@ -325,44 +325,44 @@ const S = {
   // Metrics area: a hero row (the big green numbers) stacked over a plain row,
   // so the emphasized cells never sit unevenly beside the plain ones.
   metrics: {
-    marginTop: 14,
-    paddingTop: 14,
+    marginTop: 10,
+    paddingTop: 10,
     borderTop: `1px solid ${C.border}`,
     display: "flex",
     flexDirection: "column",
-    gap: 10,
+    gap: 8,
   },
   // Hero row: equal columns that stay side-by-side even on a phone.
   metricsHero: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: 10,
+    gap: 8,
   },
   metricsPlain: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 10,
+    gap: 8,
   },
-  mLabel: { fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 3 },
-  mValue: { fontSize: 15, fontWeight: 700 },
+  mLabel: { fontSize: 10, color: C.muted, fontWeight: 600, marginBottom: 2 },
+  mValue: { fontSize: 14, fontWeight: 700 },
   // Highlighted metric cell (Max payout, Value) — pops from the plainer stats.
   mCellHi: {
     backgroundColor: C.greenSoft,
     border: `1px solid ${C.greenBorder}`,
-    borderRadius: 10,
-    padding: "10px 12px",
+    borderRadius: 9,
+    padding: "8px 10px",
   },
   mLabelHi: {
-    fontSize: 11,
+    fontSize: 10,
     color: C.green,
     fontWeight: 800,
     letterSpacing: 0.3,
     textTransform: "uppercase",
-    marginBottom: 4,
+    marginBottom: 3,
     whiteSpace: "nowrap",
   },
   mValueHi: {
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: 900,
     color: C.green,
     letterSpacing: -0.3,
@@ -370,20 +370,20 @@ const S = {
   },
   // Sub-line under "Value": the actual bid-side cash-out amount + price.
   cashOut: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
     color: C.text,
-    marginTop: 4,
+    marginTop: 3,
     whiteSpace: "nowrap",
   },
 
   /* Expanded per-leg bet slip — 2 legs across, collapsing to 1 when narrow */
   slip: {
-    marginTop: 14,
+    marginTop: 10,
     paddingTop: 4,
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-    gap: 10,
+    gap: 8,
   },
   // Colorized by state: darker border + light-tinted interior when leaning
   // win/lose; a finished game is rendered noticeably darker than a live one.
@@ -405,8 +405,8 @@ const S = {
     }
     return {
       border: `1.5px solid ${border}`,
-      borderRadius: 12,
-      padding: "12px 14px",
+      borderRadius: 11,
+      padding: "10px 11px",
       backgroundColor: bg,
       opacity: finished ? 0.85 : 1,
     };
@@ -440,7 +440,7 @@ const S = {
   }),
   // Small "open on ESPN" cue on a clickable leg card.
   espnArrow: { color: C.muted, fontSize: 12, fontWeight: 700 },
-  legMatchup: { fontSize: 15, fontWeight: 700, marginBottom: 8 },
+  legMatchup: { fontSize: 14, fontWeight: 700, marginBottom: 6 },
   pickRow: {
     display: "flex",
     alignItems: "center",
@@ -599,19 +599,20 @@ const MB_CSS = `
 @media (min-width: 900px) {
   .mb-topstats { display: flex; }
   .mb-hero-mobile { display: none; }
-  .mb-inner { max-width: 1600px !important; padding: 0 32px !important; }
-  /* Bet cards flow into masonry-style CSS columns (as many ~420px columns as
+  .mb-inner { max-width: 1800px !important; padding: 0 24px !important; }
+  /* Bet cards flow into masonry-style CSS columns (as many ~330px columns as
      fit). Unlike a grid, cards stack directly under each other regardless of
      neighbors' heights — a short card next to a tall parlay leaves no dead
-     space. Fill order is column-major, so the best cash-outs run down the
-     first column. */
+     space. Fill order is column-major, so the highest-value bets run down the
+     first column. Narrower columns + the compact type below fit more cards
+     across and more per screen. */
   .mb-bets {
-    columns: 420px;
-    column-gap: 12px;
+    columns: 330px;
+    column-gap: 10px;
   }
   .mb-bets > * {
     break-inside: avoid;
-    margin-bottom: 12px !important;
+    margin-bottom: 10px !important;
   }
   /* Inside a card the legs stack in one narrow column so the card stays a
      compact grid cell (instead of the wide 2-across leg slip). */
@@ -1224,24 +1225,16 @@ export default function MyBets() {
     }
   }, [tab]);
 
-  // Sort by cash-out price (≈ how likely the bet is to win right now),
-  // best-looking first. Cash-out is null when a leg has no live bid — if
-  // that's because every leg is WINNING (books empty at 99¢), the bet
-  // belongs at the top, not sunk to the bottom, so treat it as $1. A
-  // null for any other reason falls back to the current mark, then 0.
-  const legLooksWon = (l) =>
-    l.state === "won" ||
-    l.live_lean === "win" ||
-    (l.win_pct != null && Number(l.win_pct) >= 95);
-  const cashPriceOf = (b) => {
+  // Sort by current value (the "Value" figure on each card = the position's
+  // live mark, current_value_dollars), highest first — the biggest positions
+  // lead. Falls back to cost, then 0, when a mark isn't available.
+  const valueOf = (b) => {
     const d = b.display || {};
-    if (d.cash_out_price_dollars != null) return Number(d.cash_out_price_dollars);
-    const legs = Array.isArray(d.legs) ? d.legs : [];
-    if (legs.length && legs.every(legLooksWon)) return 1;
-    return Number(d.current_price_dollars) || 0;
+    if (d.current_value_dollars != null) return Number(d.current_value_dollars);
+    return Number(d.cost_dollars) || 0;
   };
   const allBets = [...(positions?.market_positions || [])].sort(
-    (a, b) => cashPriceOf(b) - cashPriceOf(a),
+    (a, b) => valueOf(b) - valueOf(a),
   );
   // Cards actually shown: everything the user hasn't dismissed. Totals below
   // still count every position so the P&L/portfolio figures stay accurate.
