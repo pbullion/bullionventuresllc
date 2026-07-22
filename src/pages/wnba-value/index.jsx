@@ -651,6 +651,7 @@ const SKIP_REASON_TEXT = {
   "bad-price": "bad price",
   "price-too-low": "long shot — model can't price these",
   "opposite-direction": "already bet the other way on this total",
+  "segment-paused": "paused by nightly review",
   "already-bet-today": "already bet this",
   "moneyline-mirror": "same bet, other side",
   "daily-cap": "daily limit reached",
@@ -963,6 +964,41 @@ function AutoBetPanel({ games }) {
               {status.killed ? "ENABLE" : "KILL"}
             </button>
           </div>
+          {(status.paused_segments || []).length > 0 && (
+            <div style={{ color: C.amber, fontSize: 12, marginTop: 8 }}>
+              ⏸ Paused by nightly review:{" "}
+              {status.paused_segments.map((seg, i) => (
+                <span key={seg}>
+                  {i > 0 ? ", " : ""}
+                  <span
+                    onClick={async () => {
+                      if (!window.confirm(`Resume betting on ${seg}?`)) return;
+                      let pin =
+                        window.localStorage.getItem("bv_autobet_pin") ||
+                        window.prompt("Auto-bet PIN:") ||
+                        "";
+                      if (!pin) return;
+                      const r = await fetch(`${API_BASE}/auto-bets/segments`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ segment: seg, action: "resume", pin }),
+                      });
+                      if (r.status === 401) {
+                        window.localStorage.removeItem("bv_autobet_pin");
+                        window.alert("Wrong PIN.");
+                      } else if (r.ok) {
+                        window.localStorage.setItem("bv_autobet_pin", pin);
+                        setStatus(await r.json());
+                      }
+                    }}
+                    style={{ cursor: "pointer", textDecoration: "underline" }}
+                  >
+                    {seg} (resume)
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
           <div style={{ marginTop: 12 }}>
             <div
               style={{
