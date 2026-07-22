@@ -725,8 +725,13 @@ function AutoBetPanel({ games }) {
   // requires a PIN (remembered locally after the first successful use).
   const changeCap = async () => {
     const cur = t.daily_cap != null ? `$${Math.round(t.daily_cap)}` : "";
+    // daily_cap_ceiling is null when no server-side ceiling is armed —
+    // the number you type is the limit.
+    const ceilNote = t.daily_cap_ceiling
+      ? `, ceiling $${t.daily_cap_ceiling}`
+      : "";
     const raw = window.prompt(
-      `New daily cap in dollars (currently ${cur}, ceiling $${t.daily_cap_ceiling || 300}).\nLeave blank to reset to the default.`
+      `New daily cap in dollars (currently ${cur}${ceilNote}).\nLeave blank to reset to the default.`
     );
     if (raw === null) return;
     let pin = window.localStorage.getItem("bv_autobet_pin") || "";
