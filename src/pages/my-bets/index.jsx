@@ -600,15 +600,19 @@ const MB_CSS = `
   .mb-topstats { display: flex; }
   .mb-hero-mobile { display: none; }
   .mb-inner { max-width: 1600px !important; padding: 0 32px !important; }
-  /* Bet cards flow into a multi-column grid so several parlays are visible at
-     once without scrolling. auto-fill keeps as many ~420px columns as fit. */
+  /* Bet cards flow into masonry-style CSS columns (as many ~420px columns as
+     fit). Unlike a grid, cards stack directly under each other regardless of
+     neighbors' heights — a short card next to a tall parlay leaves no dead
+     space. Fill order is column-major, so the best cash-outs run down the
+     first column. */
   .mb-bets {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-    gap: 12px;
-    align-items: start;
+    columns: 420px;
+    column-gap: 12px;
   }
-  .mb-bets > * { margin-bottom: 0 !important; }
+  .mb-bets > * {
+    break-inside: avoid;
+    margin-bottom: 12px !important;
+  }
   /* Inside a card the legs stack in one narrow column so the card stays a
      compact grid cell (instead of the wide 2-across leg slip). */
   .mb-slip { grid-template-columns: 1fr !important; }
