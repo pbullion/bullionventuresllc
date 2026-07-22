@@ -206,7 +206,35 @@ const S = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
+    flexWrap: "wrap",
   },
+  /* Sort pills: one active at a time; the arrow on the active pill shows
+     direction (click again to flip). */
+  sortBar: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  sortLabel: {
+    fontSize: 11,
+    color: C.muted,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    marginRight: 2,
+  },
+  sortBtn: (active) => ({
+    background: active ? C.greenSoft : C.chipBg,
+    border: `1px solid ${active ? C.greenBorder : C.border}`,
+    color: active ? C.green : C.muted,
+    borderRadius: 999,
+    padding: "4px 11px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  }),
   /* Open / History tab toggle */
   tabs: {
     display: "flex",
@@ -635,6 +663,29 @@ const MB_CSS = `
 
 const pnlColor = (v) => (v > 0 ? C.green : v < 0 ? C.red : C.text);
 const pnlStr = (v) => `${v > 0 ? "+" : ""}${usd(v)}`;
+
+/* Sortable dimensions for the open grid. metric() reads the position's
+ * display blob (+ legs); a null metric sinks to the bottom either direction.
+ * Win % for a parlay is the joint probability — the product of leg prices. */
+const SORTS = [
+  {
+    key: "value",
+    label: "Value",
+    metric: (d) => d.current_value_dollars ?? d.cost_dollars,
+  },
+  { key: "cost", label: "Cost", metric: (d) => d.cost_dollars },
+  { key: "pnl", label: "P&L", metric: (d) => d.total_pnl_dollars },
+  { key: "payout", label: "Payout", metric: (d) => d.max_payout_dollars },
+  {
+    key: "win",
+    label: "Win %",
+    metric: (d, legs) => {
+      const ps = legs.map((l) => l.win_pct).filter((p) => p != null);
+      if (!ps.length) return null;
+      return ps.reduce((acc, p) => acc * (p / 100), 1);
+    },
+  },
+];
 
 /* Is the held side currently ahead? During a live game ESPN only sets `winner`
  * at the final whistle, so use the live score lead. For a NO team bet you're
@@ -1180,6 +1231,31 @@ export default function MyBets() {
       return new Set();
     });
 
+  // Sort control for the open grid. Every key defaults to big-first;
+  // clicking the active key flips direction. Persisted like the hidden set.
+  const [sort, setSort] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("mb_sort") || "null");
+      if (raw && SORTS.some((s) => s.key === raw.key) && (raw.dir === 1 || raw.dir === -1)) {
+        return raw;
+      }
+    } catch {
+      /* fall through to the default */
+    }
+    return { key: "value", dir: -1 };
+  });
+  const pickSort = (key) =>
+    setSort((prev) => {
+      const next =
+        key === prev.key ? { key, dir: -prev.dir } : { key, dir: -1 };
+      try {
+        localStorage.setItem("mb_sort", JSON.stringify(next));
+      } catch {
+        /* sorting still works this session */
+      }
+      return next;
+    });
+
   const toggle = (id) =>
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -1247,21 +1323,30 @@ export default function MyBets() {
     }
   }, [tab]);
 
-  // Live games first (a position is live when any of its legs' games are
-  // in progress — that's what needs watching), then by current value (the
-  // "Value" figure on each card = the position's live mark,
-  // current_value_dollars), highest first — the biggest positions lead.
-  // Falls back to cost, then 0, when a mark isn't available.
-  const valueOf = (b) => {
-    const d = b.display || {};
-    if (d.current_value_dollars != null) return Number(d.current_value_dollars);
-    return Number(d.cost_dollars) || 0;
-  };
+  // Live games always lead (a position is live when any of its legs' games
+  // are in progress — that's what needs watching); within the live and
+  // pre-game groups the user-picked sort applies. Positions missing the
+  // chosen metric sink to the bottom of their group in either direction.
   const isLive = (b) =>
     (b.display?.legs || []).some((l) => l.game && l.game.state === "in");
-  const allBets = [...(positions?.market_positions || [])].sort(
-    (a, b) => isLive(b) - isLive(a) || valueOf(b) - valueOf(a),
-  );
+  const sortDef = SORTS.find((s) => s.key === sort.key) || SORTS[0];
+  const metricOf = (b) => {
+    const d = b.display || {};
+    const legs = Array.isArray(d.legs) ? d.legs : [];
+    const m = sortDef.metric(d, legs);
+    const n = Number(m);
+    return m == null || Number.isNaN(n) ? null : n;
+  };
+  const allBets = [...(positions?.market_positions || [])].sort((a, b) => {
+    const liveDiff = isLive(b) - isLive(a);
+    if (liveDiff) return liveDiff;
+    const ma = metricOf(a);
+    const mb = metricOf(b);
+    if (ma == null && mb == null) return 0;
+    if (ma == null) return 1;
+    if (mb == null) return -1;
+    return sort.dir * (ma - mb);
+  });
   // Cards actually shown: everything the user hasn't dismissed. Totals below
   // still count every position so the P&L/portfolio figures stay accurate.
   const bets = allBets.filter((b) => !hidden.has(b.ticker));
@@ -1381,6 +1466,19 @@ export default function MyBets() {
         <>
         <div style={S.sectionHeader}>
           <div style={S.sectionTitle}>Open positions</div>
+          <div style={S.sortBar}>
+            <span style={S.sortLabel}>Sort</span>
+            {SORTS.map((s) => (
+              <button
+                key={s.key}
+                style={S.sortBtn(sort.key === s.key)}
+                onClick={() => pickSort(s.key)}
+              >
+                {s.label}
+                {sort.key === s.key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}
+              </button>
+            ))}
+          </div>
           {hiddenCount > 0 ? (
             <button style={S.showHiddenBtn} onClick={unhideAll}>
               {hiddenCount} hidden · Show all
