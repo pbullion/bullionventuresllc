@@ -1407,10 +1407,26 @@ export default function MyBets() {
                 <div style={S.metrics}>
                   <div style={S.metricsHero}>
                     <div style={S.mCellHi}>
-                      <div style={S.mLabelHi}>{isCombo ? "Max payout" : "Avg price"}</div>
-                      <div style={S.mValueHi}>
-                        {isCombo ? usd(d.max_payout_dollars) : cents(d.avg_price_dollars)}
+                      <div style={S.mLabelHi}>
+                        {isCombo ? "Max payout" : "Pays if won"}
                       </div>
+                      <div style={S.mValueHi}>{usd(d.max_payout_dollars)}</div>
+                      {/* Singles: profit over cost + the avg price paid, so the
+                          "what do I collect / what did I lay" read is instant. */}
+                      {!isCombo && d.max_payout_dollars != null ? (
+                        <div style={S.cashOut}>
+                          to win{" "}
+                          {usd(
+                            Math.max(
+                              0,
+                              (Number(d.max_payout_dollars) || 0) -
+                                (Number(d.cost_dollars) || 0),
+                            ),
+                          )}
+                          {" · "}
+                          {cents(d.avg_price_dollars)} avg
+                        </div>
+                      ) : null}
                     </div>
                     <div style={S.mCellHi}>
                       <div style={S.mLabelHi}>Value</div>

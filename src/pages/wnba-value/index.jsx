@@ -715,6 +715,49 @@ function AutoBetPanel({ games }) {
     ? Math.min(100, Math.round((t.daily_stake / t.daily_cap) * 100))
     : 0;
 
+  // Change the daily cap from the UI. Server clamps to a hard ceiling and
+  // requires a PIN (remembered locally after the first successful use).
+  const changeCap = async () => {
+    const cur = t.daily_cap != null ? `$${Math.round(t.daily_cap)}` : "";
+    const raw = window.prompt(
+      `New daily cap in dollars (currently ${cur}, ceiling $${t.daily_cap_ceiling || 300}).\nLeave blank to reset to the default.`
+    );
+    if (raw === null) return;
+    let pin = window.localStorage.getItem("bv_autobet_pin") || "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (!pin) {
+        pin = window.prompt("Auto-bet PIN:") || "";
+        if (!pin) return;
+      }
+      setBusy(true);
+      try {
+        const r = await fetch(`${API_BASE}/auto-bets/daily-cap`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cap: raw.trim() === "" ? null : Number(raw), pin }),
+        });
+        if (r.status === 401) {
+          window.localStorage.removeItem("bv_autobet_pin");
+          pin = "";
+          setBusy(false);
+          continue; // wrong pin — ask once more
+        }
+        if (r.ok) {
+          window.localStorage.setItem("bv_autobet_pin", pin);
+          setStatus(await r.json());
+        } else {
+          const e = await r.json().catch(() => ({}));
+          window.alert(e.error || `HTTP ${r.status}`);
+        }
+      } catch (e) {
+        /* next poll refreshes */
+      }
+      setBusy(false);
+      return;
+    }
+    window.alert("Wrong PIN.");
+  };
+
   const toggle = async () => {
     const killing = !status.killed;
     const msg = killing
@@ -938,7 +981,21 @@ function AutoBetPanel({ games }) {
               />
             </div>
             <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
-              ${Number(t.daily_stake || 0).toFixed(2)} of ${t.daily_cap} daily cap
+              ${Number(t.daily_stake || 0).toFixed(2)} of ${t.daily_cap} daily cap{" "}
+              <span
+                onClick={changeCap}
+                style={{
+                  color: C.green,
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  marginLeft: 4,
+                }}
+              >
+                raise/lower ✎
+              </span>
+              {t.daily_cap_override != null && (
+                <span style={{ color: C.amber }}> (override)</span>
+              )}
               {mode === "paper" && (
                 <span style={{ color: C.amber }}>
                   {" "}
