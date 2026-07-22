@@ -1312,6 +1312,12 @@ export default function MyBets() {
             <span style={S.topStatLabel}>Portfolio</span>
             <span style={S.topStatValue}>{portfolioValue}</span>
           </div>
+          {/* Combined live mark of every open position — the sum of the
+              cards' "Value" boxes (Portfolio = this + Available cash). */}
+          <div style={S.topStat}>
+            <span style={S.topStatLabel}>In play</span>
+            <span style={S.topStatValue}>{usd(positionsValue)}</span>
+          </div>
           <div style={S.topStat}>
             <span style={S.topStatLabel}>Available</span>
             <span style={S.topStatValue}>{available}</span>
@@ -1343,6 +1349,9 @@ export default function MyBets() {
             strip are both hidden on the other breakpoint via CSS). */}
         <div className="mb-hero-mobile" style={S.heroMobile}>
           <span style={S.heroMobilePV}>{portfolioValue}</span>
+          <span style={S.heroMobileStat}>
+            {usd(positionsValue)} in play
+          </span>
           <span style={S.heroMobileStat}>
             {available} avail
           </span>
