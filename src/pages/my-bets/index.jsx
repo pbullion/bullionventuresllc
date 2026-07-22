@@ -1187,14 +1187,24 @@ export default function MyBets() {
     }
   }, [tab]);
 
-  // Show highest-payout bets first. Single bets have no max payout, so fall
-  // back to their current value to keep the ordering meaningful.
-  const payoutOf = (b) =>
-    Number(b.display?.max_payout_dollars) ||
-    Number(b.display?.current_value_dollars) ||
-    0;
+  // Sort by cash-out price (≈ how likely the bet is to win right now),
+  // best-looking first. Cash-out is null when a leg has no live bid — if
+  // that's because every leg is WINNING (books empty at 99¢), the bet
+  // belongs at the top, not sunk to the bottom, so treat it as $1. A
+  // null for any other reason falls back to the current mark, then 0.
+  const legLooksWon = (l) =>
+    l.state === "won" ||
+    l.live_lean === "win" ||
+    (l.win_pct != null && Number(l.win_pct) >= 95);
+  const cashPriceOf = (b) => {
+    const d = b.display || {};
+    if (d.cash_out_price_dollars != null) return Number(d.cash_out_price_dollars);
+    const legs = Array.isArray(d.legs) ? d.legs : [];
+    if (legs.length && legs.every(legLooksWon)) return 1;
+    return Number(d.current_price_dollars) || 0;
+  };
   const allBets = [...(positions?.market_positions || [])].sort(
-    (a, b) => payoutOf(b) - payoutOf(a),
+    (a, b) => cashPriceOf(b) - cashPriceOf(a),
   );
   // Cards actually shown: everything the user hasn't dismissed. Totals below
   // still count every position so the P&L/portfolio figures stay accurate.
