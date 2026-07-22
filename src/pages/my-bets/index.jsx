@@ -1234,16 +1234,20 @@ export default function MyBets() {
     }
   }, [tab]);
 
-  // Sort by current value (the "Value" figure on each card = the position's
-  // live mark, current_value_dollars), highest first — the biggest positions
-  // lead. Falls back to cost, then 0, when a mark isn't available.
+  // Live games first (a position is live when any of its legs' games are
+  // in progress — that's what needs watching), then by current value (the
+  // "Value" figure on each card = the position's live mark,
+  // current_value_dollars), highest first — the biggest positions lead.
+  // Falls back to cost, then 0, when a mark isn't available.
   const valueOf = (b) => {
     const d = b.display || {};
     if (d.current_value_dollars != null) return Number(d.current_value_dollars);
     return Number(d.cost_dollars) || 0;
   };
+  const isLive = (b) =>
+    (b.display?.legs || []).some((l) => l.game && l.game.state === "in");
   const allBets = [...(positions?.market_positions || [])].sort(
-    (a, b) => valueOf(b) - valueOf(a),
+    (a, b) => isLive(b) - isLive(a) || valueOf(b) - valueOf(a),
   );
   // Cards actually shown: everything the user hasn't dismissed. Totals below
   // still count every position so the P&L/portfolio figures stay accurate.
