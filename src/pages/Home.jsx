@@ -45,6 +45,13 @@ const products = [
       "A live value scanner for Kalshi over/unders — WNBA, MLB, NFL, and college basketball & football. Projects each game's final total from its actual pace, prices every strike, and flags bets where the model beats the market — then tracks its own record and learns from the results.",
   },
   {
+    emoji: "🌀",
+    name: "Gulf Hurricane",
+    path: "/gulf-hurricane",
+    description:
+      "The latest NOAA / National Hurricane Center tropical outlooks and live GOES-East satellite imagery for the Gulf and tropical Atlantic — no frills, just the most current forecast pics, formatted for your phone.",
+  },
+  {
     emoji: "🎲",
     name: "Farkle Scorer",
     path: "/farkle",
