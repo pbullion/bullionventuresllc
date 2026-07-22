@@ -857,7 +857,13 @@ function LegSlip({ leg }) {
       ? (() => {
           const line = Number(leg.line);
           const scored = Number(g.pick_score) + Number(g.opp_score);
-          const remaining = line - scored;
+          // Whole-number framing — runs/points come in integers, and an over
+          // must EXCEED the line. At 6 scored vs a 9.5 line the over needs 4
+          // (to reach 10), not the raw 3.5 gap; the under's cushion is how
+          // many more can score while still staying below the line (3).
+          const remaining = heldOver
+            ? Math.floor(line) + 1 - scored
+            : Math.ceil(line) - 1 - scored;
           // Once the line is crossed the total is decided — no more pace guess.
           const decided = scored > line;
           const frac =
@@ -966,19 +972,29 @@ function LegSlip({ leg }) {
       {/* Total: only the held side's figure, plus a pace projection. */}
       {totalInfo ? (
         <div style={S.totalRow}>
-          {/* Points remaining, framed for the side actually held. */}
-          {totalInfo.remaining > 0 ? (
+          {/* Points remaining, framed for the held side. An under with a 0
+              cushion isn't busted — it just can't absorb another score. */}
+          {totalInfo.remaining > 0 ||
+          (!totalInfo.heldOver && !totalInfo.decided) ? (
             <span style={S.totalCell}>
               <span
                 style={{
                   ...S.totalNum,
-                  color: totalInfo.heldOver ? C.text : C.green,
+                  color: totalInfo.heldOver
+                    ? C.text
+                    : totalInfo.remaining === 0
+                      ? C.amber
+                      : C.green,
                 }}
               >
                 {totalInfo.remaining}
               </span>
               <span style={S.totalLabel}>
-                {totalInfo.heldOver ? "over needs" : "under cushion"}
+                {totalInfo.heldOver
+                  ? "over needs"
+                  : totalInfo.remaining === 0
+                    ? "no cushion — next score busts it"
+                    : "under cushion"}
               </span>
             </span>
           ) : (
