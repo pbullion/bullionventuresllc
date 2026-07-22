@@ -29,6 +29,15 @@ const C = {
   legFinishedNeutral: "#12161e",
 };
 
+// Hero-box (Pays if won / Value) tint per card verdict. A losing card must
+// not show green money boxes — every color on the card agrees with the lean.
+const TONE_HI = {
+  win: { bg: C.greenSoft, border: C.greenBorder, fg: C.green },
+  lose: { bg: C.redSoft, border: C.redBorder, fg: C.red },
+  tie: { bg: C.amberSoft, border: C.amberBorder, fg: C.amber },
+  neutral: { bg: C.legNeutral, border: C.legNeutralBorder, fg: null },
+};
+
 /* ─── Formatters ─── */
 const usd = (n) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
@@ -345,29 +354,31 @@ const S = {
   },
   mLabel: { fontSize: 10, color: C.muted, fontWeight: 600, marginBottom: 2 },
   mValue: { fontSize: 14, fontWeight: 700 },
-  // Highlighted metric cell (Max payout, Value) — pops from the plainer stats.
-  mCellHi: {
-    backgroundColor: C.greenSoft,
-    border: `1px solid ${C.greenBorder}`,
+  // Highlighted metric cell (Max payout, Value) — pops from the plainer
+  // stats. Tinted by the card's verdict (green winning, red losing, amber
+  // dead heat, gray undecided/pre-game) so the card reads one way at a glance.
+  mCellHi: (tone) => ({
+    backgroundColor: TONE_HI[tone].bg,
+    border: `1px solid ${TONE_HI[tone].border}`,
     borderRadius: 9,
     padding: "8px 10px",
-  },
-  mLabelHi: {
+  }),
+  mLabelHi: (tone) => ({
     fontSize: 10,
-    color: C.green,
+    color: TONE_HI[tone].fg || C.muted,
     fontWeight: 800,
     letterSpacing: 0.3,
     textTransform: "uppercase",
     marginBottom: 3,
     whiteSpace: "nowrap",
-  },
-  mValueHi: {
+  }),
+  mValueHi: (tone) => ({
     fontSize: 17,
     fontWeight: 900,
-    color: C.green,
+    color: TONE_HI[tone].fg || C.text,
     letterSpacing: -0.3,
     whiteSpace: "nowrap",
-  },
+  }),
   // Sub-line under "Value": the actual bid-side cash-out amount + price.
   cashOut: {
     fontSize: 11,
@@ -1390,6 +1401,17 @@ export default function MyBets() {
                 }))
               : parseTitleLegs(d.title);
             const pnl = Number(d.total_pnl_dollars) || 0;
+            // Card verdict for the money boxes: any losing leg sinks the whole
+            // ticket (a parlay needs every leg), a dead heat reads amber, and
+            // only an all-legs-winning card earns green. No legs = neutral.
+            const leans = legs.map((l) => legKind(l).lean);
+            const cardTone = leans.includes("lose")
+              ? "lose"
+              : leans.includes("tie")
+                ? "tie"
+                : leans.length && leans.every((l) => l === "win")
+                  ? "win"
+                  : "neutral";
             const isOpen = expanded.has(b.ticker);
             const title = isCombo
               ? `${legs.length || d.leg_count}-Leg Parlay`
@@ -1445,11 +1467,13 @@ export default function MyBets() {
 
                 <div style={S.metrics}>
                   <div style={S.metricsHero}>
-                    <div style={S.mCellHi}>
-                      <div style={S.mLabelHi}>
+                    <div style={S.mCellHi(cardTone)}>
+                      <div style={S.mLabelHi(cardTone)}>
                         {isCombo ? "Max payout" : "Pays if won"}
                       </div>
-                      <div style={S.mValueHi}>{usd(d.max_payout_dollars)}</div>
+                      <div style={S.mValueHi(cardTone)}>
+                        {usd(d.max_payout_dollars)}
+                      </div>
                       {/* Singles: profit over cost + the avg price paid, so the
                           "what do I collect / what did I lay" read is instant. */}
                       {!isCombo && d.max_payout_dollars != null ? (
@@ -1467,9 +1491,11 @@ export default function MyBets() {
                         </div>
                       ) : null}
                     </div>
-                    <div style={S.mCellHi}>
-                      <div style={S.mLabelHi}>Value</div>
-                      <div style={S.mValueHi}>{usd(d.current_value_dollars)}</div>
+                    <div style={S.mCellHi(cardTone)}>
+                      <div style={S.mLabelHi(cardTone)}>Value</div>
+                      <div style={S.mValueHi(cardTone)}>
+                        {usd(d.current_value_dollars)}
+                      </div>
                       {/* Real sellable amount — what Kalshi's "Cash out" would
                           pay. For a parlay this is the product of each leg's
                           live sell price (the combo ticker has no book); for a
