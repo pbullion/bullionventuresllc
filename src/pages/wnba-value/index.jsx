@@ -662,6 +662,7 @@ function AutoBetPanel({ games }) {
   const [status, setStatus] = useState(null);
   const [bets, setBets] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [scenarios, setScenarios] = useState([]);
   const [open, setOpen] = useState(true);
   const [feedOpen, setFeedOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -669,7 +670,7 @@ function AutoBetPanel({ games }) {
 
   const load = async () => {
     try {
-      const [s, b, a] = await Promise.all([
+      const [s, b, a, sc] = await Promise.all([
         fetch(`${API_BASE}/auto-bets/status`).then((r) =>
           r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))
         ),
@@ -677,10 +678,14 @@ function AutoBetPanel({ games }) {
         fetch(`${API_BASE}/auto-bets/activity?limit=40`).then((r) =>
           r.ok ? r.json() : { activity: [] }
         ),
+        fetch(`${API_BASE}/auto-bets/scenarios`).then((r) =>
+          r.ok ? r.json() : { games: [] }
+        ),
       ]);
       setStatus(s);
       setBets(b.bets || []);
       setActivity(a.activity || []);
+      setScenarios(sc.games || []);
       setErr(null);
     } catch (e) {
       setErr(e.message);
@@ -953,6 +958,81 @@ function AutoBetPanel({ games }) {
               </div>
             )}
           </div>
+
+          {/* Rooting guide: what each final result pays, per game with 2+ bets */}
+          {scenarios.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div
+                style={{
+                  color: C.muted,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                }}
+              >
+                ROOTING GUIDE — WHAT EACH FINAL RESULT PAYS
+              </div>
+              {scenarios.map((g) => (
+                <div key={g.key} style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 700 }}>{g.title}</span>
+                    <span style={{ color: C.muted }}>
+                      {" "}
+                      · root for{" "}
+                      <span style={{ color: C.green, fontWeight: 700 }}>
+                        {g.best.label}
+                      </span>
+                    </span>
+                  </div>
+                  {g.axes.map((ax, i) => {
+                    const maxNet = Math.max(...ax.rows.map((r) => r.net));
+                    const minNet = Math.min(...ax.rows.map((r) => r.net));
+                    return (
+                      <div key={i} style={{ display: "grid", gap: 2 }}>
+                        {ax.rows.map((r, j) => (
+                          <div
+                            key={j}
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              alignItems: "center",
+                              fontSize: 12,
+                              padding: "4px 8px",
+                              borderRadius: 6,
+                              background:
+                                r.net === maxNet
+                                  ? C.greenSoft
+                                  : r.net === minNet
+                                  ? C.redSoft
+                                  : "transparent",
+                            }}
+                          >
+                            <span style={{ flex: 1 }}>
+                              {r.net === maxNet ? "▲ " : r.net === minNet ? "▼ " : ""}
+                              {r.label}
+                            </span>
+                            <span style={{ color: C.muted }}>
+                              {r.winners.length}/{r.of} bets win
+                            </span>
+                            <span
+                              style={{
+                                color: r.net >= 0 ? C.green : C.red,
+                                fontWeight: 800,
+                                width: 76,
+                                textAlign: "right",
+                              }}
+                            >
+                              {r.net >= 0 ? "+" : "−"}${Math.abs(r.net).toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Tier 3: activity feed */}
           <div
