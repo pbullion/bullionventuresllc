@@ -676,7 +676,16 @@ const legAccent = (leg) => {
   // the score-based heuristic for legs without it (older API responses).
   if (leg.live_lean === "win") return C.green;
   if (leg.live_lean === "lose") return C.red;
-  if (leg.live_lean === null && leg.market_type && leg.market_type !== "moneyline") {
+  if (
+    leg.live_lean === null &&
+    leg.market_type &&
+    leg.market_type !== "moneyline" &&
+    // Only once the game has started (or when no game matched at all): a
+    // pre-game spread/total's price is just the odds you bought, not a
+    // winning/losing signal — a -1.5 favorite at 39c would paint "losing"
+    // red hours before first pitch. Pre-game cards stay neutral, like Kalshi.
+    !(leg.game && leg.game.state === "pre")
+  ) {
     // A spread/total can't be judged by the live score mid-game, so lean on the
     // market's own implied probability (win_pct = the held side's price):
     //   >= 53% clearly winning (green), <= 47% clearly losing (red), and the
