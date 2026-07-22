@@ -102,6 +102,46 @@ const pickText = (bet, side) =>
       : `No: ${bet.label}`
     : `${side === "over" ? "Over" : "Under"} ${bet.strike}`;
 
+// American odds for a Kalshi price (0.67 → "−203"): how a sportsbook would
+// quote the same bet.
+const american = (p) => {
+  const v = Number(p);
+  if (!(v > 0 && v < 1)) return "";
+  return v <= 0.5
+    ? `+${Math.round((100 * (1 - v)) / v)}`
+    : `−${Math.round((100 * v) / (1 - v))}`;
+};
+
+const abbrSame = (a, b) =>
+  a && b && String(a).toLowerCase() === String(b).toLowerCase();
+
+// Sportsbook-style pick for a scan row: "Guardians −1.5", "Twins ML",
+// "Over 8.5". A NO on "<team> wins by over L" reads as the other team +L.
+// Falls back to the Kalshi prose when team info isn't resolvable.
+const sportsbookPick = (game, bet) => {
+  const side = bet.best.side;
+  const type = game.market_type || "total";
+  if (type === "total")
+    return `${side === "over" ? "Over" : "Under"} ${bet.strike}`;
+  const gg = game.game || {};
+  const away = gg.away || {};
+  const home = gg.home || {};
+  let pick = null;
+  let opp = null;
+  if (abbrSame(bet.pick_abbr, away.abbr)) {
+    pick = away;
+    opp = home;
+  } else if (abbrSame(bet.pick_abbr, home.abbr)) {
+    pick = home;
+    opp = away;
+  }
+  if (!pick || !pick.team || !opp.team) return pickText(bet, side);
+  if (type === "moneyline") return `${(side === "over" ? pick : opp).team} ML`;
+  return side === "over"
+    ? `${pick.team} −${bet.strike}`
+    : `${opp.team} +${bet.strike}`;
+};
+
 // Big highlighted card for a recommended value bet.
 function ValueBetCard({ game, bet }) {
   const side = bet.best.side;
@@ -131,7 +171,7 @@ function ValueBetCard({ game, bet }) {
     >
       <div style={{ flex: "1 1 220px", minWidth: 0 }}>
         <div style={{ fontWeight: 800, fontSize: 16 }}>
-          {pickText(bet, side)} {bet.locked_over && "🔒"}
+          {sportsbookPick(game, bet)} {bet.locked_over && "🔒"}
           {kalshiUrl && (
             <span style={{ color: C.green, fontSize: 12, marginLeft: 8 }}>
               Trade ↗
@@ -145,12 +185,20 @@ function ValueBetCard({ game, bet }) {
       </div>
       <div style={{ display: "flex", gap: 18, textAlign: "right" }}>
         <div>
-          <div style={{ color: C.muted, fontSize: 11 }}>BUY AT</div>
-          <div style={{ fontWeight: 800 }}>{cents(bet.best.buy_price_dollars)}</div>
+          <div style={{ color: C.muted, fontSize: 11 }}>ODDS</div>
+          <div style={{ fontWeight: 800 }}>
+            {american(bet.best.buy_price_dollars)}
+          </div>
+          <div style={{ color: C.muted, fontSize: 11 }}>
+            {cents(bet.best.buy_price_dollars)}
+          </div>
         </div>
         <div>
-          <div style={{ color: C.muted, fontSize: 11 }}>MODEL</div>
+          <div style={{ color: C.muted, fontSize: 11 }}>MODEL SAYS</div>
           <div style={{ fontWeight: 800 }}>{pct(sideP)}</div>
+          <div style={{ color: C.muted, fontSize: 11 }}>
+            fair {american(sideP)}
+          </div>
         </div>
         <div>
           <div style={{ color: C.muted, fontSize: 11 }}>EDGE</div>
@@ -586,11 +634,28 @@ const timeAgo = (iso) => {
 };
 
 const BET_STATUS_STYLE = {
-  placed: { color: C.amber, label: "PLACED" },
-  filled: { color: C.amber, label: "FILLED" },
-  unfilled: { color: C.muted, label: "NO FILL" },
+  placed: { color: C.amber, label: "PENDING" },
+  filled: { color: C.amber, label: "OPEN" },
+  unfilled: { color: C.muted, label: "NOT PLACED" },
   error: { color: C.red, label: "ERROR" },
   settled: null, // colored by result below
+};
+
+// Skip reasons in plain sportsbook english for the activity feed.
+const SKIP_REASON_TEXT = {
+  disabled: "betting is off",
+  league: "league not enabled",
+  "edge<min": "edge too small",
+  "not-recommended": "model guards",
+  "spread-too-wide": "book too thin",
+  "bad-price": "bad price",
+  "already-bet-today": "already bet this",
+  "moneyline-mirror": "same bet, other side",
+  "daily-cap": "daily limit reached",
+  "event-cap": "game limit reached",
+  "low-balance": "not enough cash",
+  "order-error": "order rejected",
+  "db-error": "internal error",
 };
 
 function AutoBetPanel({ games }) {
@@ -708,8 +773,21 @@ function AutoBetPanel({ games }) {
           {liveLine || b.title}
         </span>
         <span>
-          ${Number(b.stake_dollars).toFixed(0)} ({b.contracts}x @{" "}
-          {cents(b.limit_price)})
+          Risk ${(b.filled_contracts != null && b.fill_price != null
+            ? b.filled_contracts * b.fill_price
+            : Number(b.stake_dollars)
+          ).toFixed(2)}{" "}
+          <span style={{ color: C.muted }}>
+            to win $
+            {((b.filled_contracts != null ? b.filled_contracts : b.contracts) -
+              (b.filled_contracts != null && b.fill_price != null
+                ? b.filled_contracts * b.fill_price
+                : Number(b.stake_dollars))
+            ).toFixed(2)}
+          </span>
+        </span>
+        <span style={{ color: C.muted }}>
+          {american(b.fill_price != null ? b.fill_price : b.limit_price)}
         </span>
         <span style={{ color: C.green }}>{edgeCents(b.edge)}</span>
         <span style={{ color: chip.color, fontWeight: 800 }}>
@@ -733,10 +811,18 @@ function AutoBetPanel({ games }) {
     }`;
     const deco =
       a.decision === "placed"
-        ? { icon: "🤖", color: C.green, text: `placed (${edgeCents(a.edge)})` }
+        ? { icon: "🤖", color: C.green, text: `bet placed (${edgeCents(a.edge)} edge)` }
         : a.decision === "would-place"
-        ? { icon: "📝", color: C.amber, text: `would-place (${edgeCents(a.edge)})` }
-        : { icon: "·", color: C.muted, text: `skipped: ${a.skip_reason}` };
+        ? {
+            icon: "📝",
+            color: C.amber,
+            text: `would bet — paper mode (${edgeCents(a.edge)} edge)`,
+          }
+        : {
+            icon: "·",
+            color: C.muted,
+            text: `passed — ${SKIP_REASON_TEXT[a.skip_reason] || a.skip_reason}`,
+          };
     return (
       <div
         key={a.id}
@@ -798,11 +884,11 @@ function AutoBetPanel({ games }) {
             }}
           >
             <span style={{ color: C.muted, fontSize: 12 }}>
-              ${cfg.unit_dollars}/u · edge-scaled ≤{cfg.max_units}u · $
-              {cfg.max_daily_dollars}/day · ${cfg.max_event_dollars}/game ·{" "}
-              {Math.round((cfg.min_edge || 0) * 100)}¢ edge ·{" "}
-              {Math.round((cfg.max_spread || 0) * 100)}¢ book ·{" "}
-              {(cfg.leagues || []).join("+").toUpperCase()} · every{" "}
+              Bets ${cfg.unit_dollars}–${cfg.unit_dollars * cfg.max_units}{" "}
+              (bigger edge = bigger bet) · max ${cfg.max_daily_dollars}/day, $
+              {cfg.max_event_dollars}/game · needs a{" "}
+              {Math.round((cfg.min_edge || 0) * 100)}¢+ edge and a liquid book
+              · {(cfg.leagues || []).join(" + ").toUpperCase()} · checks every{" "}
               {cfg.interval_secs}s
             </span>
             <button
