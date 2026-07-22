@@ -43,7 +43,7 @@ const qty = (n) => {
   return Number(v.toFixed(2)).toString();
 };
 
-// Format an ISO game time as "M/D · 6:40 PM ET / 5:40 PM CT" so both zones show.
+// Format an ISO game time as "M/D · 5:40 PM CT" (Central only).
 const formatKickoff = (iso) => {
   if (!iso) return null;
   const d = new Date(iso);
@@ -51,7 +51,7 @@ const formatKickoff = (iso) => {
   const day = new Intl.DateTimeFormat("en-US", {
     month: "numeric",
     day: "numeric",
-    timeZone: "America/New_York",
+    timeZone: "America/Chicago",
   }).format(d);
   const time = (tz, label) =>
     `${new Intl.DateTimeFormat("en-US", {
@@ -59,7 +59,7 @@ const formatKickoff = (iso) => {
       minute: "2-digit",
       timeZone: tz,
     }).format(d)} ${label}`;
-  return `${day} · ${time("America/New_York", "ET")} / ${time("America/Chicago", "CT")}`;
+  return `${day} · ${time("America/Chicago", "CT")}`;
 };
 
 // Format a settled-time ISO string as "Jul 19, 8:29 PM CT" for the history list.
