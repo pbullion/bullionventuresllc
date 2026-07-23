@@ -1373,14 +1373,20 @@ export default function MyBets() {
     0,
   );
 
-  const available =
+  // Kalshi's portfolio_value is the mark of the open POSITIONS only — not
+  // cash + positions (verified live 7/22: it tracked "In play", not the
+  // account total). Portfolio = cash + positions, so the header reads
+  // Portfolio = In play + Available.
+  const cashDollars =
     balance?.balance_dollars != null
-      ? usd(balance.balance_dollars)
-      : usd((Number(balance?.balance) || 0) / 100);
-  const portfolioValue =
+      ? Number(balance.balance_dollars) || 0
+      : (Number(balance?.balance) || 0) / 100;
+  const positionsMark =
     balance?.portfolio_value != null
-      ? usd((Number(balance.portfolio_value) || 0) / 100)
-      : usd(positionsValue);
+      ? (Number(balance.portfolio_value) || 0) / 100
+      : positionsValue;
+  const available = usd(cashDollars);
+  const portfolioValue = usd(cashDollars + positionsMark);
 
   return (
     <div style={S.page}>
