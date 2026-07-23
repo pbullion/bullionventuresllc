@@ -224,6 +224,40 @@ const S = {
     letterSpacing: 0.3,
     marginRight: 2,
   },
+  // Compact single-line sort control (replaces the wrapping pill row).
+  sortRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+    maxWidth: 640,
+    margin: "0 auto 14px",
+  },
+  sortWrap: { display: "flex", alignItems: "center", gap: 8 },
+  sortSelect: {
+    background: C.chipBg,
+    color: C.text,
+    border: `1px solid ${C.border}`,
+    borderRadius: 999,
+    padding: "6px 12px",
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: "pointer",
+    outline: "none",
+  },
+  sortDirBtn: {
+    background: C.chipBg,
+    color: C.text,
+    border: `1px solid ${C.border}`,
+    borderRadius: 999,
+    width: 30,
+    height: 30,
+    fontSize: 14,
+    fontWeight: 800,
+    cursor: "pointer",
+    lineHeight: 1,
+  },
   sortBtn: (active) => ({
     background: active ? C.greenSoft : C.chipBg,
     border: `1px solid ${active ? C.greenBorder : C.border}`,
@@ -620,6 +654,103 @@ const S = {
     whiteSpace: "nowrap",
   },
 
+  /* ─── Grouped game cards (Kalshi mobile look) ─── */
+  gameList: { maxWidth: 640, margin: "0 auto" },
+  gameCard: {
+    backgroundColor: C.panel,
+    border: `1px solid ${C.border}`,
+    borderRadius: 18,
+    padding: "18px 20px 4px",
+    marginBottom: 16,
+  },
+  gameHead: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  gameTitle: { fontSize: 20, fontWeight: 800, letterSpacing: -0.4, lineHeight: 1.2 },
+  gameLeague: { fontSize: 13, color: C.muted, fontWeight: 600, marginTop: 3 },
+  gameHideBtn: {
+    background: "none",
+    border: "none",
+    color: C.muted,
+    fontSize: 15,
+    cursor: "pointer",
+    padding: 4,
+    lineHeight: 1,
+    flexShrink: 0,
+  },
+  scoreRow: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 8,
+    marginTop: 12,
+    flexWrap: "wrap",
+  },
+  scoreTeam: { fontSize: 14, fontWeight: 700, color: C.muted },
+  scoreNum: { fontSize: 16, fontWeight: 800 },
+  scoreDash: { fontSize: 14, color: C.muted },
+  finalTag: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: C.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginLeft: 4,
+  },
+  schedRow: { fontSize: 14, color: C.muted, fontWeight: 600, marginTop: 12 },
+
+  // One position within a game card. Every row carries a top hairline, so the
+  // first row also draws the divider under the game header.
+  posRow: {
+    padding: "16px 0",
+    borderTop: `1px solid ${C.border}`,
+  },
+  rowLine1: {
+    display: "flex",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  rowPick: { fontSize: 16, fontWeight: 600, minWidth: 0, lineHeight: 1.3 },
+  sideYes: { color: C.green, fontWeight: 800 },
+  sideNo: { color: C.red, fontWeight: 800 },
+  rowDot: { color: C.muted, margin: "0 2px" },
+  rowPickText: { color: C.text },
+  rowChance: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 16,
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  },
+  rowArrow: { fontSize: 12 },
+  rowLine2: {
+    display: "flex",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 6,
+    fontSize: 13,
+    color: C.muted,
+    fontWeight: 600,
+  },
+  // Parlay-only: the leg's game/matchup under the pick, and the ticket totals.
+  rowSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
+  parlayFoot: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "4px 18px",
+    padding: "14px 0 16px",
+    borderTop: `1px solid ${C.border}`,
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  parlayFootItem: { color: C.muted, fontWeight: 600 },
+
   muted: { color: C.muted, fontSize: 14, padding: "8px 4px" },
   error: {
     backgroundColor: C.redSoft,
@@ -822,6 +953,57 @@ const legIsFinished = (leg) => {
     totalDecided(leg) != null ||
     (g && (g.state === "post" || g.completed === true))
   );
+};
+
+/* ─── Grouped (Kalshi-style) helpers ─── */
+
+// The market label as Kalshi shows it: the raw pick minus the "Not " prefix a
+// NO-side spread carries ("Not Toronto wins by over 1.5 runs" -> "Toronto wins
+// by over 1.5 runs") and the "… to win" tail Kalshi omits ("Over 8.5 runs
+// scored to win" -> "Over 8.5 runs scored", "Tampa Bay to win" -> "Tampa Bay").
+const marketLabel = (leg) => {
+  const raw = String(leg.pick || "").trim();
+  const cleaned = raw
+    .replace(/^not\s+/i, "")
+    .replace(/\s+to win$/i, "")
+    .trim();
+  return cleaned || raw;
+};
+
+// Stable grouping key for a single-leg position: the ESPN gameId (shared by
+// every market on the same game) when we matched one, else the game portion of
+// the matchup ("Tampa Bay vs Toronto: Total Runs" -> "Tampa Bay vs Toronto"),
+// else the market ticker so an unmatched position still stands alone.
+const gameKeyOf = (leg) => {
+  const link = leg.game && leg.game.link;
+  if (link) return `g:${link}`;
+  const game = String(leg.matchup || "").split(":")[0].trim();
+  return game ? `m:${game}` : `t:${leg.market_ticker || Math.random()}`;
+};
+
+// The game-card title: the two-team game name without the market suffix.
+const gameTitleOf = (leg, fallback) =>
+  String(leg.matchup || "").split(":")[0].trim() || fallback || "Market";
+
+// The "% chance" chip: implied probability of the held side plus a color/arrow
+// that reflects whether the bet is currently winning (green ▲) or losing
+// (red ▼). Neutral/pre-game legs get no arrow. Null when there's no price.
+const chanceOf = (leg) => {
+  if (leg.win_pct == null) return null;
+  const color = legAccent(leg);
+  const lean = legKind(leg).lean;
+  return {
+    pct: Math.round(Number(leg.win_pct)),
+    color,
+    arrow: lean === "win" ? "▲" : lean === "lose" ? "▼" : "",
+  };
+};
+
+// Whole-dollar money reads "$16" (Kalshi drops the .00 on payouts); anything
+// with cents keeps them. Used for the "Pays out" figure.
+const usd0 = (n) => {
+  const v = Number(n) || 0;
+  return Number.isInteger(v) ? `$${v}` : usd(v);
 };
 
 /* Order legs so finished games sink to the bottom, leaving live/upcoming ones
@@ -1205,6 +1387,141 @@ function HistoryCard({ item, isOpen, onToggle }) {
   );
 }
 
+/* The Yes/No side badge + market label that opens every position row, e.g.
+ * "Yes · Over 8.5 runs scored" or "No · Toronto wins by over 1.5 runs". */
+function RowPick({ leg }) {
+  return (
+    <div style={S.rowPick}>
+      {leg.side ? (
+        <>
+          <span style={leg.side === "yes" ? S.sideYes : S.sideNo}>
+            {leg.side === "yes" ? "Yes" : "No"}
+          </span>
+          <span style={S.rowDot}>·</span>
+        </>
+      ) : null}
+      <span style={S.rowPickText}>{marketLabel(leg)}</span>
+    </div>
+  );
+}
+
+/* The right-aligned "6% chance ▼" chip, colored by whether the held side is
+ * currently winning (green ▲) or losing (red ▼). */
+function Chance({ leg }) {
+  const ch = chanceOf(leg);
+  if (!ch) return null;
+  return (
+    <span style={{ ...S.rowChance, color: ch.color }}>
+      {ch.pct}% chance
+      {ch.arrow ? <span style={S.rowArrow}>{ch.arrow}</span> : null}
+    </span>
+  );
+}
+
+/* Game-card header: the matchup, its league, and — for a real (non-parlay)
+ * game — the live/final score and, when in progress, the base/count situation.
+ * Pre-game shows the scheduled time instead. */
+function GameHeader({ grp, onHide }) {
+  const g = grp.game;
+  const live = !grp.isCombo && g && g.state === "in";
+  const post = !grp.isCombo && g && g.state === "post";
+  const pre = !grp.isCombo && g && g.state === "pre";
+  const hasScore = g && g.away_score != null && g.home_score != null;
+  const awayLead = hasScore && g.away_score > g.home_score;
+  const homeLead = hasScore && g.home_score > g.away_score;
+  return (
+    <div>
+      <div style={S.gameHead}>
+        <div style={{ minWidth: 0 }}>
+          <div style={S.gameTitle}>{grp.title}</div>
+          {grp.league ? <div style={S.gameLeague}>{grp.league}</div> : null}
+        </div>
+        <button
+          style={S.gameHideBtn}
+          title="Hide this game"
+          aria-label="Hide this game"
+          onClick={onHide}
+        >
+          ✕
+        </button>
+      </div>
+      {pre ? (
+        <div style={S.schedRow}>
+          {formatKickoff(g.date) || g.detail || "Scheduled"}
+        </div>
+      ) : hasScore ? (
+        <div style={S.scoreRow}>
+          <span style={S.scoreTeam}>{g.away_team}</span>
+          <span style={{ ...S.scoreNum, color: awayLead ? C.text : C.muted }}>
+            {g.away_score}
+          </span>
+          <span style={S.scoreDash}>–</span>
+          <span style={{ ...S.scoreNum, color: homeLead ? C.text : C.muted }}>
+            {g.home_score}
+          </span>
+          <span style={S.scoreTeam}>{g.home_team}</span>
+          {post ? <span style={S.finalTag}>Final</span> : null}
+        </div>
+      ) : null}
+      {live ? <LiveSituation sit={g.situation} inning={g.detail} /> : null}
+    </div>
+  );
+}
+
+/* A single-market position row: pick + chance on top, cost + payout below. */
+function SingleRow({ b }) {
+  const d = b.display || {};
+  const leg = (d.legs || [])[0] || {};
+  return (
+    <div style={S.posRow}>
+      <div style={S.rowLine1}>
+        <RowPick leg={leg} />
+        <Chance leg={leg} />
+      </div>
+      <div style={S.rowLine2}>
+        <span>{usd(d.cost_dollars)} cost</span>
+        <span>Pays out {usd0(d.max_payout_dollars)}</span>
+      </div>
+    </div>
+  );
+}
+
+/* A parlay (multi-game ticket): one row per leg — pick + chance, with the leg's
+ * own game/score beneath — then a footer with the whole ticket's economics,
+ * since cost/payout are ticket-level, not per-leg. */
+function ParlayRows({ b }) {
+  const d = b.display || {};
+  const legs = sortLegs(Array.isArray(d.legs) ? d.legs : []);
+  const pnl = Number(d.total_pnl_dollars) || 0;
+  return (
+    <>
+      {legs.map((leg, i) => {
+        const g = leg.game;
+        const hasScore = g && g.away_score != null && g.home_score != null;
+        return (
+          <div style={S.posRow} key={leg.market_ticker || i}>
+            <div style={S.rowLine1}>
+              <RowPick leg={leg} />
+              <Chance leg={leg} />
+            </div>
+            <div style={S.rowSub}>
+              {gameTitleOf(leg)}
+              {hasScore ? ` · ${g.away_score}–${g.home_score}` : ""}
+              {g && g.detail ? ` · ${g.detail}` : ""}
+            </div>
+          </div>
+        );
+      })}
+      <div style={S.parlayFoot}>
+        <span style={S.parlayFootItem}>Cost {usd(d.cost_dollars)}</span>
+        <span style={S.parlayFootItem}>Value {usd(d.current_value_dollars)}</span>
+        <span style={S.parlayFootItem}>Pays out {usd0(d.max_payout_dollars)}</span>
+        <span style={{ color: pnlColor(pnl) }}>P&amp;L {pnlStr(pnl)}</span>
+      </div>
+    </>
+  );
+}
+
 export default function MyBets() {
   const [balance, setBalance] = useState(null);
   const [positions, setPositions] = useState(null);
@@ -1244,6 +1561,14 @@ export default function MyBets() {
   const hideBet = (id) =>
     setHidden((prev) => {
       const next = new Set(prev).add(id);
+      persistHidden(next);
+      return next;
+    });
+  // Hide every position in a game card at once (the header ✕ dismisses the game).
+  const hideBets = (ids) =>
+    setHidden((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
       persistHidden(next);
       return next;
     });
@@ -1507,20 +1832,31 @@ export default function MyBets() {
 
         {tab === "open" ? (
         <>
-        <div style={S.sectionHeader}>
-          <div style={S.sectionTitle}>Open positions</div>
-          <div style={S.sortBar}>
+        <div style={S.sortRow}>
+          <div style={S.sortWrap}>
             <span style={S.sortLabel}>Sort</span>
-            {SORTS.map((s) => (
-              <button
-                key={s.key}
-                style={S.sortBtn(sort.key === s.key)}
-                onClick={() => pickSort(s.key)}
-              >
-                {s.label}
-                {sort.key === s.key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}
-              </button>
-            ))}
+            {/* Compact dropdown replaces the old wrapping pill row; the arrow
+                button re-picks the current key, which flips its direction. */}
+            <select
+              style={S.sortSelect}
+              value={sort.key}
+              onChange={(e) => pickSort(e.target.value)}
+              aria-label="Sort positions by"
+            >
+              {SORTS.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <button
+              style={S.sortDirBtn}
+              onClick={() => pickSort(sort.key)}
+              title={sort.dir < 0 ? "Descending — tap for ascending" : "Ascending — tap for descending"}
+              aria-label="Flip sort direction"
+            >
+              {sort.dir < 0 ? "↓" : "↑"}
+            </button>
           </div>
           {hiddenCount > 0 ? (
             <button style={S.showHiddenBtn} onClick={unhideAll}>
@@ -1538,152 +1874,49 @@ export default function MyBets() {
               : "No open positions."}
           </div>
         ) : (
-          <div className="mb-bets">
-          {bets.map((b) => {
-            const d = b.display || {};
-            // Finished games sink to the bottom so the still-in-play legs lead.
-            const legs = sortLegs(Array.isArray(d.legs) ? d.legs : []);
-            const isCombo = legs.length > 1 || (d.leg_count || 0) > 1;
-            const chipLegs = legs.length
-              ? legs.map((l) => ({
-                  side: l.side,
-                  label:
-                    (l.game && l.game.pick_team) ||
-                    String(l.pick || "").replace(/\s+to win$/i, ""),
-                }))
-              : parseTitleLegs(d.title);
-            const pnl = Number(d.total_pnl_dollars) || 0;
-            // Card verdict for the money boxes: any losing leg sinks the whole
-            // ticket (a parlay needs every leg), a dead heat reads amber, and
-            // only an all-legs-winning card earns green. No legs = neutral.
-            const leans = legs.map((l) => legKind(l).lean);
-            const cardTone = leans.includes("lose")
-              ? "lose"
-              : leans.includes("tie")
-                ? "tie"
-                : leans.length && leans.every((l) => l === "win")
-                  ? "win"
-                  : "neutral";
-            const isOpen = expanded.has(b.ticker);
-            const title = isCombo
-              ? `${legs.length || d.leg_count}-Leg Parlay`
-              : legs[0]?.matchup || parseTitleLegs(d.title)[0]?.label || d.title;
-            return (
-              <div className="mb-card" style={S.bet} key={b.ticker}>
-                <div
-                  style={S.betHeader}
-                  onClick={() => toggle(b.ticker)}
-                  role="button"
-                  aria-expanded={isOpen}
-                >
-                  <div style={S.betTop}>
-                    <div style={S.betTitleWrap}>
-                      <span style={S.chevron(isOpen)}>▶</span>
-                      <span style={S.betTitle}>{title}</span>
-                    </div>
-                    <div style={S.betActions}>
-                      {/* Dismiss this bet (stopPropagation so it doesn't also
-                          toggle the card's expand/collapse). */}
-                      <button
-                        style={S.hideBtn}
-                        title="Hide this bet"
-                        aria-label="Hide this bet"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          hideBet(b.ticker);
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-
-                  {isCombo && !isOpen ? (
-                    <div style={S.legChips}>
-                      {chipLegs.map((leg, i) => (
-                        <span style={S.legChip} key={i}>
-                          {leg.label}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-
-                {isOpen && legs.length ? (
-                  <div className="mb-slip" style={S.slip}>
-                    {legs.map((leg, i) => (
-                      <LegSlip leg={leg} key={leg.market_ticker || i} />
-                    ))}
-                  </div>
-                ) : null}
-
-                <div style={S.metrics}>
-                  <div style={S.metricsHero}>
-                    <div style={S.mCellHi(cardTone)}>
-                      <div style={S.mLabelHi(cardTone)}>
-                        {isCombo ? "Max payout" : "Pays if won"}
-                      </div>
-                      <div style={S.mValueHi(cardTone)}>
-                        {usd(d.max_payout_dollars)}
-                      </div>
-                      {/* Singles: profit over cost + the avg price paid, so the
-                          "what do I collect / what did I lay" read is instant. */}
-                      {!isCombo && d.max_payout_dollars != null ? (
-                        <div style={S.cashOut}>
-                          to win{" "}
-                          {usd(
-                            Math.max(
-                              0,
-                              (Number(d.max_payout_dollars) || 0) -
-                                (Number(d.cost_dollars) || 0),
-                            ),
-                          )}
-                          {" · "}
-                          {cents(d.avg_price_dollars)} avg
-                        </div>
-                      ) : null}
-                    </div>
-                    <div style={S.mCellHi(cardTone)}>
-                      <div style={S.mLabelHi(cardTone)}>Value</div>
-                      <div style={S.mValueHi(cardTone)}>
-                        {usd(d.current_value_dollars)}
-                      </div>
-                      {/* Real sellable amount — what Kalshi's "Cash out" would
-                          pay. For a parlay this is the product of each leg's
-                          live sell price (the combo ticker has no book); for a
-                          single market it's that market's bid. Shown under the
-                          last-trade "Value" so the spread is visible. Hidden
-                          when any leg has no live bid (nothing to sell into). */}
-                      {d.cash_out_value_dollars != null ? (
-                        <div style={S.cashOut}>
-                          Cash out {usd(d.cash_out_value_dollars)}
-                          {d.cash_out_price_dollars != null
-                            ? ` · ${cents(d.cash_out_price_dollars)}`
-                            : ""}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div style={S.metricsPlain}>
-                    <div>
-                      <div style={S.mLabel}>Cost</div>
-                      <div style={S.mValue}>{usd(d.cost_dollars)}</div>
-                    </div>
-                    <div>
-                      <div style={S.mLabel}>Contracts</div>
-                      <div style={S.mValue}>{qty(d.count)}</div>
-                    </div>
-                    <div>
-                      <div style={S.mLabel}>P&L</div>
-                      <div style={{ ...S.mValue, color: pnlColor(pnl) }}>
-                        {pnlStr(pnl)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+          <div className="mb-games" style={S.gameList}>
+          {(() => {
+            // Group single-market positions by game — every Kalshi market on the
+            // same matchup shares one card, as in the app — while each parlay is
+            // its own card. Groups appear in the order their best position
+            // surfaces from the active sort, so live games still lead.
+            const groups = [];
+            const byKey = new Map();
+            for (const b of bets) {
+              const d = b.display || {};
+              const legs = Array.isArray(d.legs) ? d.legs : [];
+              const isCombo = legs.length > 1 || (d.leg_count || 0) > 1;
+              const leg0 = legs[0] || {};
+              const key = isCombo ? `parlay:${b.ticker}` : gameKeyOf(leg0);
+              if (!byKey.has(key)) {
+                byKey.set(key, groups.length);
+                groups.push({
+                  key,
+                  isCombo,
+                  game: isCombo ? null : leg0.game,
+                  league: leg0.league || "",
+                  title: isCombo
+                    ? `${legs.length || d.leg_count}-Leg Parlay`
+                    : gameTitleOf(leg0, d.title),
+                  positions: [],
+                });
+              }
+              groups[byKey.get(key)].positions.push(b);
+            }
+            return groups.map((grp) => (
+              <div className="mb-game" style={S.gameCard} key={grp.key}>
+                <GameHeader
+                  grp={grp}
+                  onHide={() => hideBets(grp.positions.map((p) => p.ticker))}
+                />
+                {grp.isCombo ? (
+                  <ParlayRows b={grp.positions[0]} />
+                ) : (
+                  grp.positions.map((b) => <SingleRow b={b} key={b.ticker} />)
+                )}
               </div>
-            );
-          })}
+            ));
+          })()}
           </div>
         )}
         </>
