@@ -1363,6 +1363,12 @@ export default function MyBets() {
     (acc, b) => acc + (Number(b.display?.current_value_dollars) || 0),
     0,
   );
+  // Best case: what every open position pays if it all hits (sum of the
+  // cards' "Pays if won" / "Max payout" boxes).
+  const maxPayoutTotal = allBets.reduce(
+    (acc, b) => acc + (Number(b.display?.max_payout_dollars) || 0),
+    0,
+  );
 
   // History summary: W-L record and net realized P&L across settled bets.
   const hist = settlements || [];
@@ -1414,6 +1420,12 @@ export default function MyBets() {
             <span style={S.topStatValue}>{usd(positionsValue)}</span>
           </div>
           <div style={S.topStat}>
+            <span style={S.topStatLabel}>If all win</span>
+            <span style={{ ...S.topStatValue, color: C.green }}>
+              {usd(maxPayoutTotal)}
+            </span>
+          </div>
+          <div style={S.topStat}>
             <span style={S.topStatLabel}>Available</span>
             <span style={S.topStatValue}>{available}</span>
           </div>
@@ -1446,6 +1458,9 @@ export default function MyBets() {
           <span style={S.heroMobilePV}>{portfolioValue}</span>
           <span style={S.heroMobileStat}>
             {usd(positionsValue)} in play
+          </span>
+          <span style={{ ...S.heroMobileStat, color: C.green }}>
+            {usd(maxPayoutTotal)} if all win
           </span>
           <span style={S.heroMobileStat}>
             {available} avail
