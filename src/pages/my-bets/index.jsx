@@ -1706,6 +1706,13 @@ export default function MyBets() {
     (acc, b) => acc + (Number(b.display?.current_value_dollars) || 0),
     0,
   );
+  // "In play" = money currently staked, i.e. what was paid for the open
+  // positions (their cost basis) — not the mark. This is the capital tied up in
+  // live bets until they settle or are cashed out.
+  const totalCost = allBets.reduce(
+    (acc, b) => acc + (Number(b.display?.cost_dollars) || 0),
+    0,
+  );
   // Best case: what every open position pays if it all hits (sum of the
   // cards' "Pays if won" / "Max payout" boxes).
   const maxPayoutTotal = allBets.reduce(
@@ -1722,10 +1729,11 @@ export default function MyBets() {
     0,
   );
 
-  // Kalshi's portfolio_value is the mark of the open POSITIONS only — not
-  // cash + positions (verified live 7/22: it tracked "In play", not the
-  // account total). Portfolio = cash + positions, so the header reads
-  // Portfolio = In play + Available.
+  // Portfolio = cash + the live mark of open positions. Kalshi's
+  // portfolio_value is that mark (the open positions only, not the account
+  // total — verified live 7/22), so we prefer it and fall back to our own
+  // summed value. (This mark is distinct from "In play" above, which is the
+  // cost staked, so Portfolio ≠ In play + Available by design.)
   const cashDollars =
     balance?.balance_dollars != null
       ? Number(balance.balance_dollars) || 0
@@ -1760,7 +1768,7 @@ export default function MyBets() {
               cards' "Value" boxes (Portfolio = this + Available cash). */}
           <div style={S.topStat}>
             <span style={S.topStatLabel}>In play</span>
-            <span style={S.topStatValue}>{usd(positionsValue)}</span>
+            <span style={S.topStatValue}>{usd(totalCost)}</span>
           </div>
           <div style={S.topStat}>
             <span style={S.topStatLabel}>If all win</span>
@@ -1800,7 +1808,7 @@ export default function MyBets() {
         <div className="mb-hero-mobile" style={S.heroMobile}>
           <span style={S.heroMobilePV}>{portfolioValue}</span>
           <span style={S.heroMobileStat}>
-            {usd(positionsValue)} in play
+            {usd(totalCost)} in play
           </span>
           <span style={{ ...S.heroMobileStat, color: C.green }}>
             {usd(maxPayoutTotal)} if all win
