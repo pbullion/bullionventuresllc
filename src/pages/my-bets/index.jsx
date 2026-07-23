@@ -231,8 +231,7 @@ const S = {
     justifyContent: "space-between",
     gap: 12,
     flexWrap: "wrap",
-    maxWidth: 640,
-    margin: "0 auto 14px",
+    margin: "22px 0 16px",
   },
   sortWrap: { display: "flex", alignItems: "center", gap: 8 },
   sortSelect: {
@@ -655,13 +654,21 @@ const S = {
   },
 
   /* ─── Grouped game cards (Kalshi mobile look) ─── */
-  gameList: { maxWidth: 640, margin: "0 auto" },
+  // Responsive card grid: one full-width column on a phone, as many ~360px
+  // columns as fit on desktop (fills the widened .mb-inner). auto-fill +
+  // min(360px,100%) means it never overflows a narrow screen, and align-items
+  // start keeps a short card from stretching to a tall neighbor's height.
+  gameList: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(min(360px, 100%), 1fr))",
+    gap: 16,
+    alignItems: "start",
+  },
   gameCard: {
     backgroundColor: C.panel,
     border: `1px solid ${C.border}`,
     borderRadius: 18,
     padding: "18px 20px 4px",
-    marginBottom: 16,
   },
   gameHead: {
     display: "flex",
@@ -695,6 +702,15 @@ const S = {
     fontSize: 11,
     fontWeight: 700,
     color: C.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginLeft: 4,
+  },
+  // Live clock/period tag ("Q3 5:23", "Top 9th", "Halftime") on the score line.
+  liveTag: {
+    fontSize: 11,
+    fontWeight: 800,
+    color: C.green,
     textTransform: "uppercase",
     letterSpacing: 0.4,
     marginLeft: 4,
@@ -1429,6 +1445,22 @@ function GameHeader({ grp, onHide }) {
   const hasScore = g && g.away_score != null && g.home_score != null;
   const awayLead = hasScore && g.away_score > g.home_score;
   const homeLead = hasScore && g.home_score > g.away_score;
+  const sit = g && g.situation;
+  // A baseball-style situation (count / outs / runners) renders its own row
+  // below — with the inning inside it — so we don't also stamp the inning on
+  // the score line. Other live sports have no such row.
+  const hasSit = !!(
+    live &&
+    sit &&
+    ((sit.balls != null && sit.strikes != null) ||
+      sit.outs != null ||
+      sit.on_first ||
+      sit.on_second ||
+      sit.on_third)
+  );
+  // Live clock/period shown by the score (a basketball "Q3 5:23", or a baseball
+  // "Top 9th" between innings). Skipped when the situation row carries it.
+  const liveStatus = live && !hasSit ? g.detail || "Live" : null;
   return (
     <div>
       <div style={S.gameHead}>
@@ -1461,9 +1493,13 @@ function GameHeader({ grp, onHide }) {
           </span>
           <span style={S.scoreTeam}>{g.home_team}</span>
           {post ? <span style={S.finalTag}>Final</span> : null}
+          {liveStatus ? <span style={S.liveTag}>{liveStatus}</span> : null}
         </div>
+      ) : live ? (
+        // Live but no score matched yet — still surface that it's in play.
+        <div style={S.schedRow}>{g.detail || "Live — score unavailable"}</div>
       ) : null}
-      {live ? <LiveSituation sit={g.situation} inning={g.detail} /> : null}
+      {hasSit ? <LiveSituation sit={sit} inning={g.detail} /> : null}
     </div>
   );
 }
