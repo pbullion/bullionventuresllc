@@ -609,7 +609,12 @@ const S = {
     fontSize: 11,
     color: C.muted,
     marginTop: 2,
-    maxWidth: "100%",
+    // Own full-width row below the diamond/count. flexBasis 100% forces the wrap;
+    // minWidth 0 overrides the flex default (min-width:auto) so the box can shrink
+    // below its text width — without it the nowrap text refuses to shrink and the
+    // ellipsis never triggers, spilling past the card edge.
+    flex: "1 1 100%",
+    minWidth: 0,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
@@ -1054,30 +1059,46 @@ function LegSlip({ leg }) {
               cushion isn't busted — it just can't absorb another score. */}
           {totalInfo.remaining > 0 ||
           (!totalInfo.heldOver && !totalInfo.decided) ? (
-            <span style={S.totalCell}>
-              <span
-                style={{
-                  ...S.totalNum,
-                  color: totalInfo.heldOver
-                    ? C.text
-                    : totalInfo.remaining === 0
-                      ? C.amber
-                      : C.green,
-                }}
-              >
-                {totalInfo.remaining}
-              </span>
-              <span style={S.totalLabel}>
-                {totalInfo.heldOver
-                  ? "over needs"
-                  : totalInfo.remaining === 0
-                    ? "no cushion — next score busts it"
-                    : "under cushion"}
-              </span>
-            </span>
+            (() => {
+              // Under side with remaining===0 is a full sentence ("no cushion —
+              // next score busts it") that reads on its own, so drop the
+              // otherwise-trailing "0" and keep the amber warning on the text.
+              const noCushion =
+                !totalInfo.heldOver && totalInfo.remaining === 0;
+              return (
+                <span style={S.totalCell}>
+                  {/* Label leads, number trails: "over needs 4". */}
+                  <span
+                    style={{
+                      ...S.totalLabel,
+                      ...(noCushion ? { color: C.amber } : null),
+                    }}
+                  >
+                    {totalInfo.heldOver
+                      ? "over needs"
+                      : noCushion
+                        ? "no cushion — next score busts it"
+                        : "under cushion"}
+                  </span>
+                  {noCushion ? null : (
+                    <span
+                      style={{
+                        ...S.totalNum,
+                        color: totalInfo.heldOver ? C.text : C.green,
+                      }}
+                    >
+                      {totalInfo.remaining}
+                    </span>
+                  )}
+                </span>
+              );
+            })()
           ) : (
             // Line crossed: over has already hit; under is busted.
             <span style={S.totalCell}>
+              <span style={S.totalLabel}>
+                {totalInfo.heldOver ? "over the line" : "over — busted"}
+              </span>
               <span
                 style={{
                   ...S.totalNum,
@@ -1085,9 +1106,6 @@ function LegSlip({ leg }) {
                 }}
               >
                 {Math.abs(totalInfo.remaining)}
-              </span>
-              <span style={S.totalLabel}>
-                {totalInfo.heldOver ? "over the line" : "over — busted"}
               </span>
             </span>
           )}
