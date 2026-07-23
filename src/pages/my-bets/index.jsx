@@ -1833,30 +1833,17 @@ export default function MyBets() {
         {tab === "open" ? (
         <>
         <div style={S.sortRow}>
-          <div style={S.sortWrap}>
-            <span style={S.sortLabel}>Sort</span>
-            {/* Compact dropdown replaces the old wrapping pill row; the arrow
-                button re-picks the current key, which flips its direction. */}
-            <select
-              style={S.sortSelect}
-              value={sort.key}
-              onChange={(e) => pickSort(e.target.value)}
-              aria-label="Sort positions by"
-            >
-              {SORTS.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-            <button
-              style={S.sortDirBtn}
-              onClick={() => pickSort(sort.key)}
-              title={sort.dir < 0 ? "Descending — tap for ascending" : "Ascending — tap for descending"}
-              aria-label="Flip sort direction"
-            >
-              {sort.dir < 0 ? "↓" : "↑"}
-            </button>
+          <div style={S.sortBar}>
+            {SORTS.map((s) => (
+              <button
+                key={s.key}
+                style={S.sortBtn(sort.key === s.key)}
+                onClick={() => pickSort(s.key)}
+              >
+                {s.label}
+                {sort.key === s.key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}
+              </button>
+            ))}
           </div>
           {hiddenCount > 0 ? (
             <button style={S.showHiddenBtn} onClick={unhideAll}>
