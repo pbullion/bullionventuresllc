@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 
 const APP_STORE_URL = "https://apps.apple.com/us/app/learn-play/id6758175596";

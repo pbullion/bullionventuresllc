@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const HORSES = [
@@ -275,7 +275,7 @@ export default function KentuckyDerbyTracker() {
                 {tickets.map((t, i) => {
                   const desc = t.type === 'win'
                     ? (t.horse ? `Win bet on #${t.horse} ${horseName(t.horse)}` : `Win bet on ${t.horseName}`)
-                    : `${t.first.join(',')} / ${t.second.join(',')} / ${t.third.join(',')}`;
+                    : `${t.first.join(',')}\u00a0/\u00a0${t.second.join(',')}\u00a0/\u00a0${t.third.join(',')}`;
                   return (
                     <tr key={t.id + i}>
                       <td style={s.td}>{t.id}</td>

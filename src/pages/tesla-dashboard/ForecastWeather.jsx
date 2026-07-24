@@ -1,102 +1,13 @@
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
-import { Card, CardContent, Typography, CircularProgress, Box } from "@mui/material";
-import ClearIcon from "@mui/icons-material/WbSunny";
-import CloudyIcon from "@mui/icons-material/Cloud";
-import DustIcon from "@mui/icons-material/Grain";
-import FogIcon from "@mui/icons-material/BlurOn";
-import HazeIcon from "@mui/icons-material/WbCloudy";
-import MostlyClearIcon from "@mui/icons-material/WbSunny";
-import MostlyCloudyIcon from "@mui/icons-material/CloudQueue";
-import PartlyCloudyIcon from "@mui/icons-material/CloudOutlined";
-import ScatteredThunderstormsIcon from "@mui/icons-material/FlashOn";
-import SmokeIcon from "@mui/icons-material/SmokeFree";
-import BreezyIcon from "@mui/icons-material/Air";
-import WindyIcon from "@mui/icons-material/Toys";
-import DrizzleIcon from "@mui/icons-material/Grain";
-import HeavyRainIcon from "@mui/icons-material/Opacity";
-import RainIcon from "@mui/icons-material/Grain";
-import ShowersIcon from "@mui/icons-material/Grain";
-import FlurriesIcon from "@mui/icons-material/AcUnit";
-import HeavySnowIcon from "@mui/icons-material/AcUnit";
-import MixedRainAndSleetIcon from "@mui/icons-material/AcUnit";
-import MixedRainAndSnowIcon from "@mui/icons-material/AcUnit";
-import MixedRainfallIcon from "@mui/icons-material/AcUnit";
-import MixedSnowAndSleetIcon from "@mui/icons-material/AcUnit";
-import ScatteredShowersIcon from "@mui/icons-material/Grain";
-import ScatteredSnowShowersIcon from "@mui/icons-material/AcUnit";
-import SleetIcon from "@mui/icons-material/AcUnit";
-import SnowIcon from "@mui/icons-material/AcUnit";
-import SnowShowersIcon from "@mui/icons-material/AcUnit";
-import BlizzardIcon from "@mui/icons-material/AcUnit";
-import BlowingSnowIcon from "@mui/icons-material/AcUnit";
-import FreezingDrizzleIcon from "@mui/icons-material/AcUnit";
-import FreezingRainIcon from "@mui/icons-material/AcUnit";
-import FrigidIcon from "@mui/icons-material/AcUnit";
-import HailIcon from "@mui/icons-material/AcUnit";
-import HotIcon from "@mui/icons-material/Whatshot";
-import HurricaneIcon from "@mui/icons-material/Waves";
-import IsolatedThunderstormsIcon from "@mui/icons-material/FlashOn";
-import SevereThunderstormIcon from "@mui/icons-material/FlashOn";
-import ThunderstormIcon from "@mui/icons-material/FlashOn";
-import TornadoIcon from "@mui/icons-material/Toys";
-import TropicalStormIcon from "@mui/icons-material/Waves";
+import { Card, CardContent, Typography, Box } from "@mui/material";
 import "./WeatherForecast.css";
-import { set } from "date-fns";
 
 const WeatherWidget = () => {
   const [weatherData, setWeatherData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 
-  const getWeatherIcon = (condition) => {
-    const iconMap = {
-      Clear: <ClearIcon />,
-      Cloudy: <CloudyIcon />,
-      Dust: <DustIcon />,
-      Fog: <FogIcon />,
-      Haze: <HazeIcon />,
-      MostlyClear: <MostlyClearIcon />,
-      MostlyCloudy: <MostlyCloudyIcon />,
-      PartlyCloudy: <PartlyCloudyIcon />,
-      ScatteredThunderstorms: <ScatteredThunderstormsIcon />,
-      Smoke: <SmokeIcon />,
-      Breezy: <BreezyIcon />,
-      Windy: <WindyIcon />,
-      Drizzle: <DrizzleIcon />,
-      HeavyRain: <HeavyRainIcon />,
-      Rain: <RainIcon />,
-      Showers: <ShowersIcon />,
-      Flurries: <FlurriesIcon />,
-      HeavySnow: <HeavySnowIcon />,
-      MixedRainAndSleet: <MixedRainAndSleetIcon />,
-      MixedRainAndSnow: <MixedRainAndSnowIcon />,
-      MixedRainfall: <MixedRainfallIcon />,
-      MixedSnowAndSleet: <MixedSnowAndSleetIcon />,
-      ScatteredShowers: <ScatteredShowersIcon />,
-      ScatteredSnowShowers: <ScatteredSnowShowersIcon />,
-      Sleet: <SleetIcon />,
-      Snow: <SnowIcon />,
-      SnowShowers: <SnowShowersIcon />,
-      Blizzard: <BlizzardIcon />,
-      BlowingSnow: <BlowingSnowIcon />,
-      FreezingDrizzle: <FreezingDrizzleIcon />,
-      FreezingRain: <FreezingRainIcon />,
-      Frigid: <FrigidIcon />,
-      Hail: <HailIcon />,
-      Hot: <HotIcon />,
-      Hurricane: <HurricaneIcon />,
-      IsolatedThunderstorms: <IsolatedThunderstormsIcon />,
-      SevereThunderstorm: <SevereThunderstormIcon />,
-      Thunderstorm: <ThunderstormIcon />,
-      Tornado: <TornadoIcon />,
-      TropicalStorm: <TropicalStormIcon />,
-    };
-
-    return iconMap[condition] || <ClearIcon />;
-  };
   useEffect(() => {
     const fetchWeatherData = async (latitude, longitude) => {
       try {
@@ -105,11 +16,8 @@ const WeatherWidget = () => {
         );
         console.log("🚀 ~ fetchWeatherData ~ response:", response);
         setWeatherData(response.data);
-        setLoading(false);
       } catch (error) {
         console.error("Error fetching weather data:", error);
-        setError("Failed to fetch weather data");
-        setLoading(false);
       }
     };
 
@@ -123,112 +31,15 @@ const WeatherWidget = () => {
           },
           (error) => {
             console.error("Error getting user location:", error);
-            setError("Unable to retrieve your location");
-            setLoading(false);
           },
         );
       } else {
-        setError("Geolocation is not supported by this browser");
-        setLoading(false);
+        console.error("Geolocation is not supported by this browser");
       }
     };
 
     getUserLocation();
   }, []);
-  function getConditionNames() {
-    const conditionCodes = [
-      "Clear",
-      "Cloudy",
-      "Dust",
-      "Fog",
-      "Haze",
-      "MostlyClear",
-      "MostlyCloudy",
-      "PartlyCloudy",
-      "ScatteredThunderstorms",
-      "Smoke",
-      "Breezy",
-      "Windy",
-      "Drizzle",
-      "HeavyRain",
-      "Rain",
-      "Showers",
-      "Flurries",
-      "HeavySnow",
-      "MixedRainAndSleet",
-      "MixedRainAndSnow",
-      "MixedRainfall",
-      "MixedSnowAndSleet",
-      "ScatteredShowers",
-      "ScatteredSnowShowers",
-      "Sleet",
-      "Snow",
-      "SnowShowers",
-      "Blizzard",
-      "BlowingSnow",
-      "FreezingDrizzle",
-      "FreezingRain",
-      "Frigid",
-      "Hail",
-      "Hot",
-      "Hurricane",
-      "IsolatedThunderstorms",
-      "SevereThunderstorm",
-      "Thunderstorm",
-      "Tornado",
-      "TropicalStorm",
-    ];
-
-    const conditionNames = [
-      "Clear",
-      "Cloudy",
-      "Dust",
-      "Fog",
-      "Haze",
-      "Mostly Clear",
-      "Mostly Cloudy",
-      "Partly Cloudy",
-      "Scattered Thunderstorms",
-      "Smoke",
-      "Breezy",
-      "Windy",
-      "Drizzle",
-      "Heavy Rain",
-      "Rain",
-      "Showers",
-      "Flurries",
-      "Heavy Snow",
-      "Mixed Rain & Sleet",
-      "Mixed Rain & Snow",
-      "Mixed Rainfall",
-      "Mixed Snow & Sleet",
-      "Scattered Showers",
-      "Scattered Snow Showers",
-      "Sleet",
-      "Snow",
-      "Snow Showers",
-      "Blizzard",
-      "Blowing Snow",
-      "Freezing Drizzle",
-      "Freezing Rain",
-      "Frigid",
-      "Hail",
-      "Hot",
-      "Hurricane",
-      "Isolated Thunderstorms",
-      "Severe Thunderstorm",
-      "Thunderstorm",
-      "Tornado",
-      "Tropical Storm",
-    ];
-
-    const conditionsWithSpaces = {};
-    for (let i = 0; i < conditionCodes.length; i++) {
-      conditionsWithSpaces[conditionCodes[i]] = conditionNames[i];
-    }
-
-    return conditionsWithSpaces;
-  }
 
   const dailyForecasts = weatherData?.forecastDaily.days;
   const celsiusToFahrenheit = (celsius) => {

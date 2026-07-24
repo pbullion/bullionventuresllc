@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import "./DateTime.css";
-import { Card, CardContent, Typography, CircularProgress, Box } from "@mui/material";
+import { Typography } from "@mui/material";
 
 const DateTimeWidget = () => {
   const [dateTime, setDateTime] = useState(new Date());

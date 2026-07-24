@@ -33,7 +33,9 @@ export default function Farkle() {
         STORAGE_KEY,
         JSON.stringify({ phase, playerNames, scores, currentIdx, turnScore, turnsTaken, winnerIdx }),
       );
-    } catch {}
+    } catch {
+      /* private mode / quota — the game still plays, just unsaved */
+    }
   }, [phase, playerNames, scores, currentIdx, turnScore, turnsTaken, winnerIdx]);
 
   function showFlash(msg) {

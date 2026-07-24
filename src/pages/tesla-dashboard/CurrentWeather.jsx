@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import { Card, CardContent, Typography, CircularProgress, Box } from "@mui/material";
+import { Card, CardContent, Typography, CircularProgress } from "@mui/material";
 import "./WeatherForecast.css";
 
 const WeatherWidget = () => {
@@ -13,30 +13,34 @@ const WeatherWidget = () => {
   const defaultLatitude = 29.8021; // Default latitude for ZIP code 77018
   const defaultLongitude = -95.3988; // Default longitude for ZIP code 77018
 
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
+  /* Resolve to the browser's coordinates, or null when geolocation is missing or
+   * refused — one path instead of three copies of the fallback. */
+  const readCoords = () =>
+    new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        console.error("Geolocation is not supported by this browser");
+        return resolve(null);
+      }
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLatitude(position.coords.latitude);
-          setLongitude(position.coords.longitude);
-          fetchWeatherData(position.coords.latitude, position.coords.longitude);
-        },
+        (position) => resolve(position.coords),
         (error) => {
           console.error("Error getting user location:", error);
-          setLatitude(defaultLatitude);
-          setLongitude(defaultLongitude);
-          fetchWeatherData(defaultLatitude, defaultLongitude);
-          setError("Unable to retrieve your location, using default location");
-          setLoading(false);
+          resolve(null);
         },
       );
-    } else {
-      setError("Geolocation is not supported by this browser");
-      setLatitude(defaultLatitude);
-      setLongitude(defaultLongitude);
-      fetchWeatherData(defaultLatitude, defaultLongitude);
+    });
+
+  const getUserLocation = async () => {
+    const coords = await readCoords();
+    const lat = coords ? coords.latitude : defaultLatitude;
+    const lon = coords ? coords.longitude : defaultLongitude;
+    setLatitude(lat);
+    setLongitude(lon);
+    if (!coords) {
+      setError("Unable to retrieve your location, using default location");
       setLoading(false);
     }
+    fetchWeatherData(lat, lon);
   };
 
   const fetchWeatherData = async (latitude, longitude) => {
@@ -54,35 +58,12 @@ const WeatherWidget = () => {
     }
   };
   useEffect(() => {
-    getUserLocation();
+    // Async wrapper keeps the lookup off the effect's synchronous path.
+    (async () => {
+      await getUserLocation();
+    })();
   }, []);
 
-  const colors = {
-    cloudy: {
-      backgroundColor: "#D3D3D3",
-      accentColors: ["#A9A9A9", "#FFFFFF"],
-      description:
-        "Light gray reflects the overcast nature of cloudy weather, while dark gray and white accents can provide depth and contrast.",
-    },
-    sun: {
-      backgroundColor: "#fcea27",
-      accentColors: ["white", "#87CEEB", "#FFFFFF"],
-      description:
-        "A light yellow background evokes the warmth and brightness of sunny weather. Bright yellow accents can enhance the cheerful feeling, while sky blue and white can provide a refreshing contrast.",
-    },
-    rain: {
-      backgroundColor: "#ADD8E6",
-      accentColors: ["#4682B4", "#708090", "#FFFFFF"],
-      description:
-        "Light blue gives a calming effect reminiscent of rainfall. Dark blue and gray accents can represent the heavier aspects of rain, while white can add a clean, crisp contrast.",
-    },
-    storm: {
-      backgroundColor: "#2F4F4F",
-      accentColors: ["#FFD700", "#800080", "#FFFFFF"],
-      description:
-        "Dark gray sets a dramatic tone appropriate for thunderstorms. Lightning yellow provides a striking contrast representing lightning, while purple can add depth and a sense of intensity. White can be used sparingly to highlight important elements.",
-    },
-  };
   useEffect(() => {
     const intervalInMilliseconds = 5 * 60 * 1000;
     const intervalId = setInterval(() => {
@@ -190,23 +171,6 @@ const WeatherWidget = () => {
     const conditionsWithSpaces = getConditionNames();
     return conditionsWithSpaces[code] || "Unknown condition code";
   }
-  const getColor = (type, condition) => {
-    if (type === "background") {
-      if (condition?.includes("cloud")) {
-        return colors.cloudy.backgroundColor;
-      }
-      if (condition?.includes("clear")) {
-        return colors.sun.backgroundColor;
-      } else return "#19C3FB";
-    } else {
-      if (condition?.includes("cloud")) {
-        return colors.cloudy.accentColors[0];
-      }
-      if (condition?.includes("clear")) {
-        return colors.sun.accentColors[0];
-      } else return "white";
-    }
-  };
   const currentWeather = weatherData?.currentWeather;
   const dailyForecasts = weatherData?.forecastDaily.days;
   if (loading) {

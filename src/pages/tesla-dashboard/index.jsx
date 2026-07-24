@@ -1,18 +1,13 @@
-import React, { useEffect, useState } from "react";
-import DateTimeWidget from "./DateTime";
+import React, { useEffect } from "react";
 import NewsWidget from "./News";
 import CurrentWeatherWidget from "./CurrentWeather";
-import TimeWidget from "./Time";
 import ForecastWeatherWidget from "./ForecastWeather";
 import OddsScreen from "./OddsScreen";
 import AstrosNextGameWidget from "./AstrosNextGameWidget";
-import RocketsNextGameWidget from "./RocketsNextGameWidget";
 import Time from "./Time";
-import BaylorNextGameWidget from "./BaylorNextGameWidget";
 import CalendarWidget from "./CalendarWidget";
 
 function TeslaDashboard() {
-  const [screenSize, setScreenSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   useEffect(() => {
     const interval = setInterval(() => {

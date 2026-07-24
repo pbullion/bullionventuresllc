@@ -63,13 +63,12 @@ function TodaysBets() {
   const targetDivRef = React.useRef(null);
   const isDev = false; // dev URLs below are kept from the original but never used
   const [showInput, setShowInput] = React.useState(false);
-  const [time, setTime] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(true);
   const [todaysBets, setTodaysBets] = React.useState([]);
   const [totals, setTotals] = React.useState({ risk: 0, win: 0 });
-  const [fontUpsize, setFontUpsize] = React.useState(true);
-  const [finalScores, setFinalScores] = React.useState([]);
-  const [autoRefresh, setAutoRefresh] = React.useState(true);
+  // Fixed at first render from the viewport — nothing toggles it afterwards.
+  const [fontUpsize] = React.useState(() => window.innerWidth >= 1400);
+  const [autoRefresh] = React.useState(true);
   const [hideNotInProgress, setHideNotInProgress] = React.useState(false);
   const colors = {
     darkRed: "#A43036",
@@ -267,8 +266,6 @@ function TodaysBets() {
   const getTodaysBets = async () => {
     setIsLoading(true);
     try {
-      const time = moment().format("h:mm:ss a");
-      setTime(time);
       const devURL = `http://localhost:3001/elite-edge-advisors/get-all-bets`;
       const url = `${"https://sheline-art-website-api.herokuapp.com/elite-edge-advisors/get-all-bets"}`;
 
@@ -299,23 +296,12 @@ function TodaysBets() {
         ...scoresSoccer,
         ...scoresWNBA,
       ];
-      setFinalScores([
-        ...scoresMLB,
-        ...scoresNHL,
-        ...scoresNFL,
-        ...scoresNBA,
-        ...scoresNCAAFootball,
-        ...scoresNCAABasketball,
-        ...scoresSoccer,
-        ...scoresWNBA,
-      ]);
-
       await fetch(isDev ? devURL : url)
         .then((res) => res.json())
         .then((data) => {
           const { ourBets } = data;
           const filtered = ourBets.map((bet) => {
-            return Object.fromEntries(Object.entries(bet).filter(([_, v]) => v != null));
+            return Object.fromEntries(Object.entries(bet).filter(([, v]) => v != null));
           });
           const allTickets = filtered
             .filter((bet) => !bet.hide)
@@ -490,13 +476,17 @@ function TodaysBets() {
   };
 
   React.useEffect(() => {
-    getTodaysBets();
-    window.innerWidth < 1400 && setFontUpsize(false);
+    // Async wrapper keeps the fetch off the effect's synchronous path.
+    (async () => {
+      await getTodaysBets();
+    })();
   }, []);
 
   React.useEffect(() => {
     if (autoRefresh) {
-      getTodaysBets();
+      (async () => {
+        await getTodaysBets();
+      })();
       const interval = setInterval(() => {
         getTodaysBets();
       }, 60000);
@@ -635,7 +625,7 @@ function TodaysBets() {
   };
 
   const getColorForBackground = (won, bet, tied) => {
-    const { score, ourBet } = bet;
+    const { score } = bet;
     const done = isGameDone(score.status);
     if (score.status.type.name === "STATUS_SCHEDULED") {
       return { backgroundColor: colors.pregame, color: "white" };
@@ -737,10 +727,10 @@ function TodaysBets() {
   };
 
   // Helper function to get spread with color coding
-  const getSpreadWithColor = (spreadPoint, ourBetOutcome) => {
+  const getSpreadWithColor = (spreadPoint) => {
     if (spreadPoint == null) return null;
 
-    let color = "white";
+    let color;
     // Negative spread = team is favored (good for us if we bet on them)
     // Positive spread = team is underdog (bad odds for us if we bet on them)
     if (spreadPoint < 0) {
@@ -762,7 +752,7 @@ function TodaysBets() {
     if (spreadPoint == null) return null;
 
     const numSpread = parseFloat(spreadPoint);
-    let color = "white";
+    let color;
 
     // Negative spread = favored to win (green)
     // Positive spread = underdog (red)
@@ -970,7 +960,7 @@ function TodaysBets() {
                 }}>
                 {/* <Grid container spacing={0} style={{}} ref={targetDivRef}> */}
                 {x?.length > 0 &&
-                  x.map((bet, idx) => {
+                  x.map((bet) => {
                     const periods = Array.from(
                       { length: bet.score?.competitions[0].format.regulation.periods },
                       (v, k) => k + 1,
@@ -1927,7 +1917,7 @@ function TodaysBets() {
                 }}>
                 <Grid container spacing={0} style={{}} ref={targetDivRef}>
                   {x?.length > 0 &&
-                    x.map((bet, idx) => {
+                    x.map((bet) => {
                       const periods = Array.from(
                         { length: bet.score?.competitions[0].format.regulation.periods },
                         (v, k) => k + 1,

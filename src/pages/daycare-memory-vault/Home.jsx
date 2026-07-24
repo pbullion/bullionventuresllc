@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router-dom";
 
 const ACCENT = "#7b2cbf"; // grape — matches the Daycare Memory Vault brand

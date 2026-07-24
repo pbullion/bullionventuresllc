@@ -19,7 +19,6 @@ import {
 } from "@mui/material";
 import { WiDaySunny, WiDayCloudy, WiThunderstorm, WiSnow } from "weather-icons-react";
 import { useParams } from "react-router-dom";
-import ReactLoading from "react-loading";
 import SettingsIcon from "@mui/icons-material/Settings";
 import SportsFootballIcon from "@mui/icons-material/SportsFootball";
 import SportsBasketballIcon from "@mui/icons-material/SportsBasketball";
@@ -27,37 +26,38 @@ import SportsBaseballIcon from "@mui/icons-material/SportsBaseball";
 import SportsHockeyIcon from "@mui/icons-material/SportsHockey";
 import "./oddsScreen.css";
 import ArrowLeftIcon from "@mui/icons-material/ArrowLeft";
-import { parseISO, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import browserDetect from "browser-detect";
 import moment from "moment";
 import momentTimezone from "moment-timezone";
 
-function OddsScreen(props) {
+function OddsScreen() {
   const browserData = browserDetect();
-  const { email, defaultFontSize } = useParams();
-  const { selectOddsDisplay } = props;
-  const [textSize, setTextSize] = useState(2);
-  const [screenWidth, setScreenWidth] = useState(500);
-  const [screenHeight, setScreenHeight] = useState(500);
+  const { defaultFontSize } = useParams();
+  const [textSize, setTextSize] = useState(() =>
+    defaultFontSize ? parseFloat(defaultFontSize) : 1.3,
+  );
   const [allGames, setAllGames] = useState([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [onlyOneColumn, setOnlyOneColumn] = useState(false);
   const [justTop25Basketball, setJustTop25Basketball] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [userTimezone, setUserTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const [isBehindTheScenesLoading, setIsBehindTheScenesLoading] = useState(false);
-  const [user, setUser] = useState("pbullion@gmail.com");
-  const [lastUpdated, setLastUpdated] = useState(moment().format("h:mm:ss"));
+  const [userTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [, setIsBehindTheScenesLoading] = useState(false);
+  const [user] = useState("pbullion@gmail.com");
   const [sports_to_display, setSportsToDisplay] = useState(["NFL", "MLB", "NBA", "NHL", "NCAABASKETBALL"]);
-  const isLoadingRef = useRef(isLoading);
-  const sportsToDisplayRef = useRef(sports_to_display);
   const [sessionID, setSessionID] = useState("");
+  // These two mirror state purely so the polling callbacks in fetchGames can
+  // read the latest value without being re-created. Assigned in an effect
+  // rather than during render — the polls only ever fire after a paint.
+  const isLoadingRef = useRef(isLoading);
   const sessionIDRef = useRef(sessionID);
-  sessionIDRef.current = sessionID;
-  sportsToDisplayRef.current = sports_to_display;
-  isLoadingRef.current = isLoading;
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+    sessionIDRef.current = sessionID;
+  }, [isLoading, sessionID]);
 
   // useEffect(() => {
   //   if (user) {
@@ -78,29 +78,11 @@ function OddsScreen(props) {
     return moment(jsDate).format("MMMM D");
   }
 
-  useEffect(() => {
-    if (defaultFontSize) {
-      setTextSize(parseFloat(defaultFontSize));
-    } else {
-      setTextSize(1.3);
-    }
-    setUserTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  }, []);
-
   // useEffect(() => {
   //   handleResize();
   // }, [sports_to_display]);
 
-  useEffect(() => {
-    const getUpdate = () => {
-      setIsBehindTheScenesLoading(true);
-      checkSubscription(user);
-    };
-    const intervalId = setInterval(getUpdate, 15000);
-    return () => clearInterval(intervalId);
-  }, [user]);
-
-  const checkSubscription = async (email) => {
+  async function checkSubscription(email) {
     const url = `https://sheline-art-website-api.herokuapp.com/odds-screen/check-subscription/${email}`;
     const requestOptions = {
       method: "GET",
@@ -108,12 +90,11 @@ function OddsScreen(props) {
     };
     fetch(url, requestOptions)
       .then((response) => response.json())
-      .then((data) => {
+      .then(() => {
         fetchGames();
       });
-  };
+  }
 
-  useEffect(() => {}, [allGames]);
 
   const isDateToday = (dateStr) => {
     if (dateStr === undefined) return false;
@@ -122,9 +103,6 @@ function OddsScreen(props) {
     return today.getDate() === parseInt(day) && today.toLocaleString("en-us", { month: "long" }) === month;
   };
   const fetchGames = async () => {
-    const currentTime = new Date().toLocaleString("en-US", { timeZone: "America/Chicago" });
-    const centralTime = new Date(currentTime);
-    const currentHour = centralTime.getHours();
     const url = `https://sheline-art-website-api.herokuapp.com/patrick/all-data-2/mancavedisplaysllc@gmail.com`;
     // const url = `http://localhost:3001/patrick/all-data-2/mancavedisplaysllc@gmail.com`;
     const requestOptions = {
@@ -153,7 +131,6 @@ function OddsScreen(props) {
                   const isPregame = x[0].includes("pregame");
                   if (isPregame && (league === "NFL" || league === "NCAAFOOTBALL" || league === "NCAABASKETBALL")) {
                     const dateParts = x[20].match(/(\w+), (\w+) (\d+)(?:st|nd|rd|th)/);
-                    const dayOfWeek = dateParts[1];
                     const month = dateParts[2];
                     const day = dateParts[3];
                     const year = new Date().getFullYear();
@@ -236,7 +213,6 @@ function OddsScreen(props) {
                     };
                   } else if (isPregame && league === "NBA") {
                     const dateParts = x[20].match(/(\w+), (\w+) (\d+)(?:st|nd|rd|th)/);
-                    const dayOfWeek = dateParts[1];
                     const month = dateParts[2];
                     const day = dateParts[3];
                     const year = new Date().getFullYear();
@@ -288,7 +264,6 @@ function OddsScreen(props) {
                     };
                   } else if (isPregame && league === "NHL") {
                     const dateParts = x[20].match(/(\w+), (\w+) (\d+)(?:st|nd|rd|th)/);
-                    const dayOfWeek = dateParts[1];
                     const month = dateParts[2];
                     const day = dateParts[3];
                     const year = new Date().getFullYear();
@@ -436,8 +411,6 @@ function OddsScreen(props) {
             })
             .filter((x) => x.awayTeam !== "TBD" && x.homeTeam !== "TBD");
           setAllGames(sorted);
-          let formattedTimeInUserTimezone = momentTimezone.tz(new Date(), userTimezone).format("h:mm:ss");
-          setLastUpdated(formattedTimeInUserTimezone);
           setTimeout(() => {
             setIsLoading(false);
           }, 0);
@@ -472,6 +445,16 @@ function OddsScreen(props) {
     }
   };
 
+  // Poll the subscription check (which refreshes the games) every 15s.
+  useEffect(() => {
+    const getUpdate = () => {
+      setIsBehindTheScenesLoading(true);
+      checkSubscription(user);
+    };
+    const intervalId = setInterval(getUpdate, 15000);
+    return () => clearInterval(intervalId);
+  }, [user]);
+
   // const handleResize = () => {
   //   const screenWidthHalf = window.innerWidth / 2;
   //   const screenHeight = window.innerHeight;
@@ -480,16 +463,6 @@ function OddsScreen(props) {
   // };
 
   // window.addEventListener("resize", handleResize);
-
-  const handleSwitchChange = (sport) => {
-    setSportsToDisplay((prevValue) => {
-      if (prevValue.includes(sport)) {
-        return prevValue.filter((s) => s !== sport);
-      } else {
-        return [...prevValue, sport];
-      }
-    });
-  };
 
   const handleFormat = (event, newSports) => {
     setSportsToDisplay(newSports);
@@ -566,7 +539,7 @@ function OddsScreen(props) {
           width: "100%",
         }}>
         {allGames
-          .filter((x) => sportsToDisplayRef.current.includes(x.sport))
+          .filter((x) => sports_to_display.includes(x.sport))
           .filter((x) => {
             if (
               justTop25Basketball &&
@@ -593,7 +566,7 @@ function OddsScreen(props) {
                   !isDateToday(game.dateStr) &&
                   game.dateStr !==
                     allGames
-                      .filter((x) => sportsToDisplayRef.current.includes(x.sport))
+                      .filter((x) => sports_to_display.includes(x.sport))
                       .filter((x) => {
                         if (
                           justTop25Basketball &&
@@ -609,7 +582,7 @@ function OddsScreen(props) {
                       })[
                       (
                         allGames
-                          .filter((x) => sportsToDisplayRef.current.includes(x.sport))
+                          .filter((x) => sports_to_display.includes(x.sport))
                           .filter((x) => {
                             if (
                               justTop25Basketball &&
@@ -860,7 +833,7 @@ function OddsScreen(props) {
                             (game.clock !== undefined &&
                               game.clock.length > 4 &&
                               textSize > 1 &&
-                              allGames.filter((x) => sportsToDisplayRef.current.includes(x.sport)).length > 13)
+                              allGames.filter((x) => sports_to_display.includes(x.sport)).length > 13)
                           ) ?
                             `${textSize - 0.25}rem`
                           : `${textSize}rem`,

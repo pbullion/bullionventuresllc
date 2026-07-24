@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // Active-storm data comes from the Sheline backend, which proxies NHC's
 // CurrentStorms.json (that feed has no CORS, so the browser can't read it
@@ -200,7 +200,7 @@ export default function GulfHurricane() {
       const data = await res.json();
       setStorms(Array.isArray(data.storms) ? data.storms : []);
       setStatus("ok");
-    } catch (e) {
+    } catch {
       setStorms([]);
       setStatus("error");
     }
@@ -208,7 +208,10 @@ export default function GulfHurricane() {
   }, []);
 
   useEffect(() => {
-    load();
+    // Async wrapper keeps the fetch off the effect's synchronous path.
+    (async () => {
+      await load();
+    })();
     const id = setInterval(load, 5 * 60 * 1000); // refresh every 5 min
     return () => clearInterval(id);
   }, [load]);

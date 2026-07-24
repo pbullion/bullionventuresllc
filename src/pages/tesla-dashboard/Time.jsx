@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Clock from "react-clock";
 import "./Clock.css";
 import "react-clock/dist/Clock.css";
 
 const DateTimeWidget = () => {
-  const [dateTime, setDateTime] = useState(new Date());
   const [value, setValue] = useState(new Date());
 
   useEffect(() => {
@@ -13,18 +12,6 @@ const DateTimeWidget = () => {
     return () => {
       clearInterval(interval);
     };
-  }, []);
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setDateTime(
-        new Intl.DateTimeFormat("en-US", {
-          day: "numeric",
-          timeZone: "America/Chicago",
-        })
-      );
-    }, 1000);
-
-    return () => clearInterval(intervalId);
   }, []);
 
   return (

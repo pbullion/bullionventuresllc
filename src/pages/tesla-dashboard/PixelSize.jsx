@@ -1,22 +1,9 @@
-import React, { useState, useEffect } from "react";
 import "./DateTime.css";
-import { Card, CardContent, Typography, CircularProgress, Box } from "@mui/material";
+import { Typography } from "@mui/material";
 
+// Diagnostic widget: just reports the viewport size, for dialing in the Tesla
+// browser's layout. (It carried a clock's worth of unused date/time plumbing.)
 const DateTimeWidget = () => {
-  const [dateTime, setDateTime] = useState(new Date());
-
-  const formattedDate = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  }).format(dateTime);
-
-  const formattedTime = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "numeric",
-    hour12: true,
-  }).format(dateTime);
-
   return (
     <div className="date-time-widget">
       <div className="date-time-content">
