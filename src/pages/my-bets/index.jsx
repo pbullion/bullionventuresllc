@@ -81,6 +81,61 @@ const formatSettled = (iso) => {
   }).format(d)} CT`;
 };
 
+/* ─── Pace math (drives a total bet's "proj" figure) ─── */
+
+// Regulation structure per league: how many periods and how many seconds each.
+// Returns null for anything we don't model, so the projection is simply skipped.
+const REGULATION = {
+  wnba: { periods: 4, periodSecs: 600 }, // 4 x 10:00
+  nba: { periods: 4, periodSecs: 720 }, // 4 x 12:00
+  "mens-college-basketball": { periods: 2, periodSecs: 1200 }, // 2 x 20:00
+  "womens-college-basketball": { periods: 2, periodSecs: 1200 },
+};
+const regulationFor = (league) => {
+  const key = String(league || "").toLowerCase();
+  if (!key.includes("basket") && !key.includes("nba")) return null;
+  // Women's hoops (WNBA / college women) — Kalshi labels it "Pro Basketball (W)"
+  // or "... women's ...". 4 x 10:00.
+  if (key.includes("wnba") || key.includes("women") || /\(w\)/.test(key))
+    return REGULATION.wnba;
+  if (key.includes("college")) return REGULATION["mens-college-basketball"];
+  // Default men's pro basketball ("Pro Basketball", NBA). 4 x 12:00.
+  return REGULATION.nba;
+};
+
+/* Baseball keeps no clock — ESPN sends clock:0 and puts the inning in `period`,
+ * naming the half in `detail`. "Top 6th" means 5 innings are complete; "Mid"/
+ * "Bot" add the half now under way; "End 6th" means all 6 are done. Extras are
+ * capped at a full game, where the projection stops meaning much anyway. */
+const BASEBALL_INNINGS = 9;
+const baseballElapsedFraction = (g) => {
+  if (g.period == null) return null;
+  const d = String(g.detail || "").toLowerCase();
+  const half = d.startsWith("end")
+    ? 1
+    : d.startsWith("mid") || d.startsWith("bot")
+      ? 0.5
+      : 0;
+  const frac = (Number(g.period) - 1 + half) / BASEBALL_INNINGS;
+  return frac > 0 ? Math.min(frac, 1) : null;
+};
+
+// Fraction of the game elapsed. Null when we can't tell (unknown league,
+// missing clock/inning, or basketball OT where extrapolating stops being
+// meaningful) — the caller then just omits the projection.
+const gameElapsedFraction = (g, league) => {
+  const key = String(league || "").toLowerCase();
+  if (key.includes("baseball") || key.includes("mlb"))
+    return baseballElapsedFraction(g);
+  const reg = regulationFor(league);
+  if (!reg || g.period == null || g.clock == null) return null;
+  if (g.period > reg.periods) return 1; // OT — treat as ~full regulation
+  const total = reg.periods * reg.periodSecs;
+  const elapsed = (g.period - 1) * reg.periodSecs + (reg.periodSecs - g.clock);
+  const frac = elapsed / total;
+  return frac > 0 && frac <= 1 ? frac : null;
+};
+
 // Fallback: parse combo title "yes Boston,yes San Antonio,..." into legs.
 const parseTitleLegs = (title) =>
   String(title || "")
@@ -513,6 +568,18 @@ const S = {
   },
   // Parlay-only: the leg's game/matchup under the pick, and the ticket totals.
   rowSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
+  /* A total bet's remaining-to-the-line + pace figures. Sits inside a position
+     row, which already draws its own divider, so it carries no top border. */
+  totalRow: { display: "flex", gap: 18, marginTop: 8, flexWrap: "wrap" },
+  totalCell: { display: "flex", alignItems: "baseline", gap: 6 },
+  totalNum: { fontSize: 15, fontWeight: 800, letterSpacing: -0.3 },
+  totalLabel: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: C.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
   parlayFoot: {
     display: "flex",
     flexWrap: "wrap",
@@ -783,6 +850,43 @@ const usd0 = (n) => {
   return Number.isInteger(v) ? `$${v}` : usd(v);
 };
 
+/* A total bet read from the side actually held. `remaining` is whole runs/points
+ * to the line — points needed for the over, cushion left for the under.
+ * `projected` extrapolates the final total from current pace, and `onTarget`
+ * says whether that projection favors the held side. Null when the leg isn't a
+ * total, or has no line/score to work from; null pieces are omitted by the UI. */
+const totalPaceOf = (leg) => {
+  const g = leg.game;
+  if (
+    leg.market_type !== "total" ||
+    leg.line == null ||
+    !g ||
+    g.pick_score == null ||
+    g.opp_score == null
+  )
+    return null;
+  const heldOver = leg.side === "yes"; // YES on a total = the over
+  const line = Number(leg.line);
+  const scored = Number(g.pick_score) + Number(g.opp_score);
+  // Whole-number framing — runs/points come in integers, and an over must
+  // EXCEED the line. At 6 scored vs a 9.5 line the over needs 4 (to reach 10),
+  // not the raw 3.5 gap; the under's cushion is how many more can score while
+  // still staying below the line (3).
+  const remaining = heldOver
+    ? Math.floor(line) + 1 - scored
+    : Math.ceil(line) - 1 - scored;
+  // Once the line is crossed the total is decided — no more pace guessing.
+  const decided = scored > line;
+  const frac =
+    g.state === "in" && !decided ? gameElapsedFraction(g, leg.league) : null;
+  const projected = frac ? Math.round(scored / frac) : null;
+  // Under is on target if the projected final stays under the line; over is on
+  // target if it clears it.
+  const onTarget =
+    projected == null ? null : heldOver ? projected > line : projected < line;
+  return { line, scored, remaining, projected, onTarget, heldOver, decided };
+};
+
 /* Order legs so finished games sink to the bottom, leaving live/upcoming ones
  * (the ones still in play) up top. Stable within each group — preserves the
  * original leg order otherwise. */
@@ -946,6 +1050,67 @@ function Chance({ leg }) {
   );
 }
 
+/* A total bet's live read: runs/points still needed (or cushion left) plus the
+ * pace projection. Renders nothing for any other market, or before there's a
+ * score to reason about. */
+function TotalPace({ leg }) {
+  const t = totalPaceOf(leg);
+  if (!t) return null;
+  // An under with a 0 cushion isn't busted — it just can't absorb another score.
+  const stillLive = t.remaining > 0 || (!t.heldOver && !t.decided);
+  const noCushion = !t.heldOver && t.remaining === 0;
+  return (
+    <div style={S.totalRow}>
+      {stillLive ? (
+        <span style={S.totalCell}>
+          {/* Label leads, number trails: "over needs 4". */}
+          <span
+            style={{
+              ...S.totalLabel,
+              ...(noCushion ? { color: C.amber } : null),
+            }}
+          >
+            {t.heldOver
+              ? "over needs"
+              : noCushion
+                ? "no cushion — next score busts it"
+                : "under cushion"}
+          </span>
+          {/* The no-cushion label is a full sentence, so it drops the trailing 0. */}
+          {noCushion ? null : (
+            <span
+              style={{ ...S.totalNum, color: t.heldOver ? C.text : C.green }}
+            >
+              {t.remaining}
+            </span>
+          )}
+        </span>
+      ) : (
+        // Line crossed: the over has already hit; the under is busted.
+        <span style={S.totalCell}>
+          <span style={S.totalLabel}>
+            {t.heldOver ? "over the line" : "over — busted"}
+          </span>
+          <span style={{ ...S.totalNum, color: t.heldOver ? C.green : C.red }}>
+            {Math.abs(t.remaining)}
+          </span>
+        </span>
+      )}
+
+      {t.projected != null ? (
+        <span style={S.totalCell}>
+          <span style={{ ...S.totalNum, color: t.onTarget ? C.green : C.red }}>
+            {t.projected}
+          </span>
+          <span style={S.totalLabel}>
+            proj · {t.onTarget ? "on target" : "off pace"}
+          </span>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 /* Game-card header: the matchup, its league, and — for a real (non-parlay)
  * game — the live/final score and, when in progress, the base/count situation.
  * Pre-game shows the scheduled time instead. */
@@ -1028,6 +1193,7 @@ function SingleRow({ b }) {
         <RowPick leg={leg} />
         <Chance leg={leg} />
       </div>
+      <TotalPace leg={leg} />
       <div style={S.rowLine2}>
         <span>{usd(d.cost_dollars)} cost</span>
         <span>Pays out {usd0(d.max_payout_dollars)}</span>
@@ -1075,6 +1241,7 @@ function ParlayRows({ b }) {
               {!showSit && gameDetail(g) ? ` · ${gameDetail(g)}` : ""}
               {link ? <span style={S.espnArrow}> ↗</span> : null}
             </div>
+            <TotalPace leg={leg} />
             {showSit ? (
               <LiveSituation sit={g.situation} inning={g.detail} compact />
             ) : null}
