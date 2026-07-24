@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
@@ -29,29 +29,11 @@ const C = {
   legFinishedNeutral: "#12161e",
 };
 
-// Hero-box (Pays if won / Value) tint per card verdict. A losing card must
-// not show green money boxes — every color on the card agrees with the lean.
-const TONE_HI = {
-  win: { bg: C.greenSoft, border: C.greenBorder, fg: C.green },
-  lose: { bg: C.redSoft, border: C.redBorder, fg: C.red },
-  tie: { bg: C.amberSoft, border: C.amberBorder, fg: C.amber },
-  neutral: { bg: C.legNeutral, border: C.legNeutralBorder, fg: null },
-};
-
 /* ─── Formatters ─── */
 const usd = (n) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
     Number.isFinite(Number(n)) ? Number(n) : 0,
   );
-// Kalshi shows contract prices in cents (e.g. 57¢).
-const cents = (dollars) => `${Math.round((Number(dollars) || 0) * 100)}¢`;
-// Contract quantity: Kalshi positions can be fractional (e.g. 31.4), so show up
-// to 2 decimals but trim trailing zeros (31 stays "31", 31.40 -> "31.4").
-const qty = (n) => {
-  const v = Number(n) || 0;
-  return Number(v.toFixed(2)).toString();
-};
-
 // Format an ISO game time as "M/D · 5:40 PM CT" (Central only).
 const formatKickoff = (iso) => {
   if (!iso) return null;
@@ -90,47 +72,13 @@ const formatSettled = (iso) => {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("en-US", {
+  return `${new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     timeZone: "America/Chicago",
-  }).format(d);
-};
-
-// Regulation structure per league, for pace math: how many periods and how
-// many seconds each. Basketball only (totals we track are hoops); returns null
-// for anything we don't model so the pace projection is simply skipped.
-const REGULATION = {
-  wnba: { periods: 4, periodSecs: 600 }, // 4 x 10:00
-  nba: { periods: 4, periodSecs: 720 }, // 4 x 12:00
-  "mens-college-basketball": { periods: 2, periodSecs: 1200 }, // 2 x 20:00
-  "womens-college-basketball": { periods: 2, periodSecs: 1200 },
-};
-const regulationFor = (league) => {
-  const key = String(league || "").toLowerCase();
-  if (!key.includes("basket") && !key.includes("nba")) return null;
-  // Women's hoops (WNBA / college women) — Kalshi labels it "Pro Basketball (W)"
-  // or "... women's ...". 4 x 10:00.
-  if (key.includes("wnba") || key.includes("women") || /\(w\)/.test(key))
-    return REGULATION.wnba;
-  if (key.includes("college")) return REGULATION["mens-college-basketball"];
-  // Default men's pro basketball ("Pro Basketball", NBA). 4 x 12:00.
-  return REGULATION.nba;
-};
-
-// Fraction of regulation elapsed from period + seconds-left-in-period. Returns
-// null when we can't tell (unknown league, missing clock, or in OT where the
-// projection stops being meaningful). Capped at 1.
-const gameElapsedFraction = (g, league) => {
-  const reg = regulationFor(league);
-  if (!reg || g.period == null || g.clock == null) return null;
-  if (g.period > reg.periods) return 1; // OT — treat as ~full regulation
-  const total = reg.periods * reg.periodSecs;
-  const elapsed = (g.period - 1) * reg.periodSecs + (reg.periodSecs - g.clock);
-  const frac = elapsed / total;
-  return frac > 0 && frac <= 1 ? frac : null;
+  }).format(d)} CT`;
 };
 
 // Fallback: parse combo title "yes Boston,yes San Antonio,..." into legs.
@@ -230,14 +178,6 @@ const S = {
     gap: 6,
     flexWrap: "wrap",
   },
-  sortLabel: {
-    fontSize: 11,
-    color: C.muted,
-    fontWeight: 700,
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-    marginRight: 2,
-  },
   // Compact single-line sort control (replaces the wrapping pill row).
   sortRow: {
     display: "flex",
@@ -246,30 +186,6 @@ const S = {
     gap: 12,
     flexWrap: "wrap",
     margin: "22px 0 16px",
-  },
-  sortWrap: { display: "flex", alignItems: "center", gap: 8 },
-  sortSelect: {
-    background: C.chipBg,
-    color: C.text,
-    border: `1px solid ${C.border}`,
-    borderRadius: 999,
-    padding: "6px 12px",
-    fontSize: 13,
-    fontWeight: 700,
-    cursor: "pointer",
-    outline: "none",
-  },
-  sortDirBtn: {
-    background: C.chipBg,
-    color: C.text,
-    border: `1px solid ${C.border}`,
-    borderRadius: 999,
-    width: 30,
-    height: 30,
-    fontSize: 14,
-    fontWeight: 800,
-    cursor: "pointer",
-    lineHeight: 1,
   },
   sortBtn: (active) => ({
     background: active ? C.greenSoft : C.chipBg,
@@ -354,23 +270,6 @@ const S = {
     fontWeight: 700,
     cursor: "pointer",
   },
-  betActions: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
-  hideBtn: {
-    background: "transparent",
-    border: `1px solid ${C.border}`,
-    color: C.muted,
-    borderRadius: 999,
-    width: 26,
-    height: 26,
-    lineHeight: 1,
-    fontSize: 13,
-    fontWeight: 700,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
 
   bet: {
     backgroundColor: C.card,
@@ -396,16 +295,6 @@ const S = {
     flexShrink: 0,
   }),
   betTitle: { fontSize: 14, fontWeight: 700, lineHeight: 1.3 },
-  legChips: { display: "flex", flexWrap: "wrap", gap: 6, margin: "10px 0 4px" },
-  legChip: {
-    fontSize: 12,
-    fontWeight: 600,
-    padding: "4px 9px",
-    borderRadius: 8,
-    backgroundColor: C.panel,
-    border: `1px solid ${C.border}`,
-    color: C.text,
-  },
   // Metrics area: a hero row (the big green numbers) stacked over a plain row,
   // so the emphasized cells never sit unevenly beside the plain ones.
   metrics: {
@@ -416,12 +305,6 @@ const S = {
     flexDirection: "column",
     gap: 8,
   },
-  // Hero row: equal columns that stay side-by-side even on a phone.
-  metricsHero: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 8,
-  },
   metricsPlain: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
@@ -429,111 +312,9 @@ const S = {
   },
   mLabel: { fontSize: 10, color: C.muted, fontWeight: 600, marginBottom: 2 },
   mValue: { fontSize: 14, fontWeight: 700 },
-  // Highlighted metric cell (Max payout, Value) — pops from the plainer
-  // stats. Tinted by the card's verdict (green winning, red losing, amber
-  // dead heat, gray undecided/pre-game) so the card reads one way at a glance.
-  mCellHi: (tone) => ({
-    backgroundColor: TONE_HI[tone].bg,
-    border: `1px solid ${TONE_HI[tone].border}`,
-    borderRadius: 9,
-    padding: "8px 10px",
-  }),
-  mLabelHi: (tone) => ({
-    fontSize: 10,
-    color: TONE_HI[tone].fg || C.muted,
-    fontWeight: 800,
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
-    marginBottom: 3,
-    whiteSpace: "nowrap",
-  }),
-  mValueHi: (tone) => ({
-    fontSize: 17,
-    fontWeight: 900,
-    color: TONE_HI[tone].fg || C.text,
-    letterSpacing: -0.3,
-    whiteSpace: "nowrap",
-  }),
-  // Sub-line under "Value": the actual bid-side cash-out amount + price.
-  cashOut: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: C.text,
-    marginTop: 3,
-    whiteSpace: "nowrap",
-  },
 
-  /* Expanded per-leg bet slip — 2 legs across, collapsing to 1 when narrow */
-  slip: {
-    marginTop: 10,
-    paddingTop: 4,
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-    gap: 8,
-  },
-  // Colorized by state: darker border + light-tinted interior when leaning
-  // win/lose; a finished game is rendered noticeably darker than a live one.
-  legCard: ({ lean, finished }) => {
-    let bg = C.legNeutral;
-    let border = C.legNeutralBorder;
-    if (lean === "win") {
-      bg = finished ? C.legFinishedGreen : C.greenSoft;
-      border = C.greenBorder;
-    } else if (lean === "lose") {
-      bg = finished ? C.legFinishedRed : C.redSoft;
-      border = C.redBorder;
-    } else if (lean === "tie") {
-      // Live dead heat — amber (a tie only happens mid-game, never "finished").
-      bg = C.amberSoft;
-      border = C.amberBorder;
-    } else if (finished) {
-      bg = C.legFinishedNeutral;
-    }
-    return {
-      border: `1.5px solid ${border}`,
-      borderRadius: 11,
-      padding: "10px 11px",
-      backgroundColor: bg,
-      opacity: finished ? 0.85 : 1,
-    };
-  },
-  legTopRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 6,
-  },
-  legLeague: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: C.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    flexShrink: 0,
-  },
-  legStatus: (state) => ({
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: 0.3,
-    color: state === "in" ? C.green : C.muted,
-    textTransform: "uppercase",
-    textAlign: "right",
-    whiteSpace: "nowrap",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-  }),
   // Small "open on ESPN" cue on a clickable leg card.
   espnArrow: { color: C.muted, fontSize: 12, fontWeight: 700 },
-  legMatchup: { fontSize: 14, fontWeight: 700, marginBottom: 6 },
-  pickRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  pickLeft: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 },
   check: (color) => ({
     width: 18,
     height: 18,
@@ -547,57 +328,6 @@ const S = {
     justifyContent: "center",
     flexShrink: 0,
   }),
-  pickTeam: { fontSize: 14, fontWeight: 700 },
-  winPct: { fontSize: 16, fontWeight: 800 },
-  scoreRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 10,
-    paddingTop: 10,
-    borderTop: `1px solid ${C.border}`,
-    flexWrap: "wrap",
-  },
-  scoreTeam: (lead) => ({
-    fontSize: 14,
-    fontWeight: lead ? 800 : 600,
-    color: lead ? C.text : C.muted,
-  }),
-  scoreNum: (lead) => ({
-    fontSize: 15,
-    fontWeight: 800,
-    color: lead ? C.text : C.muted,
-  }),
-  scoreDash: { color: C.muted, fontWeight: 600 },
-  delayed: {
-    fontSize: 10,
-    fontWeight: 800,
-    color: C.muted,
-    border: `1px solid ${C.border}`,
-    borderRadius: 6,
-    padding: "2px 6px",
-    letterSpacing: 0.4,
-    marginLeft: 4,
-  },
-  noGame: { fontSize: 12, color: C.muted, marginTop: 8, fontStyle: "italic" },
-  /* Total bet: points remaining to the line, shown for under + over. */
-  totalRow: {
-    display: "flex",
-    gap: 20,
-    marginTop: 10,
-    paddingTop: 10,
-    borderTop: `1px solid ${C.border}`,
-    flexWrap: "wrap",
-  },
-  totalCell: { display: "flex", alignItems: "baseline", gap: 6 },
-  totalNum: { fontSize: 17, fontWeight: 800, letterSpacing: -0.3 },
-  totalLabel: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: C.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
 
   /* Live baseball situation: base diamond + count/outs */
   sitRow: {
@@ -1078,29 +808,6 @@ const hasLiveSituation = (leg) => {
   );
 };
 
-const StatusLabel = ({ leg }) => {
-  const g = leg.game;
-  // A decided total (line already crossed) reads as final even while the game
-  // clock runs on, so don't show the live quarter/clock.
-  const decidedTotal = totalDecided(leg);
-  if (decidedTotal) return decidedTotal === "won" ? "Won" : "Lost";
-  // Pre-game: show the scheduled time in Central instead of ESPN's EDT string.
-  if (g && g.state === "pre") {
-    return gameDetail(g) || "Scheduled";
-  }
-  // Live: baseball shows its inning down in the situation row, so keep the
-  // top-right empty to avoid duplicating it. Sports WITHOUT a situation row
-  // (basketball, etc.) must still show their status here — quarter + clock,
-  // "Halftime", etc. — otherwise a live game looks like it has no status.
-  if (g && g.state === "in") {
-    return hasLiveSituation(leg) ? null : g.detail || "Live";
-  }
-  if (g && g.detail) return gameDetail(g); // final ("Final"), postponed, etc.
-  if (leg.state === "won") return "Won";
-  if (leg.state === "lost") return "Lost";
-  return "Open";
-};
-
 /* Live baseball situation: base-runner diamond, count, and outs. `inning` is
  * the game's inning detail ("Top 9th") shown in place of the redundant "N out"
  * words — the out count is already conveyed by the dots. */
@@ -1138,231 +845,6 @@ function LiveSituation({ sit, inning, compact }) {
       </div>
       {sit.last_play ? <div style={S.sitPlay}>{sit.last_play}</div> : null}
     </div>
-  );
-}
-
-function LegSlip({ leg }) {
-  const accent = legAccent(leg);
-  const kind = legKind(leg);
-  const g = leg.game;
-  const isTotal = leg.market_type === "total";
-  // For a total, "who's leading" is meaningless — don't highlight a team.
-  const pickLead =
-    isTotal
-      ? false
-      : g && g.pick_score != null && g.opp_score != null
-        ? g.pick_score >= g.opp_score
-        : leg.state === "won";
-  // Total bet, from the perspective of the side actually held. `remaining` is
-  // points to the line (cushion for the under, points-needed for the over).
-  // `projected` extrapolates the final total from current pace so we can say
-  // whether the held side is on track; `onTarget` is true when the projection
-  // favors the held side. Null pieces are simply omitted by the UI.
-  const heldOver = leg.side === "yes"; // YES on a total = the over
-  const totalInfo =
-    isTotal &&
-    leg.line != null &&
-    g &&
-    g.pick_score != null &&
-    g.opp_score != null
-      ? (() => {
-          const line = Number(leg.line);
-          const scored = Number(g.pick_score) + Number(g.opp_score);
-          // Whole-number framing — runs/points come in integers, and an over
-          // must EXCEED the line. At 6 scored vs a 9.5 line the over needs 4
-          // (to reach 10), not the raw 3.5 gap; the under's cushion is how
-          // many more can score while still staying below the line (3).
-          const remaining = heldOver
-            ? Math.floor(line) + 1 - scored
-            : Math.ceil(line) - 1 - scored;
-          // Once the line is crossed the total is decided — no more pace guess.
-          const decided = scored > line;
-          const frac =
-            g.state === "in" && !decided
-              ? gameElapsedFraction(g, leg.league)
-              : null;
-          const projected = frac ? Math.round(scored / frac) : null;
-          // Under is on target if the projected final stays under the line;
-          // over is on target if it clears it.
-          const onTarget =
-            projected == null
-              ? null
-              : heldOver
-                ? projected > line
-                : projected < line;
-          return {
-            line,
-            scored,
-            remaining,
-            projected,
-            onTarget,
-            heldOver,
-            decided,
-          };
-        })()
-      : null;
-  // Clicking a leg opens its ESPN game page (new tab) when we matched one.
-  const link = g && g.link ? g.link : null;
-  const cardStyle = link
-    ? { ...S.legCard(kind), cursor: "pointer", textDecoration: "none" }
-    : S.legCard(kind);
-  const Card = link ? "a" : "div";
-  const linkProps = link
-    ? { href: link, target: "_blank", rel: "noopener noreferrer" }
-    : {};
-  return (
-    <Card className="mb-leg" style={cardStyle} {...linkProps}>
-      <div style={S.legTopRow}>
-        <span style={S.legLeague}>{leg.league || "Market"}</span>
-        {/* A decided total is treated as finished, so color its status muted
-            (not the live green) even though the game clock is still "in". */}
-        <span
-          style={S.legStatus(
-            legIsFinished(leg) ? "post" : g ? g.state : leg.state
-          )}
-        >
-          <StatusLabel leg={leg} />
-          {link ? <span style={S.espnArrow}>↗</span> : null}
-        </span>
-      </div>
-      <div style={S.legMatchup}>{leg.matchup}</div>
-
-      <div style={S.pickRow}>
-        <div style={S.pickLeft}>
-          <span style={S.check(accent)}>✓</span>
-          <span style={S.pickTeam}>{leg.pick}</span>
-        </div>
-        {/* Win % is a live-market read — meaningless once the game is final, so
-            hide it on finished legs (the ✓/✕ + Won/Lost already say the result). */}
-        {leg.win_pct != null && !legIsFinished(leg) ? (
-          <span style={{ ...S.winPct, color: accent }}>{leg.win_pct}%</span>
-        ) : null}
-      </div>
-
-      {g && (g.pick_score != null || g.opp_score != null) ? (
-        (() => {
-          // Scoreboard order: away on the left, home on the right (falls back
-          // to pick/opp when the backend hasn't sent orientation). Lead
-          // highlighting still follows the PICK side; totals stay neutral.
-          const [ta, tb] =
-            g.away_team && g.home_team
-              ? [
-                  {
-                    team: g.away_team,
-                    score: g.away_score,
-                    isPick: !g.pick_is_home,
-                  },
-                  {
-                    team: g.home_team,
-                    score: g.home_score,
-                    isPick: Boolean(g.pick_is_home),
-                  },
-                ]
-              : [
-                  { team: g.pick_team, score: g.pick_score, isPick: true },
-                  { team: g.opp_team, score: g.opp_score, isPick: false },
-                ];
-          const hot = (t) => (isTotal ? false : t.isPick ? pickLead : !pickLead);
-          return (
-            <div style={S.scoreRow}>
-              <span style={S.scoreTeam(hot(ta))}>{ta.team}</span>
-              <span style={S.scoreNum(hot(ta))}>{ta.score ?? "-"}</span>
-              <span style={S.scoreDash}>–</span>
-              <span style={S.scoreNum(hot(tb))}>{tb.score ?? "-"}</span>
-              <span style={S.scoreTeam(hot(tb))}>{tb.team}</span>
-              {g.data_delayed ? <span style={S.delayed}>DATA DELAYED</span> : null}
-            </div>
-          );
-        })()
-      ) : g ? (
-        <div style={S.noGame}>{gameDetail(g) || "Not started"}</div>
-      ) : (
-        <div style={S.noGame}>Live score unavailable</div>
-      )}
-
-      {/* Total: only the held side's figure, plus a pace projection. */}
-      {totalInfo ? (
-        <div style={S.totalRow}>
-          {/* Points remaining, framed for the held side. An under with a 0
-              cushion isn't busted — it just can't absorb another score. */}
-          {totalInfo.remaining > 0 ||
-          (!totalInfo.heldOver && !totalInfo.decided) ? (
-            (() => {
-              // Under side with remaining===0 is a full sentence ("no cushion —
-              // next score busts it") that reads on its own, so drop the
-              // otherwise-trailing "0" and keep the amber warning on the text.
-              const noCushion =
-                !totalInfo.heldOver && totalInfo.remaining === 0;
-              return (
-                <span style={S.totalCell}>
-                  {/* Label leads, number trails: "over needs 4". */}
-                  <span
-                    style={{
-                      ...S.totalLabel,
-                      ...(noCushion ? { color: C.amber } : null),
-                    }}
-                  >
-                    {totalInfo.heldOver
-                      ? "over needs"
-                      : noCushion
-                        ? "no cushion — next score busts it"
-                        : "under cushion"}
-                  </span>
-                  {noCushion ? null : (
-                    <span
-                      style={{
-                        ...S.totalNum,
-                        color: totalInfo.heldOver ? C.text : C.green,
-                      }}
-                    >
-                      {totalInfo.remaining}
-                    </span>
-                  )}
-                </span>
-              );
-            })()
-          ) : (
-            // Line crossed: over has already hit; under is busted.
-            <span style={S.totalCell}>
-              <span style={S.totalLabel}>
-                {totalInfo.heldOver ? "over the line" : "over — busted"}
-              </span>
-              <span
-                style={{
-                  ...S.totalNum,
-                  color: totalInfo.heldOver ? C.green : C.red,
-                }}
-              >
-                {Math.abs(totalInfo.remaining)}
-              </span>
-            </span>
-          )}
-
-          {/* Pace projection: extrapolated final total + on/off target. */}
-          {totalInfo.projected != null ? (
-            <span style={S.totalCell}>
-              <span
-                style={{
-                  ...S.totalNum,
-                  color: totalInfo.onTarget ? C.green : C.red,
-                }}
-              >
-                {totalInfo.projected}
-              </span>
-              <span style={S.totalLabel}>
-                proj · {totalInfo.onTarget ? "on target" : "off pace"}
-              </span>
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* Live situation is irrelevant once the leg is decided (e.g. a busted
-          total whose game clock is still running). */}
-      {g && g.state === "in" && !legIsFinished(leg) ? (
-        <LiveSituation sit={g.situation} inning={g.detail} />
-      ) : null}
-    </Card>
   );
 }
 
@@ -1614,7 +1096,6 @@ export default function MyBets() {
   const [positions, setPositions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [expanded, setExpanded] = useState(() => new Set());
   // "open" (live positions) or "history" (settled won/lost bets).
   const [tab, setTab] = useState("open");
   const [settlements, setSettlements] = useState(null);
@@ -1645,12 +1126,6 @@ export default function MyBets() {
       /* ignore quota/availability errors — hiding still works this session */
     }
   };
-  const hideBet = (id) =>
-    setHidden((prev) => {
-      const next = new Set(prev).add(id);
-      persistHidden(next);
-      return next;
-    });
   // Hide every position in a game card at once (the header ✕ dismisses the game).
   const hideBets = (ids) =>
     setHidden((prev) => {
@@ -1690,19 +1165,14 @@ export default function MyBets() {
       return next;
     });
 
-  const toggle = (id) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  // background=true for the 15s auto-refresh: update data silently without
-  // toggling the loading state or clobbering which cards the user expanded.
+  /* Fetch positions + balance. Deliberately does NOT raise the `loading` flag on
+   * the way in: `loading` starts true (so mount already reads as loading) and
+   * the only other caller that wants the Refresh button to say "Loading…" is a
+   * click handler, which raises it itself. Keeping the flag out of here means
+   * calling load() from an effect never writes state synchronously.
+   * background=true is the 15s auto-refresh: update data silently, and don't
+   * replace good data's UI with an error if one poll blips. */
   const load = async ({ background = false } = {}) => {
-    if (!background) setLoading(true);
-    setError("");
     try {
       const [balRes, posRes] = await Promise.all([
         fetch(`${API_BASE}/balance`),
@@ -1713,11 +1183,9 @@ export default function MyBets() {
       setBalance(await balRes.json());
       const pos = await posRes.json();
       setPositions(pos);
-      // On the first (foreground) load, start with every bet card expanded.
-      // Background refreshes leave the user's expand/collapse choices intact.
-      if (!background) {
-        setExpanded(new Set((pos?.market_positions || []).map((b) => b.ticker)));
-      }
+      // Clear a stale failure banner once good data actually lands (rather than
+      // optimistically at request start, which briefly hid live errors).
+      setError("");
     } catch (e) {
       // Don't blow away good data on a transient background failure; only
       // surface errors from an explicit/initial load.
@@ -1727,10 +1195,10 @@ export default function MyBets() {
     }
   };
 
-  // Settled history — fetched lazily the first time the History tab opens, then
-  // re-fetchable via the refresh button while on that tab.
+  /* Settled history — fetched lazily the first time the History tab opens, then
+   * re-fetchable via the refresh button while on that tab. Like load(), it
+   * leaves raising `histLoading` to its callers (both are click handlers). */
   const loadSettlements = async () => {
-    setHistLoading(true);
     try {
       const res = await fetch(`${API_BASE}/settlements`);
       if (!res.ok) throw new Error(`History request failed (${res.status})`);
@@ -1744,18 +1212,37 @@ export default function MyBets() {
   };
 
   useEffect(() => {
-    load();
+    // Kicked off inside an async wrapper so the fetch is unambiguously off the
+    // effect's synchronous path — no state is written until the response lands.
+    (async () => {
+      await load();
+    })();
     // Auto-refresh every 15s so live scores/situations stay current.
     const id = setInterval(() => load({ background: true }), 15000);
     return () => clearInterval(id);
   }, []);
 
-  // Fetch history once when the user first switches to the History tab.
-  useEffect(() => {
-    if (tab === "history" && settlements === null && !histLoading) {
+  // Opening the History tab. The lazy first fetch lives here rather than in an
+  // effect on `tab` — it's user-triggered work, so the click handler is its
+  // natural home (and React batches it with the tab switch).
+  const openHistory = () => {
+    setTab("history");
+    if (settlements === null && !histLoading) {
+      setHistLoading(true);
       loadSettlements();
     }
-  }, [tab]);
+  };
+
+  // Refresh button: whichever tab is showing, reloaded with its "Loading…" state.
+  const refresh = () => {
+    if (tab === "history") {
+      setHistLoading(true);
+      loadSettlements();
+      return;
+    }
+    setLoading(true);
+    load();
+  };
 
   // Live games always lead (a position is live when any of its legs' games
   // are in progress — that's what needs watching); within the live and
@@ -1880,7 +1367,7 @@ export default function MyBets() {
         </div>
         <button
           style={S.refreshBtn}
-          onClick={() => (tab === "history" ? loadSettlements() : load())}
+          onClick={refresh}
           disabled={tab === "history" ? histLoading : loading}
         >
           {(tab === "history" ? histLoading : loading) ? "Loading…" : "Refresh"}
@@ -1919,7 +1406,7 @@ export default function MyBets() {
           </button>
           <button
             style={S.tab(tab === "history")}
-            onClick={() => setTab("history")}
+            onClick={openHistory}
           >
             History
           </button>

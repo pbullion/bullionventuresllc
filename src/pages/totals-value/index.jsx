@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
@@ -716,7 +716,11 @@ function AutoBetPanel({ games }) {
   };
 
   useEffect(() => {
-    load();
+    // Async wrapper keeps the fetch off the effect's synchronous path — no state
+    // is written until the response lands.
+    (async () => {
+      await load();
+    })();
     const t = setInterval(load, 30000);
     return () => clearInterval(t);
   }, []);
@@ -787,7 +791,7 @@ function AutoBetPanel({ games }) {
           const e = await r.json().catch(() => ({}));
           window.alert(e.error || `HTTP ${r.status}`);
         }
-      } catch (e) {
+      } catch {
         /* next poll refreshes */
       }
       setBusy(false);
@@ -811,7 +815,7 @@ function AutoBetPanel({ games }) {
         { method: "POST" }
       );
       if (r.ok) setStatus(await r.json());
-    } catch (e) {
+    } catch {
       /* next poll refreshes */
     }
     setBusy(false);
@@ -1318,7 +1322,6 @@ export default function TotalsValue() {
       cancelled = true;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minEdge]);
 
   const games = (data && data.games) || [];
