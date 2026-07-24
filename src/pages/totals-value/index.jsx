@@ -55,6 +55,19 @@ const tipTime = (iso) => {
   }).format(d)} CT`;
 };
 
+/* A game's status text, guaranteed Central. ESPN's pre-game detail is an
+ * Eastern-only string ("7/24 - 6:45 PM EDT"), so a scheduled game is always
+ * reformatted from its ISO date; live/final details ("Top 4th", "Final") have no
+ * wall-clock time and pass through. The regex catches any other Eastern stamp.
+ * `state` lives on the scan item, not the nested ESPN game, so it's passed in. */
+const looksEastern = (s) => /\b(?:E[DS]T|ET)\b/i.test(String(s || ""));
+const detailCT = (g, state) => {
+  if (!g) return "";
+  if (state === "pre" || looksEastern(g.detail))
+    return tipTime(g.date) || g.detail || "";
+  return g.detail || "";
+};
+
 const edgeColor = (e) =>
   e == null ? C.muted : e >= 0.05 ? C.green : e >= 0 ? C.amber : C.red;
 
@@ -180,7 +193,9 @@ function ValueBetCard({ game, bet }) {
         </div>
         <div style={{ color: C.muted, fontSize: 13, marginTop: 2 }}>
           {game.title}
-          {game.game && game.game.detail ? ` · ${game.game.detail}` : ""}
+          {detailCT(game.game, game.state)
+            ? ` · ${detailCT(game.game, game.state)}`
+            : ""}
         </div>
       </div>
       <div style={{ display: "flex", gap: 18, textAlign: "right" }}>
@@ -332,7 +347,7 @@ function GameCard({ game }) {
             )}
             <StateChip
               state={game.state}
-              detail={game.state === "pre" ? tipTime(g.date) : g.detail}
+              detail={detailCT(g, game.state)}
             />
             {game.prior_source === "closing_line" && game.prior_total != null && (
               <Chip color={C.text}>Line {Number(game.prior_total).toFixed(1)}</Chip>
@@ -819,7 +834,11 @@ function AutoBetPanel({ games }) {
       gg && gg.away && gg.home && gg.away.score != null && gg.home.score != null
         ? `${gg.away.abbr || gg.away.team} ${gg.away.score}–${gg.home.score} ${
             gg.home.abbr || gg.home.team
-          }${gg.detail ? ` · ${gg.detail}` : ""}`
+          }${
+            detailCT(gg, scanGame.state)
+              ? ` · ${detailCT(gg, scanGame.state)}`
+              : ""
+          }`
         : b.score_at
         ? `${b.score_at} at bet`
         : null;

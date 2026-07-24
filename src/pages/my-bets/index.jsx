@@ -71,6 +71,20 @@ const formatKickoff = (iso) => {
   return `${day} · ${time("America/Chicago", "CT")}`;
 };
 
+/* A game's status text, guaranteed Central. ESPN's pre-game detail is an
+ * Eastern-only string ("7/24 - 6:45 PM EDT"), so a scheduled game is always
+ * reformatted from its ISO date; live/final details ("Top 4th", "Final") carry
+ * no wall-clock time and pass through untouched. The regex catches any other
+ * Eastern stamp ESPN slips in — a postponed-then-rescheduled game, say — so
+ * nothing but Central ever reaches the screen. */
+const looksEastern = (s) => /\b(?:E[DS]T|ET)\b/i.test(String(s || ""));
+const gameDetail = (g) => {
+  if (!g) return null;
+  if (g.state === "pre" || looksEastern(g.detail))
+    return formatKickoff(g.date) || g.detail || null;
+  return g.detail || null;
+};
+
 // Format a settled-time ISO string as "Jul 19, 8:29 PM CT" for the history list.
 const formatSettled = (iso) => {
   if (!iso) return "";
@@ -595,6 +609,16 @@ const S = {
     borderTop: `1px solid ${C.border}`,
     flexWrap: "wrap",
   },
+  // Same situation block nested inside a parlay leg row. The row already draws
+  // its own top hairline, so a second divider here would read as a fake split;
+  // it just gets a little air under the matchup line instead.
+  sitRowCompact: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 8,
+    flexWrap: "wrap",
+  },
   // Rotated-square "diamond" that holds the three base pips.
   diamond: {
     position: "relative",
@@ -678,6 +702,9 @@ const S = {
   },
   gameTitle: { fontSize: 20, fontWeight: 800, letterSpacing: -0.4, lineHeight: 1.2 },
   gameLeague: { fontSize: 13, color: C.muted, fontWeight: 600, marginTop: 3 },
+  // Header of a card with no score/schedule line beneath it (a parlay): keeps
+  // the league label off the first row's divider.
+  gameHeadBare: { paddingBottom: 14 },
   gameHideBtn: {
     background: "none",
     border: "none",
@@ -783,6 +810,10 @@ const S = {
  * friendly 720px cap; at ≥900px it stretches nearly edge-to-edge so the bet
  * cards and parlay slips use the full screen. */
 const MB_CSS = `
+/* A parlay leg row that links out to the game's ESPN page. Inherits the row's
+   own type colors; a faint wash marks it as hoverable. */
+.mb-poslink { display: block; color: inherit; text-decoration: none; }
+.mb-poslink:hover { background: rgba(255, 255, 255, 0.035); }
 /* Portfolio numbers: inline in the top bar on desktop, a slim strip on mobile.
    Default (mobile-first) hides the desktop top-bar stats. */
 .mb-topstats { display: none; }
@@ -1053,10 +1084,9 @@ const StatusLabel = ({ leg }) => {
   // clock runs on, so don't show the live quarter/clock.
   const decidedTotal = totalDecided(leg);
   if (decidedTotal) return decidedTotal === "won" ? "Won" : "Lost";
-  // Pre-game: show scheduled time in both ET and CT instead of ESPN's EDT-only
-  // string.
+  // Pre-game: show the scheduled time in Central instead of ESPN's EDT string.
   if (g && g.state === "pre") {
-    return formatKickoff(g.date) || g.detail || "Scheduled";
+    return gameDetail(g) || "Scheduled";
   }
   // Live: baseball shows its inning down in the situation row, so keep the
   // top-right empty to avoid duplicating it. Sports WITHOUT a situation row
@@ -1065,7 +1095,7 @@ const StatusLabel = ({ leg }) => {
   if (g && g.state === "in") {
     return hasLiveSituation(leg) ? null : g.detail || "Live";
   }
-  if (g && g.detail) return g.detail; // final ("Final"), postponed, etc.
+  if (g && g.detail) return gameDetail(g); // final ("Final"), postponed, etc.
   if (leg.state === "won") return "Won";
   if (leg.state === "lost") return "Lost";
   return "Open";
@@ -1074,7 +1104,7 @@ const StatusLabel = ({ leg }) => {
 /* Live baseball situation: base-runner diamond, count, and outs. `inning` is
  * the game's inning detail ("Top 9th") shown in place of the redundant "N out"
  * words — the out count is already conveyed by the dots. */
-function LiveSituation({ sit, inning }) {
+function LiveSituation({ sit, inning, compact }) {
   if (!sit) return null;
   const hasCount = sit.balls != null && sit.strikes != null;
   const hasOuts = sit.outs != null;
@@ -1082,7 +1112,7 @@ function LiveSituation({ sit, inning }) {
   if (!hasCount && !hasOuts && !sit.on_first && !sit.on_second && !sit.on_third)
     return null;
   return (
-    <div style={S.sitRow}>
+    <div style={compact ? S.sitRowCompact : S.sitRow}>
       <div style={S.diamond} aria-label="Base runners">
         <span style={S.base(sit.on_second, "second")} />
         <span style={S.base(sit.on_third, "third")} />
@@ -1245,7 +1275,7 @@ function LegSlip({ leg }) {
           );
         })()
       ) : g ? (
-        <div style={S.noGame}>{g.detail || "Not started"}</div>
+        <div style={S.noGame}>{gameDetail(g) || "Not started"}</div>
       ) : (
         <div style={S.noGame}>Live score unavailable</div>
       )}
@@ -1461,8 +1491,12 @@ function GameHeader({ grp, onHide }) {
   // Live clock/period shown by the score (a basketball "Q3 5:23", or a baseball
   // "Top 9th" between innings). Skipped when the situation row carries it.
   const liveStatus = live && !hasSit ? g.detail || "Live" : null;
+  // A parlay header has nothing under the title block (no score, schedule, or
+  // situation row), so without this the first leg's hairline sits flush against
+  // the league label.
+  const bare = !pre && !hasScore && !live;
   return (
-    <div>
+    <div style={bare ? S.gameHeadBare : undefined}>
       <div style={S.gameHead}>
         <div style={{ minWidth: 0 }}>
           <div style={S.gameTitle}>{grp.title}</div>
@@ -1478,9 +1512,7 @@ function GameHeader({ grp, onHide }) {
         </button>
       </div>
       {pre ? (
-        <div style={S.schedRow}>
-          {formatKickoff(g.date) || g.detail || "Scheduled"}
-        </div>
+        <div style={S.schedRow}>{gameDetail(g) || "Scheduled"}</div>
       ) : hasScore ? (
         <div style={S.scoreRow}>
           <span style={S.scoreTeam}>{g.away_team}</span>
@@ -1534,8 +1566,23 @@ function ParlayRows({ b }) {
       {legs.map((leg, i) => {
         const g = leg.game;
         const hasScore = g && g.away_score != null && g.home_score != null;
+        // Live leg: show the base/count/outs block. It carries the inning, so
+        // the sub line drops the now-duplicated detail. Skipped once the leg is
+        // decided — a settled leg's live clock is noise.
+        const showSit = hasLiveSituation(leg) && !legIsFinished(leg);
+        // Clicking the leg opens its ESPN game page, same as the leg slips.
+        const link = g && g.link ? g.link : null;
+        const Row = link ? "a" : "div";
+        const rowProps = link
+          ? {
+              href: link,
+              target: "_blank",
+              rel: "noopener noreferrer",
+              className: "mb-poslink",
+            }
+          : {};
         return (
-          <div style={S.posRow} key={leg.market_ticker || i}>
+          <Row style={S.posRow} key={leg.market_ticker || i} {...rowProps}>
             <div style={S.rowLine1}>
               <RowPick leg={leg} />
               <Chance leg={leg} />
@@ -1543,9 +1590,13 @@ function ParlayRows({ b }) {
             <div style={S.rowSub}>
               {gameTitleOf(leg)}
               {hasScore ? ` · ${g.away_score}–${g.home_score}` : ""}
-              {g && g.detail ? ` · ${g.detail}` : ""}
+              {!showSit && gameDetail(g) ? ` · ${gameDetail(g)}` : ""}
+              {link ? <span style={S.espnArrow}> ↗</span> : null}
             </div>
-          </div>
+            {showSit ? (
+              <LiveSituation sit={g.situation} inning={g.detail} compact />
+            ) : null}
+          </Row>
         );
       })}
       <div style={S.parlayFoot}>
