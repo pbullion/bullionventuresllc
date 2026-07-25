@@ -473,6 +473,9 @@ const S = {
     gap: 16,
     alignItems: "start",
   },
+  // The parlay column always stacks one card per row (a slip is too tall and
+  // too wide-rowed to share a track). Its desktop width comes from .mb-parlays.
+  parlayColumn: { display: "grid", gap: 16, alignItems: "start" },
   gameCard: {
     backgroundColor: C.panel,
     border: `1px solid ${C.border}`,
@@ -615,6 +618,10 @@ const MB_CSS = `
    Default (mobile-first) hides the desktop top-bar stats. */
 .mb-topstats { display: none; }
 .mb-hero-mobile { display: flex; }
+/* Open tab split (single-game grid + parlay column). One stacked column on a
+   phone; the desktop rule below turns it into two side-by-side regions. Kept in
+   CSS rather than inline styles so the media query can actually win. */
+.mb-open { display: flex; flex-direction: column; gap: 16px; }
 @media (min-width: 900px) {
   .mb-topstats { display: flex; }
   .mb-hero-mobile { display: none; }
@@ -642,6 +649,13 @@ const MB_CSS = `
   /* Inside a card the legs stack in one narrow column so the card stays a
      compact grid cell (instead of the wide 2-across leg slip). */
   .mb-slip { grid-template-columns: 1fr !important; }
+  /* Open tab: a tall 10-leg parlay used to own a whole grid row and leave a
+     screen of dead space beside it. Parlays now sit in a fixed column on the
+     right while the single-game cards fill the rest of the width on the left,
+     so the short cards wrap normally instead of being pinned to one row. */
+  .mb-open { flex-direction: row; align-items: flex-start; }
+  .mb-open > .mb-games { flex: 1 1 auto; min-width: 0; }
+  .mb-open > .mb-parlays { flex: 0 0 380px; }
 }
 `;
 
@@ -1610,8 +1624,7 @@ export default function MyBets() {
               : "No open positions."}
           </div>
         ) : (
-          <div className="mb-games" style={S.gameList}>
-          {(() => {
+          (() => {
             // Group single-market positions by game — every Kalshi market on the
             // same matchup shares one card, as in the app — while each parlay is
             // its own card. Groups appear in the order their best position
@@ -1639,7 +1652,8 @@ export default function MyBets() {
               }
               groups[byKey.get(key)].positions.push(b);
             }
-            return groups.map((grp) => (
+
+            const card = (grp) => (
               <div className="mb-game" style={S.gameCard} key={grp.key}>
                 <GameHeader
                   grp={grp}
@@ -1651,9 +1665,34 @@ export default function MyBets() {
                   grp.positions.map((b) => <SingleRow b={b} key={b.ticker} />)
                 )}
               </div>
-            ));
-          })()}
-          </div>
+            );
+
+            // A parlay slip is many times taller than a single-game card, so
+            // mixing them in one grid stranded a row's worth of empty space
+            // beside the tall card. Split them: singles fill a wrapping grid on
+            // the left, parlays stack in a narrow column on the right. With only
+            // one kind present there's nothing to strand, so it stays a single
+            // full-width grid.
+            const combos = groups.filter((g) => g.isCombo);
+            const singles = groups.filter((g) => !g.isCombo);
+            if (!combos.length || !singles.length) {
+              return (
+                <div className="mb-games" style={S.gameList}>
+                  {groups.map(card)}
+                </div>
+              );
+            }
+            return (
+              <div className="mb-open">
+                <div className="mb-games" style={S.gameList}>
+                  {singles.map(card)}
+                </div>
+                <div className="mb-parlays" style={S.parlayColumn}>
+                  {combos.map(card)}
+                </div>
+              </div>
+            );
+          })()
         )}
         </>
         ) : (
