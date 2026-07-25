@@ -1197,12 +1197,23 @@ function GameHeader({ grp, onHide }) {
   );
 }
 
-/* A single-market position row: pick + chance on top, cost + payout below. */
+/* A single-market position row: pick + chance on top, cost + payout below.
+ * Clicking the row opens the game's ESPN page, same as a parlay leg. */
 function SingleRow({ b }) {
   const d = b.display || {};
   const leg = (d.legs || [])[0] || {};
+  const link = leg.game && leg.game.link ? leg.game.link : null;
+  const Row = link ? "a" : "div";
+  const rowProps = link
+    ? {
+        href: link,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        className: "mb-poslink",
+      }
+    : {};
   return (
-    <div style={S.posRow}>
+    <Row style={S.posRow} {...rowProps}>
       <div style={S.rowLine1}>
         <RowPick leg={leg} />
         <Chance leg={leg} />
@@ -1210,9 +1221,12 @@ function SingleRow({ b }) {
       <TotalPace leg={leg} />
       <div style={S.rowLine2}>
         <span>{usd(d.cost_dollars)} cost</span>
-        <span>Pays out {usd0(d.max_payout_dollars)}</span>
+        <span>
+          Pays out {usd0(d.max_payout_dollars)}
+          {link ? <span style={S.espnArrow}> ↗</span> : null}
+        </span>
       </div>
-    </div>
+    </Row>
   );
 }
 
