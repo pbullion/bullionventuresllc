@@ -44,6 +44,13 @@ const products = [
       "A live value scanner for Kalshi over/unders — WNBA, MLB, NFL, and college basketball & football. Projects each game's final total from its actual pace, prices every strike, and flags bets where the model beats the market — then tracks its own record and learns from the results.",
   },
   {
+    emoji: "🏆",
+    name: "Elite Edge Advisors",
+    path: "/elite-edge-advisors",
+    description:
+      "The Elite Edge Advisors bet board — every tracked pick with live scores and results, plus one-tap import of new wagers straight from the MyBookie JSON.",
+  },
+  {
     emoji: "🌀",
     name: "Gulf Hurricane",
     path: "/gulf-hurricane",
