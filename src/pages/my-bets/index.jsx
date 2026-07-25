@@ -1241,7 +1241,15 @@ function ParlayRows({ b }) {
     <>
       {legs.map((leg, i) => {
         const g = leg.game;
-        const hasScore = g && g.away_score != null && g.home_score != null;
+        // ESPN reports a scheduled game's competitors as 0, so a pre-game leg
+        // would read "· 0–0 ·" hours before tip-off. Suppress the score until
+        // the game starts and let the kickoff time carry the line instead —
+        // the same rule the single-game header uses (pre ? schedule : score).
+        const hasScore =
+          g &&
+          g.state !== "pre" &&
+          g.away_score != null &&
+          g.home_score != null;
         // Live leg: show the base/count/outs block. It carries the inning, so
         // the sub line drops the now-duplicated detail. Skipped once the leg is
         // decided — a settled leg's live clock is noise.
