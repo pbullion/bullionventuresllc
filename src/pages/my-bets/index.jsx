@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
+/* Positions permanently dropped from the Open tab — dead futures markets that
+ * are decided in practice but won't SETTLE for months, so Kalshi keeps
+ * returning them as open and they clog the grid forever. Unlike the ✕ button
+ * (per-browser localStorage, restorable via "Show all"), this is in code, so
+ * it holds on every device and "Show all" won't bring them back.
+ *
+ * These are still real open positions with real money in them, so the header
+ * totals deliberately keep counting them — this only removes the card.
+ *
+ * - KXNEXTTEAMNBA-26LJAM-MIA: "LeBron James Next Team = Miami", sitting at 1%
+ *   and waiting on a signing that isn't coming (Patrick, 2026-07-25). */
+const ALWAYS_HIDDEN_TICKERS = new Set(["KXNEXTTEAMNBA-26LJAM-MIA"]);
+
 /* ─── Dark palette ─── */
 const C = {
   bg: "#0b0e14", // page
@@ -1471,10 +1484,15 @@ export default function MyBets() {
     if (mb == null) return -1;
     return sort.dir * (ma - mb);
   });
-  // Cards actually shown: everything the user hasn't dismissed. Totals below
-  // still count every position so the P&L/portfolio figures stay accurate.
-  const bets = allBets.filter((b) => !hidden.has(b.ticker));
-  const hiddenCount = allBets.length - bets.length;
+  // Cards actually shown: everything the user hasn't dismissed, minus the
+  // permanently-hidden dead markets. Totals below still count every position
+  // (including both kinds of hidden) so the P&L/portfolio figures stay
+  // accurate — that money is genuinely still tied up on Kalshi.
+  const hideable = allBets.filter((b) => !ALWAYS_HIDDEN_TICKERS.has(b.ticker));
+  const bets = hideable.filter((b) => !hidden.has(b.ticker));
+  // Counts only the user's own dismissals: "Show all" must not resurrect a
+  // permanently-hidden card, so those aren't part of this count either.
+  const hiddenCount = hideable.length - bets.length;
   const totalPnl = allBets.reduce(
     (acc, b) => acc + (Number(b.display?.total_pnl_dollars) || 0),
     0,
