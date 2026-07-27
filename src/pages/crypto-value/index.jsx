@@ -35,6 +35,16 @@ const money = (v) =>
   v == null
     ? "—"
     : `${Number(v) < 0 ? "-" : ""}$${Math.abs(Number(v)).toFixed(2)}`;
+/* What the bet actually cost. An unfilled IOC holds no position and risks
+   nothing, so it's $0 — not the intended stake. Mirrors the backend's
+   CRYPTO_STAKE_SQL, which is what the daily cap already counts against. */
+const actualStake = (b) => {
+  if (b.status === "unfilled") return 0;
+  if (b.filled_contracts != null && b.fill_price != null) {
+    return Number(b.filled_contracts) * Number(b.fill_price);
+  }
+  return Number(b.stake_dollars) || 0;
+};
 const fmtPrice = (asset, v) => {
   if (v == null) return "—";
   const n = Number(v);
@@ -457,8 +467,11 @@ export default function CryptoValue() {
             {status.config.assets.join("+").toUpperCase()} ·{" "}
             {status.config.horizons.join("+")}
             <span style={{ marginLeft: 8 }}>
+              {/* 2dp: this is filled cost only (the backend already excludes
+                  unfilled), and real days have run under $3 — rounding to
+                  whole dollars turned $0.90 into "$1". */}
               staked today <b style={{ color: C.text }}>
-                ${status.today.staked.toFixed(0)}
+                ${status.today.staked.toFixed(2)}
               </b>{" "}
               / ${status.today.daily_cap}
             </span>
@@ -497,7 +510,22 @@ export default function CryptoValue() {
                   style={{ background: i % 2 ? C.rowAlt : "transparent" }}
                 >
                   <td style={td}>{b.pick_label}</td>
-                  <td style={td}>{money(b.stake_dollars)}</td>
+                  {/* Real money at risk, not the intended unit. IOC orders
+                      partial-fill constantly (5 contracts asked, 1 filled is
+                      typical), so stake_dollars overstated exposure — a $5 row
+                      that actually cost $0.90 made the P&L column look far
+                      worse than it was. Intent is kept underneath when the two
+                      differ, so a chronically-missing fill is still visible. */}
+                  <td style={td}>
+                    {money(actualStake(b))}
+                    {Math.abs(actualStake(b) - Number(b.stake_dollars)) >
+                      0.005 && (
+                      <span style={{ color: C.muted, fontSize: 10.5 }}>
+                        {" "}
+                        of {money(b.stake_dollars)}
+                      </span>
+                    )}
+                  </td>
                   <td style={td}>{cents(b.fill_price || b.limit_price)}</td>
                   <td style={td}>
                     {edgeCents(b.edge)} ({edgeCents(b.calib_edge)})
