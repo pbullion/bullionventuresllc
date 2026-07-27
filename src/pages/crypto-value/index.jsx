@@ -223,17 +223,53 @@ export default function CryptoValue() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* Kill is one click; enable prompts for the PIN — the control asymmetry
-   * mirrors the backend (and totals-value). Never invert it. */
+  /* Every auto-bet control is PIN-gated (kill, enable and cap) — Patrick's
+   * call 2026-07-27, replacing the old open-kill asymmetry. The PIN is cached
+   * in localStorage after the first success, so the emergency stop stays one
+   * click on a browser that's been used before; only a fresh browser prompts.
+   *
+   * POSTs a PIN-gated control endpoint, retrying once with a fresh prompt on
+   * 401. Returns the parsed body, or null if cancelled/failed. */
+  const postWithPin = async (path, body = {}) => {
+    let pin = window.localStorage.getItem("bv_autobet_pin") || "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (!pin) {
+        pin = window.prompt("Auto-bet PIN:") || "";
+        if (!pin) return null;
+      }
+      setBusy(true);
+      try {
+        const r = await fetch(`${API_BASE}${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...body, pin }),
+        });
+        if (r.status === 401) {
+          window.localStorage.removeItem("bv_autobet_pin");
+          pin = "";
+          continue; // wrong pin — ask once more
+        }
+        if (!r.ok) {
+          const e = await r.json().catch(() => ({}));
+          window.alert(e.error || `HTTP ${r.status}`);
+          return null;
+        }
+        window.localStorage.setItem("bv_autobet_pin", pin);
+        return (await r.json().catch(() => ({}))) || {};
+      } catch {
+        window.alert("request failed");
+        return null;
+      } finally {
+        setBusy(false);
+      }
+    }
+    window.alert("Wrong PIN.");
+    return null;
+  };
+
   const kill = async () => {
     if (!window.confirm("Kill crypto auto-betting?")) return;
-    setBusy(true);
-    try {
-      await fetch(`${API_BASE}/auto-bets/kill`, { method: "POST" });
-      await loadAll();
-    } finally {
-      setBusy(false);
-    }
+    if (await postWithPin("/auto-bets/kill")) await loadAll();
   };
   const enable = async () => {
     if (
@@ -243,39 +279,10 @@ export default function CryptoValue() {
     ) {
       return;
     }
-    let pin = window.localStorage.getItem("bv_autobet_pin") || "";
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (!pin) {
-        pin = window.prompt("Auto-bet PIN:") || "";
-        if (!pin) return;
-      }
-      setBusy(true);
-      try {
-        const r = await fetch(`${API_BASE}/auto-bets/enable`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pin }),
-        });
-        if (r.status === 401) {
-          window.localStorage.removeItem("bv_autobet_pin");
-          pin = "";
-          setBusy(false);
-          continue;
-        }
-        if (r.ok) window.localStorage.setItem("bv_autobet_pin", pin);
-        await loadAll();
-        return;
-      } catch {
-        window.alert("request failed");
-        return;
-      } finally {
-        setBusy(false);
-      }
-    }
+    if (await postWithPin("/auto-bets/enable")) await loadAll();
   };
 
-  // Loosening the daily cap is PIN-gated, same asymmetry as kill/enable and
-  // the same flow as /totals-value. Server clamps to CRYPTOBET_DAILY_CEILING.
+  // Server clamps to CRYPTOBET_DAILY_CEILING.
   const changeCap = async () => {
     const cur =
       status && status.today && status.today.daily_cap != null
@@ -294,53 +301,22 @@ export default function CryptoValue() {
       window.alert("Not a number.");
       return;
     }
-    let pin = window.localStorage.getItem("bv_autobet_pin") || "";
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (!pin) {
-        pin = window.prompt("Auto-bet PIN:") || "";
-        if (!pin) return;
-      }
-      setBusy(true);
-      try {
-        const r = await fetch(`${API_BASE}/auto-bets/daily-cap`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cap: asked, pin }),
-        });
-        if (r.status === 401) {
-          window.localStorage.removeItem("bv_autobet_pin");
-          pin = "";
-          setBusy(false);
-          continue; // wrong pin — ask once more
-        }
-        if (r.ok) {
-          window.localStorage.setItem("bv_autobet_pin", pin);
-          const next = await r.json();
-          // Say so when the server clamped, rather than silently saving a
-          // smaller number than the one that was typed.
-          if (
-            asked != null &&
-            next.daily_cap_override != null &&
-            asked > next.daily_cap_override
-          ) {
-            window.alert(
-              `Saved at $${Math.round(next.daily_cap_override)} — that's the ` +
-                `hard ceiling. Raising it takes a server config change ` +
-                `(CRYPTOBET_DAILY_CEILING).`
-            );
-          }
-          await loadAll();
-        } else {
-          const e = await r.json().catch(() => ({}));
-          window.alert(e.error || `HTTP ${r.status}`);
-        }
-      } catch {
-        /* next poll refreshes */
-      }
-      setBusy(false);
-      return;
+    const next = await postWithPin("/auto-bets/daily-cap", { cap: asked });
+    if (!next) return;
+    // Say so when the server clamped, rather than silently saving a smaller
+    // number than the one that was typed.
+    if (
+      asked != null &&
+      next.daily_cap_override != null &&
+      asked > next.daily_cap_override
+    ) {
+      window.alert(
+        `Saved at $${Math.round(next.daily_cap_override)} — that's the ` +
+          `hard ceiling. Raising it takes a server config change ` +
+          `(CRYPTOBET_DAILY_CEILING).`
+      );
     }
-    window.alert("Wrong PIN.");
+    await loadAll();
   };
 
   const pill = () => {

@@ -83,10 +83,13 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 
 - **Never remove the `/wnba-value` → `/totals-value` redirect** in
   `src/App.jsx` — the old URL is still in the wild.
-- **Preserve the auto-bet control asymmetry** on `/totals-value` AND
-  `/crypto-value`: kill/tighten is one click, enable/loosen prompts for the
-  PIN (stored in `localStorage["bv_autobet_pin"]`, verified server-side). It
-  mirrors the backend's safety model for real-money betting.
+- **Every auto-bet control is PIN-gated** on `/totals-value` AND
+  `/crypto-value` — kill, enable and daily-cap alike. The PIN lives in
+  `localStorage["bv_autobet_pin"]` and is verified server-side; both pages go
+  through their own `postWithPin` helper, which caches on success and reprompts
+  once on 401. Changed 2026-07-27 at Patrick's request; before that kill was
+  open and only loosening prompted. Note the tradeoff this accepted: the
+  emergency stop now needs the PIN on a browser that has never used it.
 - **Do not re-enable the recurring push crons** in the backend's
   `routes/bullion_ventures.js` — hard-disabled 2026-07-22 (commented out, not
   env-gated) because the auto-bettor's per-bet pushes made them redundant

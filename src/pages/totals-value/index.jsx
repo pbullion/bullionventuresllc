@@ -740,8 +740,51 @@ function AutoBetPanel({ games }) {
     ? Math.min(100, Math.round((t.daily_stake / t.daily_cap) * 100))
     : 0;
 
-  // Change the daily cap from the UI. Server clamps to a hard ceiling and
-  // requires a PIN (remembered locally after the first successful use).
+  /* Every auto-bet control is PIN-gated (kill, enable and cap) — Patrick's
+   * call 2026-07-27, replacing the old open-kill asymmetry. The PIN is cached
+   * in localStorage after the first success, so the emergency stop stays one
+   * click on a browser that's been used before; only a fresh browser prompts.
+   *
+   * POSTs a PIN-gated control endpoint, retrying once with a fresh prompt on
+   * 401. Returns the parsed body, or null if cancelled/failed. */
+  const postWithPin = async (path, body = {}) => {
+    let pin = window.localStorage.getItem("bv_autobet_pin") || "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (!pin) {
+        pin = window.prompt("Auto-bet PIN:") || "";
+        if (!pin) return null;
+      }
+      setBusy(true);
+      try {
+        const r = await fetch(`${API_BASE}${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...body, pin }),
+        });
+        if (r.status === 401) {
+          window.localStorage.removeItem("bv_autobet_pin");
+          pin = "";
+          continue; // wrong pin — ask once more
+        }
+        if (!r.ok) {
+          const e = await r.json().catch(() => ({}));
+          window.alert(e.error || `HTTP ${r.status}`);
+          return null;
+        }
+        window.localStorage.setItem("bv_autobet_pin", pin);
+        return (await r.json().catch(() => ({}))) || {};
+      } catch {
+        window.alert("request failed");
+        return null;
+      } finally {
+        setBusy(false);
+      }
+    }
+    window.alert("Wrong PIN.");
+    return null;
+  };
+
+  // Change the daily cap from the UI. Server clamps to a hard ceiling.
   const changeCap = async () => {
     const cur = t.daily_cap != null ? `$${Math.round(t.daily_cap)}` : "";
     // daily_cap_ceiling is null when no server-side ceiling is armed —
@@ -753,51 +796,20 @@ function AutoBetPanel({ games }) {
       `New daily cap in dollars (currently ${cur}${ceilNote}).\nLeave blank to reset to the default.`
     );
     if (raw === null) return;
-    let pin = window.localStorage.getItem("bv_autobet_pin") || "";
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (!pin) {
-        pin = window.prompt("Auto-bet PIN:") || "";
-        if (!pin) return;
-      }
-      setBusy(true);
-      try {
-        const r = await fetch(`${API_BASE}/auto-bets/daily-cap`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cap: raw.trim() === "" ? null : Number(raw), pin }),
-        });
-        if (r.status === 401) {
-          window.localStorage.removeItem("bv_autobet_pin");
-          pin = "";
-          setBusy(false);
-          continue; // wrong pin — ask once more
-        }
-        if (r.ok) {
-          window.localStorage.setItem("bv_autobet_pin", pin);
-          const next = await r.json();
-          setStatus(next);
-          // The server clamps to the hard ceiling — say so instead of
-          // silently "ignoring" a bigger number (raising the ceiling itself
-          // is an env change: AUTOBET_MAX_DAILY_CEILING).
-          const asked = raw.trim() === "" ? null : Number(raw);
-          const saved = next.today && next.today.daily_cap;
-          if (asked != null && saved != null && asked > saved) {
-            window.alert(
-              `Saved at $${Math.round(saved)} — that's the hard ceiling. ` +
-                `Raising it takes a server config change (AUTOBET_MAX_DAILY_CEILING).`
-            );
-          }
-        } else {
-          const e = await r.json().catch(() => ({}));
-          window.alert(e.error || `HTTP ${r.status}`);
-        }
-      } catch {
-        /* next poll refreshes */
-      }
-      setBusy(false);
-      return;
+    const asked = raw.trim() === "" ? null : Number(raw);
+    const next = await postWithPin("/auto-bets/daily-cap", { cap: asked });
+    if (!next) return;
+    setStatus(next);
+    // The server clamps to the hard ceiling — say so instead of silently
+    // "ignoring" a bigger number (raising the ceiling itself is an env
+    // change: AUTOBET_MAX_DAILY_CEILING).
+    const saved = next.today && next.today.daily_cap;
+    if (asked != null && saved != null && asked > saved) {
+      window.alert(
+        `Saved at $${Math.round(saved)} — that's the hard ceiling. ` +
+          `Raising it takes a server config change (AUTOBET_MAX_DAILY_CEILING).`
+      );
     }
-    window.alert("Wrong PIN.");
   };
 
   const toggle = async () => {
@@ -808,17 +820,8 @@ function AutoBetPanel({ games }) {
       ? "Re-enable auto-betting? Real orders will be placed while games are live."
       : "Clear the kill switch? (AUTOBET_ENABLED is still off on the server, so it stays in PAPER mode.)";
     if (!window.confirm(msg)) return;
-    setBusy(true);
-    try {
-      const r = await fetch(
-        `${API_BASE}/auto-bets/${killing ? "kill" : "enable"}`,
-        { method: "POST" }
-      );
-      if (r.ok) setStatus(await r.json());
-    } catch {
-      /* next poll refreshes */
-    }
-    setBusy(false);
+    const next = await postWithPin(`/auto-bets/${killing ? "kill" : "enable"}`);
+    if (next) setStatus(next);
   };
 
   const betRow = (b) => {
