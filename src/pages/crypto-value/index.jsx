@@ -397,197 +397,6 @@ export default function CryptoValue() {
         </a>
       </div>
 
-      {/* ── Feed health strip ── */}
-      <Panel id="feeds" title="Feeds">
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {assets.map(([key, a]) => (
-            <div
-              key={key}
-              style={{
-                background: C.chipBg,
-                border: `1px solid ${a.feed_ok ? C.border : C.red}`,
-                borderRadius: 8,
-                padding: "6px 10px",
-                minWidth: 118,
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 700 }}>
-                {key.toUpperCase()}{" "}
-                <span style={{ color: a.feed_ok ? C.green : C.red }}>
-                  {a.feed_ok ? "●" : "○"}
-                </span>
-                {a.vol_warmup && (
-                  <span style={{ fontSize: 10, color: C.amber }}> warmup</span>
-                )}
-              </div>
-              <div style={{ fontSize: 12.5 }}>{fmtPrice(key, a.spot)}</div>
-              <div style={{ fontSize: 10, color: C.muted }}>
-                σ1s {a.sigma_1s ? (a.sigma_1s * 1e4).toFixed(2) + "bp" : "—"} ·
-                basis {a.basis != null ? Number(a.basis).toFixed(2) : "—"}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      {/* ── Windows: model vs market per asset ── */}
-      <Panel id="windows" title="Live windows — model vs market">
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
-            <thead>
-              <tr>
-                <th style={th}>Market</th>
-                <th style={th}>Target</th>
-                <th style={th}>Spot</th>
-                <th style={th}>Left</th>
-                <th style={th}>Model</th>
-                <th style={th}>Bid/Ask</th>
-                <th style={th}>Best edge</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assets.flatMap(([key, a], ai) =>
-                (a.windows || [])
-                  .filter((w) => w.horizon === "15m" || (w.best && w.best.edge > 0))
-                  .slice(0, 6)
-                  .map((w, i) => (
-                    <tr
-                      key={w.market_ticker}
-                      style={{
-                        background: (ai + i) % 2 ? C.rowAlt : "transparent",
-                      }}
-                    >
-                      <td style={td}>
-                        <b>{key.toUpperCase()}</b>{" "}
-                        <span style={{ color: C.muted, fontSize: 11 }}>
-                          {w.horizon}
-                          {w.in_final_min ? " · FINAL MIN" : ""}
-                        </span>
-                      </td>
-                      <td style={td}>{fmtPrice(key, w.target)}</td>
-                      <td style={td}>{fmtPrice(key, a.spot)}</td>
-                      <td style={td}>{countdown(w.tau_secs)}</td>
-                      <td style={td}>{pct(w.model_p)}</td>
-                      <td style={td}>
-                        {cents(w.yes_bid)}/{cents(w.yes_ask)}
-                      </td>
-                      <td
-                        style={{
-                          ...td,
-                          color:
-                            w.best && w.best.edge >= 0.03 ? C.green : C.muted,
-                          fontWeight: w.best && w.best.edge >= 0.03 ? 700 : 400,
-                        }}
-                      >
-                        {w.best
-                          ? `${w.best.side === "yes" ? "UP" : "DOWN"} ${edgeCents(w.best.edge)}`
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {scan && scan.candidates && scan.candidates.length > 0 && (
-          <div style={{ marginTop: 8, fontSize: 12, color: C.amber }}>
-            ⚡ {scan.candidates.length} candidate
-            {scan.candidates.length > 1 ? "s" : ""} above the raw-edge floor
-            right now
-          </div>
-        )}
-      </Panel>
-
-      {/* ── Combo correlation discount (edge hypothesis #1, visible day one) ── */}
-      <Panel
-        id="combos"
-        title={
-          <>
-            Combos — correlation discount
-            <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>
-              quote vs independence (Π legs) vs copula
-            </span>
-          </>
-        }
-      >
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
-            <thead>
-              <tr>
-                <th style={th}>When</th>
-                <th style={th}>Pattern</th>
-                <th style={th}>Legs</th>
-                <th style={th}>Π market</th>
-                <th style={th}>Copula</th>
-                <th style={th}>Kalshi quote</th>
-                <th style={th}>Gap</th>
-                <th style={th}>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {combos.map((q, i) => {
-                const mid =
-                  q.combo_yes_bid != null && q.combo_yes_ask != null
-                    ? (Number(q.combo_yes_bid) + Number(q.combo_yes_ask)) / 2
-                    : null;
-                const gap = mid != null ? Number(q.joint_model_p) - mid : null;
-                const legs = Array.isArray(q.legs) ? q.legs : [];
-                return (
-                  <tr
-                    key={q.created_at + q.pattern}
-                    style={{ background: i % 2 ? C.rowAlt : "transparent" }}
-                  >
-                    <td style={{ ...td, color: C.muted }}>
-                      {timeAgo(q.created_at)}
-                    </td>
-                    <td style={{ ...td, fontWeight: 700 }}>{q.pattern}</td>
-                    <td style={{ ...td, fontSize: 11 }}>
-                      {legs.map((l) => l.asset.toUpperCase()).join("+")}
-                    </td>
-                    <td style={td}>{cents(q.product_market)}</td>
-                    <td style={td}>{cents(q.joint_model_p)}</td>
-                    <td style={td}>
-                      {mid != null
-                        ? `${cents(q.combo_yes_bid)}/${cents(q.combo_yes_ask)}`
-                        : "no quote"}
-                    </td>
-                    <td
-                      style={{
-                        ...td,
-                        color:
-                          gap != null && gap > 0.02
-                            ? C.green
-                            : gap != null && gap < -0.02
-                              ? C.red
-                              : C.muted,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {gap != null ? edgeCents(gap) : "—"}
-                    </td>
-                    <td style={td}>
-                      {q.result === "yes"
-                        ? "✅ hit"
-                        : q.result === "no"
-                          ? "❌ miss"
-                          : "…"}
-                    </td>
-                  </tr>
-                );
-              })}
-              {!combos.length && (
-                <tr>
-                  <td style={{ ...td, color: C.muted }} colSpan={8}>
-                    No combo quotes logged yet — the quoter runs mid-window
-                    (minute 2–13 of each 15-min window).
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-
       {/* ── Auto-bet panel ── */}
       <Panel
         id="autobet"
@@ -798,6 +607,197 @@ export default function CryptoValue() {
             )}
           </div>
         )}
+      </Panel>
+
+      {/* ── Feed health strip ── */}
+      <Panel id="feeds" title="Feeds">
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {assets.map(([key, a]) => (
+            <div
+              key={key}
+              style={{
+                background: C.chipBg,
+                border: `1px solid ${a.feed_ok ? C.border : C.red}`,
+                borderRadius: 8,
+                padding: "6px 10px",
+                minWidth: 118,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700 }}>
+                {key.toUpperCase()}{" "}
+                <span style={{ color: a.feed_ok ? C.green : C.red }}>
+                  {a.feed_ok ? "●" : "○"}
+                </span>
+                {a.vol_warmup && (
+                  <span style={{ fontSize: 10, color: C.amber }}> warmup</span>
+                )}
+              </div>
+              <div style={{ fontSize: 12.5 }}>{fmtPrice(key, a.spot)}</div>
+              <div style={{ fontSize: 10, color: C.muted }}>
+                σ1s {a.sigma_1s ? (a.sigma_1s * 1e4).toFixed(2) + "bp" : "—"} ·
+                basis {a.basis != null ? Number(a.basis).toFixed(2) : "—"}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      {/* ── Windows: model vs market per asset ── */}
+      <Panel id="windows" title="Live windows — model vs market">
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ borderCollapse: "collapse", width: "100%" }}>
+            <thead>
+              <tr>
+                <th style={th}>Market</th>
+                <th style={th}>Target</th>
+                <th style={th}>Spot</th>
+                <th style={th}>Left</th>
+                <th style={th}>Model</th>
+                <th style={th}>Bid/Ask</th>
+                <th style={th}>Best edge</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assets.flatMap(([key, a], ai) =>
+                (a.windows || [])
+                  .filter((w) => w.horizon === "15m" || (w.best && w.best.edge > 0))
+                  .slice(0, 6)
+                  .map((w, i) => (
+                    <tr
+                      key={w.market_ticker}
+                      style={{
+                        background: (ai + i) % 2 ? C.rowAlt : "transparent",
+                      }}
+                    >
+                      <td style={td}>
+                        <b>{key.toUpperCase()}</b>{" "}
+                        <span style={{ color: C.muted, fontSize: 11 }}>
+                          {w.horizon}
+                          {w.in_final_min ? " · FINAL MIN" : ""}
+                        </span>
+                      </td>
+                      <td style={td}>{fmtPrice(key, w.target)}</td>
+                      <td style={td}>{fmtPrice(key, a.spot)}</td>
+                      <td style={td}>{countdown(w.tau_secs)}</td>
+                      <td style={td}>{pct(w.model_p)}</td>
+                      <td style={td}>
+                        {cents(w.yes_bid)}/{cents(w.yes_ask)}
+                      </td>
+                      <td
+                        style={{
+                          ...td,
+                          color:
+                            w.best && w.best.edge >= 0.03 ? C.green : C.muted,
+                          fontWeight: w.best && w.best.edge >= 0.03 ? 700 : 400,
+                        }}
+                      >
+                        {w.best
+                          ? `${w.best.side === "yes" ? "UP" : "DOWN"} ${edgeCents(w.best.edge)}`
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {scan && scan.candidates && scan.candidates.length > 0 && (
+          <div style={{ marginTop: 8, fontSize: 12, color: C.amber }}>
+            ⚡ {scan.candidates.length} candidate
+            {scan.candidates.length > 1 ? "s" : ""} above the raw-edge floor
+            right now
+          </div>
+        )}
+      </Panel>
+
+      {/* ── Combo correlation discount (edge hypothesis #1, visible day one) ── */}
+      <Panel
+        id="combos"
+        title={
+          <>
+            Combos — correlation discount
+            <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>
+              quote vs independence (Π legs) vs copula
+            </span>
+          </>
+        }
+      >
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ borderCollapse: "collapse", width: "100%" }}>
+            <thead>
+              <tr>
+                <th style={th}>When</th>
+                <th style={th}>Pattern</th>
+                <th style={th}>Legs</th>
+                <th style={th}>Π market</th>
+                <th style={th}>Copula</th>
+                <th style={th}>Kalshi quote</th>
+                <th style={th}>Gap</th>
+                <th style={th}>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {combos.map((q, i) => {
+                const mid =
+                  q.combo_yes_bid != null && q.combo_yes_ask != null
+                    ? (Number(q.combo_yes_bid) + Number(q.combo_yes_ask)) / 2
+                    : null;
+                const gap = mid != null ? Number(q.joint_model_p) - mid : null;
+                const legs = Array.isArray(q.legs) ? q.legs : [];
+                return (
+                  <tr
+                    key={q.created_at + q.pattern}
+                    style={{ background: i % 2 ? C.rowAlt : "transparent" }}
+                  >
+                    <td style={{ ...td, color: C.muted }}>
+                      {timeAgo(q.created_at)}
+                    </td>
+                    <td style={{ ...td, fontWeight: 700 }}>{q.pattern}</td>
+                    <td style={{ ...td, fontSize: 11 }}>
+                      {legs.map((l) => l.asset.toUpperCase()).join("+")}
+                    </td>
+                    <td style={td}>{cents(q.product_market)}</td>
+                    <td style={td}>{cents(q.joint_model_p)}</td>
+                    <td style={td}>
+                      {mid != null
+                        ? `${cents(q.combo_yes_bid)}/${cents(q.combo_yes_ask)}`
+                        : "no quote"}
+                    </td>
+                    <td
+                      style={{
+                        ...td,
+                        color:
+                          gap != null && gap > 0.02
+                            ? C.green
+                            : gap != null && gap < -0.02
+                              ? C.red
+                              : C.muted,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {gap != null ? edgeCents(gap) : "—"}
+                    </td>
+                    <td style={td}>
+                      {q.result === "yes"
+                        ? "✅ hit"
+                        : q.result === "no"
+                          ? "❌ miss"
+                          : "…"}
+                    </td>
+                  </tr>
+                );
+              })}
+              {!combos.length && (
+                <tr>
+                  <td style={{ ...td, color: C.muted }} colSpan={8}>
+                    No combo quotes logged yet — the quoter runs mid-window
+                    (minute 2–13 of each 15-min window).
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Panel>
 
       {/* ── Performance / calibration ── */}
