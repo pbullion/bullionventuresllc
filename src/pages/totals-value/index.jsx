@@ -1364,6 +1364,24 @@ export default function TotalsValue() {
                 })}`
               : ""}
           </span>
+          {/* Counterpart to the "sports →" link on /crypto-value. */}
+          <a
+            href="/crypto-value"
+            style={{
+              marginLeft: "auto",
+              fontSize: 12,
+              fontWeight: 700,
+              color: C.text,
+              background: C.chipBg,
+              border: `1px solid ${C.border}`,
+              borderRadius: 8,
+              padding: "5px 12px",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            🪙 crypto →
+          </a>
         </div>
 
         <div

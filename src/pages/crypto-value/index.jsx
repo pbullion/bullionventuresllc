@@ -96,6 +96,76 @@ const td = {
   whiteSpace: "nowrap",
 };
 
+/* Collapsible panel. Open/closed is remembered per id in localStorage, because
+ * the page repolls every 30s and a panel you collapsed should stay collapsed
+ * across reloads too. `right` renders controls in the header row (Kill, CAP) —
+ * they're siblings of the toggle button, so clicking them can't collapse the
+ * panel they live in. */
+const panelKey = (id) => `bv_crypto_panel_${id}`;
+function Panel({ id, title, right, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(() => {
+    try {
+      const v = window.localStorage.getItem(panelKey(id));
+      return v == null ? defaultOpen : v === "1";
+    } catch {
+      return defaultOpen; // private mode / storage disabled
+    }
+  });
+  const toggle = () =>
+    setOpen((v) => {
+      try {
+        window.localStorage.setItem(panelKey(id), v ? "0" : "1");
+      } catch {
+        /* not persisted — collapsing still works for this session */
+      }
+      return !v;
+    });
+  return (
+    <div style={panelStyle}>
+      <div style={{ ...h2Style, marginBottom: open ? 10 : 0 }}>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: C.text,
+            font: "inherit",
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: "pointer",
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            textAlign: "left",
+          }}
+        >
+          <span style={{ color: C.muted, fontSize: 11 }}>
+            {open ? "▾" : "▸"}
+          </span>
+          {title}
+        </button>
+        {right != null && (
+          <span
+            style={{
+              marginLeft: "auto",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            {right}
+          </span>
+        )}
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
 export default function CryptoValue() {
   const [scan, setScan] = useState(null);
   const [status, setStatus] = useState(null);
@@ -104,7 +174,6 @@ export default function CryptoValue() {
   const [combos, setCombos] = useState([]);
   const [perf, setPerf] = useState(null);
   const [showActivity, setShowActivity] = useState(false);
-  const [showPerf, setShowPerf] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const timerRef = useRef(null);
@@ -205,6 +274,75 @@ export default function CryptoValue() {
     }
   };
 
+  // Loosening the daily cap is PIN-gated, same asymmetry as kill/enable and
+  // the same flow as /totals-value. Server clamps to CRYPTOBET_DAILY_CEILING.
+  const changeCap = async () => {
+    const cur =
+      status && status.today && status.today.daily_cap != null
+        ? `$${Math.round(status.today.daily_cap)}`
+        : "";
+    const ceiling =
+      status && status.config ? status.config.daily_ceiling : null;
+    const raw = window.prompt(
+      `New daily cap in dollars (currently ${cur}${
+        ceiling ? `, ceiling $${ceiling}` : ""
+      }).\nLeave blank to reset to the default.`
+    );
+    if (raw === null) return;
+    const asked = raw.trim() === "" ? null : Number(raw);
+    if (asked != null && !Number.isFinite(asked)) {
+      window.alert("Not a number.");
+      return;
+    }
+    let pin = window.localStorage.getItem("bv_autobet_pin") || "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (!pin) {
+        pin = window.prompt("Auto-bet PIN:") || "";
+        if (!pin) return;
+      }
+      setBusy(true);
+      try {
+        const r = await fetch(`${API_BASE}/auto-bets/daily-cap`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cap: asked, pin }),
+        });
+        if (r.status === 401) {
+          window.localStorage.removeItem("bv_autobet_pin");
+          pin = "";
+          setBusy(false);
+          continue; // wrong pin — ask once more
+        }
+        if (r.ok) {
+          window.localStorage.setItem("bv_autobet_pin", pin);
+          const next = await r.json();
+          // Say so when the server clamped, rather than silently saving a
+          // smaller number than the one that was typed.
+          if (
+            asked != null &&
+            next.daily_cap_override != null &&
+            asked > next.daily_cap_override
+          ) {
+            window.alert(
+              `Saved at $${Math.round(next.daily_cap_override)} — that's the ` +
+                `hard ceiling. Raising it takes a server config change ` +
+                `(CRYPTOBET_DAILY_CEILING).`
+            );
+          }
+          await loadAll();
+        } else {
+          const e = await r.json().catch(() => ({}));
+          window.alert(e.error || `HTTP ${r.status}`);
+        }
+      } catch {
+        /* next poll refreshes */
+      }
+      setBusy(false);
+      return;
+    }
+    window.alert("Wrong PIN.");
+  };
+
   const pill = () => {
     if (!status) return null;
     if (status.enabled) {
@@ -260,7 +398,7 @@ export default function CryptoValue() {
       </div>
 
       {/* ── Feed health strip ── */}
-      <div style={{ ...panelStyle, padding: 10 }}>
+      <Panel id="feeds" title="Feeds">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {assets.map(([key, a]) => (
             <div
@@ -290,11 +428,10 @@ export default function CryptoValue() {
             </div>
           ))}
         </div>
-      </div>
+      </Panel>
 
       {/* ── Windows: model vs market per asset ── */}
-      <div style={panelStyle}>
-        <h2 style={h2Style}>Live windows — model vs market</h2>
+      <Panel id="windows" title="Live windows — model vs market">
         <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead>
@@ -359,16 +496,20 @@ export default function CryptoValue() {
             right now
           </div>
         )}
-      </div>
+      </Panel>
 
       {/* ── Combo correlation discount (edge hypothesis #1, visible day one) ── */}
-      <div style={panelStyle}>
-        <h2 style={h2Style}>
-          Combos — correlation discount
-          <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>
-            quote vs independence (Π legs) vs copula
-          </span>
-        </h2>
+      <Panel
+        id="combos"
+        title={
+          <>
+            Combos — correlation discount
+            <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>
+              quote vs independence (Π legs) vs copula
+            </span>
+          </>
+        }
+      >
         <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead>
@@ -445,17 +586,43 @@ export default function CryptoValue() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Panel>
 
       {/* ── Auto-bet panel ── */}
-      <div style={panelStyle}>
-        <h2 style={h2Style}>
-          🤖 Auto-Bet
-          {pill()}
-          {status && status.combos_enabled && (
-            <span style={chip(C.chipBg, C.amber)}>COMBOS ARMED</span>
-          )}
-          <span style={{ marginLeft: "auto" }}>
+      <Panel
+        id="autobet"
+        title={
+          <>
+            🤖 Auto-Bet
+            {pill()}
+            {status && status.combos_enabled && (
+              <span style={chip(C.chipBg, C.amber)}>COMBOS ARMED</span>
+            )}
+          </>
+        }
+        right={
+          <>
+            <button
+              onClick={changeCap}
+              disabled={busy}
+              style={{
+                background: C.chipBg,
+                color: C.text,
+                border: `1px solid ${C.border}`,
+                borderRadius: 8,
+                padding: "5px 12px",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                opacity: busy ? 0.5 : 1,
+              }}
+            >
+              CAP $
+              {status && status.today && status.today.daily_cap != null
+                ? Math.round(status.today.daily_cap)
+                : "—"}{" "}
+              ✎
+            </button>
             {status && status.enabled === false && status.killed ? (
               <button
                 onClick={enable}
@@ -491,8 +658,9 @@ export default function CryptoValue() {
                 Kill
               </button>
             )}
-          </span>
-        </h2>
+          </>
+        }
+      >
         {status && (
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
             ${status.config.unit_dollars}/u · calib-edge-scaled ≤
@@ -630,26 +798,16 @@ export default function CryptoValue() {
             )}
           </div>
         )}
-      </div>
+      </Panel>
 
       {/* ── Performance / calibration ── */}
-      <div style={panelStyle}>
-        <button
-          onClick={() => setShowPerf((v) => !v)}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: C.text,
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: "pointer",
-            padding: 0,
-          }}
-        >
-          {showPerf ? "▾" : "▸"} Model performance & calibration
-        </button>
-        {showPerf && perf && (
-          <div style={{ marginTop: 10 }}>
+      <Panel
+        id="performance"
+        title="Model performance & calibration"
+        defaultOpen={false}
+      >
+        {perf && (
+          <div>
             <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>
               Brier, 7d (lower is better — the model must beat the PRICE, not
               a coin):
@@ -732,7 +890,7 @@ export default function CryptoValue() {
             </div>
           </div>
         )}
-      </div>
+      </Panel>
 
       <div style={{ fontSize: 10.5, color: C.muted, textAlign: "center" }}>
         Settlement = 60s CF Benchmarks RTI TWAP · fees included in every edge ·
