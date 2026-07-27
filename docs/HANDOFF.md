@@ -82,6 +82,7 @@ silently at runtime.
 | --- | --- | --- |
 | `/my-bets` | `/kalshi` | `GET /balance`, `/positions`, `/settlements` — 15s background poll |
 | `/totals-value` | `/kalshi` | `GET /totals-value?min_edge=`, `/totals-value/performance`, `/auto-bets` + `/status` `/activity` `/scenarios` `/review`; `POST /auto-bets/daily-cap`, `/auto-bets/kill\|enable`, `/auto-bets/segments` — 30s poll; writes are PIN-gated |
+| `/crypto-value` | `/kalshi-crypto` | `GET /scan`, `/performance`, `/combo-quotes`, `/auto-bets` + `/status` `/activity`; `POST /auto-bets/kill\|enable` — 15s poll; enable is PIN-gated. Data model: backend `docs/crypto-engine-spec.md` |
 | `/elite-edge-advisors` | `/elite-edge-advisors`, `/odds`, `/parlays` | `GET /get-all-bets`, `/odds/all-odds`; `POST /unhide-all-bets`, per-bet `/:id`; the InputBets modal saves to `/elite-edge-advisors` and `/parlays` |
 | `/gulf-hurricane` | `/nhc` | `GET /current-storms` (backend proxies NHC's CurrentStorms.json because that feed has no CORS; the graphics load straight from nhc.noaa.gov) |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` | `GET /patrick/tesla-dashboard-weather?lat&lon` (Apple WeatherKit proxy), `/patrick/all-data-2/mancavedisplaysllc@gmail.com` (hardcoded user), `/odds-screen/check-subscription/:email`, `/odds-screen/tracking/:user` |

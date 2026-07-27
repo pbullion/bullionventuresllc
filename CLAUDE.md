@@ -54,6 +54,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | Page | Backend routes |
 | --- | --- |
 | `/my-bets`, `/totals-value` | `/kalshi` |
+| `/crypto-value` | `/kalshi-crypto` |
 | `/elite-edge-advisors` | `/elite-edge-advisors`, `/odds`, `/parlays` |
 | `/gulf-hurricane` | `/nhc` |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` |
@@ -63,7 +64,8 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
   `/weather` (dashboard weather comes via `/patrick/tesla-dashboard-weather`).
 - For the betting UI's data model, read the backend repo's
   `docs/betting-engine.md`, `docs/auto-bet-spec.md`, and `docs/totals-value.md`
-  — do not re-derive it from the JSX.
+  — do not re-derive it from the JSX. The crypto page's data model is
+  `docs/crypto-engine-spec.md` in the same repo.
 - There is no shared schema contract — couplings are hardcoded URL strings.
   Grep this repo for the endpoint path before reshaping any backend response.
 - Backend platform constraints (30s timeout, `{}` error bodies, deploys) are
@@ -81,10 +83,10 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 
 - **Never remove the `/wnba-value` → `/totals-value` redirect** in
   `src/App.jsx` — the old URL is still in the wild.
-- **Preserve the auto-bet control asymmetry** on `/totals-value`: kill/tighten
-  is one click, enable/loosen prompts for the PIN (stored in
-  `localStorage["bv_autobet_pin"]`, verified server-side). It mirrors the
-  backend's safety model for real-money betting.
+- **Preserve the auto-bet control asymmetry** on `/totals-value` AND
+  `/crypto-value`: kill/tighten is one click, enable/loosen prompts for the
+  PIN (stored in `localStorage["bv_autobet_pin"]`, verified server-side). It
+  mirrors the backend's safety model for real-money betting.
 - **Do not re-enable the recurring push crons** in the backend's
   `routes/bullion_ventures.js` — hard-disabled 2026-07-22 (commented out, not
   env-gated) because the auto-bettor's per-bet pushes made them redundant

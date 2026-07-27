@@ -44,6 +44,13 @@ const products = [
       "A live value scanner for Kalshi over/unders — WNBA, MLB, NFL, and college basketball & football. Projects each game's final total from its actual pace, prices every strike, and flags bets where the model beats the market — then tracks its own record and learns from the results.",
   },
   {
+    emoji: "🪙",
+    name: "Crypto Value",
+    path: "/crypto-value",
+    description:
+      "A live value engine for Kalshi's 15-minute and hourly crypto markets (BTC, ETH, XRP, SOL, DOGE). Prices every window from real-time exchange data with TWAP-aware math, measures combo correlation mispricing, and only stakes where its own calibration proves an edge.",
+  },
+  {
     emoji: "🏆",
     name: "Elite Edge Advisors",
     path: "/elite-edge-advisors",
