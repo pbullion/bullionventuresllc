@@ -178,6 +178,10 @@ const S = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
+    // A phone can't fit brand + both cross-links + Refresh on one line, so the
+    // bar wraps and `.mb-nav` (order: 3) takes the second row.
+    flexWrap: "wrap",
+    rowGap: 10,
   },
   brand: { display: "flex", alignItems: "center", gap: 10 },
   logoDot: {
@@ -192,7 +196,27 @@ const S = {
     fontWeight: 800,
     fontSize: 16,
   },
-  brandName: { fontSize: 17, fontWeight: 700, letterSpacing: -0.2 },
+  brandName: {
+    fontSize: 17,
+    fontWeight: 700,
+    letterSpacing: -0.2,
+    whiteSpace: "nowrap",
+  },
+  // Cross-links to the other two betting screens. Same chip-link treatment as
+  // the "🪙 crypto →" link on /totals-value — these tools are siblings and
+  // there's no site nav here (my-bets is in App.jsx's hideChrome list).
+  // Positioning/wrapping is the `.mb-nav` class (needs a media query).
+  navLink: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: C.text,
+    backgroundColor: C.chipBg,
+    border: `1px solid ${C.border}`,
+    borderRadius: 8,
+    padding: "5px 12px",
+    textDecoration: "none",
+    whiteSpace: "nowrap",
+  },
   refreshBtn: {
     backgroundColor: C.accent,
     color: "#06210f",
@@ -631,6 +655,10 @@ const MB_CSS = `
    Default (mobile-first) hides the desktop top-bar stats. */
 .mb-topstats { display: none; }
 .mb-hero-mobile { display: flex; }
+/* Cross-links to /crypto-value and /totals-value. On a phone there's no room
+   for brand + both chips + Refresh on one line, so they take a full-width
+   second row of the (wrapping) top bar; order:3 pushes them below Refresh. */
+.mb-nav { display: flex; gap: 8px; order: 3; width: 100%; }
 /* Open tab split (single-game grid + parlay column). One stacked column on a
    phone; the desktop rule below turns it into two side-by-side regions. Kept in
    CSS rather than inline styles so the media query can actually win. */
@@ -638,6 +666,8 @@ const MB_CSS = `
 @media (min-width: 900px) {
   .mb-topstats { display: flex; }
   .mb-hero-mobile { display: none; }
+  /* Desktop has room — the links sit inline right after the brand. */
+  .mb-nav { order: 0; width: auto; }
   .mb-inner { max-width: 1800px !important; padding: 0 24px !important; }
   /* Row-major grid: the sort order reads the way people scan — left to
      right, then down. (CSS masonry columns filled top-to-bottom, which made
@@ -1551,6 +1581,14 @@ export default function MyBets() {
         <div style={S.brand}>
           <div style={S.logoDot}>K</div>
           <div style={S.brandName}>My Bets</div>
+        </div>
+        <div className="mb-nav">
+          <a href="/crypto-value" style={S.navLink}>
+            🪙 crypto →
+          </a>
+          <a href="/totals-value" style={S.navLink}>
+            📈 sports →
+          </a>
         </div>
         {/* Desktop: portfolio numbers live inline in the top bar (hidden on
             mobile via CSS — mobile gets the compact strip below instead). */}
