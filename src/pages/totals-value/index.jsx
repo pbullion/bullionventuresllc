@@ -685,6 +685,7 @@ function AutoBetPanel({ games }) {
   const [open, setOpen] = useState(true);
   const [feedOpen, setFeedOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showUnfilled, setShowUnfilled] = useState(false);
   const [err, setErr] = useState(null);
 
   const load = async () => {
@@ -742,6 +743,11 @@ function AutoBetPanel({ games }) {
   const stakePct = t.daily_cap
     ? Math.min(100, Math.round((capUsed / t.daily_cap) * 100))
     : 0;
+
+  const unfilledCount = bets.filter((b) => b.status === "unfilled").length;
+  const shownBets = showUnfilled
+    ? bets
+    : bets.filter((b) => b.status !== "unfilled");
 
   /* Every auto-bet control is PIN-gated (kill, enable and cap) — Patrick's
    * call 2026-07-27, replacing the old open-kill asymmetry. The PIN is cached
@@ -1160,12 +1166,35 @@ function AutoBetPanel({ games }) {
             >
               TODAY'S BETS
             </div>
-            {bets.length ? (
-              <div style={{ display: "grid", gap: 6 }}>{bets.map(betRow)}</div>
+            {shownBets.length ? (
+              <div style={{ display: "grid", gap: 6 }}>
+                {shownBets.map(betRow)}
+              </div>
             ) : (
               <div style={{ color: C.muted, fontSize: 13 }}>
-                No bets placed today.
+                {bets.length
+                  ? `No filled bets today (${unfilledCount} unfilled).`
+                  : "No bets placed today."}
               </div>
+            )}
+            {/* Unfilled IOC orders hold no position and risk nothing — hidden
+                by default, still reachable. */}
+            {unfilledCount > 0 && (
+              <button
+                onClick={() => setShowUnfilled((v) => !v)}
+                style={{
+                  marginTop: 6,
+                  background: "transparent",
+                  border: "none",
+                  color: C.muted,
+                  fontSize: 11.5,
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                {showUnfilled ? "▾ hide" : "▸ show"} {unfilledCount}{" "}
+                unfilled
+              </button>
             )}
           </div>
 

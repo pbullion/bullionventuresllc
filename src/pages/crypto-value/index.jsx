@@ -184,6 +184,7 @@ export default function CryptoValue() {
   const [combos, setCombos] = useState([]);
   const [perf, setPerf] = useState(null);
   const [showActivity, setShowActivity] = useState(false);
+  const [showUnfilled, setShowUnfilled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const timerRef = useRef(null);
@@ -328,6 +329,11 @@ export default function CryptoValue() {
     }
     await loadAll();
   };
+
+  const unfilledCount = bets.filter((b) => b.status === "unfilled").length;
+  const shownBets = showUnfilled
+    ? bets
+    : bets.filter((b) => b.status !== "unfilled");
 
   const pill = () => {
     if (!status) return null;
@@ -513,7 +519,7 @@ export default function CryptoValue() {
               </tr>
             </thead>
             <tbody>
-              {bets.map((b, i) => (
+              {shownBets.map((b, i) => (
                 <tr
                   key={b.id}
                   style={{ background: i % 2 ? C.rowAlt : "transparent" }}
@@ -567,16 +573,37 @@ export default function CryptoValue() {
                   </td>
                 </tr>
               ))}
-              {!bets.length && (
+              {!shownBets.length && (
                 <tr>
                   <td style={{ ...td, color: C.muted }} colSpan={6}>
-                    No bets today.
+                    {bets.length
+                      ? `No filled bets today (${unfilledCount} unfilled).`
+                      : "No bets today."}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        {/* Unfilled IOC orders hold no position and risk nothing, and they
+            outnumber fills several to one — hidden by default. Still reachable,
+            because a chronically-unfilled market IS a signal worth seeing. */}
+        {unfilledCount > 0 && (
+          <button
+            onClick={() => setShowUnfilled((v) => !v)}
+            style={{
+              marginTop: 6,
+              background: "transparent",
+              border: "none",
+              color: C.muted,
+              fontSize: 11.5,
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            {showUnfilled ? "▾ hide" : "▸ show"} {unfilledCount} unfilled
+          </button>
+        )}
         <button
           onClick={() => setShowActivity((v) => !v)}
           style={{
