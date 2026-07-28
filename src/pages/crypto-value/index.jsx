@@ -106,6 +106,63 @@ const td = {
   whiteSpace: "nowrap",
 };
 
+/* Responsive tables. These panels run 6–8 numeric columns, which no phone can
+ * fit, and the `overflowX: auto` wrappers meant Status and P&L — the columns
+ * you actually check — were always the ones parked off-screen. Under 640px
+ * every <tr class="cv-table" row> becomes a card instead: the identifying cell
+ * (`data-primary`) is the heading, and the rest become labelled pairs laid out
+ * two-up, with the labels read off each <td>'s `data-label`. So the header row
+ * is dropped rather than the data. Above 640px none of this applies and the
+ * plain table is back untouched. Media queries can't live in the inline style
+ * objects, hence the injected sheet. */
+const CV_CSS = `
+@media (max-width: 640px) {
+  .cv-table thead { display: none; }
+  .cv-table, .cv-table tbody, .cv-table tr, .cv-table td { display: block; }
+  .cv-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 12px;
+    /* Zebra striping is inline per row; the card border separates rows now, so
+       flatten it to one fill (only !important beats the inline style). */
+    background: ${C.chipBg} !important;
+    border: 1px solid ${C.border};
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+  }
+  .cv-table td {
+    flex: 1 1 42%;
+    min-width: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    padding: 2px 0 !important;
+    white-space: normal !important;
+  }
+  .cv-table td[data-label]::before {
+    content: attr(data-label);
+    color: ${C.muted};
+    font-size: 10.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .cv-table td[data-primary] {
+    flex: 1 1 100%;
+    font-weight: 700;
+    justify-content: flex-start;
+    margin-bottom: 4px;
+    /* Leads the card even when it isn't the first column (combos puts Pattern
+       second, after When). */
+    order: -1;
+  }
+  /* Empty-state rows are one spanning cell — keep them full width. */
+  .cv-table td[colspan] { flex: 1 1 100%; }
+}
+`;
+
 /* Collapsible panel. Open/closed is remembered per id in localStorage, because
  * the page repolls every 30s and a panel you collapsed should stay collapsed
  * across reloads too. `right` renders controls in the header row (Kill, CAP) —
@@ -362,8 +419,18 @@ export default function CryptoValue() {
         padding: "16px 12px 40px",
         maxWidth: 960,
         margin: "0 auto",
+        // App.jsx wraps every route in a column flex container, so this div is
+        // a flex item — and a flex item's `min-width: auto` refuses to shrink
+        // below min-content. The wide tables below made that ~600px, so on a
+        // phone the whole PAGE scrolled sideways (header and Kill button off
+        // screen) instead of each table scrolling inside its own
+        // `overflowX: auto` wrapper. Pinning the width makes it shrink.
+        width: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
       }}
     >
+      <style>{CV_CSS}</style>
       <div
         style={{
           display: "flex",
@@ -507,7 +574,10 @@ export default function CryptoValue() {
           </div>
         )}
         <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
+          <table
+            className="cv-table"
+            style={{ borderCollapse: "collapse", width: "100%" }}
+          >
             <thead>
               <tr>
                 <th style={th}>Pick</th>
@@ -524,28 +594,37 @@ export default function CryptoValue() {
                   key={b.id}
                   style={{ background: i % 2 ? C.rowAlt : "transparent" }}
                 >
-                  <td style={td}>{b.pick_label}</td>
+                  <td style={td} data-primary="">
+                    {b.pick_label}
+                  </td>
                   {/* Real money at risk, not the intended unit. IOC orders
                       partial-fill constantly (5 contracts asked, 1 filled is
                       typical), so stake_dollars overstated exposure — a $5 row
                       that actually cost $0.90 made the P&L column look far
                       worse than it was. Intent is kept underneath when the two
                       differ, so a chronically-missing fill is still visible. */}
-                  <td style={td}>
-                    {money(actualStake(b))}
-                    {Math.abs(actualStake(b) - Number(b.stake_dollars)) >
-                      0.005 && (
-                      <span style={{ color: C.muted, fontSize: 10.5 }}>
-                        {" "}
-                        of {money(b.stake_dollars)}
-                      </span>
-                    )}
+                  <td style={td} data-label="Stake">
+                    <span>
+                      {money(actualStake(b))}
+                      {Math.abs(actualStake(b) - Number(b.stake_dollars)) >
+                        0.005 && (
+                        <span style={{ color: C.muted, fontSize: 10.5 }}>
+                          {" "}
+                          of {money(b.stake_dollars)}
+                        </span>
+                      )}
+                    </span>
                   </td>
-                  <td style={td}>{cents(b.fill_price || b.limit_price)}</td>
-                  <td style={td}>
-                    {edgeCents(b.edge)} ({edgeCents(b.calib_edge)})
+                  <td style={td} data-label="Price">
+                    {cents(b.fill_price || b.limit_price)}
+                  </td>
+                  <td style={td} data-label="Edge (calib)">
+                    <span>
+                      {edgeCents(b.edge)} ({edgeCents(b.calib_edge)})
+                    </span>
                   </td>
                   <td
+                    data-label="Status"
                     style={{
                       ...td,
                       color:
@@ -559,6 +638,7 @@ export default function CryptoValue() {
                     {b.result || b.status}
                   </td>
                   <td
+                    data-label="P&L"
                     style={{
                       ...td,
                       color:
@@ -593,6 +673,9 @@ export default function CryptoValue() {
             onClick={() => setShowUnfilled((v) => !v)}
             style={{
               marginTop: 6,
+              // Both toggles are zero-padding inline buttons, so without this
+              // they read as one run-together string on a narrow screen.
+              marginRight: 14,
               background: "transparent",
               border: "none",
               color: C.muted,
@@ -685,7 +768,10 @@ export default function CryptoValue() {
       {/* ── Windows: model vs market per asset ── */}
       <Panel id="windows" title="Live windows — model vs market">
         <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
+          <table
+            className="cv-table"
+            style={{ borderCollapse: "collapse", width: "100%" }}
+          >
             <thead>
               <tr>
                 <th style={th}>Market</th>
@@ -709,21 +795,34 @@ export default function CryptoValue() {
                         background: (ai + i) % 2 ? C.rowAlt : "transparent",
                       }}
                     >
-                      <td style={td}>
-                        <b>{key.toUpperCase()}</b>{" "}
-                        <span style={{ color: C.muted, fontSize: 11 }}>
-                          {w.horizon}
-                          {w.in_final_min ? " · FINAL MIN" : ""}
+                      <td style={td} data-primary="">
+                        <span>
+                          <b>{key.toUpperCase()}</b>{" "}
+                          <span style={{ color: C.muted, fontSize: 11 }}>
+                            {w.horizon}
+                            {w.in_final_min ? " · FINAL MIN" : ""}
+                          </span>
                         </span>
                       </td>
-                      <td style={td}>{fmtPrice(key, w.target)}</td>
-                      <td style={td}>{fmtPrice(key, a.spot)}</td>
-                      <td style={td}>{countdown(w.tau_secs)}</td>
-                      <td style={td}>{pct(w.model_p)}</td>
-                      <td style={td}>
-                        {cents(w.yes_bid)}/{cents(w.yes_ask)}
+                      <td style={td} data-label="Target">
+                        {fmtPrice(key, w.target)}
+                      </td>
+                      <td style={td} data-label="Spot">
+                        {fmtPrice(key, a.spot)}
+                      </td>
+                      <td style={td} data-label="Left">
+                        {countdown(w.tau_secs)}
+                      </td>
+                      <td style={td} data-label="Model">
+                        {pct(w.model_p)}
+                      </td>
+                      <td style={td} data-label="Bid/Ask">
+                        <span>
+                          {cents(w.yes_bid)}/{cents(w.yes_ask)}
+                        </span>
                       </td>
                       <td
+                        data-label="Best edge"
                         style={{
                           ...td,
                           color:
@@ -763,7 +862,10 @@ export default function CryptoValue() {
         }
       >
         <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
+          <table
+            className="cv-table"
+            style={{ borderCollapse: "collapse", width: "100%" }}
+          >
             <thead>
               <tr>
                 <th style={th}>When</th>
@@ -789,21 +891,28 @@ export default function CryptoValue() {
                     key={q.created_at + q.pattern}
                     style={{ background: i % 2 ? C.rowAlt : "transparent" }}
                   >
-                    <td style={{ ...td, color: C.muted }}>
+                    <td style={{ ...td, color: C.muted }} data-label="When">
                       {timeAgo(q.created_at)}
                     </td>
-                    <td style={{ ...td, fontWeight: 700 }}>{q.pattern}</td>
-                    <td style={{ ...td, fontSize: 11 }}>
+                    <td style={{ ...td, fontWeight: 700 }} data-primary="">
+                      {q.pattern}
+                    </td>
+                    <td style={{ ...td, fontSize: 11 }} data-label="Legs">
                       {legs.map((l) => l.asset.toUpperCase()).join("+")}
                     </td>
-                    <td style={td}>{cents(q.product_market)}</td>
-                    <td style={td}>{cents(q.joint_model_p)}</td>
-                    <td style={td}>
+                    <td style={td} data-label="Π market">
+                      {cents(q.product_market)}
+                    </td>
+                    <td style={td} data-label="Copula">
+                      {cents(q.joint_model_p)}
+                    </td>
+                    <td style={td} data-label="Kalshi quote">
                       {mid != null
                         ? `${cents(q.combo_yes_bid)}/${cents(q.combo_yes_ask)}`
                         : "no quote"}
                     </td>
                     <td
+                      data-label="Gap"
                       style={{
                         ...td,
                         color:
@@ -817,7 +926,7 @@ export default function CryptoValue() {
                     >
                       {gap != null ? edgeCents(gap) : "—"}
                     </td>
-                    <td style={td}>
+                    <td style={td} data-label="Result">
                       {q.result === "yes"
                         ? "✅ hit"
                         : q.result === "no"
@@ -853,7 +962,10 @@ export default function CryptoValue() {
               a coin):
             </div>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ borderCollapse: "collapse", width: "100%" }}>
+              <table
+                className="cv-table"
+                style={{ borderCollapse: "collapse", width: "100%" }}
+              >
                 <thead>
                   <tr>
                     <th style={th}>Segment</th>
@@ -872,13 +984,22 @@ export default function CryptoValue() {
                         key={`${r.asset}:${r.horizon}`}
                         style={{ background: i % 2 ? C.rowAlt : "transparent" }}
                       >
-                        <td style={td}>
-                          {r.asset.toUpperCase()} {r.horizon}
+                        <td style={td} data-primary="">
+                          <span>
+                            {r.asset.toUpperCase()} {r.horizon}
+                          </span>
                         </td>
-                        <td style={td}>{r.n}</td>
-                        <td style={td}>{Number(r.brier_model).toFixed(4)}</td>
-                        <td style={td}>{Number(r.brier_market).toFixed(4)}</td>
+                        <td style={td} data-label="n">
+                          {r.n}
+                        </td>
+                        <td style={td} data-label="Model">
+                          {Number(r.brier_model).toFixed(4)}
+                        </td>
+                        <td style={td} data-label="Market">
+                          {Number(r.brier_market).toFixed(4)}
+                        </td>
                         <td
+                          data-label="Verdict"
                           style={{ ...td, color: better ? C.green : C.muted }}
                         >
                           {better ? "model ahead" : "market ahead"}
