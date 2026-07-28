@@ -459,7 +459,8 @@ export default function CryptoValue() {
         {status && (
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
             ${status.config.unit_dollars}/u · calib-edge-scaled ≤
-            {status.config.max_units}u · ${status.today.daily_cap}/day · raw ≥
+            {status.config.max_units}u · ${status.today.daily_cap} max daily
+            LOSS · raw ≥
             {cents(status.config.min_edge)} · calib ≥
             {cents(status.config.min_calib_edge)} · spread ≤
             {cents(status.config.max_spread)} · $
@@ -467,13 +468,21 @@ export default function CryptoValue() {
             {status.config.assets.join("+").toUpperCase()} ·{" "}
             {status.config.horizons.join("+")}
             <span style={{ marginLeft: 8 }}>
-              {/* 2dp: this is filled cost only (the backend already excludes
-                  unfilled), and real days have run under $3 — rounding to
-                  whole dollars turned $0.90 into "$1". */}
-              staked today <b style={{ color: C.text }}>
-                ${status.today.staked.toFixed(2)}
+              {/* The cap counts money LOST, not staked (2026-07-28). Gross
+                  staked is kept alongside as context. 2dp because real days
+                  have run under $3 and whole dollars turned $0.90 into "$1". */}
+              lost today <b style={{ color: C.text }}>
+                $
+                {(status.today.lost != null
+                  ? status.today.lost
+                  : status.today.staked
+                ).toFixed(2)}
               </b>{" "}
               / ${status.today.daily_cap}
+              <span style={{ color: C.muted }}>
+                {" "}
+                · ${status.today.staked.toFixed(2)} staked
+              </span>
             </span>
             {status.calibration_cells_live &&
               status.calibration_cells_live.length > 0 && (

@@ -736,8 +736,11 @@ function AutoBetPanel({ games }) {
       : { text: "OFF", color: C.muted, bg: C.chipBg, border: C.border };
   const t = status.today || {};
   const cfg = status.config || {};
+  // The daily cap counts money LOST, not money staked (2026-07-28). Fall back
+  // to daily_stake so an older backend still renders something sane.
+  const capUsed = t.daily_lost != null ? t.daily_lost : t.daily_stake;
   const stakePct = t.daily_cap
-    ? Math.min(100, Math.round((t.daily_stake / t.daily_cap) * 100))
+    ? Math.min(100, Math.round((capUsed / t.daily_cap) * 100))
     : 0;
 
   /* Every auto-bet control is PIN-gated (kill, enable and cap) — Patrick's
@@ -963,8 +966,8 @@ function AutoBetPanel({ games }) {
           {pill.text}
         </Chip>
         <span style={{ color: C.muted, fontSize: 12, flex: 1 }}>
-          {t.placed || 0} bet{(t.placed || 0) === 1 ? "" : "s"} today · $
-          {Number(t.daily_stake || 0).toFixed(0)} / ${t.daily_cap} ·{" "}
+          {t.placed || 0} bet{(t.placed || 0) === 1 ? "" : "s"} today · lost $
+          {Number(capUsed || 0).toFixed(0)} / ${t.daily_cap} ·{" "}
           {status.loop_running ? "loop live" : "idle"} · run{" "}
           {timeAgo(status.last_run_at)}
         </span>
@@ -1082,7 +1085,12 @@ function AutoBetPanel({ games }) {
               />
             </div>
             <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
-              ${Number(t.daily_stake || 0).toFixed(2)} of ${t.daily_cap} daily cap
+              ${Number(capUsed || 0).toFixed(2)} lost of ${t.daily_cap} daily
+              loss cap
+              <span style={{ color: C.muted }}>
+                {" "}
+                · ${Number(t.daily_stake || 0).toFixed(2)} staked
+              </span>
               {t.daily_cap_override != null && (
                 <span style={{ color: C.amber }}> (override)</span>
               )}
