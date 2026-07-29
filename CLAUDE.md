@@ -18,6 +18,20 @@ npm run build      # vite build → dist/
 No tests, no CI. Local dev hits the **production** backend (URLs are
 hardcoded); there are no env vars anywhere in this repo.
 
+## Git
+
+**Always `git pull` before `git push`.** Commits reach these repos from other
+machines and from other Claude sessions, so pushing without pulling first either
+gets rejected or silently interleaves your work with someone else's.
+
+```bash
+git pull --rebase && git push
+```
+
+`--rebase` keeps history linear (these are single-author repos — no merge commits
+for your own work). On a conflict, resolve it and `git rebase --continue`; never
+force-push to get around a rejected push.
+
 ## Deploy
 
 - **Hosted on AWS Amplify.** It auto-deploys on push to the `master` branch —
