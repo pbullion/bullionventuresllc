@@ -716,6 +716,12 @@ const SORTS = [
   },
 ];
 
+/* Bumped from "mb_sort" when the default became Win %-descending: a browser
+ * still holding the old preference would otherwise keep overriding the new
+ * default, and one holding "Win % ascending" would look like the change never
+ * landed. Reading a fresh key resets everyone to the new default once. */
+const SORT_STORAGE_KEY = "mb_sort_v2";
+
 /* Is the held side currently ahead? During a live game ESPN only sets `winner`
  * at the final whistle, so use the live score lead. For a NO team bet you're
  * winning when the pick team is behind, so flip the lead by side. Returns null
@@ -971,10 +977,21 @@ const totalPaceOf = (leg) => {
 /* Order legs so finished games sink to the bottom, leaving live/upcoming ones
  * (the ones still in play) up top. Stable within each group — preserves the
  * original leg order otherwise. */
+/* Leg order inside a parlay slip: unsettled legs first, then by chance,
+ * highest first, so a slip reads the same direction as the Win % sort above it
+ * (it used to keep raw API order within each group, which showed as an
+ * unsorted 59/95/63/61 column). Settled legs stay last on purpose even at
+ * 100% — a decided leg is reference, not the live action. API order breaks
+ * ties; a leg with no price sinks within its group. */
 const sortLegs = (legs) =>
   legs
     .map((leg, i) => ({ leg, i, done: legIsFinished(leg) }))
-    .sort((a, b) => a.done - b.done || a.i - b.i)
+    .sort(
+      (a, b) =>
+        a.done - b.done ||
+        (b.leg.win_pct ?? -1) - (a.leg.win_pct ?? -1) ||
+        a.i - b.i,
+    )
     .map((x) => x.leg);
 
 /* Does the leg have a baseball situation row (count/outs/runners) that will
@@ -1412,23 +1429,25 @@ export default function MyBets() {
 
   // Sort control for the open grid. Every key defaults to big-first;
   // clicking the active key flips direction. Persisted like the hidden set.
+  // Default is Win % highest-first (Patrick, 2026-07-29) — the chance is the
+  // number you scan the grid for, so it leads unless you pick another key.
   const [sort, setSort] = useState(() => {
     try {
-      const raw = JSON.parse(localStorage.getItem("mb_sort") || "null");
+      const raw = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) || "null");
       if (raw && SORTS.some((s) => s.key === raw.key) && (raw.dir === 1 || raw.dir === -1)) {
         return raw;
       }
     } catch {
       /* fall through to the default */
     }
-    return { key: "value", dir: -1 };
+    return { key: "win", dir: -1 };
   });
   const pickSort = (key) =>
     setSort((prev) => {
       const next =
         key === prev.key ? { key, dir: -prev.dir } : { key, dir: -1 };
       try {
-        localStorage.setItem("mb_sort", JSON.stringify(next));
+        localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(next));
       } catch {
         /* sorting still works this session */
       }
