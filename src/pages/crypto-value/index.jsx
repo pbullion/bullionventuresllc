@@ -65,6 +65,17 @@ const timeAgo = (iso) => {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
   return s < 60 ? `${Math.round(s)}s ago` : `${Math.round(s / 60)}m ago`;
 };
+/* Wall clock, browser-local, in the table's tight house style ("3:49p"). The
+ * bet list covers a whole day, so "when did this fire" wants a real time —
+ * timeAgo suits the combo quotes, which are all minutes old, not this. */
+const clockTime = (iso) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const h = d.getHours();
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h12}:${m}${h < 12 ? "a" : "p"}`;
+};
 
 const panelStyle = {
   background: C.panel,
@@ -580,6 +591,7 @@ export default function CryptoValue() {
           >
             <thead>
               <tr>
+                <th style={th}>Time</th>
                 <th style={th}>Pick</th>
                 <th style={th}>Stake</th>
                 <th style={th}>Price</th>
@@ -594,6 +606,9 @@ export default function CryptoValue() {
                   key={b.id}
                   style={{ background: i % 2 ? C.rowAlt : "transparent" }}
                 >
+                  <td style={{ ...td, color: C.muted }} data-label="Time">
+                    {clockTime(b.created_at)}
+                  </td>
                   <td style={td} data-primary="">
                     {b.pick_label}
                   </td>
@@ -655,7 +670,7 @@ export default function CryptoValue() {
               ))}
               {!shownBets.length && (
                 <tr>
-                  <td style={{ ...td, color: C.muted }} colSpan={6}>
+                  <td style={{ ...td, color: C.muted }} colSpan={7}>
                     {bets.length
                       ? `No filled bets today (${unfilledCount} unfilled).`
                       : "No bets today."}
