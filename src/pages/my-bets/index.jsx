@@ -510,9 +510,6 @@ const S = {
     gap: 16,
     alignItems: "start",
   },
-  // The parlay column always stacks one card per row (a slip is too tall and
-  // too wide-rowed to share a track). Its desktop width comes from .mb-parlays.
-  parlayColumn: { display: "grid", gap: 16, alignItems: "start" },
   gameCard: {
     backgroundColor: C.panel,
     border: `1px solid ${C.border}`,
@@ -659,10 +656,6 @@ const MB_CSS = `
    for brand + both chips + Refresh on one line, so they take a full-width
    second row of the (wrapping) top bar; order:3 pushes them below Refresh. */
 .mb-nav { display: flex; gap: 8px; order: 3; width: 100%; }
-/* Open tab split (single-game grid + parlay column). One stacked column on a
-   phone; the desktop rule below turns it into two side-by-side regions. Kept in
-   CSS rather than inline styles so the media query can actually win. */
-.mb-open { display: flex; flex-direction: column; gap: 16px; }
 @media (min-width: 900px) {
   .mb-topstats { display: flex; }
   .mb-hero-mobile { display: none; }
@@ -690,15 +683,10 @@ const MB_CSS = `
   .mb-bets .mb-card { padding: 10px 12px !important; }
   .mb-bets .mb-leg { padding: 8px 9px !important; }
   /* Inside a card the legs stack in one narrow column so the card stays a
-     compact grid cell (instead of the wide 2-across leg slip). */
+     compact grid cell (instead of the wide 2-across leg slip). This is what
+     lets a parlay slip sit in a normal ~360px grid track alongside the
+     single-game cards, rather than needing a wider column of its own. */
   .mb-slip { grid-template-columns: 1fr !important; }
-  /* Open tab: a tall 10-leg parlay used to own a whole grid row and leave a
-     screen of dead space beside it. Parlays now sit in a fixed column on the
-     right while the single-game cards fill the rest of the width on the left,
-     so the short cards wrap normally instead of being pinned to one row. */
-  .mb-open { flex-direction: row; align-items: flex-start; }
-  .mb-open > .mb-games { flex: 1 1 auto; min-width: 0; }
-  .mb-open > .mb-parlays { flex: 0 0 380px; }
 }
 `;
 
@@ -1745,29 +1733,24 @@ export default function MyBets() {
               </div>
             );
 
-            // A parlay slip is many times taller than a single-game card, so
-            // mixing them in one grid stranded a row's worth of empty space
-            // beside the tall card. Split them: singles fill a wrapping grid on
-            // the left, parlays stack in a narrow column on the right. With only
-            // one kind present there's nothing to strand, so it stays a single
-            // full-width grid.
-            const combos = groups.filter((g) => g.isCombo);
-            const singles = groups.filter((g) => !g.isCombo);
-            if (!combos.length || !singles.length) {
-              return (
-                <div className="mb-games" style={S.gameList}>
-                  {groups.map(card)}
-                </div>
-              );
-            }
+            // Singles first, then parlays — one grid, not two regions. A slip is
+            // many times taller than a single-game card, and the previous fix
+            // for that (parlays in a fixed 380px right column, singles in a
+            // flex:1 grid on the left) left the entire left region blank
+            // whenever there was only one single to put in it — a screen of
+            // dead space, worse than the stranding it was avoiding. Ordering
+            // handles it instead: the short cards pack together, the tall slips
+            // land at the end, and with align-items:start a short card beside a
+            // slip just sits at the top of its track rather than forcing the
+            // page taller. Grouping is untouched — every single position on the
+            // same matchup still shares one card.
+            const ordered = [
+              ...groups.filter((g) => !g.isCombo),
+              ...groups.filter((g) => g.isCombo),
+            ];
             return (
-              <div className="mb-open">
-                <div className="mb-games" style={S.gameList}>
-                  {singles.map(card)}
-                </div>
-                <div className="mb-parlays" style={S.parlayColumn}>
-                  {combos.map(card)}
-                </div>
+              <div className="mb-games" style={S.gameList}>
+                {ordered.map(card)}
               </div>
             );
           })()
