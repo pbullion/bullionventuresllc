@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import OpenBetsRail from "../../components/OpenBetsRail";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
@@ -19,6 +20,22 @@ const C = {
   chipBg: "#1c2430",
   rowAlt: "#1a2029",
 };
+
+/* Cross-link to a sibling betting screen. Kept identical to the counterpart
+ * links on /crypto-value and /my-bets — these three pages are one set, so the
+ * button should read the same on all of them. */
+const navLink = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: C.text,
+  background: C.chipBg,
+  border: `1px solid ${C.border}`,
+  borderRadius: 8,
+  padding: "5px 12px",
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+};
+const navGroup = { marginLeft: "auto", display: "flex", gap: 8 };
 
 const cents = (dollars) =>
   dollars == null ? "—" : `${Math.round(Number(dollars) * 100)}¢`;
@@ -1381,123 +1398,123 @@ export default function TotalsValue() {
         padding: "20px 14px 60px",
       }}
     >
-      <div style={{ maxWidth: 860, margin: "0 auto" }}>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "baseline",
-            gap: 10,
-            marginBottom: 4,
-          }}
-        >
-          <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>
-            📈 Totals Value
-          </h1>
-          <span style={{ color: C.muted, fontSize: 12 }}>
-            Kalshi over/unders vs live pace model — WNBA · MLB · CBB · NFL · CFB
-            {updatedAt
-              ? ` · updated ${updatedAt.toLocaleTimeString("en-US", {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}`
-              : ""}
-          </span>
-          {/* Counterpart to the "sports →" link on /crypto-value. */}
-          <a
-            href="/crypto-value"
-            style={{
-              marginLeft: "auto",
-              fontSize: 12,
-              fontWeight: 700,
-              color: C.text,
-              background: C.chipBg,
-              border: `1px solid ${C.border}`,
-              borderRadius: 8,
-              padding: "5px 12px",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}
-          >
-            🪙 crypto →
-          </a>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            margin: "10px 0 18px",
-            color: C.muted,
-            fontSize: 13,
-          }}
-        >
-          Min edge:
-          {EDGE_OPTIONS.map((e) => (
-            <button
-              key={e}
-              onClick={() => setMinEdge(e)}
-              style={{
-                padding: "4px 10px",
-                borderRadius: 999,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                color: e === minEdge ? C.bg : C.text,
-                background: e === minEdge ? C.green : C.chipBg,
-                border: `1px solid ${e === minEdge ? C.green : C.border}`,
-              }}
-            >
-              {Math.round(e * 100)}¢
-            </button>
-          ))}
-        </div>
-
-        <AutoBetPanel games={games} />
-        <PerformancePanel />
-
-        {error && (
+      {/* The 860px centering this page used to do inline now lives in
+          .bv-shell (via --bv-main-w), so the open-bets rail can sit beside the
+          column on a wide screen. */}
+      <div className="bv-shell" style={{ "--bv-main-w": "860px" }}>
+        <div className="bv-main">
           <div
             style={{
-              background: C.redSoft,
-              border: `1px solid ${C.redBorder}`,
-              borderRadius: 10,
-              padding: 12,
-              marginBottom: 16,
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "baseline",
+              gap: 10,
+              marginBottom: 4,
             }}
           >
-            Couldn’t load scan: {error}
+            <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>
+              📈 Totals Value
+            </h1>
+            <span style={{ color: C.muted, fontSize: 12 }}>
+              Kalshi over/unders vs live pace model — WNBA · MLB · CBB · NFL · CFB
+              {updatedAt
+                ? ` · updated ${updatedAt.toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}`
+                : ""}
+            </span>
+            {/* Counterparts to the links on /crypto-value. Wrapped in one
+                group so the header's flex-wrap moves them as a pair —
+                separately, the long subtitle pushed "my bets" onto its own
+                line while "crypto" stayed up top. */}
+            <span style={navGroup}>
+              <a href="/crypto-value" style={navLink}>
+                🪙 crypto →
+              </a>
+              <a href="/my-bets" style={navLink}>
+                🎯 my bets →
+              </a>
+            </span>
           </div>
-        )}
-        {!data && !error && <div style={{ color: C.muted }}>Loading…</div>}
 
-        {valueBets.length > 0 && (
-          <div style={{ display: "grid", gap: 10, marginBottom: 22 }}>
-            <div style={{ fontWeight: 800, fontSize: 14, color: C.green }}>
-              VALUE BETS
-            </div>
-            {valueBets.map(({ game, bet }) => (
-              <ValueBetCard key={`${bet.ticker}-${bet.best.side}`} game={game} bet={bet} />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              margin: "10px 0 18px",
+              color: C.muted,
+              fontSize: 13,
+            }}
+          >
+            Min edge:
+            {EDGE_OPTIONS.map((e) => (
+              <button
+                key={e}
+                onClick={() => setMinEdge(e)}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  color: e === minEdge ? C.bg : C.text,
+                  background: e === minEdge ? C.green : C.chipBg,
+                  border: `1px solid ${e === minEdge ? C.green : C.border}`,
+                }}
+              >
+                {Math.round(e * 100)}¢
+              </button>
             ))}
           </div>
-        )}
-        {data && valueBets.length === 0 && (
-          <div style={{ color: C.muted, fontSize: 13, marginBottom: 18 }}>
-            No bets clear a {Math.round(minEdge * 100)}¢ edge right now
-            {data.live_count === 0
-              ? " — no games are live (the model only prices live games)."
-              : "."}
+
+          <AutoBetPanel games={games} />
+          <PerformancePanel />
+
+          {error && (
+            <div
+              style={{
+                background: C.redSoft,
+                border: `1px solid ${C.redBorder}`,
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 16,
+              }}
+            >
+              Couldn’t load scan: {error}
+            </div>
+          )}
+          {!data && !error && <div style={{ color: C.muted }}>Loading…</div>}
+
+          {valueBets.length > 0 && (
+            <div style={{ display: "grid", gap: 10, marginBottom: 22 }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: C.green }}>
+                VALUE BETS
+              </div>
+              {valueBets.map(({ game, bet }) => (
+                <ValueBetCard key={`${bet.ticker}-${bet.best.side}`} game={game} bet={bet} />
+              ))}
+            </div>
+          )}
+          {data && valueBets.length === 0 && (
+            <div style={{ color: C.muted, fontSize: 13, marginBottom: 18 }}>
+              No bets clear a {Math.round(minEdge * 100)}¢ edge right now
+              {data.live_count === 0
+                ? " — no games are live (the model only prices live games)."
+                : "."}
+            </div>
+          )}
+
+          <div style={{ display: "grid", gap: 12 }}>
+            {games.map((g) => (
+              <GameCard key={g.event_ticker} game={g} />
+            ))}
           </div>
-        )}
 
-        <div style={{ display: "grid", gap: 12 }}>
-          {games.map((g) => (
-            <GameCard key={g.event_ticker} game={g} />
-          ))}
         </div>
-
+        <OpenBetsRail domain="sports" />
       </div>
     </div>
   );

@@ -21,3 +21,42 @@ a {
   display: flex;
   flex-direction: column;
 }
+
+/* Betting-page shell. /crypto-value and /totals-value put a rail of live My
+   Bets positions beside the page on a wide screen; below the breakpoint the
+   shell collapses back to the plain centered column and OpenBetsRail renders
+   nothing visible — it's a secondary read that on a phone would push the
+   actual page content down a full screen. Both pages use these, hence global
+   rather than a per-page injected sheet. Each sets --bv-main-w to the column
+   width it already had, so nothing about the centered layout changes. */
+.bv-shell {
+  max-width: var(--bv-main-w, 960px);
+  margin: 0 auto;
+}
+.bv-main {
+  min-width: 0;
+}
+.bv-rail {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .bv-shell {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    max-width: calc(var(--bv-main-w, 960px) + 340px);
+  }
+  .bv-main {
+    flex: 1 1 auto;
+    max-width: var(--bv-main-w, 960px);
+  }
+  .bv-rail {
+    display: block;
+    flex: 0 0 320px;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+}

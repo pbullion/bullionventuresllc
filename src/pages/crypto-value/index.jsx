@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import OpenBetsRail from "../../components/OpenBetsRail";
 
 /* Crypto Value — live view of the Kalshi crypto engine (backend:
  * sheline-art-website-api routes/kalshiCrypto.js, spec in
@@ -120,7 +121,6 @@ const td = {
  * links on /totals-value and /my-bets — these three pages are one set, so the
  * button should read the same on all of them. */
 const navLink = {
-  marginLeft: "auto",
   fontSize: 12,
   fontWeight: 700,
   color: C.text,
@@ -131,6 +131,7 @@ const navLink = {
   textDecoration: "none",
   whiteSpace: "nowrap",
 };
+const navGroup = { marginLeft: "auto", display: "flex", gap: 8 };
 
 /* Responsive tables. These panels run 6–8 numeric columns, which no phone can
  * fit, and the `overflowX: auto` wrappers meant Status and P&L — the columns
@@ -443,8 +444,6 @@ export default function CryptoValue() {
         fontFamily:
           "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         padding: "16px 12px 40px",
-        maxWidth: 960,
-        margin: "0 auto",
         // App.jsx wraps every route in a column flex container, so this div is
         // a flex item — and a flex item's `min-width: auto` refuses to shrink
         // below min-content. The wide tables below made that ~600px, so on a
@@ -457,537 +456,156 @@ export default function CryptoValue() {
       }}
     >
       <style>{CV_CSS}</style>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          gap: 10,
-          marginBottom: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>
-          🪙 Crypto Value
-        </h1>
-        {pill()}
-        <span style={{ fontSize: 11, color: C.muted }}>
-          {scan ? `scan ${timeAgo(scan.generated_at)}` : "loading…"}
-        </span>
-        {err && <span style={{ fontSize: 11, color: C.red }}>{err}</span>}
-        <a href="/totals-value" style={navLink}>
-          📈 sports →
-        </a>
-      </div>
-
-      {/* ── Auto-bet panel ── */}
-      <Panel
-        id="autobet"
-        title={
-          <>
-            🤖 Auto-Bet
-            {pill()}
-            {status && status.combos_enabled && (
-              <span style={chip(C.chipBg, C.amber)}>COMBOS ARMED</span>
-            )}
-          </>
-        }
-        right={
-          <>
-            <button
-              onClick={changeCap}
-              disabled={busy}
-              style={{
-                background: C.chipBg,
-                color: C.text,
-                border: `1px solid ${C.border}`,
-                borderRadius: 8,
-                padding: "5px 12px",
-                fontSize: 12,
-                fontWeight: 800,
-                cursor: "pointer",
-                opacity: busy ? 0.5 : 1,
-              }}
-            >
-              CAP $
-              {status && status.today && status.today.daily_cap != null
-                ? Math.round(status.today.daily_cap)
-                : "—"}{" "}
-              ✎
-            </button>
-            {status && status.enabled === false && status.killed ? (
-              <button
-                onClick={enable}
-                disabled={busy}
-                style={{
-                  background: C.greenSoft,
-                  color: C.green,
-                  border: `1px solid ${C.greenBorder}`,
-                  borderRadius: 8,
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Enable (PIN)
-              </button>
-            ) : (
-              <button
-                onClick={kill}
-                disabled={busy}
-                style={{
-                  background: C.redSoft,
-                  color: C.red,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 8,
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Kill
-              </button>
-            )}
-          </>
-        }
-      >
-        {status && (
-          <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
-            ${status.config.unit_dollars}/u · calib-edge-scaled ≤
-            {status.config.max_units}u · ${status.today.daily_cap} max daily
-            LOSS · raw ≥
-            {cents(status.config.min_edge)} · calib ≥
-            {cents(status.config.min_calib_edge)} · spread ≤
-            {cents(status.config.max_spread)} · $
-            {status.config.max_window_dollars}/window ·{" "}
-            {status.config.assets.join("+").toUpperCase()} ·{" "}
-            {status.config.horizons.join("+")}
-            <span style={{ marginLeft: 8 }}>
-              {/* The cap counts money LOST, not staked (2026-07-28). Gross
-                  staked is kept alongside as context. 2dp because real days
-                  have run under $3 and whole dollars turned $0.90 into "$1". */}
-              lost today <b style={{ color: C.text }}>
-                $
-                {(status.today.lost != null
-                  ? status.today.lost
-                  : status.today.staked
-                ).toFixed(2)}
-              </b>{" "}
-              / ${status.today.daily_cap}
-              <span style={{ color: C.muted }}>
-                {" "}
-                · ${status.today.staked.toFixed(2)} staked
-              </span>
-            </span>
-            {status.calibration_cells_live &&
-              status.calibration_cells_live.length > 0 && (
-                <span style={{ marginLeft: 8, color: C.green }}>
-                  {status.calibration_cells_live.length} trusted cell
-                  {status.calibration_cells_live.length > 1 ? "s" : ""}
-                </span>
-              )}
-            {status.calibration_cells_live &&
-              status.calibration_cells_live.length === 0 && (
-                <span style={{ marginLeft: 8, color: C.amber }}>
-                  0 trusted cells — engine stakes nothing until calibration
-                  earns trust
-                </span>
-              )}
-          </div>
-        )}
-        <div style={{ overflowX: "auto" }}>
-          <table
-            className="cv-table"
-            style={{ borderCollapse: "collapse", width: "100%" }}
-          >
-            <thead>
-              <tr>
-                <th style={th}>Time</th>
-                <th style={th}>Pick</th>
-                <th style={th}>Stake</th>
-                <th style={th}>Price</th>
-                <th style={th}>Edge (calib)</th>
-                <th style={th}>Status</th>
-                <th style={th}>P&L</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shownBets.map((b, i) => (
-                <tr
-                  key={b.id}
-                  style={{ background: i % 2 ? C.rowAlt : "transparent" }}
-                >
-                  <td style={{ ...td, color: C.muted }} data-label="Time">
-                    {clockTime(b.created_at)}
-                  </td>
-                  <td style={td} data-primary="">
-                    {b.pick_label}
-                  </td>
-                  {/* Real money at risk, not the intended unit. IOC orders
-                      partial-fill constantly (5 contracts asked, 1 filled is
-                      typical), so stake_dollars overstated exposure — a $5 row
-                      that actually cost $0.90 made the P&L column look far
-                      worse than it was. Intent is kept underneath when the two
-                      differ, so a chronically-missing fill is still visible. */}
-                  <td style={td} data-label="Stake">
-                    <span>
-                      {money(actualStake(b))}
-                      {Math.abs(actualStake(b) - Number(b.stake_dollars)) >
-                        0.005 && (
-                        <span style={{ color: C.muted, fontSize: 10.5 }}>
-                          {" "}
-                          of {money(b.stake_dollars)}
-                        </span>
-                      )}
-                    </span>
-                  </td>
-                  <td style={td} data-label="Price">
-                    {cents(b.fill_price || b.limit_price)}
-                  </td>
-                  <td style={td} data-label="Edge (calib)">
-                    <span>
-                      {edgeCents(b.edge)} ({edgeCents(b.calib_edge)})
-                    </span>
-                  </td>
-                  <td
-                    data-label="Status"
-                    style={{
-                      ...td,
-                      color:
-                        b.result === "won"
-                          ? C.green
-                          : b.result === "lost"
-                            ? C.red
-                            : C.muted,
-                    }}
-                  >
-                    {b.result || b.status}
-                  </td>
-                  <td
-                    data-label="P&L"
-                    style={{
-                      ...td,
-                      color:
-                        b.pnl_dollars > 0
-                          ? C.green
-                          : b.pnl_dollars < 0
-                            ? C.red
-                            : C.muted,
-                    }}
-                  >
-                    {b.pnl_dollars != null ? money(b.pnl_dollars) : "—"}
-                  </td>
-                </tr>
-              ))}
-              {!shownBets.length && (
-                <tr>
-                  <td style={{ ...td, color: C.muted }} colSpan={7}>
-                    {bets.length
-                      ? `No filled bets today (${unfilledCount} unfilled).`
-                      : "No bets today."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {/* Unfilled IOC orders hold no position and risk nothing, and they
-            outnumber fills several to one — hidden by default. Still reachable,
-            because a chronically-unfilled market IS a signal worth seeing. */}
-        {unfilledCount > 0 && (
-          <button
-            onClick={() => setShowUnfilled((v) => !v)}
+      {/* The centering this page used to do inline now lives in .bv-shell, so
+          the open-bets rail can sit beside the column on a wide screen. */}
+      <div className="bv-shell">
+        <div className="bv-main">
+          <div
             style={{
-              marginTop: 6,
-              // Both toggles are zero-padding inline buttons, so without this
-              // they read as one run-together string on a narrow screen.
-              marginRight: 14,
-              background: "transparent",
-              border: "none",
-              color: C.muted,
-              fontSize: 11.5,
-              cursor: "pointer",
-              padding: 0,
+              display: "flex",
+              alignItems: "baseline",
+              gap: 10,
+              marginBottom: 12,
+              flexWrap: "wrap",
             }}
           >
-            {showUnfilled ? "▾ hide" : "▸ show"} {unfilledCount} unfilled
-          </button>
-        )}
-        <button
-          onClick={() => setShowActivity((v) => !v)}
-          style={{
-            marginTop: 8,
-            background: "transparent",
-            border: "none",
-            color: C.muted,
-            fontSize: 12,
-            cursor: "pointer",
-            padding: 0,
-          }}
-        >
-          {showActivity ? "▾ hide" : "▸ show"} activity feed
-        </button>
-        {showActivity && (
-          <div style={{ marginTop: 6, maxHeight: 260, overflowY: "auto" }}>
-            {activity.map((a) => (
-              <div
-                key={a.id}
-                style={{
-                  fontSize: 11.5,
-                  padding: "3px 0",
-                  color:
-                    a.decision === "placed"
-                      ? C.green
-                      : a.decision === "would-place"
-                        ? C.amber
-                        : C.muted,
-                }}
-              >
-                {timeAgo(a.ran_at)} · {a.pick_label || a.market_ticker} ·{" "}
-                {a.decision}
-                {a.skip_reason ? `: ${a.skip_reason}` : ""}
-                {a.edge != null ? ` · edge ${edgeCents(a.edge)}` : ""}
-              </div>
-            ))}
-            {!activity.length && (
-              <div style={{ fontSize: 12, color: C.muted }}>
-                Nothing evaluated yet.
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>
+              🪙 Crypto Value
+            </h1>
+            {pill()}
+            <span style={{ fontSize: 11, color: C.muted }}>
+              {scan ? `scan ${timeAgo(scan.generated_at)}` : "loading…"}
+            </span>
+            {err && <span style={{ fontSize: 11, color: C.red }}>{err}</span>}
+            {/* One group so the header's flex-wrap moves both chips together
+                rather than stranding one on its own line. */}
+            <span style={navGroup}>
+              <a href="/totals-value" style={navLink}>
+                📈 sports →
+              </a>
+              <a href="/my-bets" style={navLink}>
+                🎯 my bets →
+              </a>
+            </span>
+          </div>
+
+          {/* ── Auto-bet panel ── */}
+          <Panel
+            id="autobet"
+            title={
+              <>
+                🤖 Auto-Bet
+                {pill()}
+                {status && status.combos_enabled && (
+                  <span style={chip(C.chipBg, C.amber)}>COMBOS ARMED</span>
+                )}
+              </>
+            }
+            right={
+              <>
+                <button
+                  onClick={changeCap}
+                  disabled={busy}
+                  style={{
+                    background: C.chipBg,
+                    color: C.text,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "5px 12px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    opacity: busy ? 0.5 : 1,
+                  }}
+                >
+                  CAP $
+                  {status && status.today && status.today.daily_cap != null
+                    ? Math.round(status.today.daily_cap)
+                    : "—"}{" "}
+                  ✎
+                </button>
+                {status && status.enabled === false && status.killed ? (
+                  <button
+                    onClick={enable}
+                    disabled={busy}
+                    style={{
+                      background: C.greenSoft,
+                      color: C.green,
+                      border: `1px solid ${C.greenBorder}`,
+                      borderRadius: 8,
+                      padding: "5px 12px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Enable (PIN)
+                  </button>
+                ) : (
+                  <button
+                    onClick={kill}
+                    disabled={busy}
+                    style={{
+                      background: C.redSoft,
+                      color: C.red,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "5px 12px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Kill
+                  </button>
+                )}
+              </>
+            }
+          >
+            {status && (
+              <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+                ${status.config.unit_dollars}/u · calib-edge-scaled ≤
+                {status.config.max_units}u · ${status.today.daily_cap} max daily
+                LOSS · raw ≥
+                {cents(status.config.min_edge)} · calib ≥
+                {cents(status.config.min_calib_edge)} · spread ≤
+                {cents(status.config.max_spread)} · $
+                {status.config.max_window_dollars}/window ·{" "}
+                {status.config.assets.join("+").toUpperCase()} ·{" "}
+                {status.config.horizons.join("+")}
+                <span style={{ marginLeft: 8 }}>
+                  {/* The cap counts money LOST, not staked (2026-07-28). Gross
+                      staked is kept alongside as context. 2dp because real days
+                      have run under $3 and whole dollars turned $0.90 into "$1". */}
+                  lost today <b style={{ color: C.text }}>
+                    $
+                    {(status.today.lost != null
+                      ? status.today.lost
+                      : status.today.staked
+                    ).toFixed(2)}
+                  </b>{" "}
+                  / ${status.today.daily_cap}
+                  <span style={{ color: C.muted }}>
+                    {" "}
+                    · ${status.today.staked.toFixed(2)} staked
+                  </span>
+                </span>
+                {status.calibration_cells_live &&
+                  status.calibration_cells_live.length > 0 && (
+                    <span style={{ marginLeft: 8, color: C.green }}>
+                      {status.calibration_cells_live.length} trusted cell
+                      {status.calibration_cells_live.length > 1 ? "s" : ""}
+                    </span>
+                  )}
+                {status.calibration_cells_live &&
+                  status.calibration_cells_live.length === 0 && (
+                    <span style={{ marginLeft: 8, color: C.amber }}>
+                      0 trusted cells — engine stakes nothing until calibration
+                      earns trust
+                    </span>
+                  )}
               </div>
             )}
-          </div>
-        )}
-      </Panel>
-
-      {/* ── Feed health strip ── */}
-      <Panel id="feeds" title="Feeds">
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {assets.map(([key, a]) => (
-            <div
-              key={key}
-              style={{
-                background: C.chipBg,
-                border: `1px solid ${a.feed_ok ? C.border : C.red}`,
-                borderRadius: 8,
-                padding: "6px 10px",
-                minWidth: 118,
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 700 }}>
-                {key.toUpperCase()}{" "}
-                <span style={{ color: a.feed_ok ? C.green : C.red }}>
-                  {a.feed_ok ? "●" : "○"}
-                </span>
-                {a.vol_warmup && (
-                  <span style={{ fontSize: 10, color: C.amber }}> warmup</span>
-                )}
-              </div>
-              <div style={{ fontSize: 12.5 }}>{fmtPrice(key, a.spot)}</div>
-              <div style={{ fontSize: 10, color: C.muted }}>
-                σ1s {a.sigma_1s ? (a.sigma_1s * 1e4).toFixed(2) + "bp" : "—"} ·
-                basis {a.basis != null ? Number(a.basis).toFixed(2) : "—"}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      {/* ── Windows: model vs market per asset ── */}
-      <Panel id="windows" title="Live windows — model vs market">
-        <div style={{ overflowX: "auto" }}>
-          <table
-            className="cv-table"
-            style={{ borderCollapse: "collapse", width: "100%" }}
-          >
-            <thead>
-              <tr>
-                <th style={th}>Market</th>
-                <th style={th}>Target</th>
-                <th style={th}>Spot</th>
-                <th style={th}>Left</th>
-                <th style={th}>Model</th>
-                <th style={th}>Bid/Ask</th>
-                <th style={th}>Best edge</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assets.flatMap(([key, a], ai) =>
-                (a.windows || [])
-                  .filter((w) => w.horizon === "15m" || (w.best && w.best.edge > 0))
-                  .slice(0, 6)
-                  .map((w, i) => (
-                    <tr
-                      key={w.market_ticker}
-                      style={{
-                        background: (ai + i) % 2 ? C.rowAlt : "transparent",
-                      }}
-                    >
-                      <td style={td} data-primary="">
-                        <span>
-                          <b>{key.toUpperCase()}</b>{" "}
-                          <span style={{ color: C.muted, fontSize: 11 }}>
-                            {w.horizon}
-                            {w.in_final_min ? " · FINAL MIN" : ""}
-                          </span>
-                        </span>
-                      </td>
-                      <td style={td} data-label="Target">
-                        {fmtPrice(key, w.target)}
-                      </td>
-                      <td style={td} data-label="Spot">
-                        {fmtPrice(key, a.spot)}
-                      </td>
-                      <td style={td} data-label="Left">
-                        {countdown(w.tau_secs)}
-                      </td>
-                      <td style={td} data-label="Model">
-                        {pct(w.model_p)}
-                      </td>
-                      <td style={td} data-label="Bid/Ask">
-                        <span>
-                          {cents(w.yes_bid)}/{cents(w.yes_ask)}
-                        </span>
-                      </td>
-                      <td
-                        data-label="Best edge"
-                        style={{
-                          ...td,
-                          color:
-                            w.best && w.best.edge >= 0.03 ? C.green : C.muted,
-                          fontWeight: w.best && w.best.edge >= 0.03 ? 700 : 400,
-                        }}
-                      >
-                        {w.best
-                          ? `${w.best.side === "yes" ? "UP" : "DOWN"} ${edgeCents(w.best.edge)}`
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {scan && scan.candidates && scan.candidates.length > 0 && (
-          <div style={{ marginTop: 8, fontSize: 12, color: C.amber }}>
-            ⚡ {scan.candidates.length} candidate
-            {scan.candidates.length > 1 ? "s" : ""} above the raw-edge floor
-            right now
-          </div>
-        )}
-      </Panel>
-
-      {/* ── Combo correlation discount (edge hypothesis #1, visible day one) ── */}
-      <Panel
-        id="combos"
-        title={
-          <>
-            Combos — correlation discount
-            <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>
-              quote vs independence (Π legs) vs copula
-            </span>
-          </>
-        }
-      >
-        <div style={{ overflowX: "auto" }}>
-          <table
-            className="cv-table"
-            style={{ borderCollapse: "collapse", width: "100%" }}
-          >
-            <thead>
-              <tr>
-                <th style={th}>When</th>
-                <th style={th}>Pattern</th>
-                <th style={th}>Legs</th>
-                <th style={th}>Π market</th>
-                <th style={th}>Copula</th>
-                <th style={th}>Kalshi quote</th>
-                <th style={th}>Gap</th>
-                <th style={th}>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {combos.map((q, i) => {
-                const mid =
-                  q.combo_yes_bid != null && q.combo_yes_ask != null
-                    ? (Number(q.combo_yes_bid) + Number(q.combo_yes_ask)) / 2
-                    : null;
-                const gap = mid != null ? Number(q.joint_model_p) - mid : null;
-                const legs = Array.isArray(q.legs) ? q.legs : [];
-                return (
-                  <tr
-                    key={q.created_at + q.pattern}
-                    style={{ background: i % 2 ? C.rowAlt : "transparent" }}
-                  >
-                    <td style={{ ...td, color: C.muted }} data-label="When">
-                      {timeAgo(q.created_at)}
-                    </td>
-                    <td style={{ ...td, fontWeight: 700 }} data-primary="">
-                      {q.pattern}
-                    </td>
-                    <td style={{ ...td, fontSize: 11 }} data-label="Legs">
-                      {legs.map((l) => l.asset.toUpperCase()).join("+")}
-                    </td>
-                    <td style={td} data-label="Π market">
-                      {cents(q.product_market)}
-                    </td>
-                    <td style={td} data-label="Copula">
-                      {cents(q.joint_model_p)}
-                    </td>
-                    <td style={td} data-label="Kalshi quote">
-                      {mid != null
-                        ? `${cents(q.combo_yes_bid)}/${cents(q.combo_yes_ask)}`
-                        : "no quote"}
-                    </td>
-                    <td
-                      data-label="Gap"
-                      style={{
-                        ...td,
-                        color:
-                          gap != null && gap > 0.02
-                            ? C.green
-                            : gap != null && gap < -0.02
-                              ? C.red
-                              : C.muted,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {gap != null ? edgeCents(gap) : "—"}
-                    </td>
-                    <td style={td} data-label="Result">
-                      {q.result === "yes"
-                        ? "✅ hit"
-                        : q.result === "no"
-                          ? "❌ miss"
-                          : "…"}
-                    </td>
-                  </tr>
-                );
-              })}
-              {!combos.length && (
-                <tr>
-                  <td style={{ ...td, color: C.muted }} colSpan={8}>
-                    No combo quotes logged yet — the quoter runs mid-window
-                    (minute 2–13 of each 15-min window).
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-
-      {/* ── Performance / calibration ── */}
-      <Panel
-        id="performance"
-        title="Model performance & calibration"
-        defaultOpen={false}
-      >
-        {perf && (
-          <div>
-            <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>
-              Brier, 7d (lower is better — the model must beat the PRICE, not
-              a coin):
-            </div>
             <div style={{ overflowX: "auto" }}>
               <table
                 className="cv-table"
@@ -995,94 +613,489 @@ export default function CryptoValue() {
               >
                 <thead>
                   <tr>
-                    <th style={th}>Segment</th>
-                    <th style={th}>n</th>
-                    <th style={th}>Model</th>
-                    <th style={th}>Market</th>
-                    <th style={th}>Verdict</th>
+                    <th style={th}>Time</th>
+                    <th style={th}>Pick</th>
+                    <th style={th}>Stake</th>
+                    <th style={th}>Price</th>
+                    <th style={th}>Edge (calib)</th>
+                    <th style={th}>Status</th>
+                    <th style={th}>P&L</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(perf.brier_7d || []).map((r, i) => {
-                    const better =
-                      Number(r.brier_model) < Number(r.brier_market);
-                    return (
-                      <tr
-                        key={`${r.asset}:${r.horizon}`}
-                        style={{ background: i % 2 ? C.rowAlt : "transparent" }}
+                  {shownBets.map((b, i) => (
+                    <tr
+                      key={b.id}
+                      style={{ background: i % 2 ? C.rowAlt : "transparent" }}
+                    >
+                      <td style={{ ...td, color: C.muted }} data-label="Time">
+                        {clockTime(b.created_at)}
+                      </td>
+                      <td style={td} data-primary="">
+                        {b.pick_label}
+                      </td>
+                      {/* Real money at risk, not the intended unit. IOC orders
+                          partial-fill constantly (5 contracts asked, 1 filled is
+                          typical), so stake_dollars overstated exposure — a $5 row
+                          that actually cost $0.90 made the P&L column look far
+                          worse than it was. Intent is kept underneath when the two
+                          differ, so a chronically-missing fill is still visible. */}
+                      <td style={td} data-label="Stake">
+                        <span>
+                          {money(actualStake(b))}
+                          {Math.abs(actualStake(b) - Number(b.stake_dollars)) >
+                            0.005 && (
+                            <span style={{ color: C.muted, fontSize: 10.5 }}>
+                              {" "}
+                              of {money(b.stake_dollars)}
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                      <td style={td} data-label="Price">
+                        {cents(b.fill_price || b.limit_price)}
+                      </td>
+                      <td style={td} data-label="Edge (calib)">
+                        <span>
+                          {edgeCents(b.edge)} ({edgeCents(b.calib_edge)})
+                        </span>
+                      </td>
+                      <td
+                        data-label="Status"
+                        style={{
+                          ...td,
+                          color:
+                            b.result === "won"
+                              ? C.green
+                              : b.result === "lost"
+                                ? C.red
+                                : C.muted,
+                        }}
                       >
-                        <td style={td} data-primary="">
-                          <span>
-                            {r.asset.toUpperCase()} {r.horizon}
-                          </span>
-                        </td>
-                        <td style={td} data-label="n">
-                          {r.n}
-                        </td>
-                        <td style={td} data-label="Model">
-                          {Number(r.brier_model).toFixed(4)}
-                        </td>
-                        <td style={td} data-label="Market">
-                          {Number(r.brier_market).toFixed(4)}
-                        </td>
-                        <td
-                          data-label="Verdict"
-                          style={{ ...td, color: better ? C.green : C.muted }}
-                        >
-                          {better ? "model ahead" : "market ahead"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {!(perf.brier_7d || []).length && (
+                        {b.result || b.status}
+                      </td>
+                      <td
+                        data-label="P&L"
+                        style={{
+                          ...td,
+                          color:
+                            b.pnl_dollars > 0
+                              ? C.green
+                              : b.pnl_dollars < 0
+                                ? C.red
+                                : C.muted,
+                        }}
+                      >
+                        {b.pnl_dollars != null ? money(b.pnl_dollars) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                  {!shownBets.length && (
                     <tr>
-                      <td style={{ ...td, color: C.muted }} colSpan={5}>
-                        No settled snapshots yet.
+                      <td style={{ ...td, color: C.muted }} colSpan={7}>
+                        {bets.length
+                          ? `No filled bets today (${unfilledCount} unfilled).`
+                          : "No bets today."}
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-            <div
+            {/* Unfilled IOC orders hold no position and risk nothing, and they
+                outnumber fills several to one — hidden by default. Still reachable,
+                because a chronically-unfilled market IS a signal worth seeing. */}
+            {unfilledCount > 0 && (
+              <button
+                onClick={() => setShowUnfilled((v) => !v)}
+                style={{
+                  marginTop: 6,
+                  // Both toggles are zero-padding inline buttons, so without this
+                  // they read as one run-together string on a narrow screen.
+                  marginRight: 14,
+                  background: "transparent",
+                  border: "none",
+                  color: C.muted,
+                  fontSize: 11.5,
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                {showUnfilled ? "▾ hide" : "▸ show"} {unfilledCount} unfilled
+              </button>
+            )}
+            <button
+              onClick={() => setShowActivity((v) => !v)}
               style={{
-                fontSize: 12,
+                marginTop: 8,
+                background: "transparent",
+                border: "none",
                 color: C.muted,
-                margin: "10px 0 4px",
+                fontSize: 12,
+                cursor: "pointer",
+                padding: 0,
               }}
             >
-              Trusted calibration cells (w &gt; 0 — the only places the engine
-              may stake):
-            </div>
-            <div style={{ fontSize: 12 }}>
-              {Object.entries(
-                (perf.calibration && perf.calibration.cells) || {}
-              )
-                .filter(([, c]) => c.w > 0)
-                .map(([k, c]) => (
-                  <span
-                    key={k}
-                    style={{ ...chip(C.greenSoft, C.green), margin: 3 }}
+              {showActivity ? "▾ hide" : "▸ show"} activity feed
+            </button>
+            {showActivity && (
+              <div style={{ marginTop: 6, maxHeight: 260, overflowY: "auto" }}>
+                {activity.map((a) => (
+                  <div
+                    key={a.id}
+                    style={{
+                      fontSize: 11.5,
+                      padding: "3px 0",
+                      color:
+                        a.decision === "placed"
+                          ? C.green
+                          : a.decision === "would-place"
+                            ? C.amber
+                            : C.muted,
+                    }}
                   >
-                    {k} w={c.w} n={c.n}
-                  </span>
+                    {timeAgo(a.ran_at)} · {a.pick_label || a.market_ticker} ·{" "}
+                    {a.decision}
+                    {a.skip_reason ? `: ${a.skip_reason}` : ""}
+                    {a.edge != null ? ` · edge ${edgeCents(a.edge)}` : ""}
+                  </div>
                 ))}
-              {!Object.values(
-                (perf.calibration && perf.calibration.cells) || {}
-              ).some((c) => c.w > 0) && (
-                <span style={{ color: C.amber }}>
-                  none yet — snapshots are accumulating; the fit refreshes
-                  every 15 minutes
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-      </Panel>
+                {!activity.length && (
+                  <div style={{ fontSize: 12, color: C.muted }}>
+                    Nothing evaluated yet.
+                  </div>
+                )}
+              </div>
+            )}
+          </Panel>
 
-      <div style={{ fontSize: 10.5, color: C.muted, textAlign: "center" }}>
-        Settlement = 60s CF Benchmarks RTI TWAP · fees included in every edge ·
-        paper mode logs would-place bets without ordering
+          {/* ── Feed health strip ── */}
+          <Panel id="feeds" title="Feeds">
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {assets.map(([key, a]) => (
+                <div
+                  key={key}
+                  style={{
+                    background: C.chipBg,
+                    border: `1px solid ${a.feed_ok ? C.border : C.red}`,
+                    borderRadius: 8,
+                    padding: "6px 10px",
+                    minWidth: 118,
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>
+                    {key.toUpperCase()}{" "}
+                    <span style={{ color: a.feed_ok ? C.green : C.red }}>
+                      {a.feed_ok ? "●" : "○"}
+                    </span>
+                    {a.vol_warmup && (
+                      <span style={{ fontSize: 10, color: C.amber }}> warmup</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12.5 }}>{fmtPrice(key, a.spot)}</div>
+                  <div style={{ fontSize: 10, color: C.muted }}>
+                    σ1s {a.sigma_1s ? (a.sigma_1s * 1e4).toFixed(2) + "bp" : "—"} ·
+                    basis {a.basis != null ? Number(a.basis).toFixed(2) : "—"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          {/* ── Windows: model vs market per asset ── */}
+          <Panel id="windows" title="Live windows — model vs market">
+            <div style={{ overflowX: "auto" }}>
+              <table
+                className="cv-table"
+                style={{ borderCollapse: "collapse", width: "100%" }}
+              >
+                <thead>
+                  <tr>
+                    <th style={th}>Market</th>
+                    <th style={th}>Target</th>
+                    <th style={th}>Spot</th>
+                    <th style={th}>Left</th>
+                    <th style={th}>Model</th>
+                    <th style={th}>Bid/Ask</th>
+                    <th style={th}>Best edge</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assets.flatMap(([key, a], ai) =>
+                    (a.windows || [])
+                      .filter((w) => w.horizon === "15m" || (w.best && w.best.edge > 0))
+                      .slice(0, 6)
+                      .map((w, i) => (
+                        <tr
+                          key={w.market_ticker}
+                          style={{
+                            background: (ai + i) % 2 ? C.rowAlt : "transparent",
+                          }}
+                        >
+                          <td style={td} data-primary="">
+                            <span>
+                              <b>{key.toUpperCase()}</b>{" "}
+                              <span style={{ color: C.muted, fontSize: 11 }}>
+                                {w.horizon}
+                                {w.in_final_min ? " · FINAL MIN" : ""}
+                              </span>
+                            </span>
+                          </td>
+                          <td style={td} data-label="Target">
+                            {fmtPrice(key, w.target)}
+                          </td>
+                          <td style={td} data-label="Spot">
+                            {fmtPrice(key, a.spot)}
+                          </td>
+                          <td style={td} data-label="Left">
+                            {countdown(w.tau_secs)}
+                          </td>
+                          <td style={td} data-label="Model">
+                            {pct(w.model_p)}
+                          </td>
+                          <td style={td} data-label="Bid/Ask">
+                            <span>
+                              {cents(w.yes_bid)}/{cents(w.yes_ask)}
+                            </span>
+                          </td>
+                          <td
+                            data-label="Best edge"
+                            style={{
+                              ...td,
+                              color:
+                                w.best && w.best.edge >= 0.03 ? C.green : C.muted,
+                              fontWeight: w.best && w.best.edge >= 0.03 ? 700 : 400,
+                            }}
+                          >
+                            {w.best
+                              ? `${w.best.side === "yes" ? "UP" : "DOWN"} ${edgeCents(w.best.edge)}`
+                              : "—"}
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {scan && scan.candidates && scan.candidates.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: 12, color: C.amber }}>
+                ⚡ {scan.candidates.length} candidate
+                {scan.candidates.length > 1 ? "s" : ""} above the raw-edge floor
+                right now
+              </div>
+            )}
+          </Panel>
+
+          {/* ── Combo correlation discount (edge hypothesis #1, visible day one) ── */}
+          <Panel
+            id="combos"
+            title={
+              <>
+                Combos — correlation discount
+                <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>
+                  quote vs independence (Π legs) vs copula
+                </span>
+              </>
+            }
+          >
+            <div style={{ overflowX: "auto" }}>
+              <table
+                className="cv-table"
+                style={{ borderCollapse: "collapse", width: "100%" }}
+              >
+                <thead>
+                  <tr>
+                    <th style={th}>When</th>
+                    <th style={th}>Pattern</th>
+                    <th style={th}>Legs</th>
+                    <th style={th}>Π market</th>
+                    <th style={th}>Copula</th>
+                    <th style={th}>Kalshi quote</th>
+                    <th style={th}>Gap</th>
+                    <th style={th}>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {combos.map((q, i) => {
+                    const mid =
+                      q.combo_yes_bid != null && q.combo_yes_ask != null
+                        ? (Number(q.combo_yes_bid) + Number(q.combo_yes_ask)) / 2
+                        : null;
+                    const gap = mid != null ? Number(q.joint_model_p) - mid : null;
+                    const legs = Array.isArray(q.legs) ? q.legs : [];
+                    return (
+                      <tr
+                        key={q.created_at + q.pattern}
+                        style={{ background: i % 2 ? C.rowAlt : "transparent" }}
+                      >
+                        <td style={{ ...td, color: C.muted }} data-label="When">
+                          {timeAgo(q.created_at)}
+                        </td>
+                        <td style={{ ...td, fontWeight: 700 }} data-primary="">
+                          {q.pattern}
+                        </td>
+                        <td style={{ ...td, fontSize: 11 }} data-label="Legs">
+                          {legs.map((l) => l.asset.toUpperCase()).join("+")}
+                        </td>
+                        <td style={td} data-label="Π market">
+                          {cents(q.product_market)}
+                        </td>
+                        <td style={td} data-label="Copula">
+                          {cents(q.joint_model_p)}
+                        </td>
+                        <td style={td} data-label="Kalshi quote">
+                          {mid != null
+                            ? `${cents(q.combo_yes_bid)}/${cents(q.combo_yes_ask)}`
+                            : "no quote"}
+                        </td>
+                        <td
+                          data-label="Gap"
+                          style={{
+                            ...td,
+                            color:
+                              gap != null && gap > 0.02
+                                ? C.green
+                                : gap != null && gap < -0.02
+                                  ? C.red
+                                  : C.muted,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {gap != null ? edgeCents(gap) : "—"}
+                        </td>
+                        <td style={td} data-label="Result">
+                          {q.result === "yes"
+                            ? "✅ hit"
+                            : q.result === "no"
+                              ? "❌ miss"
+                              : "…"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {!combos.length && (
+                    <tr>
+                      <td style={{ ...td, color: C.muted }} colSpan={8}>
+                        No combo quotes logged yet — the quoter runs mid-window
+                        (minute 2–13 of each 15-min window).
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+
+          {/* ── Performance / calibration ── */}
+          <Panel
+            id="performance"
+            title="Model performance & calibration"
+            defaultOpen={false}
+          >
+            {perf && (
+              <div>
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>
+                  Brier, 7d (lower is better — the model must beat the PRICE, not
+                  a coin):
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table
+                    className="cv-table"
+                    style={{ borderCollapse: "collapse", width: "100%" }}
+                  >
+                    <thead>
+                      <tr>
+                        <th style={th}>Segment</th>
+                        <th style={th}>n</th>
+                        <th style={th}>Model</th>
+                        <th style={th}>Market</th>
+                        <th style={th}>Verdict</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(perf.brier_7d || []).map((r, i) => {
+                        const better =
+                          Number(r.brier_model) < Number(r.brier_market);
+                        return (
+                          <tr
+                            key={`${r.asset}:${r.horizon}`}
+                            style={{ background: i % 2 ? C.rowAlt : "transparent" }}
+                          >
+                            <td style={td} data-primary="">
+                              <span>
+                                {r.asset.toUpperCase()} {r.horizon}
+                              </span>
+                            </td>
+                            <td style={td} data-label="n">
+                              {r.n}
+                            </td>
+                            <td style={td} data-label="Model">
+                              {Number(r.brier_model).toFixed(4)}
+                            </td>
+                            <td style={td} data-label="Market">
+                              {Number(r.brier_market).toFixed(4)}
+                            </td>
+                            <td
+                              data-label="Verdict"
+                              style={{ ...td, color: better ? C.green : C.muted }}
+                            >
+                              {better ? "model ahead" : "market ahead"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {!(perf.brier_7d || []).length && (
+                        <tr>
+                          <td style={{ ...td, color: C.muted }} colSpan={5}>
+                            No settled snapshots yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: C.muted,
+                    margin: "10px 0 4px",
+                  }}
+                >
+                  Trusted calibration cells (w &gt; 0 — the only places the engine
+                  may stake):
+                </div>
+                <div style={{ fontSize: 12 }}>
+                  {Object.entries(
+                    (perf.calibration && perf.calibration.cells) || {}
+                  )
+                    .filter(([, c]) => c.w > 0)
+                    .map(([k, c]) => (
+                      <span
+                        key={k}
+                        style={{ ...chip(C.greenSoft, C.green), margin: 3 }}
+                      >
+                        {k} w={c.w} n={c.n}
+                      </span>
+                    ))}
+                  {!Object.values(
+                    (perf.calibration && perf.calibration.cells) || {}
+                  ).some((c) => c.w > 0) && (
+                    <span style={{ color: C.amber }}>
+                      none yet — snapshots are accumulating; the fit refreshes
+                      every 15 minutes
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </Panel>
+
+          <div style={{ fontSize: 10.5, color: C.muted, textAlign: "center" }}>
+            Settlement = 60s CF Benchmarks RTI TWAP · fees included in every edge ·
+            paper mode logs would-place bets without ordering
+          </div>
+        </div>
+        <OpenBetsRail domain="crypto" />
       </div>
     </div>
   );
