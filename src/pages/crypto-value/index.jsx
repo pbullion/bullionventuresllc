@@ -116,6 +116,21 @@ const td = {
   color: C.text,
   whiteSpace: "nowrap",
 };
+/* Cross-link to a sibling betting screen. Kept identical to the counterpart
+ * links on /totals-value and /my-bets — these three pages are one set, so the
+ * button should read the same on all of them. */
+const navLink = {
+  marginLeft: "auto",
+  fontSize: 12,
+  fontWeight: 700,
+  color: C.text,
+  background: C.chipBg,
+  border: `1px solid ${C.border}`,
+  borderRadius: 8,
+  padding: "5px 12px",
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+};
 
 /* Responsive tables. These panels run 6–8 numeric columns, which no phone can
  * fit, and the `overflowX: auto` wrappers meant Status and P&L — the columns
@@ -459,11 +474,8 @@ export default function CryptoValue() {
           {scan ? `scan ${timeAgo(scan.generated_at)}` : "loading…"}
         </span>
         {err && <span style={{ fontSize: 11, color: C.red }}>{err}</span>}
-        <a
-          href="/totals-value"
-          style={{ marginLeft: "auto", fontSize: 12, color: C.muted }}
-        >
-          sports →
+        <a href="/totals-value" style={navLink}>
+          📈 sports →
         </a>
       </div>
 
