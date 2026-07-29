@@ -874,16 +874,31 @@ const gameKeyOf = (leg) => {
 const gameTitleOf = (leg, fallback) =>
   String(leg.matchup || "").split(":")[0].trim() || fallback || "Market";
 
-// The "% chance" chip: implied probability of the held side plus a color/arrow
-// that reflects whether the bet is currently winning (green ▲) or losing
-// (red ▼). Neutral/pre-game legs get no arrow. Null when there's no price.
+/* Color for a "% chance", taken from the probability itself: green when the
+ * side held is favored, red when it isn't, amber across the 48–52% coin-flip
+ * band. Same thresholds legAccent already applies to spreads and totals, so
+ * the two never disagree about what a number means.
+ *
+ * Every percentage gets a color, pre-game included. legAccent deliberately
+ * withheld one whenever there was no game to judge — which left crypto legs
+ * (no `game` at all) gray even at 0% and 100%, reading as "no data" when
+ * they're the most decided numbers on the card. The tradeoff it was protecting
+ * is real and now accepted: a pre-game underdog bought on purpose reads red
+ * before first pitch, because the price is the odds you took, not a verdict.
+ * The ▲/▼ arrow still comes from legAccent, so on-field winning/losing is
+ * unchanged. */
+const chanceColor = (pct) => (pct >= 53 ? C.green : pct <= 47 ? C.red : C.amber);
+
+// The "% chance" chip: implied probability of the held side, colored by that
+// probability, plus a ▲/▼ marking whether the bet is currently winning or
+// losing on the field. Neutral/pre-game legs get no arrow. Null with no price.
 const chanceOf = (leg) => {
   if (leg.win_pct == null) return null;
-  const color = legAccent(leg);
+  const pct = Math.round(Number(leg.win_pct));
   const lean = legKind(leg).lean;
   return {
-    pct: Math.round(Number(leg.win_pct)),
-    color,
+    pct,
+    color: chanceColor(pct),
     arrow: lean === "win" ? "▲" : lean === "lose" ? "▼" : "",
   };
 };
@@ -1082,8 +1097,8 @@ function RowPick({ leg }) {
   );
 }
 
-/* The right-aligned "6% chance ▼" chip, colored by whether the held side is
- * currently winning (green ▲) or losing (red ▼). */
+/* The right-aligned "6% chance ▼" chip, colored by the probability itself
+ * (see chanceColor); the arrow marks the on-field lean. */
 function Chance({ leg }) {
   const ch = chanceOf(leg);
   if (!ch) return null;
