@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
@@ -160,6 +160,21 @@ const parseTitleLegs = (title) =>
       if (m) return { side: m[1].toLowerCase(), label: m[2] };
       return { side: null, label: leg };
     });
+
+/* Masonry geometry for the open grid. CSS Grid makes every row as tall as its
+ * tallest card, so a 900px parlay slip sharing a row with 130px single-game
+ * cards left a screen of dead space under the short ones. Fine-grained
+ * implicit rows (1px) plus a measured per-card row span means each card
+ * occupies only its own height, and auto-placement drops the next card into the
+ * gap beneath a short one.
+ *
+ * 1px rows rather than something coarser so no card is padded up to a row
+ * boundary; the span math is cheap either way. Row-major reading order is
+ * preserved, which is why this isn't CSS multi-column — that packs perfectly
+ * but fills top-to-bottom, and a grid sorted by chance then reads shuffled
+ * across a row. */
+const MASONRY_ROW = 1;
+const MASONRY_GAP = 16;
 
 /* ─── Styles ─── */
 const S = {
@@ -504,10 +519,17 @@ const S = {
   // columns as fit on desktop (fills the widened .mb-inner). auto-fill +
   // min(360px,100%) means it never overflows a narrow screen, and align-items
   // start keeps a short card from stretching to a tall neighbor's height.
+  // Masonry-packed (see useMasonry): 1px implicit rows and no row gap, with
+  // each card given a measured `grid-row: span N` that already includes the
+  // MASONRY_GAP. That's what lets a short card and a 900px parlay slip sit in
+  // the same visual row without the short one leaving a screen of dead space
+  // beneath it. On one column the spans just reproduce a normal 16px stack.
   gameList: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(min(360px, 100%), 1fr))",
-    gap: 16,
+    columnGap: MASONRY_GAP,
+    rowGap: 0,
+    gridAutoRows: `${MASONRY_ROW}px`,
     alignItems: "start",
   },
   gameCard: {
@@ -689,6 +711,73 @@ const MB_CSS = `
   .mb-slip { grid-template-columns: 1fr !important; }
 }
 `;
+
+/* Gives every card in the open grid a row span equal to its own height, which
+ * is what turns the grid into a masonry pack (see MASONRY_ROW). Heights have to
+ * be MEASURED rather than derived — a card's height depends on its leg count,
+ * whether a live situation row is showing, and how the matchup text wraps.
+ *
+ * A ResizeObserver watches the container and every card, so a score arriving on
+ * the 15s poll or a viewport change re-packs. The observer writes to the same
+ * elements it observes, so spans are only assigned when the value actually
+ * changes — otherwise every write would feed back in as another resize. */
+function useMasonry(ref, deps) {
+  useEffect(() => {
+    const grid = ref.current;
+    if (!grid) return;
+    let frame = 0;
+    const apply = () => {
+      for (const card of grid.children) {
+        const h = card.getBoundingClientRect().height;
+        if (!h) continue;
+        const span = Math.ceil((h + MASONRY_GAP) / MASONRY_ROW);
+        const next = `span ${span}`;
+        // Only write on a real change: the observer below watches these same
+        // elements, so an unconditional write would feed straight back in.
+        if (card.style.gridRowEnd !== next) card.style.gridRowEnd = next;
+      }
+    };
+    /* Measure twice: once synchronously, once on the next frame.
+       - Synchronously, because requestAnimationFrame never fires in a hidden or
+         background tab. Deferring everything to a frame left the spans unset
+         there and every card stacked on row 1, overlapping.
+       - Again next frame, because narrowing the viewport rewraps card text and
+         a same-tick measurement reads the pre-rewrap height. That showed up as
+         cards overlapping by ~25px after a resize, a stale span being shorter
+         than the card that has to sit in it. */
+    const run = () => {
+      apply();
+      if (!frame) {
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          apply();
+        });
+      }
+    };
+    run();
+    const ro =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(run);
+    if (ro) {
+      ro.observe(grid);
+      for (const card of grid.children) ro.observe(card);
+    }
+    // The observer alone proved unreliable across a viewport change; the window
+    // listener is the one that always fires for a resize or rotation. A
+    // background tab delivers neither (nor rAF), so re-measure on the way back
+    // to visible as well — otherwise a window resized while this tab was hidden
+    // would show stale spans, and a stale span is shorter than its card, which
+    // reads as overlapping cards rather than as a harmless gap.
+    window.addEventListener("resize", run);
+    document.addEventListener("visibilitychange", run);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      if (ro) ro.disconnect();
+      window.removeEventListener("resize", run);
+      document.removeEventListener("visibilitychange", run);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ref, ...deps]);
+}
 
 const pnlColor = (v) => (v > 0 ? C.green : v < 0 ? C.red : C.text);
 const pnlStr = (v) => `${v > 0 ? "+" : ""}${usd(v)}`;
@@ -1563,6 +1652,13 @@ export default function MyBets() {
   // accurate — that money is genuinely still tied up on Kalshi.
   const hideable = allBets.filter((b) => !ALWAYS_HIDDEN_TICKERS.has(b.ticker));
   const bets = hideable.filter((b) => !hidden.has(b.ticker));
+  /* Re-pack the open grid whenever the card set or their order changes. The
+     ResizeObserver inside catches height changes on its own (live scores), so
+     these deps only cover cards appearing, disappearing or moving. Declared
+     here rather than at the top of the component because `bets` is derived
+     above — the call is still unconditional, which is all hook order needs. */
+  const gridRef = useRef(null);
+  useMasonry(gridRef, [bets.length, tab, sort.key, sort.dir]);
   // Counts only the user's own dismissals: "Show all" must not resurrect a
   // permanently-hidden card, so those aren't part of this count either.
   const hiddenCount = hideable.length - bets.length;
@@ -1788,24 +1884,17 @@ export default function MyBets() {
               </div>
             );
 
-            // Singles first, then parlays — one grid, not two regions. A slip is
-            // many times taller than a single-game card, and the previous fix
-            // for that (parlays in a fixed 380px right column, singles in a
-            // flex:1 grid on the left) left the entire left region blank
-            // whenever there was only one single to put in it — a screen of
-            // dead space, worse than the stranding it was avoiding. Ordering
-            // handles it instead: the short cards pack together, the tall slips
-            // land at the end, and with align-items:start a short card beside a
-            // slip just sits at the top of its track rather than forcing the
-            // page taller. Grouping is untouched — every single position on the
-            // same matchup still shares one card.
-            const ordered = [
-              ...groups.filter((g) => !g.isCombo),
-              ...groups.filter((g) => g.isCombo),
-            ];
+            // Straight sort order — no reshuffling by card type. Two earlier
+            // attempts to stop a tall parlay slip from stranding space did
+            // reshuffle (parlays in a fixed 380px right column, then all
+            // singles ahead of all parlays), and both traded one gap for
+            // another while pushing a 19% parlay below a 1% single. useMasonry
+            // fixes the packing directly, so the grid can just show what the
+            // sort asked for. Grouping is untouched — every single position on
+            // the same matchup still shares one card.
             return (
-              <div className="mb-games" style={S.gameList}>
-                {ordered.map(card)}
+              <div className="mb-games" style={S.gameList} ref={gridRef}>
+                {groups.map(card)}
               </div>
             );
           })()
