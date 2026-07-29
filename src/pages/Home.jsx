@@ -44,6 +44,13 @@ const products = [
       "A live value scanner for Kalshi over/unders — WNBA, MLB, NFL, and college basketball & football. Projects each game's final total from its actual pace, prices every strike, and flags bets where the model beats the market — then tracks its own record and learns from the results.",
   },
   {
+    emoji: "☕",
+    name: "Morning Review",
+    path: "/morning-review",
+    description:
+      "The daily 7am report from the scheduled review agent: what both betting engines did overnight, what the data taught us, what got changed or paused, and what's being watched next.",
+  },
+  {
     emoji: "🪙",
     name: "Crypto Value",
     path: "/crypto-value",

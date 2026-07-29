@@ -35,6 +35,7 @@ import FarkleTracker from "./pages/farkle/index.jsx";
 import MyBets from "./pages/my-bets/index.jsx";
 import TotalsValue from "./pages/totals-value/index.jsx";
 import CryptoValue from "./pages/crypto-value/index.jsx";
+import MorningReview from "./pages/morning-review/index.jsx";
 import GulfHurricane from "./pages/gulf-hurricane/index.jsx";
 import EliteEdgeAdvisors from "./pages/elite-edge-advisors/index.jsx";
 import ZargleHome from "./pages/zargle/Home.jsx";
@@ -61,10 +62,11 @@ export default function App() {
     location.pathname.startsWith("/totals-value") ||
     location.pathname.startsWith("/wnba-value");
   const isCryptoValue = location.pathname.startsWith("/crypto-value");
+  const isMorningReview = location.pathname.startsWith("/morning-review");
   const isEliteEdge = location.pathname.startsWith("/elite-edge-advisors");
   const isZargle = location.pathname.startsWith("/zargle");
   const isGulfHurricane = location.pathname.startsWith("/gulf-hurricane");
-  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isTotalsValue || isCryptoValue || isEliteEdge || isGulfHurricane;
+  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isTotalsValue || isCryptoValue || isMorningReview || isEliteEdge || isGulfHurricane;
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ScrollToTop />
@@ -95,6 +97,7 @@ export default function App() {
           <Route path="/my-bets" element={<MyBets />} />
           <Route path="/totals-value" element={<TotalsValue />} />
           <Route path="/crypto-value" element={<CryptoValue />} />
+          <Route path="/morning-review" element={<MorningReview />} />
           <Route path="/gulf-hurricane" element={<GulfHurricane />} />
           <Route path="/wnba-value" element={<Navigate to="/totals-value" replace />} />
           <Route path="/elite-edge-advisors" element={<EliteEdgeAdvisors />} />
