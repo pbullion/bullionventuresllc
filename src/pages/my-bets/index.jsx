@@ -886,8 +886,29 @@ const gameTitleOf = (leg, fallback) =>
  * is real and now accepted: a pre-game underdog bought on purpose reads red
  * before first pitch, because the price is the odds you took, not a verdict.
  * The ▲/▼ arrow still comes from legAccent, so on-field winning/losing is
- * unchanged. */
-const chanceColor = (pct) => (pct >= 53 ? C.green : pct <= 47 ? C.red : C.amber);
+ * unchanged.
+ *
+ * Graded by confidence, so a 98% reads louder than a 53%: the hue is fixed per
+ * side and saturation/lightness ramp with distance from a coin flip. The
+ * 48–52% band stays flat amber — a genuine toss-up shouldn't be a faint green
+ * or a faint red, it's its own state. At the extremes the ramp lands on the
+ * palette's own colors (hsl(142,71%,45%) ≈ C.green, hsl(0,84%,60%) ≈ C.red),
+ * so a settled leg matches every other green/red in the UI. */
+const chanceColor = (pct) => {
+  if (pct >= 48 && pct <= 52) return C.amber;
+  const up = pct > 52;
+  // 0 just outside the coin-flip band, 1 at a fully decided 100% / 0%.
+  const t = (up ? pct - 52 : 48 - pct) / 48;
+  // Intensity is carried mostly by saturation, with only a narrow lightness
+  // ramp: dimming by lightness alone put the low end under 3:1 against the
+  // card (a 47% red measured 2.86, unreadable). These floors keep the faintest
+  // green at 4.7:1 and the faintest red at 3.6:1, and t=1 lands on C.green /
+  // C.red exactly, so a decided leg matches the rest of the palette.
+  const hue = up ? 142 : 0;
+  const sat = Math.round(up ? 34 + t * 37 : 40 + t * 44);
+  const light = Math.round(up ? 43 + t * 2 : 52 + t * 8);
+  return `hsl(${hue}, ${sat}%, ${light}%)`;
+};
 
 // The "% chance" chip: implied probability of the held side, colored by that
 // probability, plus a ▲/▼ marking whether the bet is currently winning or
