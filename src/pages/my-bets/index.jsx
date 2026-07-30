@@ -29,6 +29,11 @@ const C = {
   red: "#ef4444",
   redSoft: "#301416", // red-tinted fill
   redBorder: "#8a3a3d", // darker red border
+  // A quieter green for the secondary money figures (profit). The bright
+  // C.green is already carrying the chance % on the same row, and two of it
+  // side by side compete; this is the dim end of the chanceColor ramp, so it
+  // still reads as the same family. 4.7:1 on C.panel.
+  greenDim: "#479463",
   amber: "#eab308", // a live tied game — "in play, dead heat"
   amberSoft: "#2a2410", // amber-tinted fill
   amberBorder: "#8a7420", // darker amber border
@@ -470,7 +475,12 @@ const S = {
       width: size,
       height: size,
       transform: "rotate(45deg)",
-      border: `1.5px solid ${on ? C.green : C.border}`,
+      // An empty base outlines in C.muted, not C.border. C.border is a hairline
+      // colour meant for dividers against the page — on the card it measures
+      // about 1.26:1, so the empty bases were effectively invisible and the
+      // diamond read as blank space. C.muted is ~5.7:1 and still sits clearly
+      // below an occupied base, which is filled green.
+      border: `1.5px solid ${on ? C.green : C.muted}`,
       backgroundColor: on ? C.green : "transparent",
       borderRadius: 2,
     };
@@ -497,7 +507,9 @@ const S = {
     borderRadius: 999,
     display: "inline-block",
     backgroundColor: filled ? C.red : "transparent",
-    border: `1.5px solid ${filled ? C.red : C.border}`,
+    // Same fix as the empty bases above — an unfilled dot outlined in C.border
+    // was invisible, so "1 out" and "2 out" looked identical to "0 out".
+    border: `1.5px solid ${filled ? C.red : C.muted}`,
   }),
   sitPlay: {
     fontSize: 11,
@@ -624,7 +636,12 @@ const S = {
     fontSize: 13,
     color: C.muted,
     fontWeight: 600,
+    // Three figures on this line now (cost / profit / payout); wrap rather than
+    // overflow the card when a big payout makes them too wide together.
+    flexWrap: "wrap",
+    rowGap: 2,
   },
+  rowProfit: { color: C.greenDim },
   // Parlay-only: the leg's game/matchup under the pick, and the ticket totals.
   rowSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
   /* A total bet's remaining-to-the-line + pace figures. Sits inside a position
@@ -1026,6 +1043,14 @@ const usd0 = (n) => {
   return Number.isInteger(v) ? `$${v}` : usd(v);
 };
 
+/* What the position clears if it wins: the gross payout less what it cost.
+ * cost_dollars already includes the entry fee Kalshi charged, so this is the
+ * net gain on a win. Distinct from the P&L on the parlay footer, which is
+ * mark-to-market and moves with the price — this number is fixed the moment
+ * the bet fills, and it's the one that answers "what am I playing for". */
+const profitOf = (d) =>
+  (Number(d.max_payout_dollars) || 0) - (Number(d.cost_dollars) || 0);
+
 /* A total bet read from the side actually held. `remaining` is whole runs/points
  * to the line — points needed for the over, cushion left for the under.
  * `projected` extrapolates the final total from current pace, and `onTarget`
@@ -1394,6 +1419,7 @@ function SingleRow({ b }) {
       <TotalPace leg={leg} />
       <div style={S.rowLine2}>
         <span>{usd(d.cost_dollars)} cost</span>
+        <span style={S.rowProfit}>+{usd(profitOf(d))} profit</span>
         <span>
           Pays out {usd0(d.max_payout_dollars)}
           {link ? <span style={S.espnArrow}> ↗</span> : null}
@@ -1461,6 +1487,9 @@ function ParlayRows({ b }) {
         <span style={S.parlayFootItem}>Cost {usd(d.cost_dollars)}</span>
         <span style={S.parlayFootItem}>Value {usd(d.current_value_dollars)}</span>
         <span style={S.parlayFootItem}>Pays out {usd0(d.max_payout_dollars)}</span>
+        <span style={{ ...S.parlayFootItem, color: C.greenDim }}>
+          Profit +{usd(profitOf(d))}
+        </span>
         <span style={{ color: pnlColor(pnl) }}>P&amp;L {pnlStr(pnl)}</span>
       </div>
     </>
