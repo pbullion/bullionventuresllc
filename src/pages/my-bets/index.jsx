@@ -447,10 +447,15 @@ const S = {
   }),
 
   /* Live baseball situation: base diamond + count/outs */
+  // columnGap/rowGap rather than one `gap`: the last-play line wraps to its own
+  // row inside this container, and a shared gap gave it 12px of separation on
+  // top of its own margin — enough that it floated free of the count/inning it
+  // describes. Zero row gap tucks it directly underneath.
   sitRow: {
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    columnGap: 12,
+    rowGap: 0,
     marginTop: 10,
     paddingTop: 10,
     borderTop: `1px solid ${C.border}`,
@@ -462,7 +467,8 @@ const S = {
   sitRowCompact: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    columnGap: 10,
+    rowGap: 0,
     marginTop: 8,
     flexWrap: "wrap",
   },
