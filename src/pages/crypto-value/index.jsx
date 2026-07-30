@@ -377,6 +377,18 @@ export default function CryptoValue() {
     if (await postWithPin("/auto-bets/enable")) await loadAll();
   };
 
+  /* Un-pause one asset:horizon segment the nightly review stood down. Goes
+   * through postWithPin like every other control, then reloads — deliberately
+   * NOT the /totals-value shape, which does setStatus(await r.json()). The
+   * crypto endpoint answers {ok, paused_segments}, not a full status object, so
+   * assigning the response would blank config/today and empty the panel. */
+  const resumeSegment = async (seg) => {
+    if (!window.confirm(`Resume betting on ${seg}?`)) return;
+    if (await postWithPin("/auto-bets/segments", { segment: seg, action: "resume" })) {
+      await loadAll();
+    }
+  };
+
   // Server clamps to CRYPTOBET_DAILY_CEILING.
   const changeCap = async () => {
     const cur =
@@ -513,6 +525,26 @@ export default function CryptoValue() {
                 {status && status.combos_enabled && (
                   <span style={chip(C.chipBg, C.amber)}>COMBOS ARMED</span>
                 )}
+                {/* Same one-glance summary /totals-value keeps in its header.
+                    It isn't redundant with the bar caption below: this panel
+                    collapses and remembers that per browser, and everything
+                    else — bar, caption, paused note — lives in the body. Left
+                    collapsed, the page otherwise says nothing about whether the
+                    engine is near its cap. */}
+                {status && cap.daily_cap != null && (
+                  <span
+                    style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}
+                  >
+                    {cap.placed != null ? `${cap.placed} bets · ` : ""}$
+                    {capUsed.toFixed(2)} / ${cap.daily_cap} lost
+                    {(status.paused_segments || []).length > 0 && (
+                      <span style={{ color: C.amber }}>
+                        {" "}
+                        · {status.paused_segments.length} paused
+                      </span>
+                    )}
+                  </span>
+                )}
               </>
             }
             right={
@@ -604,6 +636,26 @@ export default function CryptoValue() {
                       earns trust
                     </span>
                   )}
+              </div>
+            )}
+            {/* Segments the nightly review stood down. The engine silently skips
+                these (skip reason "segment-paused"), so without the notice a
+                paused asset:horizon looks like one that simply isn't finding
+                edges. Pausing is open server-side but resuming is PIN'd. */}
+            {status && (status.paused_segments || []).length > 0 && (
+              <div style={{ color: C.amber, fontSize: 12, marginBottom: 8 }}>
+                ⏸ Paused by nightly review:{" "}
+                {status.paused_segments.map((seg, i) => (
+                  <span key={seg}>
+                    {i > 0 ? ", " : ""}
+                    <span
+                      onClick={() => resumeSegment(seg)}
+                      style={{ cursor: "pointer", textDecoration: "underline" }}
+                    >
+                      {seg} (resume)
+                    </span>
+                  </span>
+                ))}
               </div>
             )}
             {/* Daily-cap progress bar, same treatment as /totals-value: green
