@@ -1412,19 +1412,29 @@ export default function TotalsValue() {
               marginBottom: 4,
             }}
           >
-            <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>
-              📈 Totals Value
-            </h1>
-            <span style={{ color: C.muted, fontSize: 12 }}>
-              Kalshi over/unders vs live pace model — WNBA · MLB · CBB · NFL · CFB
-              {updatedAt
-                ? ` · updated ${updatedAt.toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    second: "2-digit",
-                  })}`
-                : ""}
-            </span>
+            {/* Title and subtitle are one block so the subtitle sits directly
+                under the title at every width. Ordering them as separate flex
+                items instead needed the subtitle to come after the nav chips on
+                desktop (to keep the chips up on the title's row) but before them
+                on mobile (where the chips wrap) — which no single order can do
+                without a media query. Grouping sidesteps it: the block is the
+                left flex item, nav is the right one. */}
+            <div style={{ minWidth: 0 }}>
+              <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>
+                📈 Totals Value
+              </h1>
+              <div style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>
+                Kalshi over/unders vs live pace model — WNBA · MLB · CBB · NFL ·
+                CFB
+                {updatedAt
+                  ? ` · updated ${updatedAt.toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}`
+                  : ""}
+              </div>
+            </div>
             {/* Counterparts to the links on /crypto-value. Wrapped in one
                 group so the header's flex-wrap moves them as a pair —
                 separately, the long subtitle pushed "my bets" onto its own
