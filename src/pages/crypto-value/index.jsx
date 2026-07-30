@@ -435,6 +435,20 @@ export default function CryptoValue() {
 
   const assets = scan ? Object.entries(scan.assets || {}) : [];
 
+  /* Daily-cap progress, matching the bar on /totals-value. The two engines name
+   * these fields differently — today.lost/staked here against
+   * daily_lost/daily_stake there — so the values are read locally rather than
+   * shared. The cap counts money LOST, not staked (2026-07-28), with gross
+   * staked kept alongside as context; falling back to staked keeps an older
+   * backend rendering something sane. Crypto also reports `remaining`, which the
+   * sports engine doesn't, so the caption can state headroom outright instead of
+   * leaving it to be subtracted by eye. */
+  const cap = (status && status.today) || {};
+  const capUsed = Number(cap.lost != null ? cap.lost : cap.staked) || 0;
+  const capPct = cap.daily_cap
+    ? Math.min(100, Math.round((capUsed / cap.daily_cap) * 100))
+    : 0;
+
   return (
     <div
       style={{
@@ -573,23 +587,9 @@ export default function CryptoValue() {
                 {status.config.max_window_dollars}/window ·{" "}
                 {status.config.assets.join("+").toUpperCase()} ·{" "}
                 {status.config.horizons.join("+")}
-                <span style={{ marginLeft: 8 }}>
-                  {/* The cap counts money LOST, not staked (2026-07-28). Gross
-                      staked is kept alongside as context. 2dp because real days
-                      have run under $3 and whole dollars turned $0.90 into "$1". */}
-                  lost today <b style={{ color: C.text }}>
-                    $
-                    {(status.today.lost != null
-                      ? status.today.lost
-                      : status.today.staked
-                    ).toFixed(2)}
-                  </b>{" "}
-                  / ${status.today.daily_cap}
-                  <span style={{ color: C.muted }}>
-                    {" "}
-                    · ${status.today.staked.toFixed(2)} staked
-                  </span>
-                </span>
+                {/* The money figures used to be crammed on the end of this line;
+                    they now caption the progress bar below, where the same
+                    numbers read as headroom rather than as more config. */}
                 {status.calibration_cells_live &&
                   status.calibration_cells_live.length > 0 && (
                     <span style={{ marginLeft: 8, color: C.green }}>
@@ -604,6 +604,58 @@ export default function CryptoValue() {
                       earns trust
                     </span>
                   )}
+              </div>
+            )}
+            {/* Daily-cap progress bar, same treatment as /totals-value: green
+                until 60% of the loss cap is used, amber to 90%, red past that,
+                so how close the engine is to standing itself down is readable
+                at a glance instead of being two numbers to compare. */}
+            {status && cap.daily_cap != null && (
+              <div style={{ marginBottom: 10 }}>
+                <div
+                  style={{
+                    height: 10,
+                    background: C.rowAlt,
+                    borderRadius: 5,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${capPct}%`,
+                      height: "100%",
+                      background:
+                        capPct >= 90 ? C.red : capPct >= 60 ? C.amber : C.green,
+                    }}
+                  />
+                </div>
+                <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
+                  {/* 2dp throughout: real days have run under $3, and whole
+                      dollars turned $0.90 into "$1". */}
+                  {cap.placed != null ? `${cap.placed} bets · ` : ""}
+                  <b style={{ color: C.text }}>${capUsed.toFixed(2)}</b> lost of
+                  ${cap.daily_cap} daily loss cap · $
+                  {Number(cap.staked || 0).toFixed(2)} staked
+                  {cap.remaining != null && (
+                    <span
+                      style={{
+                        color: Number(cap.remaining) <= 0 ? C.red : C.green,
+                      }}
+                    >
+                      {" "}
+                      · ${Number(cap.remaining).toFixed(2)} left
+                    </span>
+                  )}
+                  {cap.daily_cap_override != null && (
+                    <span style={{ color: C.amber }}> (override)</span>
+                  )}
+                  {status.paper && (
+                    <span style={{ color: C.amber }}>
+                      {" "}
+                      · PAPER — evaluating only, no orders
+                    </span>
+                  )}
+                </div>
               </div>
             )}
             <div style={{ overflowX: "auto" }}>
