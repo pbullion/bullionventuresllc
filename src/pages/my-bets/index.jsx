@@ -426,7 +426,9 @@ const S = {
   mValue: { fontSize: 14, fontWeight: 700 },
 
   // Small "open on ESPN" cue on a clickable leg card.
-  espnArrow: { color: C.muted, fontSize: 12, fontWeight: 700 },
+  // Was espnArrow; a row now links to ESPN or to Kalshi, so the name shouldn't
+  // claim one of them.
+  linkArrow: { color: C.muted, fontSize: 12, fontWeight: 700 },
   check: (color) => ({
     width: 18,
     height: 18,
@@ -986,6 +988,27 @@ const gameKeyOf = (leg) => {
 const gameTitleOf = (leg, fallback) =>
   String(leg.matchup || "").split(":")[0].trim() || fallback || "Market";
 
+/* Where a row links when there's no ESPN game behind it — which is every crypto
+ * market, since those carry no `game` at all and so were the only positions on
+ * the page you couldn't click through to monitor.
+ *
+ * Kalshi's event page is the event ticker lowercased; that's the same URL shape
+ * /totals-value already links its value cards to. A single position carries
+ * `market.event_ticker` outright. A parlay leg only knows its own market ticker,
+ * and the event ticker is that minus the final market segment
+ * (KXBTCD-26JUL3011-T64399.99 -> KXBTCD-26JUL3011, KXBTC15M-26JUL282300-00 ->
+ * KXBTC15M-26JUL282300). */
+const eventTickerOf = (market, marketTicker) => {
+  if (market && market.event_ticker) return market.event_ticker;
+  const t = String(marketTicker || "");
+  const cut = t.lastIndexOf("-");
+  return cut > 0 ? t.slice(0, cut) : null;
+};
+const kalshiEventUrl = (eventTicker) =>
+  eventTicker
+    ? `https://kalshi.com/events/${String(eventTicker).toLowerCase()}`
+    : null;
+
 /* Color for a "% chance", taken from the probability itself: green when the
  * side held is favored, red when it isn't, amber across the 48–52% coin-flip
  * band. Same thresholds legAccent already applies to spreads and totals, so
@@ -1396,11 +1419,14 @@ function GameHeader({ grp, onHide }) {
 }
 
 /* A single-market position row: pick + chance on top, cost + payout below.
- * Clicking the row opens the game's ESPN page, same as a parlay leg. */
+ * Clicking the row opens the game's ESPN page, or the Kalshi event page when
+ * there's no game behind it (crypto), so every row is clickable. */
 function SingleRow({ b }) {
   const d = b.display || {};
   const leg = (d.legs || [])[0] || {};
-  const link = leg.game && leg.game.link ? leg.game.link : null;
+  const link =
+    (leg.game && leg.game.link) ||
+    kalshiEventUrl(eventTickerOf(b.market, leg.market_ticker || b.ticker));
   const Row = link ? "a" : "div";
   const rowProps = link
     ? {
@@ -1422,7 +1448,7 @@ function SingleRow({ b }) {
         <span style={S.rowProfit}>+{usd(profitOf(d))} profit</span>
         <span>
           Pays out {usd0(d.max_payout_dollars)}
-          {link ? <span style={S.espnArrow}> ↗</span> : null}
+          {link ? <span style={S.linkArrow}> ↗</span> : null}
         </span>
       </div>
     </Row>
@@ -1453,8 +1479,11 @@ function ParlayRows({ b }) {
         // the sub line drops the now-duplicated detail. Skipped once the leg is
         // decided — a settled leg's live clock is noise.
         const showSit = hasLiveSituation(leg) && !legIsFinished(leg);
-        // Clicking the leg opens its ESPN game page, same as the leg slips.
-        const link = g && g.link ? g.link : null;
+        // Clicking the leg opens its ESPN game page, or its Kalshi event page
+        // when there's no game behind it — a crypto leg inside a parlay only
+        // knows its own market ticker, so the event ticker is derived from that.
+        const link =
+          (g && g.link) || kalshiEventUrl(eventTickerOf(null, leg.market_ticker));
         const Row = link ? "a" : "div";
         const rowProps = link
           ? {
@@ -1474,7 +1503,7 @@ function ParlayRows({ b }) {
               {gameTitleOf(leg)}
               {hasScore ? ` · ${g.away_score}–${g.home_score}` : ""}
               {!showSit && gameDetail(g) ? ` · ${gameDetail(g)}` : ""}
-              {link ? <span style={S.espnArrow}> ↗</span> : null}
+              {link ? <span style={S.linkArrow}> ↗</span> : null}
             </div>
             <TotalPace leg={leg} />
             {showSit ? (
