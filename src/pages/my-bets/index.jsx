@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
+// Kalshi's own portfolio page, linked from the Portfolio figure in the header.
+const KALSHI_PORTFOLIO_URL = "https://kalshi.com/portfolio";
+
 /* Positions permanently dropped from the Open tab — dead futures markets that
  * are decided in practice but won't SETTLE for months, so Kalshi keeps
  * returning them as open and they clog the grid forever. Unlike the ✕ button
@@ -970,6 +973,17 @@ const marketLabel = (leg) => {
     .replace(/^not\s+/i, "")
     .replace(/\s+to win$/i, "")
     .trim();
+  /* Kalshi's own subtitle for a crypto up/down market is the placeholder
+   * "Target price: TBD", which the backend passes through verbatim (it builds
+   * `pick` from yes_sub_title/no_sub_title). Every crypto leg therefore read
+   * "Target price: TBD" and said nothing about which way the bet went. The side
+   * carries that: the crypto engine maps yes->up, no->down (kalshiCrypto.js
+   * "cand.side === 'yes' ? 'up' : 'down'"), and the actual target is already on
+   * the sub-line directly beneath, so this states the direction rather than
+   * parsing a number back out of the title. */
+  if (/\bTBD\b/i.test(cleaned)) {
+    return leg.side === "no" ? "Below target" : "Above target";
+  }
   return cleaned || raw;
 };
 
@@ -1790,10 +1804,17 @@ export default function MyBets() {
         {/* Desktop: portfolio numbers live inline in the top bar (hidden on
             mobile via CSS — mobile gets the compact strip below instead). */}
         <div className="mb-topstats" style={S.topStats}>
-          <div style={S.topStat}>
-            <span style={S.topStatLabel}>Portfolio</span>
+          {/* Portfolio opens the real thing on Kalshi — this figure is the one
+              you double-check against the source, so it's the natural handle. */}
+          <a
+            href={KALSHI_PORTFOLIO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ ...S.topStat, textDecoration: "none", color: "inherit" }}
+          >
+            <span style={S.topStatLabel}>Portfolio ↗</span>
             <span style={S.topStatValue}>{portfolioValue}</span>
-          </div>
+          </a>
           {/* Combined live mark of every open position — the sum of the
               cards' "Value" boxes (Portfolio = this + Available cash). */}
           <div style={S.topStat}>
@@ -1836,7 +1857,17 @@ export default function MyBets() {
         {/* Mobile-only compact summary (the big hero + the desktop top-bar
             strip are both hidden on the other breakpoint via CSS). */}
         <div className="mb-hero-mobile" style={S.heroMobile}>
-          <span style={S.heroMobilePV}>{portfolioValue}</span>
+          {/* Same link as the desktop Portfolio stat — the two breakpoints show
+              different markup, so both need it. */}
+          <a
+            href={KALSHI_PORTFOLIO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ ...S.heroMobilePV, textDecoration: "none", color: "inherit" }}
+          >
+            {portfolioValue}
+            <span style={S.linkArrow}> ↗</span>
+          </a>
           <span style={S.heroMobileStat}>
             {usd(totalCost)} in play
           </span>
