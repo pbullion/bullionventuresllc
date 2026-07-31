@@ -568,7 +568,37 @@ const S = {
     gap: 12,
   },
   gameTitle: { fontSize: 20, fontWeight: 800, letterSpacing: -0.4, lineHeight: 1.2 },
-  gameLeague: { fontSize: 13, color: C.muted, fontWeight: 600, marginTop: 3 },
+  gameLeague: { fontSize: 13, color: C.muted, fontWeight: 600 },
+  // League label and (for crypto) the window countdown share a line under the
+  // title. Wraps rather than squeezing on a narrow card.
+  gameSubRow: {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    columnGap: 8,
+    rowGap: 2,
+    marginTop: 3,
+  },
+  countdown: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: 11.5,
+    fontWeight: 700,
+    color: C.text,
+    backgroundColor: C.chipBg,
+    border: `1px solid ${C.border}`,
+    borderRadius: 999,
+    padding: "2px 8px",
+    fontVariantNumeric: "tabular-nums",
+    whiteSpace: "nowrap",
+  },
+  countdownUrgent: {
+    color: C.amber,
+    borderColor: C.amberBorder,
+    backgroundColor: C.amberSoft,
+  },
+  countdownDone: { color: C.muted },
   // Header of a card with no score/schedule line beneath it (a parlay): keeps
   // the league label off the first row's divider.
   gameHeadBare: { paddingBottom: 14 },
@@ -1369,6 +1399,62 @@ function TotalPace({ leg }) {
 /* Game-card header: the matchup, its league, and — for a real (non-parlay)
  * game — the live/final score and, when in progress, the base/count situation.
  * Pre-game shows the scheduled time instead. */
+/* Time left on a crypto window, ticking once a second.
+ *
+ * Card-level rather than per-leg on purpose: every leg of a crypto combo settles
+ * on the same window (the engine only quotes combos inside one), verified
+ * against a live 5-leg ticket whose legs were all KX…15M-26JUL311730-30 and
+ * whose market.close_time was exactly that window's 21:30Z. Per-leg would print
+ * the same clock five times.
+ *
+ * Recomputed from Date.now() every tick instead of decrementing a counter, so a
+ * throttled or backgrounded tab resumes at the right number rather than however
+ * far behind it fell. */
+function CloseCountdown({ closeTime }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const id = setInterval(tick, 1000);
+    /* A background tab throttles this interval to roughly once a minute, so the
+       clock is frozen while you're away. Reading Date.now() each tick means it
+       can't drift, but without this it would still show the stale number for up
+       to a second after you come back — snap it on the way in. */
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, []);
+  const end = new Date(closeTime).getTime();
+  if (!Number.isFinite(end)) return null;
+  const left = Math.round((end - now) / 1000);
+  // Past the close the market is decided but Kalshi hasn't settled it yet — say
+  // that rather than counting into negative numbers.
+  if (left <= 0) {
+    return (
+      <span style={{ ...S.countdown, ...S.countdownDone }}>
+        ⏱ settling…
+      </span>
+    );
+  }
+  const h = Math.floor(left / 3600);
+  const m = Math.floor((left % 3600) / 60);
+  const s = left % 60;
+  const label = h
+    ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+    : `${m}:${String(s).padStart(2, "0")}`;
+  // Under a minute the window is effectively resolving — make it obvious.
+  const urgent = left <= 60;
+  return (
+    <span
+      style={{ ...S.countdown, ...(urgent ? S.countdownUrgent : null) }}
+      title={`Market closes ${new Date(closeTime).toLocaleTimeString()}`}
+    >
+      ⏱ {label}
+    </span>
+  );
+}
+
 function GameHeader({ grp, onHide }) {
   const g = grp.game;
   const live = !grp.isCombo && g && g.state === "in";
@@ -1402,7 +1488,13 @@ function GameHeader({ grp, onHide }) {
       <div style={S.gameHead}>
         <div style={{ minWidth: 0 }}>
           <div style={S.gameTitle}>{grp.title}</div>
-          {grp.league ? <div style={S.gameLeague}>{grp.league}</div> : null}
+          <div style={S.gameSubRow}>
+            {grp.league ? <span style={S.gameLeague}>{grp.league}</span> : null}
+            {/* Crypto only. Sports positions carry a close_time too, but it's
+                often days out and the live score/inning already says where the
+                game is — a settlement countdown there would be noise. */}
+            {grp.closeTime ? <CloseCountdown closeTime={grp.closeTime} /> : null}
+          </div>
         </div>
         <button
           style={S.gameHideBtn}
@@ -1956,6 +2048,15 @@ export default function MyBets() {
                   isCombo,
                   game: isCombo ? null : leg0.game,
                   league: leg0.league || "",
+                  // Crypto windows are 15m/1h, so a countdown to settlement is
+                  // the useful clock. Read off the position's own market rather
+                  // than parsed out of the ticker: verified they agree
+                  // (KX…15M-26JUL311730-30 legs against a 21:30Z close_time),
+                  // and a field beats re-deriving an ET timestamp from a string.
+                  closeTime:
+                    leg0.league === "Crypto" && b.market
+                      ? b.market.close_time || null
+                      : null,
                   title: isCombo
                     ? `${legs.length || d.leg_count}-Leg Parlay`
                     : gameTitleOf(leg0, d.title),
