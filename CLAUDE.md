@@ -49,11 +49,19 @@ When you add a new tool/page, do **all** of these, not just the route:
 3. If it's a full-screen tool that should hide the site nav/footer, add its path
    to the `hideChrome` logic in `src/App.jsx` (see `isMyBets`, `isTotalsValue`,
    `isGulfHurricane`, etc.).
-4. **Add a card to the homepage.** Append an entry to the `products` array in
-   `src/pages/Home.jsx` (icon or emoji, `name`, `path`, `description`) so the new
-   tool is discoverable from the landing page. This step is easy to forget — do
-   not skip it. (Wedding-photos and mothers-day-2026 are cardless on purpose —
-   private pages.)
+4. **Add a card to the homepage.** Append an entry to either the `apps` or the
+   `tools` array in `src/pages/Home.jsx` (`icon` or `emoji`, `name`, `path`,
+   `tagline`, `description`) so the new tool is discoverable from the landing
+   page. `apps` are products with their own landing/support/privacy pages;
+   `tools` are single-page utilities that run in the browser here. This step is
+   easy to forget — do not skip it. (Wedding-photos and mothers-day-2026 are
+   cardless on purpose — private pages.)
+   - **Betting screens go somewhere else.** The five Kalshi/betting pages are
+     kept off the public home page (Patrick, 2026-07-30) and live in
+     `PRIVATE_TOOLS` in `src/components/PrivateTools.jsx`, reached by
+     long-pressing the navbar wordmark. Add a betting page there instead — and
+     note that hiding it is obscurity only: the route stays public and
+     unauthenticated.
 
 ## Backend
 
