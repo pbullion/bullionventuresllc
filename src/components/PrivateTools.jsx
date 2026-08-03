@@ -166,9 +166,9 @@ const S = {
     position: "fixed",
     inset: 0,
     zIndex: 200,
-    background: "rgba(4, 4, 6, .72)",
-    backdropFilter: "blur(6px)",
-    WebkitBackdropFilter: "blur(6px)",
+    // Opaque scrim rather than a blur, for the same iOS compositing reason the
+    // navbar dropped its backdrop-filter. A darker alpha reads the same here.
+    background: "rgba(4, 4, 6, .88)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

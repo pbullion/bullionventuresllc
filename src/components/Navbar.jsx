@@ -45,10 +45,17 @@ export default function Navbar() {
     /* Palette tracks src/pages/Home.jsx: near-black shell with a neutral
        border. The old #0f0f12 on #2a2a45 was a shade lighter than the page and
        bluish, which left a visible seam across the top of the home page. */
+    /* Solid, NOT translucent + backdrop-filter. A blurred sticky bar is a known
+       iOS WebKit compositing hazard that can blank the whole page — and this bar
+       renders on every route outside App.jsx's hideChrome list, which matches a
+       white screen on the home page and every app landing page while the
+       chrome-less betting screens kept working. It was also what made the
+       private-tools modal a containing-block child and clip to the header.
+       The blur was decoration on a near-black bar; the solid fill looks the
+       same. Suspected cause of the 2026-08 iOS regression — do not reintroduce
+       backdrop-filter here. */
     <nav style={{
-      backgroundColor: 'rgba(10, 10, 13, 0.85)',
-      backdropFilter: 'saturate(140%) blur(10px)',
-      WebkitBackdropFilter: 'saturate(140%) blur(10px)',
+      backgroundColor: '#0a0a0d',
       borderBottom: '1px solid #24242e',
       position: 'sticky',
       top: 0,
