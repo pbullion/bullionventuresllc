@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Every page on this site is dark. Without theme-color, iOS Safari tints
+         its own surfaces — the toolbars, the safe-area insets, the rubber-band
+         overscroll area — from the light-mode default, which framed the whole
+         app in white on a phone. Paired with `color-scheme: dark` in
+         src/index.css; the meta handles Safari's chrome, the CSS handles the
+         page canvas and native controls. -->
+    <meta name="theme-color" content="#0a0a0d" />
     <title>bullionventuresllc</title>
     <!-- Roboto is the default font for MUI. Baloo Bhaijaan is used by the Tesla Dashboard widgets -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
