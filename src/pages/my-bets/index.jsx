@@ -591,7 +591,13 @@ const S = {
     fontWeight: 700,
     color: C.text,
     backgroundColor: C.chipBg,
-    border: `1px solid ${C.border}`,
+    // Longhand, not the `border` shorthand: countdownUrgent below overrides
+    // borderColor, and React warns (and the colour can fail to apply) when a
+    // shorthand and its longhand are mixed across a rerender — which this hits
+    // every time the clock crosses the 60s threshold.
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: C.border,
     borderRadius: 999,
     padding: "2px 8px",
     fontVariantNumeric: "tabular-nums",
@@ -2068,7 +2074,16 @@ export default function MyBets() {
                   key,
                   isCombo,
                   game: isCombo ? null : leg0.game,
-                  league: leg0.league || "",
+                  // Normalised, because the backend's league differs by horizon:
+                  // "Crypto" for a 15m market but the bare asset ("XRP") for an
+                  // hourly one, so the grid showed two different subtitles for
+                  // the same kind of card. "Crypto" is the right one of the two
+                  // — it's the category, matching how a sports card reads
+                  // ("Pro Baseball", not the team), and the asset is already in
+                  // the title on both ("XRP 15 min · …" / "XRP price at 5pm").
+                  league: isCryptoTicker(leg0.market_ticker)
+                    ? "Crypto"
+                    : leg0.league || "",
                   // Crypto windows are 15m/1h, so a countdown to settlement is
                   // the useful clock. The TIME is read off the position's own
                   // market rather than parsed out of the ticker (verified they
