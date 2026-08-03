@@ -754,12 +754,19 @@ function AutoBetPanel({ games }) {
       : { text: "OFF", color: C.muted, bg: C.chipBg, border: C.border };
   const t = status.today || {};
   const cfg = status.config || {};
-  // The daily cap counts money LOST, not money staked (2026-07-28). Fall back
-  // to daily_stake so an older backend still renders something sane.
-  const capUsed = t.daily_lost != null ? t.daily_lost : t.daily_stake;
+  // The daily cap counts NET money lost (2026-08-03) — winnings offset losses,
+  // so this goes negative on a winning day. Fall back to daily_stake so an
+  // older backend still renders something sane. The number is printed with its
+  // sign meaning intact; only the bar is floored at 0, since a negative width
+  // renders as a broken element rather than as "up on the day".
+  const capUsed = Number(t.daily_lost != null ? t.daily_lost : t.daily_stake) || 0;
   const stakePct = t.daily_cap
-    ? Math.min(100, Math.round((capUsed / t.daily_cap) * 100))
+    ? Math.max(0, Math.min(100, Math.round((capUsed / t.daily_cap) * 100)))
     : 0;
+  // "$45 up" beats "$-45 lost" — the minus sign is easy to miss, and misreading
+  // it inverts the meaning of the line.
+  const capUp = capUsed < 0;
+  const capAmt = Math.abs(capUsed);
 
   const unfilledCount = bets.filter((b) => b.status === "unfilled").length;
   const shownBets = showUnfilled
@@ -989,8 +996,10 @@ function AutoBetPanel({ games }) {
           {pill.text}
         </Chip>
         <span style={{ color: C.muted, fontSize: 12, flex: 1 }}>
-          {t.placed || 0} bet{(t.placed || 0) === 1 ? "" : "s"} today · lost $
-          {Number(capUsed || 0).toFixed(0)} / ${t.daily_cap} ·{" "}
+          {t.placed || 0} bet{(t.placed || 0) === 1 ? "" : "s"} today ·{" "}
+          {capUp ? "up $" : "lost $"}
+          {capAmt.toFixed(0)}
+          {capUp ? ` · $${t.daily_cap} cap` : ` / $${t.daily_cap}`} ·{" "}
           {status.loop_running ? "loop live" : "idle"} · run{" "}
           {timeAgo(status.last_run_at)}
         </span>
@@ -1108,8 +1117,11 @@ function AutoBetPanel({ games }) {
               />
             </div>
             <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
-              ${Number(capUsed || 0).toFixed(2)} lost of ${t.daily_cap} daily
-              loss cap
+              <b style={{ color: capUp ? C.green : C.text }}>
+                ${capAmt.toFixed(2)}
+              </b>
+              {capUp ? " up on the day, against a $" : " lost of $"}
+              {t.daily_cap} daily net-loss cap
               <span style={{ color: C.muted }}>
                 {" "}
                 · ${Number(t.daily_stake || 0).toFixed(2)} staked

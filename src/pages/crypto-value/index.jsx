@@ -450,16 +450,24 @@ export default function CryptoValue() {
   /* Daily-cap progress, matching the bar on /totals-value. The two engines name
    * these fields differently — today.lost/staked here against
    * daily_lost/daily_stake there — so the values are read locally rather than
-   * shared. The cap counts money LOST, not staked (2026-07-28), with gross
-   * staked kept alongside as context; falling back to staked keeps an older
-   * backend rendering something sane. Crypto also reports `remaining`, which the
-   * sports engine doesn't, so the caption can state headroom outright instead of
-   * leaving it to be subtracted by eye. */
+   * shared. The cap counts NET money lost (2026-08-03) — winnings offset losses
+   * — with gross staked kept alongside as context; falling back to staked keeps
+   * an older backend rendering something sane. Crypto also reports `remaining`,
+   * which the sports engine doesn't, so the caption can state headroom outright
+   * instead of leaving it to be subtracted by eye.
+   *
+   * capUsed goes NEGATIVE on a winning day. That's real information, so the
+   * number is printed as-is; only the bar is floored at 0, since a negative
+   * width renders as a broken element rather than as "up on the day". */
   const cap = (status && status.today) || {};
   const capUsed = Number(cap.lost != null ? cap.lost : cap.staked) || 0;
   const capPct = cap.daily_cap
-    ? Math.min(100, Math.round((capUsed / cap.daily_cap) * 100))
+    ? Math.max(0, Math.min(100, Math.round((capUsed / cap.daily_cap) * 100)))
     : 0;
+  // "$45.00 up" beats "$-45.00 lost" — a minus sign is easy to miss at 11px,
+  // and reading it as a loss inverts the meaning of the whole line.
+  const capUp = capUsed < 0;
+  const capAmt = Math.abs(capUsed).toFixed(2);
 
   return (
     <div
@@ -536,7 +544,8 @@ export default function CryptoValue() {
                     style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}
                   >
                     {cap.placed != null ? `${cap.placed} bets · ` : ""}$
-                    {capUsed.toFixed(2)} / ${cap.daily_cap} lost
+                    {capAmt}
+                    {capUp ? ` up · $${cap.daily_cap} cap` : ` / $${cap.daily_cap} lost`}
                     {(status.paused_segments || []).length > 0 && (
                       <span style={{ color: C.amber }}>
                         {" "}
@@ -685,8 +694,9 @@ export default function CryptoValue() {
                   {/* 2dp throughout: real days have run under $3, and whole
                       dollars turned $0.90 into "$1". */}
                   {cap.placed != null ? `${cap.placed} bets · ` : ""}
-                  <b style={{ color: C.text }}>${capUsed.toFixed(2)}</b> lost of
-                  ${cap.daily_cap} daily loss cap · $
+                  <b style={{ color: capUp ? C.green : C.text }}>${capAmt}</b>
+                  {capUp ? " up on the day, against a $" : " lost of $"}
+                  {cap.daily_cap} daily net-loss cap · $
                   {Number(cap.staked || 0).toFixed(2)} staked
                   {cap.remaining != null && (
                     <span
