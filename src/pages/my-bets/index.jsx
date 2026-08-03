@@ -1060,6 +1060,15 @@ const gameTitleOf = (leg, fallback) =>
  * and the event ticker is that minus the final market segment
  * (KXBTCD-26JUL3011-T64399.99 -> KXBTCD-26JUL3011, KXBTC15M-26JUL282300-00 ->
  * KXBTC15M-26JUL282300). */
+/* Is this a Kalshi crypto market? Tested on the ticker, NOT on leg.league —
+ * the backend labels the two horizons differently: a 15-minute market comes
+ * through as league "Crypto" (KXXRP15M-…) but an hourly one as the bare asset,
+ * "XRP" (KXXRPD-…). Gating on "Crypto" therefore silently skipped every hourly
+ * position. Same pattern the Kalshi event links use, matched on the asset
+ * rather than the horizon vocabulary so a new horizon can't fall out. */
+const isCryptoTicker = (t) =>
+  /^KX(BTC|ETH|XRP|SOL|DOGE)[A-Z0-9]*-/.test(String(t || ""));
+
 const eventTickerOf = (market, marketTicker) => {
   if (market && market.event_ticker) return market.event_ticker;
   const t = String(marketTicker || "");
@@ -2061,12 +2070,15 @@ export default function MyBets() {
                   game: isCombo ? null : leg0.game,
                   league: leg0.league || "",
                   // Crypto windows are 15m/1h, so a countdown to settlement is
-                  // the useful clock. Read off the position's own market rather
-                  // than parsed out of the ticker: verified they agree
-                  // (KX…15M-26JUL311730-30 legs against a 21:30Z close_time),
-                  // and a field beats re-deriving an ET timestamp from a string.
+                  // the useful clock. The TIME is read off the position's own
+                  // market rather than parsed out of the ticker (verified they
+                  // agree — KX…15M-26JUL311730-30 legs against a 21:30Z
+                  // close_time — and a field beats re-deriving an ET timestamp
+                  // from a string). Whether it IS crypto is judged from the
+                  // ticker, because leg.league says "Crypto" for 15m but the
+                  // bare asset for hourly; see isCryptoTicker.
                   closeTime:
-                    leg0.league === "Crypto" && b.market
+                    isCryptoTicker(leg0.market_ticker) && b.market
                       ? b.market.close_time || null
                       : null,
                   title: isCombo
