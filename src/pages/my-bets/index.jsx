@@ -205,6 +205,10 @@ const S = {
     // bar wraps and `.mb-nav` (order: 3) takes the second row.
     flexWrap: "wrap",
     rowGap: 10,
+    // rowGap alone left the cross-links flush against "My Bets" — measured 0px
+    // between them — so the chips read as part of the title rather than as
+    // secondary nav.
+    columnGap: 14,
   },
   brand: { display: "flex", alignItems: "center", gap: 10 },
   logoDot: {
@@ -739,8 +743,16 @@ const MB_CSS = `
 @media (min-width: 900px) {
   .mb-topstats { display: flex; }
   .mb-hero-mobile { display: none; }
-  /* Desktop has room — the links sit inline right after the brand. */
-  .mb-nav { order: 0; width: auto; }
+  /* Desktop has room — the links sit inline after the brand, behind a hairline
+     so the grouping is deliberate instead of the chips just abutting the title.
+     Scoped to this breakpoint: on a phone .mb-nav is its own full-width row,
+     where a left border would read as a stray mark. */
+  .mb-nav {
+    order: 0;
+    width: auto;
+    padding-left: 14px;
+    border-left: 1px solid ${C.border};
+  }
   .mb-inner { max-width: 1800px !important; padding: 0 24px !important; }
   /* Row-major grid: the sort order reads the way people scan — left to
      right, then down. (CSS masonry columns filled top-to-bottom, which made
