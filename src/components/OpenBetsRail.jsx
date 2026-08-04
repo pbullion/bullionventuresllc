@@ -33,12 +33,22 @@ const C = {
   red: "#ef4444",
   chipBg: "#1c2430",
   rowBorder: "#1e2530",
+  // Same quieter green /my-bets uses for profit, so the two pages agree. It has
+  // to differ from `green`: P&L sits on the same line in bright green/red, and
+  // two identical greens beside each other read as one figure.
+  greenDim: "#479463",
 };
 
 const usd = (v) =>
   `${v < 0 ? "-" : ""}$${Math.abs(Number(v) || 0).toFixed(2)}`;
 const pnlColor = (v) => (v > 0 ? C.green : v < 0 ? C.red : C.muted);
 const pnlStr = (v) => `${v > 0 ? "+" : ""}${usd(v)}`;
+/* What the position clears if it wins: gross payout less what it cost, with the
+ * cost already including Kalshi's entry fee. Same figure and same derivation as
+ * /my-bets — deliberately NOT the P&L beside it, which is mark-to-market and
+ * moves with the price, where this is fixed the moment the bet fills. */
+const profitOf = (d) =>
+  (Number(d.max_payout_dollars) || 0) - (Number(d.cost_dollars) || 0);
 
 export default function OpenBetsRail({ domain }) {
   const [positions, setPositions] = useState(null);
@@ -87,6 +97,7 @@ export default function OpenBetsRail({ domain }) {
     (s, b) => s + (Number(b.display?.total_pnl_dollars) || 0),
     0
   );
+  const totalProfit = bets.reduce((s, b) => s + profitOf(b.display || {}), 0);
 
   return (
     <aside className="bv-rail">
@@ -103,6 +114,11 @@ export default function OpenBetsRail({ domain }) {
         <div style={S.totals}>
           <span>{usd(totalValue)} value</span>
           <span style={{ color: pnlColor(totalPnl) }}>{pnlStr(totalPnl)}</span>
+          {/* The rail's equivalent of the "If all win" stat on /my-bets: what
+              every open position here clears if they all come in. */}
+          <span style={{ color: C.greenDim, fontWeight: 700 }}>
+            +{usd(totalProfit)} if all win
+          </span>
         </div>
       )}
 
@@ -137,6 +153,11 @@ export default function OpenBetsRail({ domain }) {
               </span>
               <span style={{ color: pnlColor(pnl), fontWeight: 700 }}>
                 {pnlStr(pnl)}
+              </span>
+              {/* Own full-width line: four figures don't fit a 320px rail, and
+                  letting them wrap wherever they landed made the rows ragged. */}
+              <span style={S.rowProfit}>
+                +{usd(profitOf(d))} profit if it wins
               </span>
             </div>
           </div>
@@ -196,11 +217,16 @@ const S = {
   rowFoot: {
     display: "flex",
     alignItems: "baseline",
-    gap: 8,
+    flexWrap: "wrap",
+    columnGap: 8,
+    rowGap: 3,
     marginTop: 6,
     fontSize: 11.5,
     color: C.muted,
     borderTop: `1px solid ${C.rowBorder}`,
     paddingTop: 5,
   },
+  // flexBasis 100% claims its own row rather than wrapping unpredictably next to
+  // whichever figure happens to fit.
+  rowProfit: { flexBasis: "100%", color: C.greenDim, fontWeight: 700 },
 };
