@@ -113,6 +113,14 @@ const tools = [
       "The latest NOAA / National Hurricane Center tropical outlooks and live GOES-East satellite imagery for the Gulf and tropical Atlantic — no frills, just the most current forecast pics, formatted for your phone.",
   },
   {
+    emoji: "🏖️",
+    name: "Trip Planner",
+    path: "/tripplanner",
+    tagline: "Meals & packing for group trips",
+    description:
+      "Plan a multi-family trip day by day: a shared meal grid for every breakfast, lunch, dinner and snack, plus a packing and necessities checklist. Everyone with the link can edit, and every trip gets its own page you can reuse for the next one.",
+  },
+  {
     emoji: "🎲",
     name: "Farkle Scorer",
     path: "/farkle",
