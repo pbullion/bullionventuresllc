@@ -507,9 +507,29 @@ export default function CryptoValue() {
               🪙 Crypto Value
             </h1>
             {pill()}
-            <span style={{ fontSize: 11, color: C.muted }}>
-              {scan ? `scan ${timeAgo(scan.generated_at)}` : "loading…"}
-            </span>
+            {/* Engine liveness, NOT `scan.generated_at`. GET /scan runs a scan
+                on demand for this page and stamps it "now", so the old label
+                read "scan 0s ago" for the entire 7h14m outage on 2026-08-04 —
+                it measured this page's own poll, not the betting loop. The
+                honest signal is loop.eval_age_secs: only the background loop
+                writes eval rows. Amber past 5 min, red past the engine's own
+                25-min alarm threshold. */}
+            {(() => {
+              const age = status && status.loop && status.loop.eval_age_secs;
+              if (!status) return <span style={{ fontSize: 11, color: C.muted }}>loading…</span>;
+              if (age == null)
+                return <span style={{ fontSize: 11, color: C.muted }}>engine —</span>;
+              const mins = age / 60;
+              const color = mins >= 25 ? C.red : mins >= 5 ? C.amber : C.muted;
+              const label =
+                age < 90 ? `${Math.round(age)}s` : `${Math.round(mins)}m`;
+              return (
+                <span style={{ fontSize: 11, color }}>
+                  engine {label} ago
+                  {mins >= 25 ? " — STALLED" : ""}
+                </span>
+              );
+            })()}
             {err && <span style={{ fontSize: 11, color: C.red }}>{err}</span>}
             {/* One group so the header's flex-wrap moves both chips together
                 rather than stranding one on its own line. */}
