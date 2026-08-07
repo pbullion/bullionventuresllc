@@ -845,6 +845,33 @@ function AutoBetPanel({ games }) {
     }
   };
 
+  // Change the dollar size of one betting unit, for today only. Same shape as
+  // the cap: PIN-gated, server-clamped, and it lapses at midnight CT back to
+  // AUTOBET_UNIT_DOLLARS — a resize for one heavy slate can't quietly become
+  // the permanent stake.
+  const changeUnit = async () => {
+    const cur = cfg.unit_dollars != null ? `$${cfg.unit_dollars}` : "";
+    const ceilNote = t.unit_ceiling ? `, ceiling $${t.unit_ceiling}` : "";
+    const raw = window.prompt(
+      `New bet unit in dollars (currently ${cur}${ceilNote}).\n` +
+        `Sizing bets up to ${cfg.max_units}u, so this sets a $${cfg.unit_dollars}–` +
+        `$${cfg.unit_dollars * cfg.max_units} range.\n` +
+        `Applies to TODAY only — resets overnight. Leave blank to reset now.`
+    );
+    if (raw === null) return;
+    const asked = raw.trim() === "" ? null : Number(raw);
+    const next = await postWithPin("/auto-bets/unit", { unit: asked });
+    if (!next) return;
+    setStatus(next);
+    const saved = next.config && next.config.unit_dollars;
+    if (asked != null && saved != null && asked > saved) {
+      window.alert(
+        `Saved at $${saved} — that's the hard ceiling. ` +
+          `Raising it takes a server config change (AUTOBET_UNIT_CEILING).`
+      );
+    }
+  };
+
   const toggle = async () => {
     const killing = !status.killed;
     const msg = killing
@@ -1028,11 +1055,31 @@ function AutoBetPanel({ games }) {
               · {(cfg.leagues || []).join(" + ").toUpperCase()} · checks every{" "}
               {cfg.interval_secs}s
             </span>
+            {/* Amber when an override is in force today, so a resize you
+                forgot about is visible at a glance rather than only in the
+                bet sizes. */}
+            <button
+              onClick={changeUnit}
+              disabled={busy}
+              style={{
+                marginLeft: "auto",
+                padding: "6px 14px",
+                borderRadius: 8,
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: "pointer",
+                color: t.unit_override != null ? C.amber : C.text,
+                background: C.chipBg,
+                border: `1px solid ${t.unit_override != null ? C.amber : C.border}`,
+                opacity: busy ? 0.5 : 1,
+              }}
+            >
+              UNIT ${cfg.unit_dollars != null ? cfg.unit_dollars : "—"} ✎
+            </button>
             <button
               onClick={changeCap}
               disabled={busy}
               style={{
-                marginLeft: "auto",
                 padding: "6px 14px",
                 borderRadius: 8,
                 fontWeight: 800,

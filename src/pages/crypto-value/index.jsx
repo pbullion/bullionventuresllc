@@ -426,6 +426,34 @@ export default function CryptoValue() {
     await loadAll();
   };
 
+  // Unit size for TODAY only — same guards as the cap (PIN, server clamp to
+  // CRYPTOBET_UNIT_CEILING) and the same overnight lapse back to
+  // CRYPTOBET_UNIT_DOLLARS, so a one-session resize can't stick around.
+  const changeUnit = async () => {
+    const cfg = (status && status.config) || {};
+    const raw = window.prompt(
+      `New bet unit in dollars (currently $${cfg.unit_dollars}${
+        cfg.unit_ceiling ? `, ceiling $${cfg.unit_ceiling}` : ""
+      }).\nSizing bets up to ${cfg.max_units}u.\n` +
+        `Applies to TODAY only — resets overnight. Leave blank to reset now.`
+    );
+    if (raw === null) return;
+    const asked = raw.trim() === "" ? null : Number(raw);
+    if (asked != null && !Number.isFinite(asked)) {
+      window.alert("Not a number.");
+      return;
+    }
+    const next = await postWithPin("/auto-bets/unit", { unit: asked });
+    if (!next) return;
+    if (asked != null && next.unit_override != null && asked > next.unit_override) {
+      window.alert(
+        `Saved at $${next.unit_override} — that's the hard ceiling. ` +
+          `Raising it takes a server config change (CRYPTOBET_UNIT_CEILING).`
+      );
+    }
+    await loadAll();
+  };
+
   const unfilledCount = bets.filter((b) => b.status === "unfilled").length;
   const shownBets = showUnfilled
     ? bets
@@ -578,6 +606,37 @@ export default function CryptoValue() {
             }
             right={
               <>
+                {/* Amber while an override is in force today — a resize you
+                    forgot about should be visible, not just implied by the
+                    stake sizes. */}
+                <button
+                  onClick={changeUnit}
+                  disabled={busy}
+                  style={{
+                    background: C.chipBg,
+                    color:
+                      status && status.today && status.today.unit_override != null
+                        ? C.amber
+                        : C.text,
+                    border: `1px solid ${
+                      status && status.today && status.today.unit_override != null
+                        ? C.amber
+                        : C.border
+                    }`,
+                    borderRadius: 8,
+                    padding: "5px 12px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    opacity: busy ? 0.5 : 1,
+                  }}
+                >
+                  UNIT $
+                  {status && status.config && status.config.unit_dollars != null
+                    ? status.config.unit_dollars
+                    : "—"}{" "}
+                  ✎
+                </button>
                 <button
                   onClick={changeCap}
                   disabled={busy}
