@@ -693,6 +693,10 @@ const S = {
     rowGap: 2,
   },
   rowProfit: { color: C.greenDim },
+  // Amber, not muted: this only renders when the sellable price disagrees with
+  // the mark, which is a caveat about the number next to it rather than another
+  // neutral stat. Muted would let it disappear into the row.
+  rowCashOut: { color: C.amber, fontWeight: 600 },
   // Parlay-only: the leg's game/matchup under the pick, and the ticket totals.
   rowSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
   /* A total bet's remaining-to-the-line + pace figures. Sits inside a position
@@ -1151,6 +1155,31 @@ const usd0 = (n) => {
 const profitOf = (d) =>
   (Number(d.max_payout_dollars) || 0) - (Number(d.cost_dollars) || 0);
 
+/* What selling right now would actually net — Kalshi's own "Cash out" figure.
+ * Distinct from `current_value_dollars`, which is the mark: the backend derives
+ * this from the executable BID (and for a parlay, the product of each leg's
+ * sell price, since a combo ticker has no book of its own). On a thin market
+ * the two diverge hard — a live 166-contract position marked at $24.90 would
+ * only fetch $11.62.
+ *
+ * Returns null when there's nothing worth saying: no live bid (the backend
+ * sends null rather than a misleading $0), or the mark and the bid agree.
+ * Showing "cash out" on every row would just double the numbers per card; the
+ * 2c floor keeps it to the rows where the spread is real. */
+const CASH_OUT_MIN_GAP_CENTS = 2;
+const cashOutGap = (d) => {
+  const co = d.cash_out_value_dollars;
+  if (co == null) return null;
+  const n = Number(co);
+  if (!Number.isFinite(n)) return null;
+  const value = Number(d.current_value_dollars) || 0;
+  // Compared in whole cents, not dollars: `5.02 - 5.00` is 0.019999… in binary
+  // float, so an exact 2c gap failed a `>= 0.02` test and the row silently
+  // hid a real spread.
+  const gapCents = Math.round(n * 100) - Math.round(value * 100);
+  return Math.abs(gapCents) >= CASH_OUT_MIN_GAP_CENTS ? n : null;
+};
+
 /* A total bet read from the side actually held. `remaining` is whole runs/points
  * to the line — points needed for the over, cushion left for the under.
  * `projected` extrapolates the final total from current pace, and `onTarget`
@@ -1589,6 +1618,9 @@ function SingleRow({ b }) {
           Pays out {usd0(d.max_payout_dollars)}
           {link ? <span style={S.linkArrow}> ↗</span> : null}
         </span>
+        {cashOutGap(d) != null && (
+          <span style={S.rowCashOut}>cash out {usd(cashOutGap(d))}</span>
+        )}
       </div>
     </Row>
   );
@@ -1654,6 +1686,9 @@ function ParlayRows({ b }) {
       <div style={S.parlayFoot}>
         <span style={S.parlayFootItem}>Cost {usd(d.cost_dollars)}</span>
         <span style={S.parlayFootItem}>Value {usd(d.current_value_dollars)}</span>
+        {cashOutGap(d) != null && (
+          <span style={S.rowCashOut}>Cash out {usd(cashOutGap(d))}</span>
+        )}
         <span style={S.parlayFootItem}>Pays out {usd0(d.max_payout_dollars)}</span>
         <span style={{ ...S.parlayFootItem, color: C.greenDim }}>
           Profit +{usd(profitOf(d))}

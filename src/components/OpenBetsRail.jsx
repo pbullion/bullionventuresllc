@@ -31,6 +31,7 @@ const C = {
   muted: "#8a93a6",
   green: "#22c55e",
   red: "#ef4444",
+  amber: "#eab308",
   chipBg: "#1c2430",
   rowBorder: "#1e2530",
   // Same quieter green /my-bets uses for profit, so the two pages agree. It has
@@ -49,6 +50,20 @@ const pnlStr = (v) => `${v > 0 ? "+" : ""}${usd(v)}`;
  * moves with the price, where this is fixed the moment the bet fills. */
 const profitOf = (d) =>
   (Number(d.max_payout_dollars) || 0) - (Number(d.cost_dollars) || 0);
+/* Sellable-right-now value, shown only when it disagrees with the mark by more
+ * than 2c. Same rule and reasoning as /my-bets — see cashOutGap there. */
+const CASH_OUT_MIN_GAP_CENTS = 2;
+const cashOutGap = (d) => {
+  const co = d.cash_out_value_dollars;
+  if (co == null) return null;
+  const n = Number(co);
+  if (!Number.isFinite(n)) return null;
+  const value = Number(d.current_value_dollars) || 0;
+  // Whole cents, not dollars — see the note on cashOutGap in /my-bets: a 2c gap
+  // compared in float is 0.019999… and would hide a real spread.
+  const gapCents = Math.round(n * 100) - Math.round(value * 100);
+  return Math.abs(gapCents) >= CASH_OUT_MIN_GAP_CENTS ? n : null;
+};
 
 export default function OpenBetsRail({ domain }) {
   const [positions, setPositions] = useState(null);
@@ -159,6 +174,11 @@ export default function OpenBetsRail({ domain }) {
               <span style={S.rowProfit}>
                 +{usd(profitOf(d))} profit if it wins
               </span>
+              {cashOutGap(d) != null && (
+                <span style={S.rowCashOut}>
+                  cash out {usd(cashOutGap(d))} now
+                </span>
+              )}
             </div>
           </div>
         );
@@ -229,4 +249,7 @@ const S = {
   // flexBasis 100% claims its own row rather than wrapping unpredictably next to
   // whichever figure happens to fit.
   rowProfit: { flexBasis: "100%", color: C.greenDim, fontWeight: 700 },
+  // Its own row too, and amber for the same reason as /my-bets: it only appears
+  // when the sellable price contradicts the value above it.
+  rowCashOut: { flexBasis: "100%", color: C.amber, fontWeight: 600 },
 };
