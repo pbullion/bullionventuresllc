@@ -33,6 +33,10 @@ const TP_CSS = `
 .tp-item-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0ebe0; }
 .tp-del { background: none; border: none; color: #c2b8a6; cursor: pointer; font-size: 16px; padding: 2px 6px; }
 .tp-del:hover { color: #a33a2f; }
+.tp-daymeals { background: none; border: none; color: #9fb3c8; cursor: pointer; font-size: 12px; padding: 2px 6px; font-weight: 600; }
+.tp-daymeals:hover { color: #fff; }
+.tp-mealtoggle { border: 1px solid #d8d0c2; background: #fff; color: #6b7684; border-radius: 999px; padding: 5px 11px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.tp-mealtoggle.on { background: #e7f3f1; border-color: #2a9d8f; color: #1f7a6f; }
 .tp-jump { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .tp-jump a { background: #fff; border: 1px solid #d8d0c2; border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 600; color: #26303a; text-decoration: none; }
 .tp-jump a:hover { border-color: #2a9d8f; color: #1f7a6f; }
@@ -140,6 +144,7 @@ export default function TripPlanner() {
   const [notFound, setNotFound] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null); // "YYYY-MM-DD|meal_type"
   const [savingSlot, setSavingSlot] = useState(null);
+  const [pickingDay, setPickingDay] = useState(null); // date whose meal-slot picker is open
   const [newItem, setNewItem] = useState({ name: "", category: "Packing", assigned_to: "" });
   const [addingItem, setAddingItem] = useState(false);
   const notesTimer = useRef(null);
@@ -274,6 +279,27 @@ export default function TripPlanner() {
     }
   }
 
+  async function toggleDayMeal(date, mealKey) {
+    const current = trip.day_meals?.[date] || MEAL_TYPES.map((t) => t.key);
+    const next = current.includes(mealKey)
+      ? current.filter((k) => k !== mealKey)
+      : MEAL_TYPES.map((t) => t.key).filter((k) => current.includes(k) || k === mealKey);
+    const dayMeals = { ...(trip.day_meals || {}), [date]: next };
+    const prev = trip.day_meals;
+    setTrip((t) => ({ ...t, day_meals: dayMeals }));
+    try {
+      const res = await fetch(`${API_BASE}/trips/${slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ day_meals: dayMeals }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setTrip((t) => ({ ...t, day_meals: prev }));
+      setError("Couldn't save that day's meal setup — try again.");
+    }
+  }
+
   function saveNotes(notes) {
     setTrip((t) => ({ ...t, notes }));
     clearTimeout(notesTimer.current);
@@ -358,13 +384,38 @@ export default function TripPlanner() {
         <div className="tp-days">
           {days.map((day) => {
             const date = format(day, "yyyy-MM-dd");
+            const needed = trip.day_meals?.[date] || MEAL_TYPES.map((t) => t.key);
+            // A slot with a meal already planned always stays visible, even if
+            // it's been toggled off for this day — nothing disappears silently.
+            const visible = MEAL_TYPES.filter(({ key }) => needed.includes(key) || mealFor(date, key));
             return (
               <div key={date} className="tp-daycard">
-                <div style={{ background: "#26303a", color: "#fff", padding: "9px 14px", fontWeight: 700, fontSize: 15 }}>
-                  {format(day, "EEEE")}
-                  <span style={{ fontWeight: 400, opacity: 0.75, marginLeft: 8 }}>{format(day, "MMM d")}</span>
+                <div style={{ background: "#26303a", color: "#fff", padding: "9px 14px", fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span>
+                    {format(day, "EEEE")}
+                    <span style={{ fontWeight: 400, opacity: 0.75, marginLeft: 8 }}>{format(day, "MMM d")}</span>
+                  </span>
+                  <button className="tp-daymeals" onClick={() => setPickingDay(pickingDay === date ? null : date)}>
+                    {pickingDay === date ? "done" : "which meals?"}
+                  </button>
                 </div>
-                {MEAL_TYPES.map(({ key, label, emoji }) => {
+                {pickingDay === date && (
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid #f0ebe0", background: "#faf8f2", display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {MEAL_TYPES.map(({ key, label, emoji }) => (
+                      <button
+                        key={key}
+                        className={`tp-mealtoggle${needed.includes(key) ? " on" : ""}`}
+                        onClick={() => toggleDayMeal(date, key)}
+                      >
+                        {emoji} {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {visible.length === 0 && (
+                  <div style={{ padding: "12px 14px", color: "#b8ad9a", fontSize: 14 }}>No meals needed this day</div>
+                )}
+                {visible.map(({ key, label, emoji }) => {
                   const meal = mealFor(date, key);
                   const mealIngs = meal ? trip.items.filter((i) => i.meal_id === meal.id) : [];
                   const slotKey = `${date}|${key}`;
