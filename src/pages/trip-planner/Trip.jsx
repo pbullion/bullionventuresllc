@@ -53,6 +53,50 @@ const FAMILY_COLORS = [
   { bg: "#fde8ef", fg: "#b04a6e" }, // pink
 ];
 
+const money = (cents) => `$${(cents / 100).toFixed(2)}`;
+
+// Equal-split settlement: who pays whom to even things out. Parties are the
+// trip's families plus any name an expense was logged under.
+function computeSettlement(expenses, families) {
+  const parties = [...new Set([...families, ...expenses.map((e) => e.family)])];
+  if (parties.length < 2 || !expenses.length) return { parties: [], transfers: [], paid: {}, share: 0 };
+  const paid = Object.fromEntries(parties.map((p) => [p, 0]));
+  expenses.forEach((e) => {
+    paid[e.family] += e.amount_cents;
+  });
+  const total = expenses.reduce((s, e) => s + e.amount_cents, 0);
+  const share = total / parties.length;
+  const debtors = [];
+  const creditors = [];
+  parties.forEach((p) => {
+    const bal = paid[p] - share;
+    if (bal < -50) debtors.push({ p, owe: -bal });
+    else if (bal > 50) creditors.push({ p, due: bal });
+  });
+  debtors.sort((a, b) => b.owe - a.owe);
+  creditors.sort((a, b) => b.due - a.due);
+  const transfers = [];
+  let d = 0;
+  let c = 0;
+  while (d < debtors.length && c < creditors.length) {
+    const amt = Math.min(debtors[d].owe, creditors[c].due);
+    transfers.push({ from: debtors[d].p, to: creditors[c].p, cents: Math.round(amt) });
+    debtors[d].owe -= amt;
+    creditors[c].due -= amt;
+    if (debtors[d].owe < 50) d++;
+    if (creditors[c].due < 50) c++;
+  }
+  return { parties, transfers, paid, share };
+}
+
+const CABIN_FIELDS = [
+  { key: "address", label: "Address" },
+  { key: "door_code", label: "Door code" },
+  { key: "wifi_name", label: "WiFi network" },
+  { key: "wifi_password", label: "WiFi password" },
+  { key: "parking", label: "Parking / house notes" },
+];
+
 function Chip({ children, color }) {
   const c = color || FAMILY_COLORS[0];
   return (
@@ -161,6 +205,13 @@ export default function TripPlanner() {
   const [newBring, setNewBring] = useState({ name: "", assigned_to: "" });
   const [addingBring, setAddingBring] = useState(false);
   const [familiesDraft, setFamiliesDraft] = useState(null); // comma string while editing, null when not
+  const [wx, setWx] = useState(null); // forecast payload from the backend
+  const [newActivity, setNewActivity] = useState({ date: "", time_label: "", title: "" });
+  const [addingActivity, setAddingActivity] = useState(false);
+  const [newExpense, setNewExpense] = useState({ family: "", description: "", amount: "" });
+  const [addingExpense, setAddingExpense] = useState(false);
+  const [famEdit, setFamEdit] = useState(null); // { name, arrival, departure, adults, kids }
+  const [cabinDraft, setCabinDraft] = useState(null); // cabin object while editing
   const notesTimer = useRef(null);
 
   const load = useCallback(() => {
@@ -179,6 +230,13 @@ export default function TripPlanner() {
   }, [slug]);
 
   useEffect(load, [load]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/trips/${slug}/weather`)
+      .then((r) => r.json())
+      .then(setWx)
+      .catch(() => {}); // weather is decoration — never block the page on it
+  }, [slug]);
 
   // Pick up other families' edits whenever the tab comes back into view.
   useEffect(() => {
@@ -355,6 +413,106 @@ export default function TripPlanner() {
     }
   }
 
+  // Generic trip-field save; merges the returned trip row over local state
+  // while keeping the child collections (meals/items/expenses/activities).
+  async function patchTrip(body) {
+    const res = await fetch(`${API_BASE}/trips/${slug}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const saved = await res.json();
+    if (!res.ok) throw new Error(saved.error || "save failed");
+    setTrip((t) => ({ ...saved, meals: t.meals, items: t.items, expenses: t.expenses, activities: t.activities }));
+    return saved;
+  }
+
+  async function addActivity(e) {
+    e.preventDefault();
+    if (!newActivity.title.trim() || !newActivity.date || addingActivity) return;
+    setAddingActivity(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/trips/${slug}/activities`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newActivity),
+      });
+      const act = await res.json();
+      if (!res.ok) throw new Error(act.error || "add failed");
+      setTrip((t) => ({ ...t, activities: [...t.activities, act] }));
+      setNewActivity((n) => ({ ...n, time_label: "", title: "" }));
+    } catch (err) {
+      setError(`Couldn't add that activity: ${err.message}`);
+    } finally {
+      setAddingActivity(false);
+    }
+  }
+
+  async function deleteActivity(act) {
+    setTrip((t) => ({ ...t, activities: t.activities.filter((a) => a.id !== act.id) }));
+    try {
+      const res = await fetch(`${API_BASE}/activities/${act.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setTrip((t) => ({ ...t, activities: [...t.activities, act] }));
+      setError("Couldn't delete that activity — try again.");
+    }
+  }
+
+  async function addExpense(e) {
+    e.preventDefault();
+    const cents = Math.round(parseFloat(newExpense.amount) * 100);
+    if (!newExpense.family.trim() || !cents || cents <= 0 || addingExpense) return;
+    setAddingExpense(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/trips/${slug}/expenses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ family: newExpense.family, description: newExpense.description, amount_cents: cents }),
+      });
+      const exp = await res.json();
+      if (!res.ok) throw new Error(exp.error || "add failed");
+      setTrip((t) => ({ ...t, expenses: [...t.expenses, exp] }));
+      setNewExpense((n) => ({ ...n, description: "", amount: "" }));
+    } catch (err) {
+      setError(`Couldn't add that expense: ${err.message}`);
+    } finally {
+      setAddingExpense(false);
+    }
+  }
+
+  async function deleteExpense(exp) {
+    setTrip((t) => ({ ...t, expenses: t.expenses.filter((x) => x.id !== exp.id) }));
+    try {
+      const res = await fetch(`${API_BASE}/expenses/${exp.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setTrip((t) => ({ ...t, expenses: [...t.expenses, exp] }));
+      setError("Couldn't delete that expense — try again.");
+    }
+  }
+
+  async function saveFamEdit() {
+    const { name, ...info } = famEdit;
+    try {
+      await patchTrip({ family_info: { ...(trip.family_info || {}), [name]: info } });
+      setFamEdit(null);
+    } catch (err) {
+      setError(`Couldn't save that family's info: ${err.message}`);
+    }
+  }
+
+  async function saveCabin() {
+    try {
+      await patchTrip({ cabin: cabinDraft });
+      setCabinDraft(null);
+    } catch (err) {
+      setError(`Couldn't save cabin info: ${err.message}`);
+    }
+  }
+
   function saveNotes(notes) {
     setTrip((t) => ({ ...t, notes }));
     clearTimeout(notesTimer.current);
@@ -464,10 +622,32 @@ export default function TripPlanner() {
 
         <nav className="tp-jump">
           <a href="#tp-meals">🍽️ Meals</a>
+          <a href="#tp-itinerary">📅 Itinerary</a>
           <a href="#tp-packing">🛒 Shopping & packing{trip.items.some((i) => i.category !== "Bringing") ? ` (${trip.items.filter((i) => i.category !== "Bringing" && !i.checked).length} to go)` : ""}</a>
           <a href="#tp-bringing">🏕️ Bringing</a>
+          <a href="#tp-families">👨‍👩‍👧 Families</a>
+          <a href="#tp-costs">💵 Costs</a>
+          <a href="#tp-cabin">🏠 Cabin</a>
           <a href="#tp-notes">📝 Notes</a>
         </nav>
+
+        {wx?.available && (
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", marginTop: 14, paddingBottom: 4 }}>
+            {wx.days.map((d) => (
+              <div key={d.date} style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 12, padding: "8px 12px", textAlign: "center", minWidth: 86, flexShrink: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684" }}>{d.day} {d.dateLabel}</div>
+                <div style={{ fontSize: 22, margin: "2px 0" }}>{d.emoji}</div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{d.high}° <span style={{ color: "#a8a094", fontWeight: 400 }}>{d.low}°</span></div>
+                <div style={{ fontSize: 11, color: "#3d6a94" }}>💧{d.rainChance}%</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {wx && !wx.available && trip.location && (
+          <div style={{ color: "#a8a094", fontSize: 13, marginTop: 10 }}>
+            🌤️ Forecast for {trip.location} will show here about 10 days out.
+          </div>
+        )}
 
         {error && (
           <div style={{ background: "#fdecea", border: "1px solid #f5c6c0", color: "#a33a2f", borderRadius: 10, padding: "10px 14px", margin: "12px 0" }}>
@@ -561,6 +741,64 @@ export default function TripPlanner() {
               </div>
             );
           })}
+        </div>
+
+        <h2 id="tp-itinerary" style={{ fontSize: 19, margin: "28px 0 10px" }}>Itinerary</h2>
+        <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
+          {(trip.activities || []).length === 0 && (
+            <p style={{ color: "#6b7684", marginTop: 0 }}>Nothing planned yet — beach mornings, fishing charter, poker night…</p>
+          )}
+          {days.map((day) => {
+            const date = format(day, "yyyy-MM-dd");
+            const acts = (trip.activities || []).filter((a) => a.date === date);
+            if (!acts.length) return null;
+            return (
+              <div key={date} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>
+                  {format(day, "EEEE MMM d")}
+                </div>
+                {acts.map((a) => (
+                  <div key={a.id} className="tp-item-row">
+                    {a.time_label && <span style={{ fontSize: 13, fontWeight: 700, color: "#2a9d8f", minWidth: 52 }}>{a.time_label}</span>}
+                    <span style={{ flex: 1 }}>{a.title}</span>
+                    <button className="tp-del" title="Remove" onClick={() => deleteActivity(a)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+          <form onSubmit={addActivity} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+            <select
+              className="tp-input"
+              style={{ flex: "1 1 110px", marginBottom: 0 }}
+              value={newActivity.date}
+              onChange={(e) => setNewActivity((n) => ({ ...n, date: e.target.value }))}
+            >
+              <option value="">Day…</option>
+              {days.map((day) => (
+                <option key={format(day, "yyyy-MM-dd")} value={format(day, "yyyy-MM-dd")}>
+                  {format(day, "EEE MMM d")}
+                </option>
+              ))}
+            </select>
+            <input
+              className="tp-input"
+              style={{ flex: "1 1 70px", marginBottom: 0 }}
+              value={newActivity.time_label}
+              onChange={(e) => setNewActivity((n) => ({ ...n, time_label: e.target.value }))}
+              placeholder="9am"
+            />
+            <input
+              className="tp-input"
+              style={{ flex: "2 1 160px", marginBottom: 0 }}
+              value={newActivity.title}
+              onChange={(e) => setNewActivity((n) => ({ ...n, title: e.target.value }))}
+              placeholder="What's happening?"
+            />
+            <button className="tp-btn" type="submit" disabled={!newActivity.title.trim() || !newActivity.date || addingActivity}>
+              {addingActivity ? "Adding…" : "Add"}
+            </button>
+          </form>
         </div>
 
         <h2 id="tp-packing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Shopping & packing list</h2>
@@ -681,6 +919,207 @@ export default function TripPlanner() {
               {addingBring ? "Adding…" : "Add"}
             </button>
           </form>
+        </div>
+
+        <h2 id="tp-families" style={{ fontSize: 19, margin: "28px 0 10px" }}>Families</h2>
+        <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
+          {families.length === 0 && (
+            <p style={{ color: "#6b7684", margin: 0 }}>Add the families up by the trip name first, then set arrivals and headcounts here.</p>
+          )}
+          {families.map((f) => {
+            const info = (trip.family_info || {})[f] || {};
+            if (famEdit?.name === f) {
+              return (
+                <div key={f} style={{ padding: "10px 0", borderBottom: "1px solid #f0ebe0" }}>
+                  <div style={{ marginBottom: 8 }}><Chip color={colorFor(f)}>{f}</Chip></div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <input className="tp-input" style={{ flex: "1 1 130px", marginBottom: 0 }} value={famEdit.arrival} placeholder="Arrives (Thu 3pm)" onChange={(e) => setFamEdit((s) => ({ ...s, arrival: e.target.value }))} />
+                    <input className="tp-input" style={{ flex: "1 1 130px", marginBottom: 0 }} value={famEdit.departure} placeholder="Leaves (Mon 10am)" onChange={(e) => setFamEdit((s) => ({ ...s, departure: e.target.value }))} />
+                    <input className="tp-input" style={{ flex: "1 1 130px", marginBottom: 0 }} value={famEdit.bedroom} placeholder="Bedroom (Master up)" onChange={(e) => setFamEdit((s) => ({ ...s, bedroom: e.target.value }))} />
+                    <input className="tp-input" type="number" min="0" style={{ flex: "1 1 70px", marginBottom: 0 }} value={famEdit.adults} placeholder="Adults" onChange={(e) => setFamEdit((s) => ({ ...s, adults: e.target.value }))} />
+                    <input className="tp-input" type="number" min="0" style={{ flex: "1 1 70px", marginBottom: 0 }} value={famEdit.kids} placeholder="Kids" onChange={(e) => setFamEdit((s) => ({ ...s, kids: e.target.value }))} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button className="tp-btn" onClick={saveFamEdit}>Save</button>
+                    <button className="tp-btn-quiet" onClick={() => setFamEdit(null)}>Cancel</button>
+                  </div>
+                </div>
+              );
+            }
+            const bits = [
+              info.bedroom && `🛏 ${info.bedroom}`,
+              info.arrival && `arrives ${info.arrival}`,
+              info.departure && `leaves ${info.departure}`,
+              (info.adults || info.kids) && `${info.adults || 0} adults, ${info.kids || 0} kids`,
+            ].filter(Boolean);
+            return (
+              <div key={f} className="tp-item-row">
+                <Chip color={colorFor(f)}>{f}</Chip>
+                <span style={{ flex: 1, fontSize: 14, color: bits.length ? "inherit" : "#b8ad9a" }}>
+                  {bits.length ? bits.join(" · ") : "no details yet"}
+                </span>
+                <button
+                  className="tp-btn-quiet"
+                  style={{ fontSize: 13 }}
+                  onClick={() =>
+                    setFamEdit({
+                      name: f,
+                      arrival: info.arrival || "",
+                      departure: info.departure || "",
+                      bedroom: info.bedroom || "",
+                      adults: info.adults ?? "",
+                      kids: info.kids ?? "",
+                    })
+                  }
+                >
+                  edit
+                </button>
+              </div>
+            );
+          })}
+          {families.length > 0 && (() => {
+            const infos = families.map((f) => (trip.family_info || {})[f] || {});
+            const adults = infos.reduce((s, i) => s + (Number(i.adults) || 0), 0);
+            const kids = infos.reduce((s, i) => s + (Number(i.kids) || 0), 0);
+            return adults + kids > 0 ? (
+              <div style={{ marginTop: 10, fontWeight: 600, fontSize: 14 }}>
+                Headcount: {adults + kids} ({adults} adults, {kids} kids)
+              </div>
+            ) : null;
+          })()}
+        </div>
+
+        <h2 id="tp-costs" style={{ fontSize: 19, margin: "28px 0 10px" }}>Costs</h2>
+        <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
+          {(trip.expenses || []).length === 0 && (
+            <p style={{ color: "#6b7684", marginTop: 0 }}>No expenses logged — cabin deposit, groceries, gas…</p>
+          )}
+          {(trip.expenses || []).map((exp) => (
+            <div key={exp.id} className="tp-item-row">
+              <span style={{ flex: 1 }}>{exp.description || "Expense"}</span>
+              <Chip color={colorFor(exp.family)}>{exp.family}</Chip>
+              <span style={{ fontWeight: 700, minWidth: 70, textAlign: "right" }}>{money(exp.amount_cents)}</span>
+              <button className="tp-del" title="Remove" onClick={() => deleteExpense(exp)}>✕</button>
+            </div>
+          ))}
+          <form onSubmit={addExpense} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+            <input
+              className="tp-input"
+              style={{ flex: "2 1 150px", marginBottom: 0 }}
+              value={newExpense.description}
+              onChange={(e) => setNewExpense((n) => ({ ...n, description: e.target.value }))}
+              placeholder="What was it?"
+            />
+            {families.length > 0 ? (
+              <select
+                className="tp-input"
+                style={{ flex: "1 1 110px", marginBottom: 0 }}
+                value={newExpense.family}
+                onChange={(e) => setNewExpense((n) => ({ ...n, family: e.target.value }))}
+              >
+                <option value="">Paid by…</option>
+                {families.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className="tp-input"
+                style={{ flex: "1 1 110px", marginBottom: 0 }}
+                value={newExpense.family}
+                onChange={(e) => setNewExpense((n) => ({ ...n, family: e.target.value }))}
+                placeholder="Paid by"
+              />
+            )}
+            <input
+              className="tp-input"
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              style={{ flex: "1 1 90px", marginBottom: 0 }}
+              value={newExpense.amount}
+              onChange={(e) => setNewExpense((n) => ({ ...n, amount: e.target.value }))}
+              placeholder="$"
+            />
+            <button className="tp-btn" type="submit" disabled={!newExpense.family.trim() || !(parseFloat(newExpense.amount) > 0) || addingExpense}>
+              {addingExpense ? "Adding…" : "Add"}
+            </button>
+          </form>
+          {(trip.expenses || []).length > 0 && (() => {
+            const s = computeSettlement(trip.expenses, families);
+            if (!s.parties.length) return null;
+            const total = trip.expenses.reduce((sum, e) => sum + e.amount_cents, 0);
+            return (
+              <div style={{ marginTop: 14, borderTop: "1px solid #f0ebe0", paddingTop: 10 }}>
+                <div style={{ fontSize: 14, marginBottom: 6 }}>
+                  <b>{money(total)}</b> total · <b>{money(Math.round(s.share))}</b> per family
+                </div>
+                {s.parties.map((p) => (
+                  <div key={p} style={{ fontSize: 13, color: "#6b7684" }}>
+                    {p} paid {money(s.paid[p])}
+                  </div>
+                ))}
+                {s.transfers.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {s.transfers.map((t, i) => (
+                      <div key={i} style={{ fontSize: 14, fontWeight: 600, color: "#c25537" }}>
+                        {t.from} owes {t.to} {money(t.cents)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+
+        <h2 id="tp-cabin" style={{ fontSize: 19, margin: "28px 0 10px" }}>Cabin info</h2>
+        <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
+          {cabinDraft === null ? (
+            <>
+              {CABIN_FIELDS.every(({ key }) => !(trip.cabin || {})[key]) && (
+                <p style={{ color: "#6b7684", marginTop: 0 }}>Door code, WiFi, address — the stuff everyone texts you for.</p>
+              )}
+              {CABIN_FIELDS.map(({ key, label }) => {
+                const val = (trip.cabin || {})[key];
+                if (!val) return null;
+                return (
+                  <div key={key} style={{ padding: "6px 0", borderBottom: "1px solid #f0ebe0", display: "flex", gap: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#6b7684", minWidth: 110 }}>{label}</span>
+                    {key === "address" ? (
+                      <a href={`https://maps.google.com/?q=${encodeURIComponent(val)}`} target="_blank" rel="noreferrer" style={{ color: "#2a9d8f" }}>
+                        {val}
+                      </a>
+                    ) : (
+                      <span style={{ whiteSpace: "pre-wrap" }}>{val}</span>
+                    )}
+                  </div>
+                );
+              })}
+              <button className="tp-btn" style={{ marginTop: 12 }} onClick={() => setCabinDraft({ ...(trip.cabin || {}) })}>
+                Edit cabin info
+              </button>
+            </>
+          ) : (
+            <>
+              {CABIN_FIELDS.map(({ key, label }) => (
+                <div key={key} style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 3 }}>{label}</label>
+                  <input
+                    className="tp-input"
+                    style={{ marginBottom: 0 }}
+                    value={cabinDraft[key] || ""}
+                    onChange={(e) => setCabinDraft((c) => ({ ...c, [key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button className="tp-btn" onClick={saveCabin}>Save</button>
+                <button className="tp-btn-quiet" onClick={() => setCabinDraft(null)}>Cancel</button>
+              </div>
+            </>
+          )}
         </div>
 
         <h2 id="tp-notes" style={{ fontSize: 19, margin: "28px 0 10px" }}>Trip notes</h2>
