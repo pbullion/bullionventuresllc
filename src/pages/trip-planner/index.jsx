@@ -30,7 +30,7 @@ export default function TripPlannerHome() {
   const [trips, setTrips] = useState(null);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", location: "", start_date: "", end_date: "" });
+  const [form, setForm] = useState({ name: "", location: "", start_date: "", end_date: "", families: "" });
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -52,7 +52,10 @@ export default function TripPlannerHome() {
       const res = await fetch(`${API_BASE}/trips`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          families: form.families.split(",").map((f) => f.trim()).filter(Boolean),
+        }),
       });
       const trip = await res.json();
       if (!res.ok || !trip.slug) throw new Error(trip.error || "create failed");
@@ -121,6 +124,12 @@ export default function TripPlannerHome() {
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Location</label>
               <input className="tp-input" value={form.location} onChange={set("location")} placeholder="Crystal Beach, TX" />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>
+                Families <span style={{ fontWeight: 400, color: "#6b7684" }}>— comma separated, used for color coding</span>
+              </label>
+              <input className="tp-input" value={form.families} onChange={set("families")} placeholder="Angelle, Bullion, Hays" />
             </div>
             <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
               <div className="tp-datecol">

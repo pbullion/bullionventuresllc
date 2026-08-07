@@ -43,9 +43,20 @@ const TP_CSS = `
 h2[id] { scroll-margin-top: 12px; }
 `;
 
-function Chip({ children }) {
+// One color per family, assigned by position in trip.families.
+const FAMILY_COLORS = [
+  { bg: "#e7f3f1", fg: "#1f7a6f" }, // teal
+  { bg: "#fdeee8", fg: "#c25537" }, // coral
+  { bg: "#e8eff7", fg: "#3d6a94" }, // blue
+  { bg: "#f0e9f7", fg: "#7a55a8" }, // purple
+  { bg: "#fdf3dc", fg: "#9a7418" }, // gold
+  { bg: "#fde8ef", fg: "#b04a6e" }, // pink
+];
+
+function Chip({ children, color }) {
+  const c = color || FAMILY_COLORS[0];
   return (
-    <span style={{ background: "#e7f3f1", color: "#1f7a6f", borderRadius: 999, padding: "2px 9px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
+    <span style={{ background: c.bg, color: c.fg, borderRadius: 999, padding: "2px 9px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
       {children}
     </span>
   );
@@ -147,6 +158,9 @@ export default function TripPlanner() {
   const [pickingDay, setPickingDay] = useState(null); // date whose meal-slot picker is open
   const [newItem, setNewItem] = useState({ name: "", category: "Packing", assigned_to: "" });
   const [addingItem, setAddingItem] = useState(false);
+  const [newBring, setNewBring] = useState({ name: "", assigned_to: "" });
+  const [addingBring, setAddingBring] = useState(false);
+  const [familiesDraft, setFamiliesDraft] = useState(null); // comma string while editing, null when not
   const notesTimer = useRef(null);
 
   const load = useCallback(() => {
@@ -279,6 +293,47 @@ export default function TripPlanner() {
     }
   }
 
+  // "Bringing" entries reuse tp_items with a reserved category — the person is
+  // required, and the section renders grouped by person instead of category.
+  async function addBring(e) {
+    e.preventDefault();
+    if (!newBring.name.trim() || !newBring.assigned_to.trim() || addingBring) return;
+    setAddingBring(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/trips/${slug}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...newBring, category: "Bringing" }),
+      });
+      const item = await res.json();
+      if (!res.ok) throw new Error(item.error || "add failed");
+      setTrip((t) => ({ ...t, items: [...t.items, item] }));
+      setNewBring((n) => ({ ...n, name: "" }));
+    } catch (err) {
+      setError(`Couldn't add that: ${err.message}`);
+    } finally {
+      setAddingBring(false);
+    }
+  }
+
+  async function saveFamilies() {
+    const fams = familiesDraft.split(",").map((f) => f.trim()).filter(Boolean);
+    try {
+      const res = await fetch(`${API_BASE}/trips/${slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ families: fams }),
+      });
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.error || "save failed");
+      setTrip((t) => ({ ...t, families: saved.families }));
+      setFamiliesDraft(null);
+    } catch (err) {
+      setError(`Couldn't save families: ${err.message}`);
+    }
+  }
+
   async function toggleDayMeal(date, mealKey) {
     const current = trip.day_meals?.[date] || MEAL_TYPES.map((t) => t.key);
     const next = current.includes(mealKey)
@@ -350,7 +405,16 @@ export default function TripPlanner() {
   const days = eachDayOfInterval({ start: parseISO(trip.start_date), end: parseISO(trip.end_date) });
   const mealFor = (date, type) => trip.meals.find((m) => m.date === date && m.meal_type === type);
   const mealById = Object.fromEntries(trip.meals.map((m) => [m.id, m]));
-  const categories = [...new Set(trip.items.map((i) => i.category))];
+  const bringItems = trip.items.filter((i) => i.category === "Bringing");
+  const listItems = trip.items.filter((i) => i.category !== "Bringing");
+  const families = trip.families || [];
+  // Color-match "Angelle" but also "Angelle family" / "the Angelles".
+  const colorFor = (name) => {
+    if (!name) return undefined;
+    const idx = families.findIndex((f) => name.toLowerCase().includes(f.toLowerCase()));
+    return idx >= 0 ? FAMILY_COLORS[idx % FAMILY_COLORS.length] : undefined;
+  };
+  const categories = [...new Set(listItems.map((i) => i.category))];
   const categorySuggestions = [...new Set(["Packing", "Groceries", "Beach gear", "Kids", ...categories])];
 
   return (
@@ -368,9 +432,40 @@ export default function TripPlanner() {
           </div>
         </div>
 
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+          {familiesDraft === null ? (
+            <>
+              {families.map((f) => (
+                <Chip key={f} color={colorFor(f)}>{f}</Chip>
+              ))}
+              <button
+                className="tp-btn-quiet"
+                style={{ fontSize: 13, padding: "2px 6px" }}
+                onClick={() => setFamiliesDraft(families.join(", "))}
+              >
+                {families.length ? "edit families" : "+ add families (for color coding)"}
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                className="tp-input"
+                style={{ marginBottom: 0, maxWidth: 340 }}
+                value={familiesDraft}
+                onChange={(e) => setFamiliesDraft(e.target.value)}
+                placeholder="Angelle, Bullion, Hays"
+                autoFocus
+              />
+              <button className="tp-btn" onClick={saveFamilies}>Save</button>
+              <button className="tp-btn-quiet" onClick={() => setFamiliesDraft(null)}>Cancel</button>
+            </>
+          )}
+        </div>
+
         <nav className="tp-jump">
           <a href="#tp-meals">🍽️ Meals</a>
-          <a href="#tp-packing">🛒 Shopping & packing{trip.items.length ? ` (${trip.items.filter((i) => !i.checked).length} to go)` : ""}</a>
+          <a href="#tp-packing">🛒 Shopping & packing{trip.items.some((i) => i.category !== "Bringing") ? ` (${trip.items.filter((i) => i.category !== "Bringing" && !i.checked).length} to go)` : ""}</a>
+          <a href="#tp-bringing">🏕️ Bringing</a>
           <a href="#tp-notes">📝 Notes</a>
         </nav>
 
@@ -439,7 +534,7 @@ export default function TripPlanner() {
                     <button key={key} className="tp-slot" onClick={() => setEditingSlot(slotKey)}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", textTransform: "uppercase", letterSpacing: 0.5, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                         <span>{emoji} {label}</span>
-                        {meal?.assigned_to && <Chip>{meal.assigned_to}</Chip>}
+                        {meal?.assigned_to && <Chip color={colorFor(meal.assigned_to)}>{meal.assigned_to}</Chip>}
                       </div>
                       {meal ? (
                         <>
@@ -470,7 +565,7 @@ export default function TripPlanner() {
 
         <h2 id="tp-packing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Shopping & packing list</h2>
         <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
-          {trip.items.length === 0 && (
+          {listItems.length === 0 && (
             <p style={{ color: "#6b7684", marginTop: 0 }}>Nothing on the list yet — add the essentials below.</p>
           )}
           {categories.map((cat) => (
@@ -478,7 +573,7 @@ export default function TripPlanner() {
               <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>
                 {cat}
               </div>
-              {trip.items
+              {listItems
                 .filter((i) => i.category === cat)
                 .map((item) => {
                   const meal = item.meal_id ? mealById[item.meal_id] : null;
@@ -494,7 +589,7 @@ export default function TripPlanner() {
                           </span>
                         )}
                       </span>
-                      {item.assigned_to && <Chip>{item.assigned_to}</Chip>}
+                      {item.assigned_to && <Chip color={colorFor(item.assigned_to)}>{item.assigned_to}</Chip>}
                       <button className="tp-del" title="Remove item" onClick={() => deleteItem(item)}>✕</button>
                     </div>
                   );
@@ -532,6 +627,58 @@ export default function TripPlanner() {
             />
             <button className="tp-btn" type="submit" disabled={!newItem.name.trim() || addingItem}>
               {addingItem ? "Adding…" : "Add"}
+            </button>
+          </form>
+        </div>
+
+        <h2 id="tp-bringing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Who's bringing what</h2>
+        <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
+          {bringItems.length === 0 && (
+            <p style={{ color: "#6b7684", marginTop: 0 }}>
+              Nothing claimed yet — pop-up canopy, beach cart, cooler, cornhole…
+            </p>
+          )}
+          {bringItems.map((item) => (
+            <div key={item.id} className="tp-item-row">
+              <input type="checkbox" className="tp-check" title="Packed / loaded" checked={item.checked} onChange={() => toggleItem(item)} />
+              <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
+                {item.name}
+              </span>
+              <Chip color={colorFor(item.assigned_to)}>{item.assigned_to}</Chip>
+              <button className="tp-del" title="Remove" onClick={() => deleteItem(item)}>✕</button>
+            </div>
+          ))}
+          <form onSubmit={addBring} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+            <input
+              className="tp-input"
+              style={{ flex: "2 1 160px", marginBottom: 0 }}
+              value={newBring.name}
+              onChange={(e) => setNewBring((n) => ({ ...n, name: e.target.value }))}
+              placeholder="I'm bringing…"
+            />
+            {families.length > 0 ? (
+              <select
+                className="tp-input"
+                style={{ flex: "1 1 120px", marginBottom: 0 }}
+                value={newBring.assigned_to}
+                onChange={(e) => setNewBring((n) => ({ ...n, assigned_to: e.target.value }))}
+              >
+                <option value="">Family…</option>
+                {families.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className="tp-input"
+                style={{ flex: "1 1 120px", marginBottom: 0 }}
+                value={newBring.assigned_to}
+                onChange={(e) => setNewBring((n) => ({ ...n, assigned_to: e.target.value }))}
+                placeholder="Who"
+              />
+            )}
+            <button className="tp-btn" type="submit" disabled={!newBring.name.trim() || !newBring.assigned_to.trim() || addingBring}>
+              {addingBring ? "Adding…" : "Add"}
             </button>
           </form>
         </div>
