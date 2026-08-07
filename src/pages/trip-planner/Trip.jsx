@@ -90,6 +90,7 @@ function computeSettlement(expenses, families) {
 }
 
 const CABIN_FIELDS = [
+  { key: "link", label: "Listing link" },
   { key: "address", label: "Address" },
   { key: "door_code", label: "Door code" },
   { key: "wifi_name", label: "WiFi network" },
@@ -1089,6 +1090,15 @@ export default function TripPlanner() {
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#6b7684", minWidth: 110 }}>{label}</span>
                     {key === "address" ? (
                       <a href={`https://maps.google.com/?q=${encodeURIComponent(val)}`} target="_blank" rel="noreferrer" style={{ color: "#2a9d8f" }}>
+                        {val}
+                      </a>
+                    ) : key === "link" ? (
+                      <a
+                        href={/^https?:\/\//i.test(val) ? val : `https://${val}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: "#2a9d8f", wordBreak: "break-all" }}
+                      >
                         {val}
                       </a>
                     ) : (
