@@ -33,6 +33,10 @@ const TP_CSS = `
 .tp-item-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0ebe0; }
 .tp-del { background: none; border: none; color: #c2b8a6; cursor: pointer; font-size: 16px; padding: 2px 6px; }
 .tp-del:hover { color: #a33a2f; }
+.tp-jump { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.tp-jump a { background: #fff; border: 1px solid #d8d0c2; border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 600; color: #26303a; text-decoration: none; }
+.tp-jump a:hover { border-color: #2a9d8f; color: #1f7a6f; }
+h2[id] { scroll-margin-top: 12px; }
 `;
 
 function Chip({ children }) {
@@ -259,13 +263,19 @@ export default function TripPlanner() {
           </div>
         </div>
 
+        <nav className="tp-jump">
+          <a href="#tp-meals">🍽️ Meals</a>
+          <a href="#tp-packing">🎒 Packing list{trip.items.length ? ` (${trip.items.filter((i) => !i.checked).length} to go)` : ""}</a>
+          <a href="#tp-notes">📝 Notes</a>
+        </nav>
+
         {error && (
           <div style={{ background: "#fdecea", border: "1px solid #f5c6c0", color: "#a33a2f", borderRadius: 10, padding: "10px 14px", margin: "12px 0" }}>
             {error}
           </div>
         )}
 
-        <h2 style={{ fontSize: 19, margin: "22px 0 10px" }}>Meals</h2>
+        <h2 id="tp-meals" style={{ fontSize: 19, margin: "22px 0 10px" }}>Meals</h2>
         <div className="tp-days">
           {days.map((day) => {
             const date = format(day, "yyyy-MM-dd");
@@ -315,7 +325,7 @@ export default function TripPlanner() {
           })}
         </div>
 
-        <h2 style={{ fontSize: 19, margin: "28px 0 10px" }}>Packing & necessities</h2>
+        <h2 id="tp-packing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Packing & necessities</h2>
         <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
           {trip.items.length === 0 && (
             <p style={{ color: "#6b7684", marginTop: 0 }}>Nothing on the list yet — add the essentials below.</p>
@@ -374,7 +384,7 @@ export default function TripPlanner() {
           </form>
         </div>
 
-        <h2 style={{ fontSize: 19, margin: "28px 0 10px" }}>Trip notes</h2>
+        <h2 id="tp-notes" style={{ fontSize: 19, margin: "28px 0 10px" }}>Trip notes</h2>
         <textarea
           className="tp-input"
           style={{ maxWidth: 640, minHeight: 90, resize: "vertical", boxSizing: "border-box" }}

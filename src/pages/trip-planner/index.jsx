@@ -14,6 +14,12 @@ const TP_CSS = `
 .tp-card:hover { box-shadow: 0 4px 14px rgba(38,48,58,0.10); transform: translateY(-1px); }
 .tp-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #d8d0c2; border-radius: 10px; font-size: 16px; background: #fff; color: #26303a; }
 .tp-input:focus { outline: 2px solid #2a9d8f; border-color: #2a9d8f; }
+/* iOS Safari: date inputs have an intrinsic width that refuses to shrink inside
+   flex columns (overflowing the card) and center their text. Strip the native
+   appearance and left-align so they match the text inputs. */
+input.tp-input[type="date"] { -webkit-appearance: none; appearance: none; min-height: 45px; text-align: left; }
+input.tp-input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+.tp-datecol { flex: 1; min-width: 0; }
 .tp-btn { background: #2a9d8f; color: #fff; border: none; border-radius: 10px; padding: 11px 18px; font-size: 16px; font-weight: 600; cursor: pointer; }
 .tp-btn:disabled { opacity: 0.5; cursor: default; }
 .tp-btn:hover:not(:disabled) { background: #24897d; }
@@ -117,11 +123,11 @@ export default function TripPlannerHome() {
               <input className="tp-input" value={form.location} onChange={set("location")} placeholder="Crystal Beach, TX" />
             </div>
             <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-              <div style={{ flex: 1 }}>
+              <div className="tp-datecol">
                 <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>First day</label>
                 <input className="tp-input" type="date" value={form.start_date} onChange={set("start_date")} />
               </div>
-              <div style={{ flex: 1 }}>
+              <div className="tp-datecol">
                 <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Last day</label>
                 <input className="tp-input" type="date" value={form.end_date} onChange={set("end_date")} min={form.start_date || undefined} />
               </div>
