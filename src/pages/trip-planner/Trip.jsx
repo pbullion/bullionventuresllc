@@ -48,11 +48,33 @@ function Chip({ children }) {
 }
 
 // Inline editor for one meal slot. Saves the whole slot in one PUT upsert;
-// clearing every field deletes the slot server-side.
-function MealEditor({ meal, onSave, onCancel, saving }) {
+// clearing every field deletes the slot server-side. Ingredient edits are
+// queued locally and committed alongside Save so a brand-new slot (no meal row
+// yet) can take ingredients too — each one becomes a Groceries item on the
+// shopping list, linked to this meal.
+function MealEditor({ meal, ingredients, onSave, onCancel, saving }) {
   const [title, setTitle] = useState(meal?.title || "");
   const [assigned, setAssigned] = useState(meal?.assigned_to || "");
   const [details, setDetails] = useState(meal?.details || "");
+  const [ings, setIngs] = useState(ingredients.map((i) => ({ id: i.id, name: i.name })));
+  const [newIng, setNewIng] = useState("");
+
+  const addIng = () => {
+    const name = newIng.trim();
+    if (!name) return;
+    setIngs((l) => [...l, { id: null, name }]);
+    setNewIng("");
+  };
+
+  const save = (fields) => {
+    const kept = new Set(ings.filter((g) => g.id).map((g) => g.id));
+    const removeIds = ingredients.filter((i) => !kept.has(i.id)).map((i) => i.id);
+    const addNames = ings.filter((g) => !g.id).map((g) => g.name);
+    // Don't lose an ingredient typed but not yet added when Save is tapped.
+    const pending = newIng.trim();
+    if (pending) addNames.push(pending);
+    onSave(fields, { addNames, removeIds });
+  };
 
   return (
     <div style={{ padding: "10px 14px", borderTop: "1px solid #f0ebe0", background: "#faf8f2" }}>
@@ -66,12 +88,39 @@ function MealEditor({ meal, onSave, onCancel, saving }) {
         rows={2}
         style={{ resize: "vertical" }}
       />
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", margin: "2px 0 6px" }}>
+        🛒 Ingredients <span style={{ fontWeight: 400 }}>— auto-added to the shopping list</span>
+      </div>
+      {ings.map((g, idx) => (
+        <div key={g.id ?? `new-${idx}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
+          <span style={{ flex: 1, fontSize: 14 }}>{g.name}</span>
+          <button className="tp-del" title="Remove ingredient" onClick={() => setIngs((l) => l.filter((_, i) => i !== idx))}>✕</button>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <input
+          className="tp-input"
+          style={{ marginBottom: 0, flex: 1 }}
+          value={newIng}
+          onChange={(e) => setNewIng(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addIng();
+            }
+          }}
+          placeholder="Add an ingredient…"
+        />
+        <button className="tp-btn" type="button" onClick={addIng} disabled={!newIng.trim()}>
+          Add
+        </button>
+      </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button className="tp-btn" disabled={saving} onClick={() => onSave({ title, assigned_to: assigned, details })}>
+        <button className="tp-btn" disabled={saving} onClick={() => save({ title, assigned_to: assigned, details })}>
           {saving ? "Saving…" : "Save"}
         </button>
         {meal && (
-          <button className="tp-btn-quiet" disabled={saving} onClick={() => onSave({ title: "", assigned_to: "", details: "" })}>
+          <button className="tp-btn-quiet" disabled={saving} onClick={() => onSave({ title: "", assigned_to: "", details: "" }, { addNames: [], removeIds: [] })}>
             Clear
           </button>
         )}
@@ -121,7 +170,7 @@ export default function TripPlanner() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [load]);
 
-  async function saveMeal(date, mealType, fields) {
+  async function saveMeal(date, mealType, fields, ingChanges = { addNames: [], removeIds: [] }) {
     const slotKey = `${date}|${mealType}`;
     setSavingSlot(slotKey);
     setError("");
@@ -133,10 +182,39 @@ export default function TripPlanner() {
       });
       const saved = await res.json();
       if (!res.ok) throw new Error(saved.error || "save failed");
-      setTrip((t) => {
-        const others = t.meals.filter((m) => !(m.date === date && m.meal_type === mealType));
-        return { ...t, meals: saved.cleared ? others : [...others, saved] };
-      });
+
+      if (saved.cleared) {
+        // Server cascade-deleted the meal's ingredients — drop them locally too.
+        setTrip((t) => {
+          const old = t.meals.find((m) => m.date === date && m.meal_type === mealType);
+          return {
+            ...t,
+            meals: t.meals.filter((m) => m !== old),
+            items: old ? t.items.filter((i) => i.meal_id !== old.id) : t.items,
+          };
+        });
+        setEditingSlot(null);
+        return;
+      }
+
+      const [added] = await Promise.all([
+        Promise.all(
+          ingChanges.addNames.map((name) =>
+            fetch(`${API_BASE}/trips/${slug}/items`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name, category: "Groceries", meal_id: saved.id }),
+            }).then((r) => (r.ok ? r.json() : null))
+          )
+        ),
+        Promise.all(ingChanges.removeIds.map((id) => fetch(`${API_BASE}/items/${id}`, { method: "DELETE" }))),
+      ]);
+
+      setTrip((t) => ({
+        ...t,
+        meals: [...t.meals.filter((m) => !(m.date === date && m.meal_type === mealType)), saved],
+        items: [...t.items.filter((i) => !ingChanges.removeIds.includes(i.id)), ...added.filter(Boolean)],
+      }));
       setEditingSlot(null);
     } catch (err) {
       setError(`Couldn't save that meal: ${err.message}`);
@@ -245,6 +323,7 @@ export default function TripPlanner() {
 
   const days = eachDayOfInterval({ start: parseISO(trip.start_date), end: parseISO(trip.end_date) });
   const mealFor = (date, type) => trip.meals.find((m) => m.date === date && m.meal_type === type);
+  const mealById = Object.fromEntries(trip.meals.map((m) => [m.id, m]));
   const categories = [...new Set(trip.items.map((i) => i.category))];
   const categorySuggestions = [...new Set(["Packing", "Groceries", "Beach gear", "Kids", ...categories])];
 
@@ -265,7 +344,7 @@ export default function TripPlanner() {
 
         <nav className="tp-jump">
           <a href="#tp-meals">🍽️ Meals</a>
-          <a href="#tp-packing">🎒 Packing list{trip.items.length ? ` (${trip.items.filter((i) => !i.checked).length} to go)` : ""}</a>
+          <a href="#tp-packing">🛒 Shopping & packing{trip.items.length ? ` (${trip.items.filter((i) => !i.checked).length} to go)` : ""}</a>
           <a href="#tp-notes">📝 Notes</a>
         </nav>
 
@@ -287,6 +366,7 @@ export default function TripPlanner() {
                 </div>
                 {MEAL_TYPES.map(({ key, label, emoji }) => {
                   const meal = mealFor(date, key);
+                  const mealIngs = meal ? trip.items.filter((i) => i.meal_id === meal.id) : [];
                   const slotKey = `${date}|${key}`;
                   if (editingSlot === slotKey) {
                     return (
@@ -296,8 +376,9 @@ export default function TripPlanner() {
                         </div>
                         <MealEditor
                           meal={meal}
+                          ingredients={mealIngs}
                           saving={savingSlot === slotKey}
-                          onSave={(fields) => saveMeal(date, key, fields)}
+                          onSave={(fields, ingChanges) => saveMeal(date, key, fields, ingChanges)}
                           onCancel={() => setEditingSlot(null)}
                         />
                       </div>
@@ -313,6 +394,17 @@ export default function TripPlanner() {
                         <>
                           <div style={{ fontWeight: 600, marginTop: 3 }}>{meal.title || "—"}</div>
                           {meal.details && <div style={{ fontSize: 13, color: "#6b7684", marginTop: 2, whiteSpace: "pre-wrap" }}>{meal.details}</div>}
+                          {mealIngs.length > 0 && (
+                            <div style={{ fontSize: 13, color: "#6b7684", marginTop: 3 }}>
+                              🛒{" "}
+                              {mealIngs.map((i, idx) => (
+                                <span key={i.id} style={{ textDecoration: i.checked ? "line-through" : "none", color: i.checked ? "#a8a094" : undefined }}>
+                                  {i.name}
+                                  {idx < mealIngs.length - 1 ? ", " : ""}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </>
                       ) : (
                         <div style={{ color: "#b8ad9a", marginTop: 3, fontSize: 14 }}>+ Add {label.toLowerCase()}</div>
@@ -325,7 +417,7 @@ export default function TripPlanner() {
           })}
         </div>
 
-        <h2 id="tp-packing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Packing & necessities</h2>
+        <h2 id="tp-packing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Shopping & packing list</h2>
         <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
           {trip.items.length === 0 && (
             <p style={{ color: "#6b7684", marginTop: 0 }}>Nothing on the list yet — add the essentials below.</p>
@@ -337,16 +429,25 @@ export default function TripPlanner() {
               </div>
               {trip.items
                 .filter((i) => i.category === cat)
-                .map((item) => (
-                  <div key={item.id} className="tp-item-row">
-                    <input type="checkbox" className="tp-check" checked={item.checked} onChange={() => toggleItem(item)} />
-                    <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
-                      {item.name}
-                    </span>
-                    {item.assigned_to && <Chip>{item.assigned_to}</Chip>}
-                    <button className="tp-del" title="Remove item" onClick={() => deleteItem(item)}>✕</button>
-                  </div>
-                ))}
+                .map((item) => {
+                  const meal = item.meal_id ? mealById[item.meal_id] : null;
+                  return (
+                    <div key={item.id} className="tp-item-row">
+                      <input type="checkbox" className="tp-check" checked={item.checked} onChange={() => toggleItem(item)} />
+                      <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
+                        {item.name}
+                        {meal && (
+                          <span style={{ fontSize: 12, color: "#a8a094", marginLeft: 6 }}>
+                            {format(parseISO(meal.date), "EEE")} {meal.meal_type}
+                            {meal.title ? ` · ${meal.title}` : ""}
+                          </span>
+                        )}
+                      </span>
+                      {item.assigned_to && <Chip>{item.assigned_to}</Chip>}
+                      <button className="tp-del" title="Remove item" onClick={() => deleteItem(item)}>✕</button>
+                    </div>
+                  );
+                })}
             </div>
           ))}
 
