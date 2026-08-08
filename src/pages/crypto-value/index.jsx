@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import OpenBetsRail from "../../components/OpenBetsRail";
+import PnlChart from "../../components/PnlChart.jsx";
 
 /* Crypto Value — live view of the Kalshi crypto engine (backend:
  * sheline-art-website-api routes/kalshiCrypto.js, spec in
@@ -1028,6 +1029,13 @@ export default function CryptoValue() {
               </div>
             )}
           </Panel>
+
+          {/* ── P&L over time (crypto ledger only) ── */}
+          <PnlChart
+            engines={[{ key: "crypto", label: "Crypto" }]}
+            defaultEngine="crypto"
+            title="Crypto P&L over time"
+          />
 
           {/* ── Feed health strip ── */}
           <Panel id="feeds" title="Feeds">

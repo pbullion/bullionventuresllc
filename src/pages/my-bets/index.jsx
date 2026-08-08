@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import PnlChart from "../../components/PnlChart.jsx";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
@@ -2173,6 +2174,10 @@ export default function MyBets() {
         ) : (
           /* ─── History tab ─── */
           <>
+            {/* Both engines on one axis — the settled-bet cards below are the
+                per-bet detail behind this curve. */}
+            <PnlChart title="Profit & loss over time" />
+
             <div style={S.sectionHeader}>
               <div style={S.sectionTitle}>Settled bets</div>
               {hist.length ? (

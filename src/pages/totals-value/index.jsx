@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import OpenBetsRail from "../../components/OpenBetsRail";
+import PnlChart from "../../components/PnlChart.jsx";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
@@ -1594,6 +1595,13 @@ export default function TotalsValue() {
           </div>
 
           <AutoBetPanel games={games} />
+          {/* Realized money over time. PerformancePanel below is the MODEL's
+              track record (calibration/accuracy) — different question. */}
+          <PnlChart
+            engines={[{ key: "sports", label: "Sports" }]}
+            defaultEngine="sports"
+            title="Sports P&L over time"
+          />
           <PerformancePanel />
 
           {error && (
