@@ -419,11 +419,33 @@ export default function CryptoValue() {
     ) {
       window.alert(
         `Saved at $${Math.round(next.daily_cap_override)} — that's the ` +
-          `hard ceiling. Raising it takes a server config change ` +
-          `(CRYPTOBET_DAILY_CEILING).`
+          `ceiling. Raise it with the CEIL button first.`
       );
     }
     await loadAll();
+  };
+
+  // The STANDING ceiling the cap override clamps to — unlike the cap and
+  // unit this does NOT lapse overnight. Server keeps the tighter of this and
+  // CRYPTOBET_DAILY_CEILING, so it can't loosen an env-level bound.
+  const changeCeiling = async () => {
+    const ceiling =
+      status && status.config ? status.config.daily_ceiling : null;
+    const raw = window.prompt(
+      `New daily-cap CEILING in dollars (currently ${
+        ceiling ? `$${ceiling}` : "none — cap edits are unbounded"
+      }).\nStanding until changed (does NOT reset overnight).\n` +
+        `Leave blank to remove the ceiling.`
+    );
+    if (raw === null) return;
+    const asked = raw.trim() === "" ? null : Number(raw);
+    if (asked != null && (!Number.isFinite(asked) || asked <= 0)) {
+      window.alert("Ceiling must be a number > 0 (blank removes it).");
+      return;
+    }
+    if (await postWithPin("/auto-bets/daily-ceiling", { ceiling: asked })) {
+      await loadAll();
+    }
   };
 
   // Unit size for TODAY only — same guards as the cap (PIN, server clamp to
@@ -656,6 +678,40 @@ export default function CryptoValue() {
                   {status && status.today && status.today.daily_cap != null
                     ? Math.round(status.today.daily_cap)
                     : "—"}{" "}
+                  ✎
+                </button>
+                {/* Amber while UNSET — the dangerous state here is no bound
+                    at all, the opposite polarity from the unit button. */}
+                <button
+                  onClick={changeCeiling}
+                  disabled={busy}
+                  style={{
+                    background: C.chipBg,
+                    color:
+                      status &&
+                      status.config &&
+                      status.config.daily_ceiling == null
+                        ? C.amber
+                        : C.text,
+                    border: `1px solid ${
+                      status &&
+                      status.config &&
+                      status.config.daily_ceiling == null
+                        ? C.amber
+                        : C.border
+                    }`,
+                    borderRadius: 8,
+                    padding: "5px 12px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    opacity: busy ? 0.5 : 1,
+                  }}
+                >
+                  CEIL{" "}
+                  {status && status.config && status.config.daily_ceiling != null
+                    ? `$${Math.round(status.config.daily_ceiling)}`
+                    : "∞"}{" "}
                   ✎
                 </button>
                 {status && status.enabled === false && status.killed ? (

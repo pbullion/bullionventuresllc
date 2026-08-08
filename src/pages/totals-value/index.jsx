@@ -839,10 +839,34 @@ function AutoBetPanel({ games }) {
     const saved = next.today && next.today.daily_cap;
     if (asked != null && saved != null && asked > saved) {
       window.alert(
-        `Saved at $${Math.round(saved)} — that's the hard ceiling. ` +
-          `Raising it takes a server config change (AUTOBET_MAX_DAILY_CEILING).`
+        `Saved at $${Math.round(saved)} — that's the ceiling. ` +
+          `Raise it with the CEIL button first.`
       );
     }
+  };
+
+  // The STANDING ceiling the cap override clamps to — unlike the cap and
+  // unit this does NOT lapse overnight. Server keeps the tighter of this and
+  // AUTOBET_MAX_DAILY_CEILING, so it can't loosen an env-level bound.
+  const changeCeiling = async () => {
+    const raw = window.prompt(
+      `New daily-cap CEILING in dollars (currently ${
+        t.daily_cap_ceiling
+          ? `$${t.daily_cap_ceiling}`
+          : "none — cap edits are unbounded"
+      }).\nStanding until changed (does NOT reset overnight).\n` +
+        `Leave blank to remove the ceiling.`
+    );
+    if (raw === null) return;
+    const asked = raw.trim() === "" ? null : Number(raw);
+    if (asked != null && (!Number.isFinite(asked) || asked <= 0)) {
+      window.alert("Ceiling must be a number > 0 (blank removes it).");
+      return;
+    }
+    const next = await postWithPin("/auto-bets/daily-ceiling", {
+      ceiling: asked,
+    });
+    if (next) setStatus(next);
   };
 
   // Change the dollar size of one betting unit, for today only. Same shape as
@@ -1097,6 +1121,31 @@ function AutoBetPanel({ games }) {
               }}
             >
               CAP ${t.daily_cap != null ? Math.round(t.daily_cap) : "—"} ✎
+            </button>
+            {/* Amber while UNSET — no bound at all is the state worth
+                noticing, the opposite polarity from the unit button. */}
+            <button
+              onClick={changeCeiling}
+              disabled={busy}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 8,
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: "pointer",
+                color: t.daily_cap_ceiling == null ? C.amber : C.text,
+                background: C.chipBg,
+                border: `1px solid ${
+                  t.daily_cap_ceiling == null ? C.amber : C.border
+                }`,
+                opacity: busy ? 0.5 : 1,
+              }}
+            >
+              CEIL{" "}
+              {t.daily_cap_ceiling != null
+                ? `$${Math.round(t.daily_cap_ceiling)}`
+                : "∞"}{" "}
+              ✎
             </button>
             <button
               onClick={toggle}
