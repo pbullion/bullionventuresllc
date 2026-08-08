@@ -1051,6 +1051,11 @@ function AutoBetPanel({ games }) {
               {Math.round((cfg.min_edge || 0) * 100)}¢+ edge and a liquid book
               {cfg.min_price
                 ? ` · no long shots (<${Math.round(cfg.min_price * 100)}¢)`
+                : ""}
+              {cfg.cheap_price_max != null
+                ? ` · <${Math.round(cfg.cheap_price_max * 100)}¢ ${
+                    cfg.cheap_units > 0 ? `@ ${cfg.cheap_units}u` : "off"
+                  }`
                 : ""}{" "}
               · {(cfg.leagues || []).join(" + ").toUpperCase()} · checks every{" "}
               {cfg.interval_secs}s

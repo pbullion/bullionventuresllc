@@ -704,7 +704,18 @@ export default function CryptoValue() {
                 {cents(status.config.min_edge)} · calib ≥
                 {cents(status.config.min_calib_edge)} · spread ≤
                 {cents(status.config.max_spread)} · $
-                {status.config.max_window_dollars}/window ·{" "}
+                {status.config.max_window_dollars}/window
+                {status.config.cheap_price_max != null && (
+                  <>
+                    {" "}
+                    · {"<"}
+                    {cents(status.config.cheap_price_max)}{" "}
+                    {status.config.cheap_units > 0
+                      ? `@ ${status.config.cheap_units}u`
+                      : "off"}
+                  </>
+                )}{" "}
+                ·{" "}
                 {status.config.assets.join("+").toUpperCase()} ·{" "}
                 {status.config.horizons.join("+")}
                 {/* The money figures used to be crammed on the end of this line;
