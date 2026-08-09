@@ -59,9 +59,11 @@ const cashOutGap = (d) => {
   const n = Number(co);
   if (!Number.isFinite(n)) return null;
   const value = Number(d.current_value_dollars) || 0;
+  // Gate on the gross bid, display the net — see the note in /my-bets.
+  const gross = Number(d.cash_out_value_gross_dollars ?? co);
   // Whole cents, not dollars — see the note on cashOutGap in /my-bets: a 2c gap
   // compared in float is 0.019999… and would hide a real spread.
-  const gapCents = Math.round(n * 100) - Math.round(value * 100);
+  const gapCents = Math.round(gross * 100) - Math.round(value * 100);
   return Math.abs(gapCents) >= CASH_OUT_MIN_GAP_CENTS ? n : null;
 };
 

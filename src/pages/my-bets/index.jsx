@@ -1161,7 +1161,9 @@ const profitOf = (d) =>
  * this from the executable BID (and for a parlay, the product of each leg's
  * sell price, since a combo ticker has no book of its own). On a thin market
  * the two diverge hard — a live 166-contract position marked at $24.90 would
- * only fetch $11.62.
+ * only fetch $11.62. It is also NET of the taker fee owed to exit — settlement
+ * is free on Kalshi, so only selling early pays that, and a gross figure would
+ * quietly overstate what leaving the position puts back in the balance.
  *
  * Returns null when there's nothing worth saying: no live bid (the backend
  * sends null rather than a misleading $0), or the mark and the bid agree.
@@ -1174,10 +1176,15 @@ const cashOutGap = (d) => {
   const n = Number(co);
   if (!Number.isFinite(n)) return null;
   const value = Number(d.current_value_dollars) || 0;
+  // Gate on the GROSS bid, display the NET. The exit fee ceils to a whole cent
+  // per contract, so testing the net would clear 2c on any position of 2+
+  // contracts and this filter would stop hiding anything. Falls back to the net
+  // for payloads from a backend that predates the gross field.
+  const gross = Number(d.cash_out_value_gross_dollars ?? co);
   // Compared in whole cents, not dollars: `5.02 - 5.00` is 0.019999… in binary
   // float, so an exact 2c gap failed a `>= 0.02` test and the row silently
   // hid a real spread.
-  const gapCents = Math.round(n * 100) - Math.round(value * 100);
+  const gapCents = Math.round(gross * 100) - Math.round(value * 100);
   return Math.abs(gapCents) >= CASH_OUT_MIN_GAP_CENTS ? n : null;
 };
 
