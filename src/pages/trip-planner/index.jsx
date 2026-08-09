@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { deleteTripWithPin } from "./tripPin";
+import { deleteTripWithPin, TRIP_DELETE_VISIBLE } from "./tripPin";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 
@@ -29,7 +29,7 @@ input.tp-input[type="date"]::-webkit-date-and-time-value { text-align: left; mar
    feels like. Absolute positioning over a relative wrapper keeps it visually
    on the card while staying a sibling of the link. */
 .tp-cardwrap { position: relative; margin-bottom: 12px; }
-.tp-cardwrap > .tp-card { margin-bottom: 0; padding-right: 54px; }
+.tp-cardwrap > .tp-card { margin-bottom: 0; ${TRIP_DELETE_VISIBLE ? "padding-right: 54px;" : ""} }
 .tp-del { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid #e4ddd0; background: #fff; color: #97a1ad; font-size: 17px; line-height: 1; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
 .tp-del:hover { background: #fdecea; border-color: #f5c6c0; color: #a33a2f; }
 .tp-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: #fdecea; border: 1px solid #f5c6c0; border-top: none; border-radius: 0 0 14px 14px; margin: -8px 8px 0; padding: 12px 14px; font-size: 14px; color: #7d2c23; }
@@ -136,16 +136,18 @@ export default function TripPlannerHome() {
                 {dateRange(t)}
               </div>
             </Link>
-            <button
-              type="button"
-              className="tp-del"
-              title={`Delete ${t.name}`}
-              aria-label={`Delete ${t.name}`}
-              onClick={() => setConfirmSlug(confirmSlug === t.slug ? null : t.slug)}
-            >
-              🗑
-            </button>
-            {confirmSlug === t.slug && (
+            {TRIP_DELETE_VISIBLE && (
+              <button
+                type="button"
+                className="tp-del"
+                title={`Delete ${t.name}`}
+                aria-label={`Delete ${t.name}`}
+                onClick={() => setConfirmSlug(confirmSlug === t.slug ? null : t.slug)}
+              >
+                🗑
+              </button>
+            )}
+            {TRIP_DELETE_VISIBLE && confirmSlug === t.slug && (
               <div className="tp-confirm">
                 {/* Spelling out the cascade — the trip row is the least of what
                     goes, and "delete trip?" undersells it. */}

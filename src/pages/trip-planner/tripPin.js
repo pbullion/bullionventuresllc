@@ -9,6 +9,17 @@
  */
 const PIN_KEY = "bv_trip_pin";
 
+/* Master switch for the delete UI, off at Patrick's request 2026-08-09 — the
+ * planner is shared with other families and a visible trash can invites a
+ * mistake no PIN prompt fully undoes.
+ *
+ * Only the AFFORDANCE is hidden. The server-side gate, the PIN, and
+ * deleteTripWithPin below all stay live and tested, so flipping this to true
+ * restores both entry points (the trash on the trip list and "Delete this trip"
+ * on the detail page) with no other edits. Deleting a trip meanwhile is a curl
+ * with the x-trip-pin header. */
+export const TRIP_DELETE_VISIBLE = false;
+
 /* Deletes a trip, prompting for the PIN and caching it on success. Cascades
  * server-side to meals, packing items, expenses and activities.
  *

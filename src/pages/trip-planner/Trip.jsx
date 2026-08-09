@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
-import { deleteTripWithPin } from "./tripPin";
+import { deleteTripWithPin, TRIP_DELETE_VISIBLE } from "./tripPin";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 
@@ -933,14 +933,16 @@ export default function TripPlanner() {
           placeholder="Cabin address, door code, who's driving, arrival times…"
         />
 
-        <div style={{ marginTop: 40 }}>
-          <button
-            onClick={deleteTrip}
-            style={{ background: "none", border: "1px solid #e0c9c5", color: "#a33a2f", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" }}
-          >
-            Delete this trip
-          </button>
-        </div>
+        {TRIP_DELETE_VISIBLE && (
+          <div style={{ marginTop: 40 }}>
+            <button
+              onClick={deleteTrip}
+              style={{ background: "none", border: "1px solid #e0c9c5", color: "#a33a2f", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" }}
+            >
+              Delete this trip
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
