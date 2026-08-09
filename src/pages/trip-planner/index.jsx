@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
+import { deleteTripWithPin } from "./tripPin";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 
@@ -23,6 +24,18 @@ input.tp-input[type="date"]::-webkit-date-and-time-value { text-align: left; mar
 .tp-btn { background: #2a9d8f; color: #fff; border: none; border-radius: 10px; padding: 11px 18px; font-size: 16px; font-weight: 600; cursor: pointer; }
 .tp-btn:disabled { opacity: 0.5; cursor: default; }
 .tp-btn:hover:not(:disabled) { background: #24897d; }
+/* The delete control sits OUTSIDE the card's <Link>, not inside it — a button
+   nested in an anchor is invalid HTML and taps land on whichever the browser
+   feels like. Absolute positioning over a relative wrapper keeps it visually
+   on the card while staying a sibling of the link. */
+.tp-cardwrap { position: relative; margin-bottom: 12px; }
+.tp-cardwrap > .tp-card { margin-bottom: 0; padding-right: 54px; }
+.tp-del { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid #e4ddd0; background: #fff; color: #97a1ad; font-size: 17px; line-height: 1; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+.tp-del:hover { background: #fdecea; border-color: #f5c6c0; color: #a33a2f; }
+.tp-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: #fdecea; border: 1px solid #f5c6c0; border-top: none; border-radius: 0 0 14px 14px; margin: -8px 8px 0; padding: 12px 14px; font-size: 14px; color: #7d2c23; }
+.tp-confirm-btn { border: none; border-radius: 8px; padding: 7px 14px; font-size: 14px; font-weight: 600; cursor: pointer; background: #c0392b; color: #fff; }
+.tp-confirm-btn:disabled { opacity: 0.5; cursor: default; }
+.tp-confirm-cancel { background: none; border: none; color: #7d2c23; font-size: 14px; cursor: pointer; text-decoration: underline; }
 `;
 
 export default function TripPlannerHome() {
@@ -32,6 +45,8 @@ export default function TripPlannerHome() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", location: "", start_date: "", end_date: "", families: "" });
   const [creating, setCreating] = useState(false);
+  const [confirmSlug, setConfirmSlug] = useState(null);
+  const [deletingSlug, setDeletingSlug] = useState(null);
 
   useEffect(() => {
     fetch(`${API_BASE}/trips`)
@@ -63,6 +78,21 @@ export default function TripPlannerHome() {
     } catch (err) {
       setError(`Couldn't create the trip: ${err.message}`);
       setCreating(false);
+    }
+  }
+
+  async function deleteTrip(trip) {
+    if (deletingSlug) return;
+    setDeletingSlug(trip.slug);
+    setError("");
+    const result = await deleteTripWithPin(API_BASE, trip);
+    setDeletingSlug(null);
+    if (result.ok) {
+      // Drop it locally rather than refetching — the list is already correct.
+      setTrips((list) => (list || []).filter((x) => x.slug !== trip.slug));
+      setConfirmSlug(null);
+    } else if (result.error) {
+      setError(result.error);
     }
   }
 
@@ -98,13 +128,45 @@ export default function TripPlannerHome() {
         {trips === null && !error && <p style={{ color: "#6b7684" }}>Loading trips…</p>}
 
         {trips?.map((t) => (
-          <Link key={t.id} to={`/tripplanner/${t.slug}`} className="tp-card">
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{t.name}</div>
-            <div style={{ color: "#6b7684", fontSize: 14, marginTop: 4 }}>
-              {t.location ? `${t.location} · ` : ""}
-              {dateRange(t)}
-            </div>
-          </Link>
+          <div key={t.id} className="tp-cardwrap">
+            <Link to={`/tripplanner/${t.slug}`} className="tp-card">
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{t.name}</div>
+              <div style={{ color: "#6b7684", fontSize: 14, marginTop: 4 }}>
+                {t.location ? `${t.location} · ` : ""}
+                {dateRange(t)}
+              </div>
+            </Link>
+            <button
+              type="button"
+              className="tp-del"
+              title={`Delete ${t.name}`}
+              aria-label={`Delete ${t.name}`}
+              onClick={() => setConfirmSlug(confirmSlug === t.slug ? null : t.slug)}
+            >
+              🗑
+            </button>
+            {confirmSlug === t.slug && (
+              <div className="tp-confirm">
+                {/* Spelling out the cascade — the trip row is the least of what
+                    goes, and "delete trip?" undersells it. */}
+                <span style={{ flex: "1 1 220px" }}>
+                  Delete <strong>{t.name}</strong> — meals, packing list, expenses and
+                  activities all go with it. This can&apos;t be undone.
+                </span>
+                <button
+                  type="button"
+                  className="tp-confirm-btn"
+                  disabled={deletingSlug === t.slug}
+                  onClick={() => deleteTrip(t)}
+                >
+                  {deletingSlug === t.slug ? "Deleting…" : "Delete"}
+                </button>
+                <button type="button" className="tp-confirm-cancel" onClick={() => setConfirmSlug(null)}>
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
         ))}
 
         {trips !== null && trips.length === 0 && (

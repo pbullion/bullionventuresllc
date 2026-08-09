@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
+import { deleteTripWithPin } from "./tripPin";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 
@@ -53,8 +54,6 @@ const FAMILY_COLORS = [
   { bg: "#fde8ef", fg: "#b04a6e" }, // pink
 ];
 
-const money = (cents) => `$${(cents / 100).toFixed(2)}`;
-
 // Address links hand off to the phone's Maps app rather than a browser tab:
 // maps.apple.com opens Maps directly on iOS/macOS, maps.google.com opens the
 // Google Maps app on Android (and the web map everywhere else).
@@ -64,40 +63,6 @@ const mapsHref = (q) =>
 
 // Listing links get typed in without a scheme as often as not.
 const externalHref = (url) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
-
-// Equal-split settlement: who pays whom to even things out. Parties are the
-// trip's families plus any name an expense was logged under.
-function computeSettlement(expenses, families) {
-  const parties = [...new Set([...families, ...expenses.map((e) => e.family)])];
-  if (parties.length < 2 || !expenses.length) return { parties: [], transfers: [], paid: {}, share: 0 };
-  const paid = Object.fromEntries(parties.map((p) => [p, 0]));
-  expenses.forEach((e) => {
-    paid[e.family] += e.amount_cents;
-  });
-  const total = expenses.reduce((s, e) => s + e.amount_cents, 0);
-  const share = total / parties.length;
-  const debtors = [];
-  const creditors = [];
-  parties.forEach((p) => {
-    const bal = paid[p] - share;
-    if (bal < -50) debtors.push({ p, owe: -bal });
-    else if (bal > 50) creditors.push({ p, due: bal });
-  });
-  debtors.sort((a, b) => b.owe - a.owe);
-  creditors.sort((a, b) => b.due - a.due);
-  const transfers = [];
-  let d = 0;
-  let c = 0;
-  while (d < debtors.length && c < creditors.length) {
-    const amt = Math.min(debtors[d].owe, creditors[c].due);
-    transfers.push({ from: debtors[d].p, to: creditors[c].p, cents: Math.round(amt) });
-    debtors[d].owe -= amt;
-    creditors[c].due -= amt;
-    if (debtors[d].owe < 50) d++;
-    if (creditors[c].due < 50) c++;
-  }
-  return { parties, transfers, paid, share };
-}
 
 const CABIN_FIELDS = [
   { key: "link", label: "Listing link" },
@@ -219,9 +184,6 @@ export default function TripPlanner() {
   const [wx, setWx] = useState(null); // forecast payload from the backend
   const [newActivity, setNewActivity] = useState({ date: "", time_label: "", title: "" });
   const [addingActivity, setAddingActivity] = useState(false);
-  const [newExpense, setNewExpense] = useState({ family: "", description: "", amount: "" });
-  const [addingExpense, setAddingExpense] = useState(false);
-  const [famEdit, setFamEdit] = useState(null); // { name, arrival, departure, adults, kids }
   const [cabinDraft, setCabinDraft] = useState(null); // cabin object while editing
   const notesTimer = useRef(null);
 
@@ -471,50 +433,6 @@ export default function TripPlanner() {
     }
   }
 
-  async function addExpense(e) {
-    e.preventDefault();
-    const cents = Math.round(parseFloat(newExpense.amount) * 100);
-    if (!newExpense.family.trim() || !cents || cents <= 0 || addingExpense) return;
-    setAddingExpense(true);
-    setError("");
-    try {
-      const res = await fetch(`${API_BASE}/trips/${slug}/expenses`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ family: newExpense.family, description: newExpense.description, amount_cents: cents }),
-      });
-      const exp = await res.json();
-      if (!res.ok) throw new Error(exp.error || "add failed");
-      setTrip((t) => ({ ...t, expenses: [...t.expenses, exp] }));
-      setNewExpense((n) => ({ ...n, description: "", amount: "" }));
-    } catch (err) {
-      setError(`Couldn't add that expense: ${err.message}`);
-    } finally {
-      setAddingExpense(false);
-    }
-  }
-
-  async function deleteExpense(exp) {
-    setTrip((t) => ({ ...t, expenses: t.expenses.filter((x) => x.id !== exp.id) }));
-    try {
-      const res = await fetch(`${API_BASE}/expenses/${exp.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
-    } catch {
-      setTrip((t) => ({ ...t, expenses: [...t.expenses, exp] }));
-      setError("Couldn't delete that expense — try again.");
-    }
-  }
-
-  async function saveFamEdit() {
-    const { name, ...info } = famEdit;
-    try {
-      await patchTrip({ family_info: { ...(trip.family_info || {}), [name]: info } });
-      setFamEdit(null);
-    } catch (err) {
-      setError(`Couldn't save that family's info: ${err.message}`);
-    }
-  }
-
   async function saveCabin() {
     try {
       await patchTrip({ cabin: cabinDraft });
@@ -536,15 +454,15 @@ export default function TripPlanner() {
     }, 800);
   }
 
+  // PIN-gated as of 2026-08-07 (Patrick's request), same gate as the delete on
+  // the trip list — this one predates it and was wide open to anyone with the
+  // link. Confirm first, then prompt for the PIN, so a misclick never reaches
+  // the dialog that matters.
   async function deleteTrip() {
     if (!window.confirm(`Delete "${trip.name}" and everything in it? This can't be undone.`)) return;
-    try {
-      const res = await fetch(`${API_BASE}/trips/${slug}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
-      navigate("/tripplanner");
-    } catch {
-      setError("Couldn't delete the trip — try again.");
-    }
+    const result = await deleteTripWithPin(API_BASE, { slug, name: trip.name });
+    if (result.ok) navigate("/tripplanner");
+    else if (result.error) setError(result.error);
   }
 
   if (notFound) {
@@ -655,8 +573,6 @@ export default function TripPlanner() {
           <a href="#tp-itinerary">📅 Itinerary</a>
           <a href="#tp-packing">🛒 Shopping & packing{trip.items.some((i) => i.category !== "Bringing") ? ` (${trip.items.filter((i) => i.category !== "Bringing" && !i.checked).length} to go)` : ""}</a>
           <a href="#tp-bringing">🏕️ Bringing</a>
-          <a href="#tp-families">👨‍👩‍👧 Families</a>
-          <a href="#tp-costs">💵 Costs</a>
           <a href="#tp-cabin">🏠 Cabin</a>
           <a href="#tp-notes">📝 Notes</a>
         </nav>
@@ -949,159 +865,6 @@ export default function TripPlanner() {
               {addingBring ? "Adding…" : "Add"}
             </button>
           </form>
-        </div>
-
-        <h2 id="tp-families" style={{ fontSize: 19, margin: "28px 0 10px" }}>Families</h2>
-        <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
-          {families.length === 0 && (
-            <p style={{ color: "#6b7684", margin: 0 }}>Add the families up by the trip name first, then set arrivals and headcounts here.</p>
-          )}
-          {families.map((f) => {
-            const info = (trip.family_info || {})[f] || {};
-            if (famEdit?.name === f) {
-              return (
-                <div key={f} style={{ padding: "10px 0", borderBottom: "1px solid #f0ebe0" }}>
-                  <div style={{ marginBottom: 8 }}><Chip color={colorFor(f)}>{f}</Chip></div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <input className="tp-input" style={{ flex: "1 1 130px", marginBottom: 0 }} value={famEdit.arrival} placeholder="Arrives (Thu 3pm)" onChange={(e) => setFamEdit((s) => ({ ...s, arrival: e.target.value }))} />
-                    <input className="tp-input" style={{ flex: "1 1 130px", marginBottom: 0 }} value={famEdit.departure} placeholder="Leaves (Mon 10am)" onChange={(e) => setFamEdit((s) => ({ ...s, departure: e.target.value }))} />
-                    <input className="tp-input" style={{ flex: "1 1 130px", marginBottom: 0 }} value={famEdit.bedroom} placeholder="Bedroom (Master up)" onChange={(e) => setFamEdit((s) => ({ ...s, bedroom: e.target.value }))} />
-                    <input className="tp-input" type="number" min="0" style={{ flex: "1 1 70px", marginBottom: 0 }} value={famEdit.adults} placeholder="Adults" onChange={(e) => setFamEdit((s) => ({ ...s, adults: e.target.value }))} />
-                    <input className="tp-input" type="number" min="0" style={{ flex: "1 1 70px", marginBottom: 0 }} value={famEdit.kids} placeholder="Kids" onChange={(e) => setFamEdit((s) => ({ ...s, kids: e.target.value }))} />
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                    <button className="tp-btn" onClick={saveFamEdit}>Save</button>
-                    <button className="tp-btn-quiet" onClick={() => setFamEdit(null)}>Cancel</button>
-                  </div>
-                </div>
-              );
-            }
-            const bits = [
-              info.bedroom && `🛏 ${info.bedroom}`,
-              info.arrival && `arrives ${info.arrival}`,
-              info.departure && `leaves ${info.departure}`,
-              (info.adults || info.kids) && `${info.adults || 0} adults, ${info.kids || 0} kids`,
-            ].filter(Boolean);
-            return (
-              <div key={f} className="tp-item-row">
-                <Chip color={colorFor(f)}>{f}</Chip>
-                <span style={{ flex: 1, fontSize: 14, color: bits.length ? "inherit" : "#b8ad9a" }}>
-                  {bits.length ? bits.join(" · ") : "no details yet"}
-                </span>
-                <button
-                  className="tp-btn-quiet"
-                  style={{ fontSize: 13 }}
-                  onClick={() =>
-                    setFamEdit({
-                      name: f,
-                      arrival: info.arrival || "",
-                      departure: info.departure || "",
-                      bedroom: info.bedroom || "",
-                      adults: info.adults ?? "",
-                      kids: info.kids ?? "",
-                    })
-                  }
-                >
-                  edit
-                </button>
-              </div>
-            );
-          })}
-          {families.length > 0 && (() => {
-            const infos = families.map((f) => (trip.family_info || {})[f] || {});
-            const adults = infos.reduce((s, i) => s + (Number(i.adults) || 0), 0);
-            const kids = infos.reduce((s, i) => s + (Number(i.kids) || 0), 0);
-            return adults + kids > 0 ? (
-              <div style={{ marginTop: 10, fontWeight: 600, fontSize: 14 }}>
-                Headcount: {adults + kids} ({adults} adults, {kids} kids)
-              </div>
-            ) : null;
-          })()}
-        </div>
-
-        <h2 id="tp-costs" style={{ fontSize: 19, margin: "28px 0 10px" }}>Costs</h2>
-        <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
-          {(trip.expenses || []).length === 0 && (
-            <p style={{ color: "#6b7684", marginTop: 0 }}>No expenses logged — cabin deposit, groceries, gas…</p>
-          )}
-          {(trip.expenses || []).map((exp) => (
-            <div key={exp.id} className="tp-item-row">
-              <span style={{ flex: 1 }}>{exp.description || "Expense"}</span>
-              <Chip color={colorFor(exp.family)}>{exp.family}</Chip>
-              <span style={{ fontWeight: 700, minWidth: 70, textAlign: "right" }}>{money(exp.amount_cents)}</span>
-              <button className="tp-del" title="Remove" onClick={() => deleteExpense(exp)}>✕</button>
-            </div>
-          ))}
-          <form onSubmit={addExpense} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-            <input
-              className="tp-input"
-              style={{ flex: "2 1 150px", marginBottom: 0 }}
-              value={newExpense.description}
-              onChange={(e) => setNewExpense((n) => ({ ...n, description: e.target.value }))}
-              placeholder="What was it?"
-            />
-            {families.length > 0 ? (
-              <select
-                className="tp-input"
-                style={{ flex: "1 1 110px", marginBottom: 0 }}
-                value={newExpense.family}
-                onChange={(e) => setNewExpense((n) => ({ ...n, family: e.target.value }))}
-              >
-                <option value="">Paid by…</option>
-                {families.map((f) => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
-            ) : (
-              <input
-                className="tp-input"
-                style={{ flex: "1 1 110px", marginBottom: 0 }}
-                value={newExpense.family}
-                onChange={(e) => setNewExpense((n) => ({ ...n, family: e.target.value }))}
-                placeholder="Paid by"
-              />
-            )}
-            <input
-              className="tp-input"
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              style={{ flex: "1 1 90px", marginBottom: 0 }}
-              value={newExpense.amount}
-              onChange={(e) => setNewExpense((n) => ({ ...n, amount: e.target.value }))}
-              placeholder="$"
-            />
-            <button className="tp-btn" type="submit" disabled={!newExpense.family.trim() || !(parseFloat(newExpense.amount) > 0) || addingExpense}>
-              {addingExpense ? "Adding…" : "Add"}
-            </button>
-          </form>
-          {(trip.expenses || []).length > 0 && (() => {
-            const s = computeSettlement(trip.expenses, families);
-            if (!s.parties.length) return null;
-            const total = trip.expenses.reduce((sum, e) => sum + e.amount_cents, 0);
-            return (
-              <div style={{ marginTop: 14, borderTop: "1px solid #f0ebe0", paddingTop: 10 }}>
-                <div style={{ fontSize: 14, marginBottom: 6 }}>
-                  <b>{money(total)}</b> total · <b>{money(Math.round(s.share))}</b> per family
-                </div>
-                {s.parties.map((p) => (
-                  <div key={p} style={{ fontSize: 13, color: "#6b7684" }}>
-                    {p} paid {money(s.paid[p])}
-                  </div>
-                ))}
-                {s.transfers.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    {s.transfers.map((t, i) => (
-                      <div key={i} style={{ fontSize: 14, fontWeight: 600, color: "#c25537" }}>
-                        {t.from} owes {t.to} {money(t.cents)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
         </div>
 
         <h2 id="tp-cabin" style={{ fontSize: 19, margin: "28px 0 10px" }}>Cabin info</h2>
