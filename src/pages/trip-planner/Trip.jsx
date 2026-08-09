@@ -55,6 +55,16 @@ const FAMILY_COLORS = [
 
 const money = (cents) => `$${(cents / 100).toFixed(2)}`;
 
+// Address links hand off to the phone's Maps app rather than a browser tab:
+// maps.apple.com opens Maps directly on iOS/macOS, maps.google.com opens the
+// Google Maps app on Android (and the web map everywhere else).
+const IS_APPLE = typeof navigator !== "undefined" && /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+const mapsHref = (q) =>
+  `${IS_APPLE ? "https://maps.apple.com/?q=" : "https://maps.google.com/?q="}${encodeURIComponent(q)}`;
+
+// Listing links get typed in without a scheme as often as not.
+const externalHref = (url) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
+
 // Equal-split settlement: who pays whom to even things out. Parties are the
 // trip's families plus any name an expense was logged under.
 function computeSettlement(expenses, families) {
@@ -575,6 +585,10 @@ export default function TripPlanner() {
   };
   const categories = [...new Set(listItems.map((i) => i.category))];
   const categorySuggestions = [...new Set(["Packing", "Groceries", "Beach gear", "Kids", ...categories])];
+  // Listing + address ride along in the header too — they're what everyone
+  // reaches for on the drive down, and the cabin card is at the bottom.
+  const cabin = trip.cabin || {};
+  const mapQuery = cabin.address || trip.location;
 
   return (
     <div className="tp-root">
@@ -590,6 +604,21 @@ export default function TripPlanner() {
             {format(days[0], "EEE MMM d")} – {format(days[days.length - 1], "EEE MMM d")}
           </div>
         </div>
+
+        {(cabin.link || mapQuery) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 8, fontSize: 15 }}>
+            {cabin.link && (
+              <a href={externalHref(cabin.link)} target="_blank" rel="noreferrer" style={{ color: "#2a9d8f", fontWeight: 600 }}>
+                🏠 The house
+              </a>
+            )}
+            {mapQuery && (
+              <a href={mapsHref(mapQuery)} target="_blank" rel="noreferrer" style={{ color: "#2a9d8f", fontWeight: 600 }}>
+                📍 {mapQuery}
+              </a>
+            )}
+          </div>
+        )}
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
           {familiesDraft === null ? (
@@ -1089,12 +1118,12 @@ export default function TripPlanner() {
                   <div key={key} style={{ padding: "6px 0", borderBottom: "1px solid #f0ebe0", display: "flex", gap: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#6b7684", minWidth: 110 }}>{label}</span>
                     {key === "address" ? (
-                      <a href={`https://maps.google.com/?q=${encodeURIComponent(val)}`} target="_blank" rel="noreferrer" style={{ color: "#2a9d8f" }}>
-                        {val}
+                      <a href={mapsHref(val)} target="_blank" rel="noreferrer" style={{ color: "#2a9d8f" }}>
+                        {val} ↗
                       </a>
                     ) : key === "link" ? (
                       <a
-                        href={/^https?:\/\//i.test(val) ? val : `https://${val}`}
+                        href={externalHref(val)}
                         target="_blank"
                         rel="noreferrer"
                         style={{ color: "#2a9d8f", wordBreak: "break-all" }}
