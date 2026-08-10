@@ -6,7 +6,7 @@ import {
   CHANNEL_ICON,
   contactName,
   dueLabel,
-  fmtDate,
+  fmtDay,
   outcomeLabel,
   telHref,
   tierColor,
@@ -50,10 +50,19 @@ export default function FollowUps({ meta, version, bump }) {
   }, [load, version]);
 
   async function markDone(id) {
-    // Drop it locally first so the tap feels instant, then resync the counts.
+    /* Optimistic: drop it locally so the tap feels instant. If the POST fails
+     * the item MUST come back — hiding it while it is still open in the database
+     * is the one outcome this screen exists to prevent, and the old version did
+     * exactly that on any dropped connection. */
+    const snapshot = items;
     setItems((list) => (list || []).filter((i) => i.id !== id));
-    await api.post(`/outreach/${id}/follow-up-done`, { done: true });
-    bump();
+    try {
+      await api.post(`/outreach/${id}/follow-up-done`, { done: true });
+      bump();
+    } catch (e) {
+      setItems(snapshot);
+      setError(e.message);
+    }
   }
 
   if (openId) {
@@ -133,7 +142,7 @@ function FollowUpCard({ item, onDone, onOpen }) {
           <div style={{ minWidth: 0 }}>
             <button
               className="ash-link"
-              style={{ fontSize: 15, fontWeight: 700, textDecoration: "none", padding: 0, textAlign: "left" }}
+              style={{ fontSize: 15, fontWeight: 700, textDecoration: "none", textAlign: "left", overflowWrap: "anywhere", display: "block" }}
               onClick={onOpen}
             >
               {item.company_name}
@@ -160,7 +169,7 @@ function FollowUpCard({ item, onDone, onOpen }) {
 
       <div className="ash-tiny" style={{ marginTop: 9 }}>
         Set after: {CHANNEL_ICON[item.channel] || "📌"} {channelLabel(item.channel)} ·{" "}
-        {outcomeLabel(item.outcome)} on {fmtDate(String(item.occurred_at).slice(0, 10))}
+        {outcomeLabel(item.outcome)} on {fmtDay(item.occurred_at)}
       </div>
       {item.notes && (
         <div style={{ fontSize: 13, marginTop: 6, whiteSpace: "pre-wrap", color: "#3a4652" }}>{item.notes}</div>

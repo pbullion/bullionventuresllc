@@ -92,6 +92,10 @@ export const api = {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    /* Deferred, not revoked in the same tick: Chrome starts the download
+     * synchronously so an immediate revoke is fine there, but iOS Safari — the
+     * phone this is built for — can cancel a save whose blob URL vanished before
+     * it read it. */
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   },
 };

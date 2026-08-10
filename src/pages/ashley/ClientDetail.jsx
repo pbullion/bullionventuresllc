@@ -32,6 +32,9 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
   const [logging, setLogging] = useState(null); // { contactId } when open
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [flash, setFlash] = useState("");
+  // Guards the destructive buttons against a double-tap, which is easy to do on
+  // a phone and used to fire two requests.
+  const [busy, setBusy] = useState(false);
 
   /* setState in the promise callbacks, not after an await — the effect below
    * calls load(), and react-hooks rejects a setState reached synchronously from
@@ -40,7 +43,10 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
     () =>
       api
         .get(`/clients/${clientId}`)
-        .then(setData)
+        .then((d) => {
+          setData(d);
+          setError(""); // clear a previous failure, or one blip wedges the screen
+        })
         .catch((e) => setError(e.message)),
     [clientId]
   );
@@ -62,7 +68,9 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
     [load, onChanged]
   );
 
-  if (error) {
+  // Only take over the screen when there is nothing to show; once the client is
+  // loaded a later failure is a banner above it, not a replacement for it.
+  if (error && !data) {
     return (
       <>
         <BackBar onBack={onBack} />
@@ -92,14 +100,22 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
     .join(" · ");
 
   async function archive() {
-    await api.del(`/clients/${client.id}`);
-    onChanged();
-    onBack();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.del(`/clients/${client.id}`);
+      onChanged();
+      onBack();
+    } catch (e) {
+      setError(e.message);
+      setBusy(false);
+    }
   }
 
   return (
     <>
       <BackBar onBack={onBack} />
+      {error && <div className="ash-err">{error}</div>}
       {flash && <div className="ash-ok">{flash}</div>}
 
       <div className="ash-card">
@@ -109,7 +125,9 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
               <span className="ash-tierchip" style={{ background: tc.bg, color: tc.fg, borderColor: tc.border }}>
                 {client.tier}
               </span>
-              <span style={{ fontSize: 18, fontWeight: 800 }}>{client.company_name}</span>
+              <span style={{ fontSize: 18, fontWeight: 800, overflowWrap: "anywhere", minWidth: 0 }}>
+                {client.company_name}
+              </span>
             </div>
             {client.dba && <div className="ash-muted" style={{ marginTop: 2 }}>dba {client.dba}</div>}
             <div className="ash-row" style={{ gap: 6, marginTop: 8 }}>
@@ -232,7 +250,9 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
               can bring it back with the &ldquo;Archived&rdquo; filter.
             </div>
             <div className="ash-row" style={{ gap: 8 }}>
-              <button className="ash-btn ash-btn-danger" onClick={archive}>Archive it</button>
+              <button className="ash-btn ash-btn-danger" disabled={busy} onClick={archive}>
+                {busy ? "Archiving…" : "Archive it"}
+              </button>
               <button className="ash-btn ash-btn-ghost" onClick={() => setConfirmDelete(false)}>Keep it</button>
             </div>
           </>
@@ -241,9 +261,18 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
             <span className="ash-muted">This client is archived.</span>
             <button
               className="ash-btn ash-btn-ghost ash-btn-sm"
+              disabled={busy}
               onClick={async () => {
-                await api.patch(`/clients/${client.id}`, { archived: false });
-                changed("Restored.");
+                if (busy) return;
+                setBusy(true);
+                try {
+                  await api.patch(`/clients/${client.id}`, { archived: false });
+                  await changed("Restored.");
+                } catch (e) {
+                  setError(e.message);
+                } finally {
+                  setBusy(false);
+                }
               }}
             >
               Restore
@@ -310,12 +339,14 @@ function BackBar({ onBack }) {
 
 function ContactCard({ contact, onEdit, onLog, onRemoved }) {
   const [showDelete, setShowDelete] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [error, setError] = useState("");
   return (
     <div className="ash-contact">
       <div className="ash-between">
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>
-            {contactName(contact)}
+          <div style={{ fontSize: 15, fontWeight: 700, overflowWrap: "anywhere" }}>
+            {contactName(contact) || "(no name)"}
             {contact.is_primary && (
               <span className="ash-chip" style={{ background: "#e6f0fa", color: "#1f4e79", marginLeft: 7 }}>
                 Main
@@ -374,19 +405,30 @@ function ContactCard({ contact, onEdit, onLog, onRemoved }) {
       )}
 
       <div style={{ marginTop: 8 }}>
+        {error && <div className="ash-err" style={{ marginBottom: 8 }}>{error}</div>}
         {showDelete ? (
           <div className="ash-row" style={{ gap: 7 }}>
             <span className="ash-tiny">
-              Remove {contactName(contact)}? Their call history stays on this client.
+              Remove {contactName(contact) || "this person"}? Their call history stays
+              on this client.
             </span>
             <button
               className="ash-btn ash-btn-danger ash-btn-sm"
+              disabled={removing}
               onClick={async () => {
-                await api.del(`/contacts/${contact.id}`);
-                onRemoved();
+                if (removing) return;
+                setRemoving(true);
+                setError("");
+                try {
+                  await api.del(`/contacts/${contact.id}`);
+                  onRemoved();
+                } catch (e) {
+                  setError(e.message);
+                  setRemoving(false);
+                }
               }}
             >
-              Remove
+              {removing ? "Removing…" : "Remove"}
             </button>
             <button className="ash-link" onClick={() => setShowDelete(false)}>Cancel</button>
           </div>
@@ -402,12 +444,16 @@ function ContactCard({ contact, onEdit, onLog, onRemoved }) {
 
 function TimelineRow({ item, onChanged }) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   async function toggleFollowUp() {
     setBusy(true);
+    setError("");
     try {
       await api.post(`/outreach/${item.id}/follow-up-done`, { done: !item.follow_up_done });
       await onChanged();
+    } catch (e) {
+      setError(e.message);
     } finally {
       setBusy(false);
     }
@@ -448,6 +494,7 @@ function TimelineRow({ item, onChanged }) {
             </button>
           </div>
         )}
+        {error && <div className="ash-err" style={{ marginTop: 6 }}>{error}</div>}
       </div>
     </li>
   );

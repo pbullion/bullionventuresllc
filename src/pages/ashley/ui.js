@@ -106,10 +106,13 @@ export const outcomeLabel = (o) => OUTCOME_LABEL[o] || prettify(o);
 export const statusColor = (s) => STATUS_COLOR[s] || STATUS_COLOR.not_started;
 export const tierColor = (t) => TIER_COLOR[t] || TIER_COLOR.C;
 
+/* Empty string when there is nobody, NOT a placeholder: timeline rows carry a
+ * null contact when a touch wasn't tied to a person (or their record was since
+ * deleted), and every caller tests the result for truthiness before appending
+ * it — so "(no name)" rendered as a literal "· (no name)" on those rows. */
 export const contactName = (c) => {
   if (!c) return "";
-  const name = `${c.first_name || ""} ${c.last_name || ""}`.trim();
-  return name || "(no name)";
+  return `${c.first_name || ""} ${c.last_name || ""}`.trim();
 };
 
 /* ── Formatters ─────────────────────────────────────────────────────────── */
@@ -162,6 +165,16 @@ export function fmtDateTime(iso) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+/* The LOCAL calendar day of a timestamp. Slicing the first 10 characters off an
+ * ISO string takes the UTC day instead, which reads a call made at 8pm Central
+ * as having happened tomorrow. */
+export function fmtDay(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export function daysAgoLabel(iso) {
@@ -359,12 +372,12 @@ export const ASH_CSS = `
 .ash-top-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 760px; margin: 0 auto; }
 .ash-brand { font-size: 17px; font-weight: 700; letter-spacing: 0.2px; }
 .ash-sub { font-size: 12px; opacity: 0.75; margin-top: 1px; }
-.ash-signout { background: rgba(255,255,255,0.14); color: #fff; border: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; }
+.ash-signout { background: rgba(255,255,255,0.14); color: #fff; border: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; min-height: 40px; }
 .ash-signout:hover { background: rgba(255,255,255,0.24); }
 
 .ash-tabs { display: flex; gap: 4px; max-width: 760px; margin: 10px auto 0; overflow-x: auto; scrollbar-width: none; }
 .ash-tabs::-webkit-scrollbar { display: none; }
-.ash-tab { flex: 0 0 auto; background: transparent; border: none; color: rgba(255,255,255,0.72); font-size: 14px; font-weight: 600; padding: 8px 12px; border-radius: 8px 8px 0 0; cursor: pointer; white-space: nowrap; }
+.ash-tab { flex: 0 0 auto; background: transparent; border: none; color: rgba(255,255,255,0.72); font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 8px 8px 0 0; cursor: pointer; white-space: nowrap; min-height: 42px; }
 .ash-tab[aria-selected="true"] { background: #f4f6f9; color: #1f4e79; }
 .ash-tab-badge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px; border-radius: 9px; background: #c0392b; color: #fff; font-size: 11px; font-weight: 700; }
 
@@ -404,7 +417,7 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 .ash-btn-ghost:hover:not(:disabled) { background: #f0f5fa; }
 .ash-btn-danger { background: #fff; color: #a33328; border: 1px solid #f0cdc8; }
 .ash-btn-danger:hover:not(:disabled) { background: #fdeceb; }
-.ash-btn-sm { padding: 8px 12px; font-size: 13px; min-height: 36px; border-radius: 9px; }
+.ash-btn-sm { padding: 8px 12px; font-size: 13px; min-height: 40px; border-radius: 9px; }
 .ash-btn-block { width: 100%; }
 
 .ash-err { background: #fdeceb; border: 1px solid #f4cdc8; color: #8f2f25; border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-bottom: 12px; }
@@ -421,7 +434,7 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 .ash-search { display: flex; gap: 8px; margin-bottom: 10px; }
 .ash-filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; scrollbar-width: none; }
 .ash-filters::-webkit-scrollbar { display: none; }
-.ash-pill { flex: 0 0 auto; background: #fff; border: 1px solid #d5dde5; color: #48545f; border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.ash-pill { flex: 0 0 auto; background: #fff; border: 1px solid #d5dde5; color: #48545f; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; min-height: 40px; }
 .ash-pill[aria-pressed="true"] { background: #1f4e79; border-color: #1f4e79; color: #fff; }
 
 .ash-timeline { list-style: none; margin: 0; padding: 0; }
@@ -432,7 +445,7 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 
 .ash-contact { border: 1px solid #e6ebf1; border-radius: 12px; padding: 11px; margin-bottom: 9px; background: #fbfcfd; }
 .ash-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 9px; }
-.ash-iconbtn { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid #cfdae6; color: #1f4e79; border-radius: 9px; padding: 8px 11px; font-size: 13px; font-weight: 600; text-decoration: none; min-height: 38px; cursor: pointer; }
+.ash-iconbtn { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid #cfdae6; color: #1f4e79; border-radius: 9px; padding: 8px 12px; font-size: 13px; font-weight: 600; text-decoration: none; min-height: 42px; cursor: pointer; }
 .ash-iconbtn:hover { background: #f0f5fa; }
 
 .ash-modal-bg { position: fixed; inset: 0; background: rgba(20,28,36,0.5); z-index: 60; display: flex; align-items: flex-end; justify-content: center; padding: 0; overflow-y: auto; }
@@ -441,7 +454,7 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 @media (min-width: 620px) { .ash-modal { border-radius: 16px; } }
 .ash-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .ash-modal-title { font-size: 16px; font-weight: 700; color: #1f4e79; }
-.ash-x { background: none; border: none; font-size: 22px; line-height: 1; color: #8794a1; cursor: pointer; padding: 4px 8px; }
+.ash-x { background: none; border: none; font-size: 22px; line-height: 1; color: #8794a1; cursor: pointer; padding: 4px 8px; min-width: 44px; min-height: 44px; }
 
 .ash-fab { position: fixed; right: 16px; bottom: 20px; z-index: 30; background: #1f4e79; color: #fff; border: none; border-radius: 999px; padding: 14px 20px; font-size: 15px; font-weight: 700; box-shadow: 0 6px 18px rgba(31,78,121,0.34); cursor: pointer; }
 .ash-fab:hover { background: #1a4166; }
@@ -453,7 +466,8 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 
 .ash-login { max-width: 380px; margin: 0 auto; padding: 48px 16px; }
 .ash-login-card { background: #fff; border: 1px solid #e3e8ee; border-radius: 16px; padding: 22px; }
-.ash-link { background: none; border: none; color: #1f4e79; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 6px 0; }
+.ash-link { display: inline-flex; align-items: center; justify-content: center; background: none; border: none; color: #1f4e79; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 10px; min-height: 44px; min-width: 44px; }
+.ash-link:disabled { opacity: .5; cursor: default; }
 .ash-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; margin: 0; }
 .ash-dl dt { color: #6b7785; }
 .ash-dl dd { margin: 0; }

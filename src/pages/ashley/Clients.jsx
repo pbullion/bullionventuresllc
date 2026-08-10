@@ -53,21 +53,32 @@ export default function Clients({ meta, version, bump }) {
   /* State is set inside the promise callbacks rather than after an await: the
    * effect below calls load(), and react-hooks flags a setState that happens
    * synchronously in the call chain of an effect body. */
-  const load = useCallback(() => {
-    const active = FILTERS.find((f) => f.key === filter) || FILTERS[0];
-    const params = new URLSearchParams({ ...active.params, sort });
-    if (query) params.set("q", query);
-    return api
-      .get(`/clients?${params.toString()}`)
-      .then((data) => {
-        setClients(data.clients);
-        setError("");
-      })
-      .catch((e) => setError(e.message));
-  }, [filter, sort, query]);
+  const load = useCallback(
+    (isLive = () => true) => {
+      const active = FILTERS.find((f) => f.key === filter) || FILTERS[0];
+      const params = new URLSearchParams({ ...active.params, sort });
+      if (query) params.set("q", query);
+      return api
+        .get(`/clients?${params.toString()}`)
+        .then((data) => {
+          if (!isLive()) return;
+          setClients(data.clients);
+          setError("");
+        })
+        .catch((e) => isLive() && setError(e.message));
+    },
+    [filter, sort, query]
+  );
 
+  /* Ignore a response whose filter is no longer the selected one: tapping
+   * "Tier A" then "Moved" quickly could otherwise leave Tier A's rows sitting
+   * under the Moved pill. */
   useEffect(() => {
-    load();
+    let live = true;
+    load(() => live);
+    return () => {
+      live = false;
+    };
   }, [load, version]);
 
   if (openId) {
@@ -114,7 +125,9 @@ export default function Clients({ meta, version, bump }) {
         </span>
         <select
           className="ash-select"
-          style={{ width: "auto", padding: "7px 10px", fontSize: 13 }}
+          /* 16px, not 13: iOS Safari zooms the page when a focused control is
+             under 16px, and the zoom does not undo itself. */
+          style={{ width: "auto", padding: "10px", fontSize: 16, maxWidth: "62%", minHeight: 44 }}
           value={sort}
           onChange={(e) => setSort(e.target.value)}
         >

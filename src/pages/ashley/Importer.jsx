@@ -133,7 +133,7 @@ export default function Importer({ onImported }) {
           </div>
           <textarea
             className="ash-textarea"
-            style={{ minHeight: 150, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 13 }}
+            style={{ minHeight: 150, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 16 }}
             placeholder={"Company,First name,Last name,Title,Email,Mobile,Loan balance\nAcme Metals,Dave,Ruiz,CFO,dave@acme.com,713-555-0111,2400000"}
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -155,7 +155,12 @@ export default function Importer({ onImported }) {
             <input
               type="checkbox"
               checked={hasHeaderRow}
-              onChange={(e) => setHasHeaderRow(e.target.checked)}
+              onChange={(e) => {
+                setHasHeaderRow(e.target.checked);
+                // The preview is a promise about a specific row set — changing
+                // which row is the header changes that set, so re-preview.
+                setPreview(null);
+              }}
               style={{ width: 18, height: 18 }}
             />
             First row is a header
