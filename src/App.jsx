@@ -53,6 +53,7 @@ import WeddingPhotosSupport from "./pages/wedding-photos/Support.jsx";
 import DaycareMemoryVaultHome from "./pages/daycare-memory-vault/Home.jsx";
 import DaycareMemoryVaultPrivacy from "./pages/daycare-memory-vault/Privacy.jsx";
 import DaycareMemoryVaultSupport from "./pages/daycare-memory-vault/Support.jsx";
+import Ashley from "./pages/ashley/index.jsx";
 
 export default function App() {
   const location = useLocation();
@@ -69,7 +70,10 @@ export default function App() {
   const isZargle = location.pathname.startsWith("/zargle");
   const isGulfHurricane = location.pathname.startsWith("/gulf-hurricane");
   const isTripPlanner = location.pathname.startsWith("/tripplanner");
-  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isTotalsValue || isCryptoValue || isMorningReview || isEliteEdge || isGulfHurricane || isTripPlanner;
+  // Full-screen, and deliberately not linked from the home page or PrivateTools
+  // — it's one person's client book, gated behind its own login.
+  const isAshley = location.pathname.startsWith("/ashley");
+  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isTotalsValue || isCryptoValue || isMorningReview || isEliteEdge || isGulfHurricane || isTripPlanner || isAshley;
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ScrollToTop />
@@ -104,6 +108,7 @@ export default function App() {
           <Route path="/gulf-hurricane" element={<GulfHurricane />} />
           <Route path="/tripplanner" element={<TripPlannerHome />} />
           <Route path="/tripplanner/:slug" element={<TripPlanner />} />
+          <Route path="/ashley" element={<Ashley />} />
           <Route path="/wnba-value" element={<Navigate to="/totals-value" replace />} />
           <Route path="/elite-edge-advisors" element={<EliteEdgeAdvisors />} />
           <Route path="/zargle" element={<ZargleHome />} />

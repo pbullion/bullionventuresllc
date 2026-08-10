@@ -56,6 +56,14 @@ When you add a new tool/page, do **all** of these, not just the route:
    `tools` are single-page utilities that run in the browser here. This step is
    easy to forget — do not skip it. (Wedding-photos and mothers-day-2026 are
    cardless on purpose — private pages.)
+   - **`/ashley` is cardless AND unlisted, on purpose.** Ashley's client
+     transition tracker (`src/pages/ashley/`) is on neither the home page nor
+     `PRIVATE_TOOLS` — it isn't a tool for site visitors, it's one person's book
+     of commercial-banking client relationships, and it's reached by typing the
+     URL. Unlike every other page here, it is **genuinely protected**: real
+     email/password login, JWT in `localStorage["ash_token"]`, and
+     `routes/ashley.js` requires a bearer token on every endpoint including the
+     reads. Needs `ASHLEY_JWT_SECRET` and `ASHLEY_SIGNUP_CODE` set on Heroku.
    - **Betting screens go somewhere else.** The five Kalshi/betting pages are
      kept off the public home page (Patrick, 2026-07-30) and live in
      `PRIVATE_TOOLS` in `src/components/PrivateTools.jsx`, reached by
@@ -80,6 +88,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/elite-edge-advisors` | `/elite-edge-advisors`, `/odds`, `/parlays` |
 | `/gulf-hurricane` | `/nhc` |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` |
+| `/ashley` | `/ashley` |
 
 - The site does **not** call `/bullion-ventures` (that backend route is
   push-notification plumbing, not a website API) and does **not** call
