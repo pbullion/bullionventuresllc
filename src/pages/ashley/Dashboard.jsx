@@ -68,7 +68,7 @@ export default function Dashboard({ version, onGoToClients }) {
       <div className="ash-card">
         <div className="ash-between">
           <div className="ash-h2" style={{ marginBottom: 4 }}>Reached since you left</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#1f4e79" }}>{pct}%</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--ash-blue-dark)" }}>{pct}%</div>
         </div>
         <div className="ash-bar">
           <div className="ash-bar-fill" style={{ width: `${pct}%` }} />

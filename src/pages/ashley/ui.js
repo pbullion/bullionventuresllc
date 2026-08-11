@@ -23,7 +23,7 @@ export const STATUS_LABEL = {
 export const STATUS_COLOR = {
   not_started: { bg: "#eef1f5", fg: "#5a6673" },
   attempted: { bg: "#fdf2e0", fg: "#8a5a10" },
-  reached: { bg: "#e6f0fa", fg: "#1f4e79" },
+  reached: { bg: "var(--ash-blue-tint)", fg: "var(--ash-blue-dark)" },
   meeting_scheduled: { bg: "#e8e9fb", fg: "#3b3d8f" },
   met: { bg: "#e2f4f1", fg: "#1c7268" },
   paperwork_sent: { bg: "#f1e9f8", fg: "#6b3d91" },
@@ -85,9 +85,12 @@ export const PREFERRED_LABEL = {
   linkedin: "LinkedIn",
 };
 
+/* Tier A wears the PNC orange — top relationships, the ones to call first — but
+ * as a tint behind --ash-orange-ink rather than the brand orange itself, which
+ * is not readable as text. B is the blue, C stays neutral. */
 export const TIER_COLOR = {
-  A: { bg: "#fdf2e0", fg: "#8a5a10", border: "#f0dcb4" },
-  B: { bg: "#e6f0fa", fg: "#1f4e79", border: "#c6dcf0" },
+  A: { bg: "var(--ash-orange-tint)", fg: "var(--ash-orange-ink)", border: "#F6D3AE" },
+  B: { bg: "var(--ash-blue-tint)", fg: "var(--ash-blue-dark)", border: "var(--ash-blue-line)" },
   C: { bg: "#eef1f5", fg: "#5a6673", border: "#dde3ea" },
 };
 
@@ -401,14 +404,39 @@ export const ASH_CSS = `
 /* Card padding lives in a variable because .ash-divide has to bleed to the card's
    edges with a matching negative margin. Hardcoding both meant changing one
    silently left the divider stopping short of the edge. */
-.ash-root { min-height: 100vh; background: #f4f6f9; color: #1f2933; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; --ash-card-pad: 16px; --ash-gutter: 14px; }
+/* PNC's palette: orange #F58025 and blue #0069AA.
+ *
+ * Blue does all the structural work — header, buttons, headings, links — and
+ * orange is an accent only. That split is forced by contrast, not taste: white
+ * text on #F58025 measures 2.6:1, well under the 4.5:1 needed to be readable,
+ * so the orange can never be a button fill or a text colour on white. It earns
+ * its visibility where no text sits on it (the progress bar) and as the marker
+ * on the selected tab. --ash-orange-ink is the darkened orange to use if orange
+ * text is ever wanted on a light background; #F58025 itself is not legible there.
+ *
+ * Two blues, because one shade cannot do both jobs: --ash-blue is for panels
+ * carrying white text (5.8:1), --ash-blue-dark for blue text on white (7.6:1). */
+.ash-root {
+  min-height: 100vh; background: #f4f6f9; color: #1f2933;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-text-size-adjust: 100%;
+  --ash-card-pad: 16px; --ash-gutter: 14px;
+  --ash-blue: #0069AA;
+  --ash-blue-dark: #00517F;
+  --ash-blue-tint: #E3F0F9;
+  --ash-blue-wash: #F1F7FB;
+  --ash-blue-line: #C2DCEE;
+  --ash-orange: #F58025;
+  --ash-orange-ink: #9A4A00;
+  --ash-orange-tint: #FDEEE0;
+}
 .ash-shell { max-width: 760px; margin: 0 auto; padding: 18px var(--ash-gutter) 96px; }
 
 /* padding-bottom is 0 on purpose: the tab row sits flush with the header's
    bottom edge so the selected tab — which is filled with the page background and
    rounded only on top — reads as joined to the content below it. With padding
    there, it floated as a white box with a strip of navy underneath. */
-.ash-top { position: sticky; top: 0; z-index: 20; background: #1f4e79; color: #fff; margin: 0; padding: 14px 16px 0; box-shadow: 0 1px 8px rgba(31,41,51,0.16); }
+.ash-top { position: sticky; top: 0; z-index: 20; background: var(--ash-blue); color: #fff; margin: 0; padding: 14px 16px 0; box-shadow: 0 1px 8px rgba(31,41,51,0.16); }
 .ash-top-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 760px; margin: 0 auto; padding: 0 var(--ash-gutter); }
 .ash-brand { font-size: 17px; font-weight: 700; letter-spacing: 0.2px; line-height: 1.25; }
 .ash-sub { font-size: 12px; opacity: 0.75; margin-top: 3px; }
@@ -418,7 +446,7 @@ export const ASH_CSS = `
 .ash-tabs { display: flex; gap: 4px; max-width: 760px; margin: 14px auto 0; padding: 0 var(--ash-gutter); overflow-x: auto; scrollbar-width: none; }
 .ash-tabs::-webkit-scrollbar { display: none; }
 .ash-tab { flex: 0 0 auto; background: transparent; border: none; color: rgba(255,255,255,0.72); font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 8px 8px 0 0; cursor: pointer; white-space: nowrap; min-height: 42px; }
-.ash-tab[aria-selected="true"] { background: #f4f6f9; color: #1f4e79; }
+.ash-tab[aria-selected="true"] { background: #f4f6f9; color: var(--ash-blue-dark); box-shadow: inset 0 3px 0 var(--ash-orange); }
 /* Tighter tabs on a phone: at the desktop padding the four labels total ~391px
    and clip the last one on a 375px screen. */
 @media (max-width: 420px) {
@@ -434,7 +462,7 @@ export const ASH_CSS = `
 .ash-empty p { margin: 0 0 16px; max-width: 62ch; }
 .ash-card-tap { cursor: pointer; transition: box-shadow .14s, transform .14s; }
 .ash-card-tap:hover { box-shadow: 0 4px 14px rgba(31,41,51,0.09); transform: translateY(-1px); }
-.ash-h2 { font-size: 15px; font-weight: 700; margin: 0 0 10px; color: #1f4e79; }
+.ash-h2 { font-size: 15px; font-weight: 700; margin: 0 0 10px; color: var(--ash-blue-dark); }
 .ash-muted { color: #6b7785; font-size: 13px; }
 .ash-tiny { color: #8794a1; font-size: 12px; }
 .ash-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -446,7 +474,7 @@ export const ASH_CSS = `
 
 .ash-input, .ash-select, .ash-textarea { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid #d5dde5; border-radius: 10px; font-size: 16px; background: #fff; color: #1f2933; font-family: inherit; }
 .ash-textarea { min-height: 76px; resize: vertical; }
-.ash-input:focus, .ash-select:focus, .ash-textarea:focus { outline: 2px solid #1f4e79; outline-offset: -1px; border-color: #1f4e79; }
+.ash-input:focus, .ash-select:focus, .ash-textarea:focus { outline: 2px solid var(--ash-blue); outline-offset: -1px; border-color: var(--ash-blue); }
 /* iOS Safari gives date/datetime inputs an intrinsic width that won't shrink in
    a flex column, and centers their text. Strip the native look so they match. */
 input.ash-input[type="date"], input.ash-input[type="datetime-local"] { -webkit-appearance: none; appearance: none; min-height: 45px; text-align: left; }
@@ -471,11 +499,11 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 .ash-grid2 .ash-field { margin-bottom: 0; }
 @media (max-width: 480px) { .ash-grid2 { grid-template-columns: 1fr; } }
 
-.ash-btn { background: #1f4e79; color: #fff; border: none; border-radius: 10px; padding: 12px 16px; font-size: 15px; font-weight: 600; cursor: pointer; min-height: 44px; }
-.ash-btn:hover:not(:disabled) { background: #1a4166; }
+.ash-btn { background: var(--ash-blue); color: #fff; border: none; border-radius: 10px; padding: 12px 16px; font-size: 15px; font-weight: 600; cursor: pointer; min-height: 44px; }
+.ash-btn:hover:not(:disabled) { background: var(--ash-blue-dark); }
 .ash-btn:disabled { opacity: .5; cursor: default; }
-.ash-btn-ghost { background: #fff; color: #1f4e79; border: 1px solid #cfdae6; }
-.ash-btn-ghost:hover:not(:disabled) { background: #f0f5fa; }
+.ash-btn-ghost { background: #fff; color: var(--ash-blue-dark); border: 1px solid var(--ash-blue-line); }
+.ash-btn-ghost:hover:not(:disabled) { background: var(--ash-blue-wash); }
 .ash-btn-danger { background: #fff; color: #a33328; border: 1px solid #f0cdc8; }
 .ash-btn-danger:hover:not(:disabled) { background: #fdeceb; }
 .ash-btn-sm { padding: 8px 12px; font-size: 13px; min-height: 40px; border-radius: 9px; }
@@ -486,11 +514,11 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 
 .ash-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 .ash-stat { background: #fff; border: 1px solid #e3e8ee; border-radius: 12px; padding: 11px 12px; }
-.ash-stat-n { font-size: 22px; font-weight: 800; color: #1f4e79; line-height: 1.15; }
+.ash-stat-n { font-size: 22px; font-weight: 800; color: var(--ash-blue-dark); line-height: 1.15; }
 .ash-stat-l { font-size: 11px; color: #6b7785; text-transform: uppercase; letter-spacing: .4px; margin-top: 2px; }
 
 .ash-bar { height: 10px; background: #e6ebf1; border-radius: 999px; overflow: hidden; }
-.ash-bar-fill { height: 100%; background: linear-gradient(90deg, #2a9d8f, #1f4e79); border-radius: 999px; transition: width .3s; }
+.ash-bar-fill { height: 100%; background: linear-gradient(90deg, var(--ash-orange), var(--ash-blue)); border-radius: 999px; transition: width .3s; }
 
 .ash-search { display: flex; gap: 8px; margin-bottom: 10px; }
 .ash-addbtn { flex: 0 0 auto; white-space: nowrap; padding: 12px 14px; }
@@ -500,7 +528,7 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 .ash-filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; scrollbar-width: none; }
 .ash-filters::-webkit-scrollbar { display: none; }
 .ash-pill { flex: 0 0 auto; background: #fff; border: 1px solid #d5dde5; color: #48545f; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; min-height: 40px; }
-.ash-pill[aria-pressed="true"] { background: #1f4e79; border-color: #1f4e79; color: #fff; }
+.ash-pill[aria-pressed="true"] { background: var(--ash-blue); border-color: var(--ash-blue); color: #fff; }
 
 .ash-timeline { list-style: none; margin: 0; padding: 0; }
 .ash-tl-item { display: flex; gap: 10px; padding: 11px 0; border-top: 1px solid #eef1f5; }
@@ -510,15 +538,15 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 
 .ash-contact { border: 1px solid #e6ebf1; border-radius: 12px; padding: 11px; margin-bottom: 9px; background: #fbfcfd; }
 .ash-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 9px; }
-.ash-iconbtn { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid #cfdae6; color: #1f4e79; border-radius: 9px; padding: 8px 12px; font-size: 13px; font-weight: 600; text-decoration: none; min-height: 42px; cursor: pointer; }
-.ash-iconbtn:hover { background: #f0f5fa; }
+.ash-iconbtn { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid var(--ash-blue-line); color: var(--ash-blue-dark); border-radius: 9px; padding: 8px 12px; font-size: 13px; font-weight: 600; text-decoration: none; min-height: 42px; cursor: pointer; }
+.ash-iconbtn:hover { background: var(--ash-blue-wash); }
 
 .ash-modal-bg { position: fixed; inset: 0; background: rgba(20,28,36,0.5); z-index: 60; display: flex; align-items: flex-end; justify-content: center; padding: 0; overflow-y: auto; }
 @media (min-width: 620px) { .ash-modal-bg { align-items: center; padding: 24px; } }
 .ash-modal { background: #f4f6f9; width: 100%; max-width: 560px; border-radius: 16px 16px 0 0; padding: 16px; max-height: 92vh; overflow-y: auto; }
 @media (min-width: 620px) { .ash-modal { border-radius: 16px; } }
 .ash-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.ash-modal-title { font-size: 16px; font-weight: 700; color: #1f4e79; }
+.ash-modal-title { font-size: 16px; font-weight: 700; color: var(--ash-blue-dark); }
 .ash-x { background: none; border: none; font-size: 22px; line-height: 1; color: #8794a1; cursor: pointer; padding: 4px 8px; min-width: 44px; min-height: 44px; }
 
 
@@ -529,7 +557,7 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 
 .ash-login { max-width: 380px; margin: 0 auto; padding: 48px 16px; }
 .ash-login-card { background: #fff; border: 1px solid #e3e8ee; border-radius: 16px; padding: 22px; }
-.ash-link { display: inline-flex; align-items: center; justify-content: center; background: none; border: none; color: #1f4e79; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 10px; min-height: 44px; min-width: 44px; }
+.ash-link { display: inline-flex; align-items: center; justify-content: center; background: none; border: none; color: var(--ash-blue-dark); font-size: 13px; text-decoration: underline; cursor: pointer; padding: 10px; min-height: 44px; min-width: 44px; }
 .ash-link:disabled { opacity: .5; cursor: default; }
 .ash-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; margin: 0; }
 .ash-dl dt { color: #6b7785; }

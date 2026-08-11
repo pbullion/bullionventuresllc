@@ -241,7 +241,7 @@ function ClientCard({ client, onOpen }) {
           <span className="ash-tiny">last touch {daysAgoLabel(client.last_touch_at)}</span>
         )}
         {client.next_follow_up_date && (
-          <span className="ash-chip" style={{ background: "#e6f0fa", color: "#1f4e79" }}>
+          <span className="ash-chip" style={{ background: "var(--ash-blue-tint)", color: "var(--ash-blue-dark)" }}>
             {dueLabel(client.next_follow_up_date)}
           </span>
         )}

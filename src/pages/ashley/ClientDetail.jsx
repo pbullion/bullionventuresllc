@@ -517,7 +517,7 @@ function ContactCard({ contact, onEdit, onLog, onRemoved }) {
           <div style={{ fontSize: 15, fontWeight: 700, overflowWrap: "anywhere" }}>
             {contactName(contact) || "(no name)"}
             {contact.is_primary && (
-              <span className="ash-chip" style={{ background: "#e6f0fa", color: "#1f4e79", marginLeft: 7 }}>
+              <span className="ash-chip" style={{ background: "var(--ash-blue-tint)", color: "var(--ash-blue-dark)", marginLeft: 7 }}>
                 Main
               </span>
             )}

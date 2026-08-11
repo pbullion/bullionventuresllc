@@ -235,7 +235,7 @@ function LoginScreen({ signupOpen, onSignedIn }) {
   return (
     <div className="ash-login">
       <div className="ash-login-card">
-        <div style={{ fontSize: 19, fontWeight: 800, color: "#1f4e79" }}>
+        <div style={{ fontSize: 19, fontWeight: 800, color: "var(--ash-blue-dark)" }}>
           Client Transition Tracker
         </div>
         <p className="ash-muted" style={{ marginTop: 6, marginBottom: 18 }}>

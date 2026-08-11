@@ -160,7 +160,7 @@ function FollowUpCard({ item, onDone, onOpen }) {
           style={
             item.overdue
               ? { background: "#fdeceb", color: "#9c3128" }
-              : { background: "#e6f0fa", color: "#1f4e79" }
+              : { background: "var(--ash-blue-tint)", color: "var(--ash-blue-dark)" }
           }
         >
           {dueLabel(item.next_follow_up_date)}
