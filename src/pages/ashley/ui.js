@@ -365,23 +365,40 @@ export function guessTarget(header) {
  * 44px+ and font-size on inputs is 16px (anything smaller makes iOS Safari zoom
  * the page on focus). */
 export const ASH_CSS = `
-.ash-root { min-height: 100vh; background: #f4f6f9; color: #1f2933; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
-.ash-shell { max-width: 760px; margin: 0 auto; padding: 0 14px 96px; }
+/* Card padding lives in a variable because .ash-divide has to bleed to the card's
+   edges with a matching negative margin. Hardcoding both meant changing one
+   silently left the divider stopping short of the edge. */
+.ash-root { min-height: 100vh; background: #f4f6f9; color: #1f2933; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; --ash-card-pad: 16px; --ash-gutter: 14px; }
+.ash-shell { max-width: 760px; margin: 0 auto; padding: 18px var(--ash-gutter) 96px; }
 
-.ash-top { position: sticky; top: 0; z-index: 20; background: #1f4e79; color: #fff; margin: 0 0 14px; padding: 12px 16px; box-shadow: 0 1px 8px rgba(31,41,51,0.16); }
-.ash-top-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 760px; margin: 0 auto; }
-.ash-brand { font-size: 17px; font-weight: 700; letter-spacing: 0.2px; }
-.ash-sub { font-size: 12px; opacity: 0.75; margin-top: 1px; }
+/* padding-bottom is 0 on purpose: the tab row sits flush with the header's
+   bottom edge so the selected tab — which is filled with the page background and
+   rounded only on top — reads as joined to the content below it. With padding
+   there, it floated as a white box with a strip of navy underneath. */
+.ash-top { position: sticky; top: 0; z-index: 20; background: #1f4e79; color: #fff; margin: 0; padding: 14px 16px 0; box-shadow: 0 1px 8px rgba(31,41,51,0.16); }
+.ash-top-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 760px; margin: 0 auto; padding: 0 var(--ash-gutter); }
+.ash-brand { font-size: 17px; font-weight: 700; letter-spacing: 0.2px; line-height: 1.25; }
+.ash-sub { font-size: 12px; opacity: 0.75; margin-top: 3px; }
 .ash-signout { background: rgba(255,255,255,0.14); color: #fff; border: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; min-height: 40px; }
 .ash-signout:hover { background: rgba(255,255,255,0.24); }
 
-.ash-tabs { display: flex; gap: 4px; max-width: 760px; margin: 10px auto 0; overflow-x: auto; scrollbar-width: none; }
+.ash-tabs { display: flex; gap: 4px; max-width: 760px; margin: 14px auto 0; padding: 0 var(--ash-gutter); overflow-x: auto; scrollbar-width: none; }
 .ash-tabs::-webkit-scrollbar { display: none; }
 .ash-tab { flex: 0 0 auto; background: transparent; border: none; color: rgba(255,255,255,0.72); font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 8px 8px 0 0; cursor: pointer; white-space: nowrap; min-height: 42px; }
 .ash-tab[aria-selected="true"] { background: #f4f6f9; color: #1f4e79; }
+/* Tighter tabs on a phone: at the desktop padding the four labels total ~391px
+   and clip the last one on a 375px screen. */
+@media (max-width: 420px) {
+  .ash-tab { padding: 10px 9px; }
+}
 .ash-tab-badge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px; border-radius: 9px; background: #c0392b; color: #fff; font-size: 11px; font-weight: 700; }
 
-.ash-card { background: #fff; border: 1px solid #e3e8ee; border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+.ash-card { background: #fff; border: 1px solid #e3e8ee; border-radius: 14px; padding: var(--ash-card-pad); margin-bottom: 14px; }
+/* Empty states carry only a heading, a sentence and one button, so they read as
+   cramped at the density that suits a dense client card. */
+.ash-empty { padding: 24px var(--ash-card-pad); }
+.ash-empty .ash-h2 { margin-bottom: 6px; }
+.ash-empty p { margin: 0 0 16px; max-width: 62ch; }
 .ash-card-tap { cursor: pointer; transition: box-shadow .14s, transform .14s; }
 .ash-card-tap:hover { box-shadow: 0 4px 14px rgba(31,41,51,0.09); transform: translateY(-1px); }
 .ash-h2 { font-size: 15px; font-weight: 700; margin: 0 0 10px; color: #1f4e79; }
@@ -389,7 +406,7 @@ export const ASH_CSS = `
 .ash-tiny { color: #8794a1; font-size: 12px; }
 .ash-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ash-between { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.ash-divide { border-top: 1px solid #eef1f5; margin: 12px -14px; }
+.ash-divide { border-top: 1px solid #eef1f5; margin: 14px calc(-1 * var(--ash-card-pad)); }
 
 .ash-chip { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .ash-tierchip { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 7px; font-size: 13px; font-weight: 800; border: 1px solid; }
@@ -402,12 +419,23 @@ export const ASH_CSS = `
 input.ash-input[type="date"], input.ash-input[type="datetime-local"] { -webkit-appearance: none; appearance: none; min-height: 45px; text-align: left; }
 input.ash-input[type="date"]::-webkit-date-and-time-value,
 input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
-.ash-label { display: block; font-size: 12px; font-weight: 600; color: #55616e; margin: 0 0 4px; }
-.ash-field { margin-bottom: 10px; min-width: 0; }
+.ash-label { display: block; font-size: 12px; font-weight: 600; color: #55616e; margin: 0 0 6px; }
+.ash-field { margin-bottom: 16px; min-width: 0; }
+/* Scoped to a card's OWN last child. An unscoped .ash-field:last-child also
+   matched the last cell of every side-by-side grid mid-form, which zeroed the
+   gap and left that field butted straight against the next label — measured as
+   0px where every other field had 16. */
+.ash-card > .ash-field:last-child,
+.ash-card > .ash-grid2:last-child { margin-bottom: 0; }
 /* The <label> in Field.jsx wraps its control, and a label is inline by default —
    without this the label text and the input sit side by side. */
 .ash-label-wrap { display: block; }
-.ash-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ash-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 14px; margin-bottom: 16px; }
+/* Descendant, not child: the City/State/ZIP row nests its fields one level
+   deeper inside a .ash-row, so a child selector missed them and their margin
+   stacked on the grid's — measured 32px before "Website" where the rest of the
+   form used 16. Fields that wrap inside a .ash-row still get that row's gap. */
+.ash-grid2 .ash-field { margin-bottom: 0; }
 @media (max-width: 480px) { .ash-grid2 { grid-template-columns: 1fr; } }
 
 .ash-btn { background: #1f4e79; color: #fff; border: none; border-radius: 10px; padding: 12px 16px; font-size: 15px; font-weight: 600; cursor: pointer; min-height: 44px; }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   api,
   clearToken,
@@ -43,6 +43,16 @@ export default function Ashley() {
   const [openAccess, setOpenAccess] = useState(null); // null until /meta answers
   const [signedIn, setSignedIn] = useState(() => Boolean(getToken()));
   const [tab, setTab] = useState("dashboard");
+
+  /* Scroll the selected tab into view. The tab strip scrolls sideways, so on a
+     narrow phone the rightmost tab sits half off the edge — and it gets worse
+     when the Follow-ups badge widens the row. `inline: "nearest"` moves it the
+     minimum distance and does nothing when it is already fully visible; `block:
+     "nearest"` keeps it from scrolling the page vertically as a side effect. */
+  const selectedTabRef = useRef(null);
+  useEffect(() => {
+    selectedTabRef.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [tab]);
   const [me, setMe] = useState(null);
   const [meta, setMeta] = useState(null);
   /* Bumped after any write that could change another tab's numbers, so the
@@ -163,6 +173,11 @@ export default function Ashley() {
               className="ash-tab"
               role="tab"
               aria-selected={tab === t.key}
+              /* Keep the selected tab fully on screen. The row scrolls
+                 horizontally, and on a narrow phone the last tab sits half off
+                 the edge — worse once Follow-ups grows its overdue badge and
+                 pushes the row wider. */
+              ref={tab === t.key ? selectedTabRef : null}
               onClick={() => setTab(t.key)}
             >
               {t.label}

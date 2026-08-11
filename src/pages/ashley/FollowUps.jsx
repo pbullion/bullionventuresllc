@@ -94,9 +94,9 @@ export default function FollowUps({ meta, version, bump }) {
       {items === null && <div className="ash-muted" style={{ padding: "20px 2px" }}>Loading…</div>}
 
       {items !== null && items.length === 0 && (
-        <div className="ash-card">
+        <div className="ash-card ash-empty">
           <div className="ash-h2">Nothing outstanding</div>
-          <div className="ash-muted">
+          <div className="ash-muted" style={{ maxWidth: "52ch" }}>
             When you log a call, set a follow-up date and it shows up here until you
             check it off.
           </div>

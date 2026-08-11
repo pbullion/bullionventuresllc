@@ -39,9 +39,9 @@ export default function Dashboard({ version, onGoToClients }) {
 
   if (!t.total_clients) {
     return (
-      <div className="ash-card">
+      <div className="ash-card ash-empty">
         <div className="ash-h2">Nothing here yet</div>
-        <p className="ash-muted" style={{ marginTop: 0 }}>
+        <p className="ash-muted">
           Add your clients on the Clients tab — or paste your whole list in at once
           from Settings → Import.
         </p>

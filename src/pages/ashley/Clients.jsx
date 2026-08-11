@@ -138,8 +138,8 @@ export default function Clients({ meta, version, bump }) {
       </div>
 
       {clients !== null && clients.length === 0 && (
-        <div className="ash-card">
-          <div className="ash-muted">
+        <div className="ash-card ash-empty">
+          <div className="ash-muted" style={{ maxWidth: "52ch" }}>
             {query || filter !== "all"
               ? "Nothing matches. Try a different search or filter."
               : "No clients yet. Add one below, or paste your whole list in from Settings → Import."}
