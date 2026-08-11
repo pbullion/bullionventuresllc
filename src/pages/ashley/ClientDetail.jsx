@@ -126,7 +126,7 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
                 {client.tier}
               </span>
               <span style={{ fontSize: 18, fontWeight: 800, overflowWrap: "anywhere", minWidth: 0 }}>
-                {client.company_name}
+                {client.display_name || client.company_name}
               </span>
             </div>
             {client.dba && <div className="ash-muted" style={{ marginTop: 2 }}>dba {client.dba}</div>}
@@ -245,7 +245,7 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
         {confirmDelete ? (
           <>
             <div style={{ fontSize: 14, marginBottom: 10 }}>
-              Archive <strong>{client.company_name}</strong>? It disappears from the
+              Archive <strong>{client.display_name || client.company_name}</strong>? It disappears from the
               list and stops counting in your totals, but nothing is deleted — you
               can bring it back with the &ldquo;Archived&rdquo; filter.
             </div>

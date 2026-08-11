@@ -187,7 +187,7 @@ export default function Dashboard({ version, onGoToClients }) {
                     {c.tier}
                   </span>
                   <span style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {c.company_name}
+                    {c.display_name || c.company_name}
                   </span>
                 </span>
                 <span className="ash-tiny" style={{ whiteSpace: "nowrap" }}>
@@ -211,7 +211,7 @@ export default function Dashboard({ version, onGoToClients }) {
               <li key={o.id} className="ash-tl-item">
                 <span className="ash-tl-icon">{CHANNEL_ICON[o.channel] || "📌"}</span>
                 <div className="ash-tl-body">
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{o.company_name}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{o.display_name || o.company_name}</div>
                   <div className="ash-muted">
                     {channelLabel(o.channel)} &middot; {outcomeLabel(o.outcome)}
                     {contactName(o) && ` · ${contactName(o)}`}

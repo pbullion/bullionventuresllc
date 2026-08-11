@@ -46,7 +46,11 @@ export default function Importer({ onImported }) {
   }
 
   const dataRows = hasHeaderRow ? rows.slice(1) : rows;
+  /* Either a company column or a name column is enough — the backend groups on
+   * whichever is present, so a list of just people imports fine. */
   const mappedCompany = mapping.includes("company_name");
+  const mappedName = mapping.includes("first_name") || mapping.includes("last_name");
+  const mappedIdentity = mappedCompany || mappedName;
 
   // Turns the grid + mapping into the row objects the backend import expects.
   const buildPayload = () =>
@@ -107,8 +111,8 @@ export default function Importer({ onImported }) {
         </div>
         {result.skipped?.length > 0 && (
           <div className="ash-muted">
-            Skipped {result.skipped.length} row{result.skipped.length === 1 ? "" : "s"} with no
-            company name.
+            Skipped {result.skipped.length} row{result.skipped.length === 1 ? "" : "s"} with
+            neither a company nor a contact name.
           </div>
         )}
         <button className="ash-btn ash-btn-ghost ash-btn-sm" style={{ marginTop: 10 }} onClick={reset}>
@@ -197,10 +201,10 @@ export default function Importer({ onImported }) {
             </Field>
           ))}
 
-          {!mappedCompany && (
+          {!mappedIdentity && (
             <div className="ash-err">
-              One column has to be mapped to <strong>Company name</strong> — it&rsquo;s
-              what groups people into clients.
+              Map one column to <strong>Company name</strong> or to a{" "}
+              <strong>First/Last name</strong> — something has to identify each row.
             </div>
           )}
 
@@ -214,7 +218,7 @@ export default function Importer({ onImported }) {
                 <>, adding people to {preview.clientsMatched} client{preview.clientsMatched === 1 ? "" : "s"} you already have</>
               )}
               {preview.skipped?.length > 0 && (
-                <>, and skip {preview.skipped.length} row{preview.skipped.length === 1 ? "" : "s"} with no company name</>
+                <>, and skip {preview.skipped.length} row{preview.skipped.length === 1 ? "" : "s"} with no name of any kind</>
               )}
               . Nothing has been saved yet.
             </div>
@@ -222,7 +226,7 @@ export default function Importer({ onImported }) {
 
           <div className="ash-row" style={{ gap: 8, marginTop: 4 }}>
             {!preview ? (
-              <button className="ash-btn" disabled={busy || !mappedCompany} onClick={() => run(true)}>
+              <button className="ash-btn" disabled={busy || !mappedIdentity} onClick={() => run(true)}>
                 {busy ? "Checking…" : "Preview"}
               </button>
             ) : (

@@ -145,7 +145,7 @@ function FollowUpCard({ item, onDone, onOpen }) {
               style={{ fontSize: 15, fontWeight: 700, textDecoration: "none", textAlign: "left", overflowWrap: "anywhere", display: "block" }}
               onClick={onOpen}
             >
-              {item.company_name}
+              {item.display_name || item.company_name}
             </button>
             {contactName(item) && (
               <div className="ash-tiny">
