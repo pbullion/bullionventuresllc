@@ -67,6 +67,8 @@ export const OUTCOME_LABEL = {
   other: "Other",
 };
 
+/* "Would they follow you?" — how likely this client is to move their business
+ * with her. Shown on the client form and the detail page. */
 export const PORTABILITY_LABEL = {
   high: "Likely to follow",
   medium: "Maybe",

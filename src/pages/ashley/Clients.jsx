@@ -212,7 +212,7 @@ function ClientCard({ client, onOpen }) {
           </span>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, overflowWrap: "anywhere" }}>
-              {client.company_name}
+              {client.display_name || client.company_name}
               {client.archived && <span className="ash-tiny" style={{ marginLeft: 6 }}>(archived)</span>}
             </div>
             <div className="ash-tiny">

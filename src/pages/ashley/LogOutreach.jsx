@@ -76,7 +76,7 @@ export default function LogOutreach({ client, contacts, meta, presetContactId, o
   }
 
   return (
-    <Modal title={`Log outreach — ${client.company_name}`} onClose={onClose}>
+    <Modal title={`Log outreach — ${client.display_name || client.company_name}`} onClose={onClose}>
       {error && <div className="ash-err">{error}</div>}
       <form onSubmit={save}>
         <div className="ash-card">

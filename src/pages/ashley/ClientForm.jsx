@@ -36,6 +36,14 @@ const BLANK = {
   notes: "",
 };
 
+const BLANK_CONTACT = {
+  first_name: "",
+  last_name: "",
+  title: "",
+  phone_mobile: "",
+  email: "",
+};
+
 export default function ClientForm({ client, meta, onClose, onSaved }) {
   const editing = Boolean(client);
   const [form, setForm] = useState(() => {
@@ -52,23 +60,34 @@ export default function ClientForm({ client, meta, onClose, onSaved }) {
     }
     return out;
   });
+  /* Only on create. A new client almost always comes with a person attached, and
+   * making that a second step meant records with nobody to call. */
+  const [contact, setContact] = useState(BLANK_CONTACT);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const setC = (k) => (e) => setContact((c) => ({ ...c, [k]: e.target.value }));
+  const contactNamed = Boolean(contact.first_name.trim() || contact.last_name.trim());
+  // Either name will do — she may know the person before she knows the company.
+  const canSave = Boolean(form.company_name.trim()) || (!editing && contactNamed);
   const tiers = meta?.tiers || ["A", "B", "C"];
   const portability = meta?.portability || Object.keys(PORTABILITY_LABEL);
   const statuses = meta?.clientStatuses || [];
 
   async function save(e) {
     e.preventDefault();
-    if (busy || !form.company_name.trim()) return;
+    if (busy || !canSave) return;
     setBusy(true);
     setError("");
     try {
       const saved = editing
         ? await api.patch(`/clients/${client.id}`, form)
-        : await api.post("/clients", form);
+        : await api.post("/clients", {
+            ...form,
+            // The backend creates this as the primary contact in one transaction.
+            ...(contactNamed ? { contact } : {}),
+          });
       onSaved(saved);
     } catch (err) {
       setError(err.message);
@@ -81,8 +100,21 @@ export default function ClientForm({ client, meta, onClose, onSaved }) {
       {error && <div className="ash-err">{error}</div>}
       <form onSubmit={save}>
         <div className="ash-card">
-          <Field label="Company name" required>
-            <input className="ash-input" value={form.company_name} onChange={set("company_name")} autoFocus required />
+          <Field
+            label="Company name"
+            hint={
+              editing
+                ? undefined
+                : "Or just fill in the contact below — either name is enough to save."
+            }
+          >
+            <input
+              className="ash-input"
+              value={form.company_name}
+              onChange={set("company_name")}
+              autoFocus
+              placeholder={contactNamed ? "(optional — you have a contact name)" : ""}
+            />
           </Field>
           <div className="ash-grid2">
             <Field label="DBA / trade name">
@@ -100,7 +132,7 @@ export default function ClientForm({ client, meta, onClose, onSaved }) {
                 ))}
               </select>
             </Field>
-            <Field label="Will they follow you?">
+            <Field label="Would they follow you?">
               <select className="ash-select" value={form.portability} onChange={set("portability")}>
                 {portability.map((p) => (
                   <option key={p} value={p}>{PORTABILITY_LABEL[p] || prettify(p)}</option>
@@ -118,6 +150,35 @@ export default function ClientForm({ client, meta, onClose, onSaved }) {
             </Field>
           )}
         </div>
+
+        {!editing && (
+          <div className="ash-card">
+            <div className="ash-h2">Main contact</div>
+            <div className="ash-muted" style={{ marginTop: -4, marginBottom: 10 }}>
+              Whoever you actually talk to. You can add more people once the client
+              is saved.
+            </div>
+            <div className="ash-grid2">
+              <Field label="First name">
+                <input className="ash-input" value={contact.first_name} onChange={setC("first_name")} autoComplete="off" />
+              </Field>
+              <Field label="Last name">
+                <input className="ash-input" value={contact.last_name} onChange={setC("last_name")} autoComplete="off" />
+              </Field>
+            </div>
+            <Field label="Title">
+              <input className="ash-input" placeholder="CFO" value={contact.title} onChange={setC("title")} />
+            </Field>
+            <div className="ash-grid2">
+              <Field label="Mobile">
+                <input className="ash-input" type="tel" inputMode="tel" value={contact.phone_mobile} onChange={setC("phone_mobile")} />
+              </Field>
+              <Field label="Email">
+                <input className="ash-input" type="email" inputMode="email" value={contact.email} onChange={setC("email")} />
+              </Field>
+            </div>
+          </div>
+        )}
 
         <div className="ash-card">
           <div className="ash-h2">Banking relationship</div>
@@ -184,7 +245,7 @@ export default function ClientForm({ client, meta, onClose, onSaved }) {
         </div>
 
         <div className="ash-row" style={{ gap: 8 }}>
-          <button className="ash-btn" type="submit" disabled={busy || !form.company_name.trim()} style={{ flex: 1 }}>
+          <button className="ash-btn" type="submit" disabled={busy || !canSave} style={{ flex: 1 }}>
             {busy ? "Saving…" : editing ? "Save changes" : "Add client"}
           </button>
           <button className="ash-btn ash-btn-ghost" type="button" onClick={onClose}>
