@@ -96,6 +96,12 @@ export default function Clients({ meta, version, bump }) {
     <>
       {error && <div className="ash-err">{error}</div>}
 
+      {/* Adding a client is a button in the content, beside the search box.
+          It used to be a floating one pinned bottom-right, which Patrick found
+          hard to find (2026-08-11): on a wide screen it sits in a corner nowhere
+          near anything you were reading, and on a narrow one it covers the edge
+          of whichever card is at the bottom. One button, where the eye already
+          is, on every screen size. */}
       <div className="ash-search">
         <input
           className="ash-input"
@@ -104,6 +110,12 @@ export default function Clients({ meta, version, bump }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <button
+          className="ash-btn ash-addbtn"
+          onClick={() => setCreating(true)}
+        >
+          + Add client
+        </button>
       </div>
 
       <div className="ash-filters">
@@ -138,20 +150,29 @@ export default function Clients({ meta, version, bump }) {
       </div>
 
       {clients !== null && clients.length === 0 && (
-        <div className="ash-card">
-          <div className="ash-muted">
-            {query || filter !== "all"
-              ? "Nothing matches. Try a different search or filter."
-              : "No clients yet. Add one below, or paste your whole list in from Settings → Import."}
-          </div>
+        <div className="ash-card" style={{ textAlign: "center", padding: "26px 16px" }}>
+          {query || filter !== "all" ? (
+            <div className="ash-muted">Nothing matches. Try a different search or filter.</div>
+          ) : (
+            <>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1f4e79", marginBottom: 6 }}>
+                No clients yet
+              </div>
+              <div className="ash-muted" style={{ marginBottom: 16 }}>
+                Add them one at a time, or paste your whole list in at once from
+                Settings → Import.
+              </div>
+              <button className="ash-btn" onClick={() => setCreating(true)}>
+                + Add your first client
+              </button>
+            </>
+          )}
         </div>
       )}
 
       {(clients || []).map((c) => (
         <ClientCard key={c.id} client={c} onOpen={() => setOpenId(c.id)} />
       ))}
-
-      <button className="ash-fab" onClick={() => setCreating(true)}>+ Client</button>
 
       {creating && (
         <ClientForm

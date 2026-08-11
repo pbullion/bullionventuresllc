@@ -5,7 +5,26 @@
  * token is stored under a key of its own so clearing it can never disturb the
  * betting PIN in bv_autobet_pin. */
 
-const API_BASE = "https://sheline-art-website-api.herokuapp.com/ashley";
+/* Production URL, hardcoded like every other page in this repo.
+ *
+ * The one addition: when the page is SERVED from localhost, talk to a backend on
+ * localhost too. This repo has no env vars and its other pages hit production
+ * from a dev server, which is fine for read-only screens — but this one writes
+ * client records, and pointing a local dev session at the live database is a
+ * bad default for a tool people type real data into. Run the backend with
+ * `node scripts/ashley-local.js` in the sheline-art-website-api repo.
+ *
+ * Guarded on hostname, so a deployed build never takes this branch. Override the
+ * port with ?api=PORT if you run the backend somewhere else. */
+const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
+const isLocal = typeof window !== "undefined" && LOCAL_HOSTS.includes(window.location.hostname);
+const localPort =
+  (typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("api")) ||
+  "3001";
+const API_BASE = isLocal
+  ? `http://localhost:${localPort}/ashley`
+  : "https://sheline-art-website-api.herokuapp.com/ashley";
 const TOKEN_KEY = "ash_token";
 
 export const getToken = () => window.localStorage.getItem(TOKEN_KEY) || "";

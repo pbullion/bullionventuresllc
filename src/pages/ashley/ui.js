@@ -432,6 +432,10 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 .ash-bar-fill { height: 100%; background: linear-gradient(90deg, #2a9d8f, #1f4e79); border-radius: 999px; transition: width .3s; }
 
 .ash-search { display: flex; gap: 8px; margin-bottom: 10px; }
+.ash-addbtn { flex: 0 0 auto; white-space: nowrap; padding: 12px 14px; }
+/* Narrow phones: the label alone is wider than the space left beside the search
+   field, so shorten it to "+ Add" rather than squeezing both. */
+@media (max-width: 400px) { .ash-addbtn { padding: 12px; font-size: 14px; } }
 .ash-filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; scrollbar-width: none; }
 .ash-filters::-webkit-scrollbar { display: none; }
 .ash-pill { flex: 0 0 auto; background: #fff; border: 1px solid #d5dde5; color: #48545f; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; min-height: 40px; }
@@ -456,8 +460,6 @@ input.ash-input[type="datetime-local"]::-webkit-date-and-time-value { text-align
 .ash-modal-title { font-size: 16px; font-weight: 700; color: #1f4e79; }
 .ash-x { background: none; border: none; font-size: 22px; line-height: 1; color: #8794a1; cursor: pointer; padding: 4px 8px; min-width: 44px; min-height: 44px; }
 
-.ash-fab { position: fixed; right: 16px; bottom: 20px; z-index: 30; background: #1f4e79; color: #fff; border: none; border-radius: 999px; padding: 14px 20px; font-size: 15px; font-weight: 700; box-shadow: 0 6px 18px rgba(31,78,121,0.34); cursor: pointer; }
-.ash-fab:hover { background: #1a4166; }
 
 .ash-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .ash-table th, .ash-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eef1f5; white-space: nowrap; }
