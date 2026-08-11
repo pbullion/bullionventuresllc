@@ -15,10 +15,14 @@ import Settings from "./Settings.jsx";
 /* /ashley — a commercial banker's client transition tracker.
  *
  * Deliberately absent from the home page AND from PrivateTools: it isn't a tool
- * for site visitors, it's one person's working book of client relationships. Not
- * being linked is convenience, not the protection — that comes from the login
- * below and from routes/ashley.js requiring a bearer token on every endpoint,
- * reads included.
+ * for site visitors, it's one person's working book of client relationships.
+ *
+ * Whether that book is PROTECTED depends on the backend: routes/ashley.js
+ * normally requires a bearer token on every endpoint including the reads, and
+ * the login below is that gate. With ASHLEY_OPEN_ACCESS=true it requires
+ * nothing, this component skips the login entirely, and being unlisted is the
+ * only thing standing between the client data and anyone who guesses the URL —
+ * which is to say, nothing. See the note at the top of routes/ashley.js.
  *
  * Built for a phone. She works this list between meetings, so every phone number
  * and email is a real tel:/mailto:/sms: link and logging a call is two taps. */
@@ -31,6 +35,12 @@ const TABS = [
 ];
 
 export default function Ashley() {
+  /* Open mode (ASHLEY_OPEN_ACCESS on the backend) means no login at all — the
+   * shell renders the tabs straight away and every request goes out without a
+   * token, because the backend is not checking for one. Reported by GET /meta so
+   * the switch lives in exactly one place; flipping the env var back restores
+   * the login screen with no frontend change. */
+  const [openAccess, setOpenAccess] = useState(null); // null until /meta answers
   const [signedIn, setSignedIn] = useState(() => Boolean(getToken()));
   const [tab, setTab] = useState("dashboard");
   const [me, setMe] = useState(null);
@@ -65,25 +75,52 @@ export default function Ashley() {
   /* Valid enum values and their order come from the backend so the two can't
    * drift; ui.js supplies only the display labels. */
   useEffect(() => {
-    api.get("/meta").then(setMeta).catch(() => setMeta(null));
+    api
+      .get("/meta")
+      .then((m) => {
+        setMeta(m);
+        setOpenAccess(Boolean(m?.openAccess));
+      })
+      .catch(() => {
+        setMeta(null);
+        // Assume a login is needed if we can't ask — never assume open.
+        setOpenAccess(false);
+      });
   }, []);
 
+  const active = openAccess || signedIn;
+
   useEffect(() => {
-    if (!signedIn) return;
+    if (!active) return;
     api.get("/me").then(setMe).catch(() => {});
-  }, [signedIn, version]);
+  }, [active, version]);
 
   // Drives the badge on the Follow-ups tab — the one number worth showing
   // without opening the tab.
   useEffect(() => {
-    if (!signedIn) return;
+    if (!active) return;
     api
       .get("/dashboard")
       .then((d) => setDueCount((d.followUps?.overdue || 0) + (d.followUps?.due_today || 0)))
       .catch(() => {});
-  }, [signedIn, version]);
+  }, [active, version]);
 
-  if (!signedIn) {
+  // Hold the first paint until /meta answers, so the login screen never flashes
+  // up for a second and then vanishes.
+  if (openAccess === null) {
+    return (
+      <div className="ash-root">
+        <style>{ASH_CSS}</style>
+        <div className="ash-shell">
+          <div className="ash-muted" style={{ padding: "48px 2px", textAlign: "center" }}>
+            Loading…
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!openAccess && !signedIn) {
     return (
       <div className="ash-root">
         <style>{ASH_CSS}</style>
@@ -113,9 +150,11 @@ export default function Ashley() {
                 : me?.full_name || me?.email || ""}
             </div>
           </div>
-          <button className="ash-signout" onClick={signOut}>
-            Sign out
-          </button>
+          {!openAccess && (
+            <button className="ash-signout" onClick={signOut}>
+              Sign out
+            </button>
+          )}
         </div>
         <div className="ash-tabs" role="tablist">
           {TABS.map((t) => (

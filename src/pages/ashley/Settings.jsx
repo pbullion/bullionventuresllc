@@ -8,7 +8,7 @@ import Importer from "./Importer.jsx";
  * The departure date matters more than it looks: every "contacted" number in the
  * app means "contacted on or after this date". Without it, a call logged years
  * ago at the old bank counts as having reached out about the move. */
-export default function Settings({ me, bump }) {
+export default function Settings({ me, meta, bump }) {
   const [form, setForm] = useState(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -111,14 +111,24 @@ export default function Settings({ me, bump }) {
       <div style={{ height: 18 }} />
       <Importer onImported={bump} />
       <Exporter />
-      <PasswordChange />
+      {/* No password to change when the backend is in open-access mode — the
+          form would imply a protection that is switched off. */}
+      {!meta?.openAccess && <PasswordChange />}
 
       <div className="ash-card">
         <div className="ash-h2">Account</div>
-        <div className="ash-muted">
-          Signed in as {me?.email || "—"}
-          {me?.full_name ? ` (${me.full_name})` : ""}.
-        </div>
+        {meta?.openAccess ? (
+          <div className="ash-muted">
+            This tracker is currently open — anyone with the link can view and edit
+            it. Turn sign-in back on by unsetting <code>ASHLEY_OPEN_ACCESS</code> on
+            the server.
+          </div>
+        ) : (
+          <div className="ash-muted">
+            Signed in as {me?.email || "—"}
+            {me?.full_name ? ` (${me.full_name})` : ""}.
+          </div>
+        )}
       </div>
     </>
   );
