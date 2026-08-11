@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api.js";
+import AccountForm from "./AccountForm.jsx";
 import ClientForm from "./ClientForm.jsx";
 import ContactForm from "./ContactForm.jsx";
 import LogOutreach from "./LogOutreach.jsx";
@@ -17,6 +18,7 @@ import {
   prettify,
   statusColor,
   statusLabel,
+  subtypeLabel,
   telHref,
   tierColor,
 } from "./ui.js";
@@ -29,6 +31,7 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [contactEdit, setContactEdit] = useState(null); // {} for new, contact for edit
+  const [accountEdit, setAccountEdit] = useState(null); // { kind } for new, account for edit
   const [logging, setLogging] = useState(null); // { contactId } when open
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [flash, setFlash] = useState("");
@@ -87,7 +90,10 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
     );
   }
 
-  const { client, contacts, outreach } = data;
+  // accounts defaults to [] so a cached older API response can't crash the page.
+  const { client, contacts, outreach, accounts = [] } = data;
+  const loans = accounts.filter((a) => a.kind === "loan");
+  const deposits = accounts.filter((a) => a.kind === "deposit");
   const sc = statusColor(client.status);
   const tc = tierColor(client.tier);
   const address = [
@@ -229,6 +235,55 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
       </div>
 
       <div className="ash-card">
+        <div className="ash-between">
+          <div className="ash-h2" style={{ marginBottom: 0 }}>
+            Loans &amp; deposits{" "}
+            {accounts.length > 0 && <span className="ash-tiny">({accounts.length})</span>}
+          </div>
+          <button
+            className="ash-btn ash-btn-ghost ash-btn-sm"
+            onClick={() => setAccountEdit({ kind: "loan" })}
+          >
+            + Add
+          </button>
+        </div>
+
+        {accounts.length === 0 ? (
+          <p className="ash-muted" style={{ marginBottom: 0, marginTop: 8 }}>
+            No accounts listed yet. Add each loan and deposit separately — the
+            balances and next maturity on this client are added up from them.
+          </p>
+        ) : (
+          <div style={{ marginTop: 11 }}>
+            {[
+              ["Loans", loans],
+              ["Deposits", deposits],
+            ].map(([heading, list]) =>
+              list.length === 0 ? null : (
+                <div key={heading} style={{ marginBottom: 10 }}>
+                  <div className="ash-tiny" style={{ fontWeight: 700, marginBottom: 5 }}>
+                    {heading}
+                    {" · "}
+                    {fmtMoney(
+                      list.reduce((sum, a) => sum + (Number(a.balance) || 0), 0)
+                    )}
+                  </div>
+                  {list.map((a) => (
+                    <AccountCard
+                      key={a.id}
+                      account={a}
+                      onEdit={() => setAccountEdit(a)}
+                      onChanged={changed}
+                    />
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="ash-card">
         <div className="ash-h2">History</div>
         {outreach.length === 0 ? (
           <p className="ash-muted" style={{ marginBottom: 0 }}>Nothing logged yet.</p>
@@ -289,6 +344,7 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
         <ClientForm
           client={client}
           meta={meta}
+          accounts={accounts}
           onClose={() => setEditing(false)}
           onSaved={() => {
             setEditing(false);
@@ -304,6 +360,20 @@ export default function ClientDetail({ clientId, meta, onBack, onChanged }) {
           onClose={() => setContactEdit(null)}
           onSaved={() => {
             setContactEdit(null);
+            changed("Saved.");
+          }}
+        />
+      )}
+      {accountEdit && (
+        <AccountForm
+          clientId={client.id}
+          account={accountEdit.id ? accountEdit : null}
+          meta={meta}
+          onClose={() => setAccountEdit(null)}
+          onSaved={() => {
+            setAccountEdit(null);
+            // Saving an account re-derives the client's totals, so the header
+            // figures above have to be refetched, not just the account list.
             changed("Saved.");
           }}
         />
@@ -334,6 +404,105 @@ function BackBar({ onBack }) {
     <button className="ash-link" onClick={onBack} style={{ marginBottom: 6 }}>
       ← All clients
     </button>
+  );
+}
+
+/* One loan or deposit. The moved chip is the point of the row: at a glance she
+ * can see that the deposits came over in March and the term note is still at the
+ * old bank until it matures. */
+function AccountCard({ account, onEdit, onChanged }) {
+  const [showDelete, setShowDelete] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [error, setError] = useState("");
+
+  const name =
+    account.label ||
+    subtypeLabel(account.kind, account.subtype) ||
+    prettify(account.kind);
+  const rate = account.rate === null || account.rate === "" ? null : Number(account.rate);
+
+  return (
+    <div className="ash-contact">
+      <div className="ash-between">
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, overflowWrap: "anywhere" }}>
+            {name}
+            {account.moved && (
+              <span
+                className="ash-chip"
+                style={{ background: "#e7f4ec", color: "#276749", marginLeft: 7 }}
+              >
+                Moved
+              </span>
+            )}
+          </div>
+          <div className="ash-muted">
+            {[
+              account.subtype ? subtypeLabel(account.kind, account.subtype) : prettify(account.kind),
+              Number.isFinite(rate) ? `${rate}%` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0, paddingLeft: 8 }}>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{fmtMoney(account.balance)}</div>
+          <button className="ash-link" onClick={onEdit} style={{ fontSize: 12 }}>Edit</button>
+        </div>
+      </div>
+
+      {account.maturity_date && (
+        <div className="ash-tiny" style={{ marginTop: 4 }}>
+          Matures {fmtDate(account.maturity_date)}
+        </div>
+      )}
+      {account.moved && account.moved_date && (
+        <div className="ash-tiny">Moved {fmtDate(account.moved_date)}</div>
+      )}
+      {account.notes && (
+        <div style={{ fontSize: 13, marginTop: 6, whiteSpace: "pre-wrap", color: "#48545f" }}>
+          {account.notes}
+        </div>
+      )}
+
+      <div style={{ marginTop: 8 }}>
+        {error && <div className="ash-err" style={{ marginBottom: 8 }}>{error}</div>}
+        {showDelete ? (
+          <div className="ash-row" style={{ gap: 7 }}>
+            <span className="ash-tiny">
+              Remove {name}? The client&rsquo;s totals will be recalculated without it.
+            </span>
+            <button
+              className="ash-btn ash-btn-danger ash-btn-sm"
+              disabled={removing}
+              onClick={async () => {
+                if (removing) return;
+                setRemoving(true);
+                setError("");
+                try {
+                  await api.del(`/accounts/${account.id}`);
+                  await onChanged("Removed.");
+                } catch (e) {
+                  setError(e.message);
+                  setRemoving(false);
+                }
+              }}
+            >
+              {removing ? "Removing…" : "Remove"}
+            </button>
+            <button className="ash-link" onClick={() => setShowDelete(false)}>Cancel</button>
+          </div>
+        ) : (
+          <button
+            className="ash-link"
+            style={{ fontSize: 12, color: "#8794a1" }}
+            onClick={() => setShowDelete(true)}
+          >
+            Remove account
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

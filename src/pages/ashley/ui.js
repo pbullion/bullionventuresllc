@@ -108,6 +108,37 @@ export const outcomeLabel = (o) => OUTCOME_LABEL[o] || prettify(o);
 export const statusColor = (s) => STATUS_COLOR[s] || STATUS_COLOR.not_started;
 export const tierColor = (t) => TIER_COLOR[t] || TIER_COLOR.C;
 
+/* Account subtypes. Which map applies depends on the kind, and the backend
+ * rejects a subtype from the wrong one — so these two must stay in step with
+ * LOAN_SUBTYPES / DEPOSIT_SUBTYPES in routes/ashley.js. The frontend renders its
+ * <select> from GET /meta, so the VALUES come from the server; only the display
+ * labels live here. */
+export const LOAN_SUBTYPE_LABEL = {
+  "": "Unspecified",
+  line_of_credit: "Line of credit",
+  term_loan: "Term loan",
+  cre: "Commercial real estate",
+  equipment: "Equipment",
+  sba: "SBA",
+  mortgage: "Mortgage",
+  credit_card: "Credit card",
+  other: "Other",
+};
+
+export const DEPOSIT_SUBTYPE_LABEL = {
+  "": "Unspecified",
+  checking: "Checking",
+  savings: "Savings",
+  money_market: "Money market",
+  cd: "CD",
+  sweep: "Sweep",
+  treasury: "Treasury management",
+  other: "Other",
+};
+
+export const subtypeLabel = (kind, s) =>
+  (kind === "deposit" ? DEPOSIT_SUBTYPE_LABEL : LOAN_SUBTYPE_LABEL)[s] ?? prettify(s);
+
 /* Empty string when there is nobody, NOT a placeholder: timeline rows carry a
  * null contact when a touch wasn't tied to a person (or their record was since
  * deleted), and every caller tests the result for truthiness before appending

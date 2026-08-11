@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "./api.js";
 import Field from "./Field.jsx";
 import Modal from "./Modal.jsx";
 import {
+  DEPOSIT_SUBTYPE_LABEL,
+  fmtMoney,
+  LOAN_SUBTYPE_LABEL,
   PORTABILITY_LABEL,
   statusLabel,
   TIER_HINT,
@@ -44,7 +47,15 @@ const BLANK_CONTACT = {
   email: "",
 };
 
-export default function ClientForm({ client, meta, onClose, onSaved }) {
+const BLANK_ACCOUNT = {
+  kind: "loan",
+  subtype: "",
+  label: "",
+  balance: "",
+  maturity_date: "",
+};
+
+export default function ClientForm({ client, meta, accounts = [], onClose, onSaved }) {
   const editing = Boolean(client);
   const [form, setForm] = useState(() => {
     if (!client) return BLANK;
@@ -60,20 +71,65 @@ export default function ClientForm({ client, meta, onClose, onSaved }) {
     }
     return out;
   });
-  /* Only on create. A new client almost always comes with a person attached, and
-   * making that a second step meant records with nobody to call. */
-  const [contact, setContact] = useState(BLANK_CONTACT);
+  /* Contacts and accounts are only editable here on CREATE — once the client
+   * exists they are managed from its detail screen, where each one has its own
+   * form and its own history. Entering them here means a new client arrives
+   * complete instead of as a shell somebody has to come back and fill in. */
+  /* _id is a stable React key for rows that can be removed from the middle —
+   * an array index would make the wrong row lose its text. The counter starts at
+   * 1 because the first row is seeded with that id below; it is only ever bumped
+   * from an event handler, never during render. */
+  const uid = useRef(1);
+  const withId = (row) => ({ ...row, _id: ++uid.current });
+  const stripId = (row) => {
+    const out = { ...row };
+    delete out._id;
+    return out;
+  };
+  const [rows, setRows] = useState(() => [{ ...BLANK_CONTACT, _id: 1 }]);
+  const [accts, setAccts] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const setC = (k) => (e) => setContact((c) => ({ ...c, [k]: e.target.value }));
-  const contactNamed = Boolean(contact.first_name.trim() || contact.last_name.trim());
+
+  const setRow = (id, k) => (e) =>
+    setRows((rs) => rs.map((r) => (r._id === id ? { ...r, [k]: e.target.value } : r)));
+  const addRow = () => setRows((rs) => [...rs, withId(BLANK_CONTACT)]);
+  const dropRow = (id) => setRows((rs) => (rs.length === 1 ? rs : rs.filter((r) => r._id !== id)));
+  const namedRows = rows.filter((r) => r.first_name.trim() || r.last_name.trim());
+
+  const setAcct = (id, k) => (e) =>
+    setAccts((as) =>
+      as.map((a) =>
+        a._id !== id
+          ? a
+          : // Switching loan↔deposit clears the subtype, which belongs to the old
+            // kind and would be rejected by the backend.
+            { ...a, [k]: e.target.value, ...(k === "kind" ? { subtype: "" } : {}) }
+      )
+    );
+  const addAcct = (kind) => setAccts((as) => [...as, withId({ ...BLANK_ACCOUNT, kind })]);
+  const dropAcct = (id) => setAccts((as) => as.filter((a) => a._id !== id));
+
+  const sumOf = (kind) =>
+    accts
+      .filter((a) => a.kind === kind)
+      .reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
+
+  /* Itemised accounts and the two aggregate boxes are the same numbers, so only
+   * one of them is ever on screen. On create that's whether any account rows
+   * exist; when editing, whether the client already has accounts (the backend
+   * recomputes its totals from them, so typing over them here would not stick). */
+  const itemised = editing ? accounts.length > 0 : accts.length > 0;
+
   // Either name will do — she may know the person before she knows the company.
-  const canSave = Boolean(form.company_name.trim()) || (!editing && contactNamed);
+  const canSave = Boolean(form.company_name.trim()) || (!editing && namedRows.length > 0);
   const tiers = meta?.tiers || ["A", "B", "C"];
   const portability = meta?.portability || Object.keys(PORTABILITY_LABEL);
   const statuses = meta?.clientStatuses || [];
+  const loanSubtypes = meta?.loanSubtypes || Object.keys(LOAN_SUBTYPE_LABEL);
+  const depositSubtypes = meta?.depositSubtypes || Object.keys(DEPOSIT_SUBTYPE_LABEL);
 
   async function save(e) {
     e.preventDefault();
@@ -81,13 +137,27 @@ export default function ClientForm({ client, meta, onClose, onSaved }) {
     setBusy(true);
     setError("");
     try {
-      const saved = editing
-        ? await api.patch(`/clients/${client.id}`, form)
-        : await api.post("/clients", {
-            ...form,
-            // The backend creates this as the primary contact in one transaction.
-            ...(contactNamed ? { contact } : {}),
-          });
+      let saved;
+      if (editing) {
+        saved = await api.patch(`/clients/${client.id}`, form);
+      } else {
+        /* Strip _id — it's a React key, not a column, and the backend's field maps
+         * would ignore it anyway. Sending the aggregate totals alongside account
+         * rows would be sending the same figure twice, so they're blanked when
+         * the itemised path is in use and the backend derives them instead. */
+        const payload = { ...form };
+        if (itemised) {
+          payload.loan_balance = "";
+          payload.deposit_balance = "";
+          payload.next_maturity_date = "";
+        }
+        saved = await api.post("/clients", {
+          ...payload,
+          // First named person becomes the primary contact, in one transaction.
+          contacts: namedRows.map(stripId),
+          accounts: accts.map(stripId),
+        });
+      }
       onSaved(saved);
     } catch (err) {
       setError(err.message);
@@ -113,7 +183,7 @@ export default function ClientForm({ client, meta, onClose, onSaved }) {
               value={form.company_name}
               onChange={set("company_name")}
               autoFocus
-              placeholder={contactNamed ? "(optional — you have a contact name)" : ""}
+              placeholder={namedRows.length ? "(optional — you have a contact name)" : ""}
             />
           </Field>
           <div className="ash-grid2">
@@ -153,52 +223,205 @@ export default function ClientForm({ client, meta, onClose, onSaved }) {
 
         {!editing && (
           <div className="ash-card">
-            <div className="ash-h2">Main contact</div>
+            <div className="ash-h2">People</div>
             <div className="ash-muted" style={{ marginTop: -4, marginBottom: 10 }}>
-              Whoever you actually talk to. You can add more people once the client
-              is saved.
+              Whoever you actually talk to. The first one is the main contact; add
+              as many as you need.
             </div>
-            <div className="ash-grid2">
-              <Field label="First name">
-                <input className="ash-input" value={contact.first_name} onChange={setC("first_name")} autoComplete="off" />
-              </Field>
-              <Field label="Last name">
-                <input className="ash-input" value={contact.last_name} onChange={setC("last_name")} autoComplete="off" />
-              </Field>
-            </div>
-            <Field label="Title">
-              <input className="ash-input" placeholder="CFO" value={contact.title} onChange={setC("title")} />
-            </Field>
-            <div className="ash-grid2">
-              <Field label="Mobile">
-                <input className="ash-input" type="tel" inputMode="tel" value={contact.phone_mobile} onChange={setC("phone_mobile")} />
-              </Field>
-              <Field label="Email">
-                <input className="ash-input" type="email" inputMode="email" value={contact.email} onChange={setC("email")} />
-              </Field>
-            </div>
+            {rows.map((r, i) => (
+              <div
+                key={r._id}
+                style={{
+                  paddingTop: i === 0 ? 0 : 12,
+                  marginTop: i === 0 ? 0 : 12,
+                  borderTop: i === 0 ? "none" : "1px solid #e7ebef",
+                }}
+              >
+                <div className="ash-between" style={{ marginBottom: 6 }}>
+                  <div className="ash-tiny" style={{ fontWeight: 700 }}>
+                    {i === 0 ? "Main contact" : `Person ${i + 1}`}
+                  </div>
+                  {rows.length > 1 && (
+                    <button
+                      className="ash-link"
+                      type="button"
+                      style={{ fontSize: 12, color: "#8794a1" }}
+                      onClick={() => dropRow(r._id)}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <div className="ash-grid2">
+                  <Field label="First name">
+                    <input className="ash-input" value={r.first_name} onChange={setRow(r._id, "first_name")} autoComplete="off" />
+                  </Field>
+                  <Field label="Last name">
+                    <input className="ash-input" value={r.last_name} onChange={setRow(r._id, "last_name")} autoComplete="off" />
+                  </Field>
+                </div>
+                <Field label="Title">
+                  <input className="ash-input" placeholder="CFO" value={r.title} onChange={setRow(r._id, "title")} />
+                </Field>
+                <div className="ash-grid2">
+                  <Field label="Mobile">
+                    <input className="ash-input" type="tel" inputMode="tel" value={r.phone_mobile} onChange={setRow(r._id, "phone_mobile")} />
+                  </Field>
+                  <Field label="Email">
+                    <input className="ash-input" type="email" inputMode="email" value={r.email} onChange={setRow(r._id, "email")} />
+                  </Field>
+                </div>
+              </div>
+            ))}
+            <button
+              className="ash-btn ash-btn-ghost ash-btn-sm"
+              type="button"
+              onClick={addRow}
+              style={{ marginTop: 12 }}
+            >
+              + Add another person
+            </button>
           </div>
         )}
 
         <div className="ash-card">
           <div className="ash-h2">Banking relationship</div>
-          <div className="ash-grid2">
-            <Field label="Loan balance">
-              <input className="ash-input" inputMode="decimal" placeholder="0" value={form.loan_balance} onChange={set("loan_balance")} />
-            </Field>
-            <Field label="Deposit balance">
-              <input className="ash-input" inputMode="decimal" placeholder="0" value={form.deposit_balance} onChange={set("deposit_balance")} />
-            </Field>
-          </div>
-          <div className="ash-grid2">
-            <Field label="Annual fee income">
-              <input className="ash-input" inputMode="decimal" placeholder="0" value={form.annual_fee_income} onChange={set("annual_fee_income")} />
-            </Field>
-            <Field label="Next maturity / renewal">
-              <input className="ash-input" type="date" value={form.next_maturity_date} onChange={set("next_maturity_date")} />
-            </Field>
-          </div>
-          <Field label="Credit facilities" hint="Line of credit, term loan, CRE, equipment…">
+
+          {/* Editing: accounts live on the detail screen, so say so rather than
+              showing boxes whose contents would be overwritten on the next save. */}
+          {editing && itemised && (
+            <div className="ash-muted" style={{ marginTop: -4, marginBottom: 10 }}>
+              This client has {accounts.length} account
+              {accounts.length === 1 ? "" : "s"} listed. Loan and deposit totals are
+              added up from those — edit them under &ldquo;Loans &amp; deposits&rdquo;.
+            </div>
+          )}
+
+          {!editing && (
+            <>
+              {accts.map((a) => {
+                const isDeposit = a.kind === "deposit";
+                const subs = isDeposit ? depositSubtypes : loanSubtypes;
+                const labels = isDeposit ? DEPOSIT_SUBTYPE_LABEL : LOAN_SUBTYPE_LABEL;
+                return (
+                  <div
+                    key={a._id}
+                    style={{
+                      paddingTop: 10,
+                      marginBottom: 10,
+                      borderTop: "1px solid #e7ebef",
+                    }}
+                  >
+                    <div className="ash-between" style={{ marginBottom: 6 }}>
+                      <div className="ash-tiny" style={{ fontWeight: 700 }}>
+                        {isDeposit ? "Deposit account" : "Loan"}
+                      </div>
+                      <button
+                        className="ash-link"
+                        type="button"
+                        style={{ fontSize: 12, color: "#8794a1" }}
+                        onClick={() => dropAcct(a._id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="ash-grid2">
+                      <Field label="Loan or deposit">
+                        <select className="ash-select" value={a.kind} onChange={setAcct(a._id, "kind")}>
+                          <option value="loan">Loan</option>
+                          <option value="deposit">Deposit</option>
+                        </select>
+                      </Field>
+                      <Field label={isDeposit ? "Account type" : "Facility type"}>
+                        <select className="ash-select" value={a.subtype} onChange={setAcct(a._id, "subtype")}>
+                          {subs.map((s) => (
+                            <option key={s} value={s}>{labels[s] ?? prettify(s)}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    </div>
+                    <div className="ash-grid2">
+                      <Field label="What she calls it">
+                        <input
+                          className="ash-input"
+                          placeholder={isDeposit ? "Main operating" : "Operating LOC"}
+                          value={a.label}
+                          onChange={setAcct(a._id, "label")}
+                        />
+                      </Field>
+                      <Field label="Balance">
+                        <input
+                          className="ash-input"
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={a.balance}
+                          onChange={setAcct(a._id, "balance")}
+                        />
+                      </Field>
+                    </div>
+                    {!isDeposit && (
+                      <Field label="Maturity / renewal">
+                        <input
+                          className="ash-input"
+                          type="date"
+                          value={a.maturity_date}
+                          onChange={setAcct(a._id, "maturity_date")}
+                        />
+                      </Field>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="ash-row" style={{ gap: 8, marginBottom: itemised ? 10 : 0 }}>
+                <button className="ash-btn ash-btn-ghost ash-btn-sm" type="button" onClick={() => addAcct("loan")}>
+                  + Add loan
+                </button>
+                <button className="ash-btn ash-btn-ghost ash-btn-sm" type="button" onClick={() => addAcct("deposit")}>
+                  + Add deposit
+                </button>
+              </div>
+
+              {itemised && (
+                <div className="ash-tiny" style={{ marginBottom: 10 }}>
+                  Totals from the accounts above — loans {fmtMoney(sumOf("loan"))}, deposits{" "}
+                  {fmtMoney(sumOf("deposit"))}. Next maturity is taken from the
+                  earliest loan.
+                </div>
+              )}
+            </>
+          )}
+
+          {/* The quick path: one number each, for a client whose breakdown she
+              doesn't have yet. Hidden as soon as accounts are itemised, so the
+              same figure is never entered in two places. */}
+          {!itemised && (
+            <>
+              <div className="ash-grid2">
+                <Field label="Loan balance">
+                  <input className="ash-input" inputMode="decimal" placeholder="0" value={form.loan_balance} onChange={set("loan_balance")} />
+                </Field>
+                <Field label="Deposit balance">
+                  <input className="ash-input" inputMode="decimal" placeholder="0" value={form.deposit_balance} onChange={set("deposit_balance")} />
+                </Field>
+              </div>
+              <Field label="Next maturity / renewal">
+                <input className="ash-input" type="date" value={form.next_maturity_date} onChange={set("next_maturity_date")} />
+              </Field>
+            </>
+          )}
+
+          <Field label="Annual fee income">
+            <input className="ash-input" inputMode="decimal" placeholder="0" value={form.annual_fee_income} onChange={set("annual_fee_income")} />
+          </Field>
+          <Field
+            label="Credit facilities"
+            hint={
+              itemised
+                ? "Anything the itemised accounts above don't cover."
+                : "Line of credit, term loan, CRE, equipment…"
+            }
+          >
             <textarea className="ash-textarea" value={form.credit_facilities} onChange={set("credit_facilities")} />
           </Field>
           <div className="ash-grid2">
