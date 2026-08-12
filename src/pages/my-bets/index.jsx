@@ -2248,38 +2248,85 @@ export default function MyBets() {
                     .filter(
                       (c) => c.status === "filled" || c.status === "partial",
                     )
-                    .map((c) => (
-                      <div
-                        key={c.id}
-                        style={{
-                          ...S.gameCard,
-                          padding: "10px 14px",
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 10,
-                          alignItems: "baseline",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <span style={{ fontWeight: 700 }}>
-                          {c.market_ticker}{" "}
-                          <span style={{ color: C.muted, fontWeight: 400 }}>
-                            {String(c.side || "").toUpperCase()}
-                            {c.status === "partial" ? " · partial" : ""}
-                          </span>
-                        </span>
-                        <span style={{ color: C.muted, fontSize: 12 }}>
-                          sold {Number(c.sold_contracts) || 0} @{" "}
-                          {Math.round((Number(c.quoted_price) || 0) * 100)}¢
-                        </span>
-                        <span style={{ color: C.green, fontWeight: 700 }}>
-                          {usd(Number(c.proceeds_net_dollars) || 0)} locked
-                        </span>
-                        <span style={{ color: C.muted, fontSize: 12 }}>
-                          {formatSettled(c.created_at)}
-                        </span>
-                      </div>
-                    ))}
+                    .map((c) => {
+                      /* Cost is stamped at sale time (kalshi_cashouts
+                       * .cost_basis_dollars) because it cannot be re-derived: the
+                       * same market+side can be cashed out more than once, so
+                       * nothing links a sale to the contracts it took. NULL means
+                       * genuinely unknowable — a manual position, or a fill_price
+                       * not yet backfilled — so show a dash rather than a number
+                       * that would understate cost and flatter the profit. */
+                      const cost =
+                        c.cost_basis_dollars == null
+                          ? null
+                          : Number(c.cost_basis_dollars);
+                      const cashedFor = Number(c.proceeds_net_dollars) || 0;
+                      const pnl = cost == null ? null : cashedFor - cost;
+                      const maxPayout = Number(c.max_payout_dollars) || 0;
+                      return (
+                        <div
+                          key={c.id}
+                          style={{ ...S.gameCard, padding: "12px 14px" }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 8,
+                              alignItems: "baseline",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <span style={{ fontWeight: 700 }}>
+                              {c.market_ticker}{" "}
+                              <span style={{ color: C.muted, fontWeight: 400 }}>
+                                {String(c.side || "").toUpperCase()}
+                                {c.status === "partial" ? " · partial" : ""}
+                              </span>
+                            </span>
+                            <span style={{ color: C.muted, fontSize: 12 }}>
+                              {formatSettled(c.created_at)}
+                            </span>
+                          </div>
+                          <div
+                            style={{ color: C.muted, fontSize: 12, marginTop: 3 }}
+                          >
+                            sold {Number(c.sold_contracts) || 0} @{" "}
+                            {Math.round((Number(c.quoted_price) || 0) * 100)}¢
+                            {maxPayout > 0
+                              ? ` · ${usd(maxPayout)} if it had won`
+                              : ""}
+                          </div>
+                          <div style={S.metrics}>
+                            <div style={S.metricsPlain}>
+                              <div>
+                                <div style={S.mLabel}>Cost</div>
+                                <div style={S.mValue}>
+                                  {cost == null ? "—" : usd(cost)}
+                                </div>
+                              </div>
+                              <div>
+                                <div style={S.mLabel}>Cashed out</div>
+                                <div style={{ ...S.mValue, color: C.green }}>
+                                  {usd(cashedFor)}
+                                </div>
+                              </div>
+                              <div>
+                                <div style={S.mLabel}>P&L</div>
+                                <div
+                                  style={{
+                                    ...S.mValue,
+                                    color: pnl == null ? C.muted : pnlColor(pnl),
+                                  }}
+                                >
+                                  {pnl == null ? "—" : pnlStr(pnl)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </>
             )}
