@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import PrivateToolsModal from './PrivateTools';
+import Logo from './Logo';
 
 /* Hold the wordmark this long to open the private-tools modal. Long enough not
  * to fire on a normal tap, short enough not to feel broken. */
@@ -94,19 +95,11 @@ export default function Navbar() {
             touchAction: 'manipulation',
           }}
         >
-          {/* Small gold bar as a mark — the name is "Bullion", and the wordmark
-              alone was indistinguishable from body text. */}
-          <span
-            aria-hidden="true"
-            style={{
-              width: 16,
-              height: 16,
-              borderRadius: 4,
-              background: 'linear-gradient(140deg, #f6d585, #e0b24c 60%, #b8862f)',
-              boxShadow: '0 0 12px rgba(224, 178, 76, .35)',
-              flexShrink: 0,
-            }}
-          />
+          {/* The ingot mark — the name is "Bullion", and the wordmark alone was
+              indistinguishable from body text. 20px, not 16: the mark is wider
+              than it is tall, so it needs the extra width to carry the same
+              optical weight the old square chip had. */}
+          <Logo size={20} />
           Bullion Ventures LLC
         </Link>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>

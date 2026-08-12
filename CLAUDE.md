@@ -109,6 +109,11 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 - New code uses `fetch` and `date-fns`. `axios`, `moment`, and MUI appear only
   in older pages (tesla-dashboard, elite-edge, zargle) — don't spread them.
 - API base URLs are `const API_BASE = "..."` at the top of the page file.
+- **The logo geometry is duplicated on purpose** — `public/favicon.svg` (the
+  tab) and `src/components/Logo.jsx` (inline, so the sticky navbar never flashes
+  a late-loading image). Edit one, edit the other. `public/apple-touch-icon.png`
+  and `public/images/logo-512.png` are generated from it with `rsvg-convert`;
+  see `docs/logo-brief.md` for the command and the brand rationale.
 
 ## Hard rules and gotchas
 
