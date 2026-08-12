@@ -1715,6 +1715,11 @@ export default function MyBets() {
   // "open" (live positions) or "history" (settled won/lost bets).
   const [tab, setTab] = useState("open");
   const [settlements, setSettlements] = useState(null);
+  // Auto cash-out monitor: { config: {enabled, pct}, cashouts: [...] } from
+  // GET /kalshi/cashouts. Fetched on mount (for the armed chip) and with the
+  // History tab (a cashed-out position leaves the positions list and shows up
+  // in the settlements feed as revenue $0 at best, so this is its real record).
+  const [cashouts, setCashouts] = useState(null);
   const [histLoading, setHistLoading] = useState(false);
   const [histExpanded, setHistExpanded] = useState(() => new Set());
   const toggleHist = (id) =>
@@ -1827,6 +1832,18 @@ export default function MyBets() {
     } finally {
       setHistLoading(false);
     }
+    loadCashouts();
+  };
+
+  // Best-effort — the page works fine without it (older backend deploys
+  // don't have the endpoint), so failures stay silent.
+  const loadCashouts = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/cashouts`);
+      if (res.ok) setCashouts(await res.json());
+    } catch {
+      /* chip and section simply don't render */
+    }
   };
 
   useEffect(() => {
@@ -1835,6 +1852,7 @@ export default function MyBets() {
     (async () => {
       await load();
     })();
+    loadCashouts();
     // Auto-refresh every 15s so live scores/situations stay current.
     const id = setInterval(() => load({ background: true }), 15000);
     return () => clearInterval(id);
@@ -1968,6 +1986,21 @@ export default function MyBets() {
           <a href="/totals-value" style={S.navLink}>
             📈 sports →
           </a>
+          {/* Account-wide auto cash-out: the backend sells ANY position once
+              selling nets ≥ pct of its max payout. Armed state belongs on the
+              page whose positions it will act on. */}
+          {cashouts?.config?.enabled && (
+            <span
+              style={{
+                ...S.navLink,
+                color: C.green,
+                cursor: "default",
+              }}
+              title="Positions are sold automatically once cashing out nets this share of the max payout (after exit fees)."
+            >
+              💰 auto {Math.round((cashouts.config.pct || 0) * 100)}%
+            </span>
+          )}
         </div>
         {/* Desktop: portfolio numbers live inline in the top bar (hidden on
             mobile via CSS — mobile gets the compact strip below instead). */}
@@ -2199,6 +2232,57 @@ export default function MyBets() {
                 </div>
               ) : null}
             </div>
+
+            {/* Positions the monitor sold early. The settlements feed shows a
+                sold-flat position as revenue $0 at best, so this list is where
+                that money actually shows up in history. */}
+            {(cashouts?.cashouts || []).filter(
+              (c) => c.status === "filled" || c.status === "partial",
+            ).length > 0 && (
+              <>
+                <div style={S.sectionHeader}>
+                  <div style={S.sectionTitle}>💰 Auto cash-outs</div>
+                </div>
+                <div className="mb-bets" style={{ marginBottom: 18 }}>
+                  {(cashouts?.cashouts || [])
+                    .filter(
+                      (c) => c.status === "filled" || c.status === "partial",
+                    )
+                    .map((c) => (
+                      <div
+                        key={c.id}
+                        style={{
+                          ...S.gameCard,
+                          padding: "10px 14px",
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 10,
+                          alignItems: "baseline",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ fontWeight: 700 }}>
+                          {c.market_ticker}{" "}
+                          <span style={{ color: C.muted, fontWeight: 400 }}>
+                            {String(c.side || "").toUpperCase()}
+                            {c.status === "partial" ? " · partial" : ""}
+                          </span>
+                        </span>
+                        <span style={{ color: C.muted, fontSize: 12 }}>
+                          sold {Number(c.sold_contracts) || 0} @{" "}
+                          {Math.round((Number(c.quoted_price) || 0) * 100)}¢
+                        </span>
+                        <span style={{ color: C.green, fontWeight: 700 }}>
+                          {usd(Number(c.proceeds_net_dollars) || 0)} locked
+                        </span>
+                        <span style={{ color: C.muted, fontSize: 12 }}>
+                          {formatSettled(c.created_at)}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </>
+            )}
 
             {histLoading && settlements === null ? (
               <div style={S.muted}>Loading your history…</div>

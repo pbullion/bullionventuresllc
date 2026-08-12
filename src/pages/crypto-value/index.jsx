@@ -604,6 +604,13 @@ export default function CryptoValue() {
                 {status && status.combos_enabled && (
                   <span style={chip(C.chipBg, C.amber)}>COMBOS ARMED</span>
                 )}
+                {/* Account-wide auto cash-out (kalshi.js monitor): sells any
+                    position once selling nets ≥ pct of max payout. */}
+                {status && status.cashout && status.cashout.enabled && (
+                  <span style={chip(C.greenSoft, C.green)}>
+                    CASHOUT {Math.round(status.cashout.pct * 100)}%
+                  </span>
+                )}
                 {/* Same one-glance summary /totals-value keeps in its header.
                     It isn't redundant with the bar caption below: this panel
                     collapses and remembers that per browser, and everything
@@ -926,14 +933,16 @@ export default function CryptoValue() {
                         style={{
                           ...td,
                           color:
-                            b.result === "won"
+                            b.result === "won" || b.result === "cashed_out"
                               ? C.green
                               : b.result === "lost"
                                 ? C.red
                                 : C.muted,
                         }}
                       >
-                        {b.result || b.status}
+                        {b.result === "cashed_out"
+                          ? "cashed out 💰"
+                          : b.result || b.status}
                       </td>
                       <td
                         data-label="P&L"
