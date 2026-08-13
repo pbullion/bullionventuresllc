@@ -77,11 +77,26 @@ const CABIN_FIELDS = [
   // check in the renderer so a second address field gets the same treatment for
   // free — which is the whole point of key pickup being here.
   { key: "address", label: "Address", isAddress: true },
+  { key: "check_in", label: "Check-in" },
+  { key: "check_out", label: "Check-out" },
   { key: "key_pickup", label: "Key pickup", isAddress: true },
+  { key: "cart_dropoff", label: "Golf cart drop-off" },
+  { key: "cart_pickup", label: "Golf cart pickup" },
   { key: "door_code", label: "Door code" },
   { key: "wifi_name", label: "WiFi network" },
   { key: "wifi_password", label: "WiFi password" },
   { key: "parking", label: "Parking / house notes" },
+];
+
+// The times everyone asks about in the group chat, pulled out of the cabin card
+// and shown as a strip at the top — "what time can we get in?" gets asked on the
+// drive down, not standing in the driveway. They're stored in the same cabin
+// blob (the trip's only free-form store) so they stay editable in one place,
+// which is also why the golf cart lives under "cabin" despite not being it.
+const LOGISTICS = [
+  { label: "Check-in", icon: "🔑", keys: ["check_in"] },
+  { label: "Check-out", icon: "🚗", keys: ["check_out"] },
+  { label: "Golf cart", icon: "🛺", keys: ["cart_dropoff", "cart_pickup"] },
 ];
 
 function Chip({ children, color }) {
@@ -625,6 +640,13 @@ export default function TripPlanner() {
   // reaches for on the drive down, and the cabin card is at the bottom.
   const cabin = trip.cabin || {};
   const mapQuery = cabin.address || trip.location;
+  // A card only appears once it has something to say — an empty "Golf cart"
+  // heading reads like the cart fell through.
+  const logistics = LOGISTICS.map(({ label, icon, keys }) => ({
+    label,
+    icon,
+    lines: keys.map((k) => cabin[k]).filter(Boolean),
+  })).filter((l) => l.lines.length > 0);
 
   return (
     <div className="tp-root">
@@ -653,6 +675,24 @@ export default function TripPlanner() {
                 📍 {mapQuery}
               </a>
             )}
+          </div>
+        )}
+
+        {logistics.length > 0 && (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+            {logistics.map(({ label, icon, lines }) => (
+              <div
+                key={label}
+                style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 12, padding: "9px 13px", minWidth: 150, flex: "1 1 170px", maxWidth: 260 }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                  {icon} {label}
+                </div>
+                {lines.map((line) => (
+                  <div key={line} style={{ fontSize: 15, fontWeight: 600, marginTop: 3 }}>{line}</div>
+                ))}
+              </div>
+            ))}
           </div>
         )}
 
