@@ -142,6 +142,23 @@ export const HRW_CSS = `
 .hrw-star[aria-pressed="true"] { color: ${C.gold}; }
 .hrw-star:focus-visible { outline: 2px solid ${C.gold}; outline-offset: 2px; }
 
+/* Reviews ---------------------------------------------------------------- */
+/* The star picker. Bigger than the favourite star and with a real hit area —
+   it's the primary control of the review form and it gets used with a thumb. */
+.hrw-rate {
+  background: none;
+  border: 0;
+  padding: 2px 3px;
+  font-size: 27px;
+  line-height: 1;
+  cursor: pointer;
+  color: ${C.muted};
+  transition: transform .12s ease, color .12s ease;
+}
+.hrw-rate:hover { transform: scale(1.12); color: ${C.gold}; }
+.hrw-rate[data-on] { color: ${C.gold}; }
+.hrw-rate:focus-visible { outline: 2px solid ${C.gold}; outline-offset: 2px; }
+
 /* Sticky filter bar ------------------------------------------------------ */
 .hrw-sticky {
   position: sticky;

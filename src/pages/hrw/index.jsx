@@ -26,6 +26,8 @@ import {
   timeLeft,
   writeFaves,
 } from "./data.js";
+import { placeIndex } from "./places.js";
+import { formatAvg, loadSummary, stars } from "./reviews.js";
 
 // Leaflet is ~150 KB and only half the visitors will switch to the map, so it
 // loads on demand instead of in the page's first bundle.
@@ -35,6 +37,7 @@ const SORTS = [
   { id: "name", label: "A–Z" },
   { id: "price", label: "Cheapest" },
   { id: "dishes", label: "Biggest menu" },
+  { id: "rated", label: "Best reviewed" },
   { id: "near", label: "Nearest me" },
 ];
 
@@ -47,6 +50,7 @@ export default function Hrw() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [ratings, setRatings] = useState(null);
 
   const [q, setQ] = useState("");
   const [meals, setMeals] = useState([]);
@@ -68,6 +72,12 @@ export default function Hrw() {
 
   useEffect(() => {
     loadHrw().then(setData, (e) => setError(e.message));
+    // Counts and averages only — no review text. If the backend is down the
+    // cards simply carry no rating; nothing else on this page depends on it.
+    loadSummary().then(
+      (s) => setRatings(s.places),
+      () => setRatings({}),
+    );
   }, []);
 
   const faveSet = useMemo(() => new Set(faves), [faves]);
@@ -86,6 +96,9 @@ export default function Hrw() {
    * quoted back on the card. ~1.5 MB of derived strings, built once. */
   const index = useMemo(() => {
     if (!data) return [];
+    // Reviews belong to a place, not to a row — twenty Saltgrass locations
+    // share one rating. See places.js.
+    const places = placeIndex(data.restaurants);
     return data.restaurants.map((r) => {
       const dishes = [];
       for (const m of r.menus)
@@ -93,6 +106,7 @@ export default function Hrw() {
           for (const d of c.dishes) dishes.push({ name: d.n, desc: d.d || "" });
       return {
         r,
+        place: places.get(r.slug),
         text: [r.name, ...r.cuisines, ...r.neighborhoods, r.address || ""]
           .join(" ")
           .toLowerCase(),
@@ -125,7 +139,7 @@ export default function Hrw() {
     const query = q.trim().toLowerCase();
     const out = [];
     for (const entry of index) {
-      const { r, text, dishText, dishes } = entry;
+      const { r, place, text, dishText, dishes } = entry;
       if (favesOnly && !faveSet.has(r.slug)) continue;
       // A meal + price pair means "that price FOR that meal", which is why the
       // data carries a price per meal rather than a bag of prices.
@@ -167,19 +181,31 @@ export default function Hrw() {
           if (!hits.length && !inText) continue;
         }
       }
-      out.push({ r, hits, miles: here && r.lat != null ? milesBetween(here, r) : null });
+      out.push({
+        r,
+        hits,
+        rating: ratings?.[place?.key] || null,
+        miles: here && r.lat != null ? milesBetween(here, r) : null,
+      });
     }
 
     const cheapest = (r) => Math.min(...Object.values(r.prices), Infinity);
+    /* Shrunk towards the middle by two imaginary 3.5s, so one gushing review
+     * doesn't outrank a restaurant with twenty good ones. Unreviewed places sort
+     * last rather than mid-table. */
+    const score = (x) =>
+      x.rating ? (x.rating.avg * x.rating.n + 3.5 * 2) / (x.rating.n + 2) : -1;
     out.sort((a, b) => {
       if (sort === "price") return cheapest(a.r) - cheapest(b.r) || a.r.name.localeCompare(b.r.name);
       if (sort === "dishes") return dishCount(b.r) - dishCount(a.r);
+      if (sort === "rated")
+        return score(b) - score(a) || a.r.name.localeCompare(b.r.name);
       if (sort === "near" && here)
         return (a.miles ?? Infinity) - (b.miles ?? Infinity);
       return a.r.name.localeCompare(b.r.name, "en", { sensitivity: "base" });
     });
     return out;
-  }, [index, q, meals, costs, diets, hood, cuisine, walkIn, favesOnly, faveSet, sort, here]);
+  }, [index, q, meals, costs, diets, hood, cuisine, walkIn, favesOnly, faveSet, sort, here, ratings]);
 
   const filterKey = JSON.stringify([q, meals, costs, diets, hood, cuisine, walkIn, favesOnly, sort]);
   const shown = page.key === filterKey ? page.n : 60;
@@ -568,12 +594,13 @@ export default function Hrw() {
               </Notice>
             )}
             <div className="hrw-grid">
-              {results.slice(0, shown).map(({ r, hits, miles }) => (
+              {results.slice(0, shown).map(({ r, hits, miles, rating }) => (
                 <Card
                   key={r.slug}
                   r={r}
                   hits={hits}
                   miles={miles}
+                  rating={rating}
                   query={q.trim()}
                   fave={faveSet.has(r.slug)}
                   onFave={toggleFave}
@@ -793,7 +820,7 @@ function Highlight({ text, query, window: win }) {
   );
 }
 
-function Card({ r, hits, miles, query, fave, onFave }) {
+function Card({ r, hits, miles, rating, query, fave, onFave }) {
   const cuisines = r.cuisines.join(" · ");
   return (
     <article className="hrw-card hrw-in">
@@ -819,6 +846,22 @@ function Card({ r, hits, miles, query, fave, onFave }) {
           {fave ? "★" : "☆"}
         </button>
       </div>
+
+      {rating && (
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}
+          /* One reading, since the stars are decoration for the number. */
+          aria-label={`Rated ${formatAvg(rating.avg)} out of 5 from ${rating.n} ${
+            rating.n === 1 ? "review" : "reviews"
+          }`}
+        >
+          <span aria-hidden style={{ color: C.gold, letterSpacing: 1 }}>{stars(rating.avg)}</span>
+          <span aria-hidden style={{ fontWeight: 700, color: C.goldBright }}>
+            {formatAvg(rating.avg)}
+          </span>
+          <span aria-hidden style={{ color: C.muted }}>({rating.n})</span>
+        </div>
+      )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {r.mealTypes.map((m) => (

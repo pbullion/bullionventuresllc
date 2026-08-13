@@ -92,8 +92,7 @@ silently at runtime.
 | `/gulf-hurricane` | `/nhc` | `GET /current-storms` (backend proxies NHC's CurrentStorms.json because that feed has no CORS; the graphics load straight from nhc.noaa.gov) |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` | `GET /patrick/tesla-dashboard-weather?lat&lon` (Apple WeatherKit proxy), `/patrick/all-data-2/mancavedisplaysllc@gmail.com` (hardcoded user), `/odds-screen/check-subscription/:email`, `/odds-screen/tracking/:user` |
 
-`/hrw` is deliberately absent from that table: it calls no backend at all. See
-the next section.
+| `/hrw` | `/hrw` | `GET /reviews` (counts + averages for every place, one request for the whole list page), `GET /reviews/:place`, `POST /reviews`, `DELETE /reviews/:id`. Reader reviews **only** — all 385 restaurants and 9,127 dishes come from a static file, see the next section |
 
 Two corrections to what the **backend's** HANDOFF.md counterpart table says
 about this repo: this site does **not** call `/bullion-ventures` and does
@@ -112,8 +111,9 @@ documented in the backend repo:
 
 ### The one build-time data pipeline (`/hrw`)
 
-Every other data page in this repo fetches from Heroku at runtime. Houston
-Restaurant Weeks does not — [scripts/build-hrw-data.mjs](../scripts/build-hrw-data.mjs)
+Every other data page in this repo fetches its content from Heroku at runtime.
+Houston Restaurant Weeks fetches only its *reviews* that way — the restaurants
+themselves are baked in. [scripts/build-hrw-data.mjs](../scripts/build-hrw-data.mjs)
 reads the source Google Sheet, geocodes it, and writes
 `public/data/hrw-2026.json`, which is committed and served as a static asset.
 The page fetches that one file and does all searching, filtering and sorting in
@@ -148,6 +148,67 @@ Misses are cached as `null` in `scripts/hrw-geocache.json` so re-runs don't
 re-ask; to fix one by hand, add its coordinates to that file and re-run. The map
 view reports how many of the current results have no pin rather than silently
 dropping them.
+
+### Reviews, and what a "place" is (`/hrw`)
+
+Reviews (added 2026-08-13) are the one thing on the page a static file can't
+carry, so they go to `routes/hrw.js` on the shared backend. The UI is
+[Reviews.jsx](../src/pages/hrw/Reviews.jsx), the API client is
+`src/pages/hrw/reviews.js`, and the list page shows each card's average with a
+"Best reviewed" sort.
+
+Everything interesting here is in **what a review attaches to**. Not a
+spreadsheet row: that file has 20 Saltgrass rows, 12 El Tiempo and 6 Fadi's, and
+a review of the Katy branch is worth reading on the Galleria page.
+[places.js](../src/pages/hrw/places.js) groups the 385 rows into **285 places, 41
+of them multi-location**, and everything — the review thread, the badge, the sort
+— keys on that group.
+
+The sheet has no brand column, so the grouping is derived from names that spell
+the location out three different ways (`Fadi's Mediterranean - Katy`, `Saltgrass
+Steak House Katy (Mason)`, `Sotos Cantina #1`). Dashes, parentheses and `#2` are
+mechanical. Bare suffixes are not, and that is where it can do damage — "Mastro's
+Ocean Club" and "Mastro's Steakhouse" are different restaurants, as are
+"Fielding's Local", "Fielding's Steak" and "Fielding's Wood Grill". Three rules
+keep it honest, and all three were added because the naive version broke
+something real:
+
+1. **Trailing words are only dropped if they name a place in Houston**, using the
+   dataset's own neighborhood column plus a short list of street and highway
+   words the column doesn't contain.
+2. **Whole neighbourhoods, not loose tokens.** Splitting "Cottage Grove" into
+   words put "cottage" in the vocabulary, which trimmed *Thai Cottage* to *Thai*
+   and swallowed Thai Cafe and Thai Cuisine & Sushi Bar. Multi-word
+   neighbourhoods now match as phrases; only a word that names somewhere on its
+   own can be dropped on its own.
+3. **A shortened name is adopted only if another row collides with it.** This is
+   the real safety net — "SUSHI BY THE HEIGHTS" shortens to "sushi by", nothing
+   else does, so it keeps its full name and stays separate from "Sushi by
+   Hidden".
+
+A fourth pass lets a leftover row adopt an *already established* multi-location
+brand by prefix, which is how "El Tiempo Cantina Gessner" and "Saltgrass Steak
+House I-45 North" find their groups without Gessner or I-45 being in any
+vocabulary. It requires the prefix to already have two or more locations, which
+is what stops it from collapsing the Fielding's.
+
+Practical rules:
+
+- **Fix a wrong grouping in `OVERRIDES` at the top of places.js, keyed by slug.**
+  Do not tune the regexes for one restaurant. There is currently exactly one
+  entry (Palazzo's, where one row says "Cafe" and the other doesn't).
+- **A key change orphans reviews.** The key is what `hrw_reviews.place` stores.
+  Re-cutting a group later means migrating those rows.
+- To see what the rules currently produce, print the groups:
+  `node --input-type=module -e "import {placeIndex} from './src/pages/hrw/places.js'; ..."`
+  — the grouping is a pure function of the committed JSON, so it is fully
+  checkable offline.
+
+No accounts, matching the rest of the page: identity is a random token in
+`localStorage["hrw_reviewer"]`, sent as `x-hrw-token`, which is what makes one
+review per place and "delete mine" work. It is **not** authentication — anyone
+with someone else's token can edit their review. That is a deliberate trade for
+a star rating on a prix-fixe menu, and it is the wrong trade for anything else.
 
 ### The `routes/bullion_ventures.js` backend module (namesake, not a site API)
 

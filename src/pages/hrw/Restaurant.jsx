@@ -20,6 +20,9 @@ import {
   writeFaves,
 } from "./data.js";
 
+import Reviews from "./Reviews.jsx";
+import { placeOf, siblingsOf } from "./places.js";
+
 const MiniMap = lazy(() => import("./MiniMap.jsx"));
 
 export default function Restaurant() {
@@ -36,6 +39,17 @@ export default function Restaurant() {
   const r = useMemo(
     () => data?.restaurants.find((x) => x.slug === slug) || null,
     [data, slug],
+  );
+
+  /* Which reviews this page shows. A place is a brand, so the other locations of
+   * a chain share both the review thread and a link at the top of it. */
+  const place = useMemo(
+    () => (r ? placeOf(data.restaurants, r) : null),
+    [data, r],
+  );
+  const siblings = useMemo(
+    () => (r ? siblingsOf(data.restaurants, r) : []),
+    [data, r],
   );
 
   /* Which menu is open is derived, not stored: the default is the meal with the
@@ -317,6 +331,8 @@ export default function Restaurant() {
           </div>
         </section>
       )}
+
+      <Reviews place={place} slug={slug} siblings={siblings} />
 
       <p style={{ marginTop: 26, fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
         Available {EVENT.range}. Menu as published for Houston Restaurant Weeks

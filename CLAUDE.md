@@ -73,11 +73,13 @@ When you add a new tool/page, do **all** of these, not just the route:
 
 ## The one page with build-time data (`/hrw`)
 
-Houston Restaurant Weeks is the exception to everything in the Backend section
-below: it calls **no** backend. `scripts/build-hrw-data.mjs` reads a public
-Google Sheet, geocodes the addresses, and writes the committed static asset
-`public/data/hrw-2026.json` (385 restaurants, 9,127 dishes); the page fetches
-that file and filters in the browser.
+Houston Restaurant Weeks gets all of its restaurant data without a backend.
+`scripts/build-hrw-data.mjs` reads a public Google Sheet, geocodes the addresses,
+and writes the committed static asset `public/data/hrw-2026.json` (385
+restaurants, 9,127 dishes); the page fetches that file and filters in the
+browser. **Reader reviews are the one exception** — they can't be static, so they
+call `/hrw` on the Sheline backend; see the Backend section and
+`src/pages/hrw/reviews.js`.
 
 ```bash
 node scripts/build-hrw-data.mjs   # re-read the sheet, then commit the JSON
@@ -95,6 +97,16 @@ node scripts/build-hrw-data.mjs   # re-read the sheet, then commit the JSON
 - `leaflet` is a dependency of this page only, lazy-loaded in `MapView.jsx` and
   `MiniMap.jsx` so it stays out of the main bundle. Map tiles come from CARTO
   (free, keyless, attributed).
+- **Reviews attach to a PLACE, not to a row.** The sheet has 20 Saltgrass rows
+  and 6 Fadi's; `src/pages/hrw/places.js` groups the 385 rows into 285 places
+  (41 of them multi-location) so a review written at one location is read at all
+  of them. The grouping is derived from the names — it strips neighbourhood
+  suffixes using the dataset's own neighborhood column — and it is deliberately
+  conservative: a shortened name is only adopted when another row collides with
+  it, which is what keeps "Fielding's Local" and "Fielding's Steak" apart.
+  **Fix a wrong grouping in that file's `OVERRIDES` map, keyed by slug — don't
+  tune the regexes.** Changing how a key is computed orphans the reviews already
+  stored under the old key.
 
 ## Backend
 
@@ -115,7 +127,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` |
 | `/prospects` | `/prospects` |
 | `/ashley` | `/ashley` |
-| `/hrw` | none — static `public/data/hrw-2026.json`, see above |
+| `/hrw` | `/hrw` (reviews only — restaurant data is the static `public/data/hrw-2026.json`, see above) |
 
 - The site does **not** call `/bullion-ventures` (that backend route is
   push-notification plumbing, not a website API) and does **not** call
