@@ -11,6 +11,12 @@ const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 // the backend as you edit; the whole trip refetches when the tab regains focus
 // so the other families' edits show up.
 
+/* Per-family packing lives in tp_items like everything else — category plus
+ * assigned_to, no schema change. It needs its OWN category rather than reusing
+ * "Packing" so it can be excluded from the shared Shopping & packing list; with
+ * category "Packing" every personal item would show up in both places. */
+const FAMILY_PACKING = "Family packing";
+
 const MEAL_TYPES = [
   { key: "breakfast", label: "Breakfast", emoji: "🍳" },
   { key: "lunch", label: "Lunch", emoji: "🥪" },
@@ -180,6 +186,10 @@ export default function TripPlanner() {
   const [newItem, setNewItem] = useState({ name: "", category: "Packing", assigned_to: "" });
   const [addingItem, setAddingItem] = useState(false);
   const [newBring, setNewBring] = useState({ name: "", assigned_to: "" });
+  // One draft per family, keyed by name, so typing in one family's box doesn't
+  // clear another's.
+  const [newPack, setNewPack] = useState({});
+  const [addingPack, setAddingPack] = useState(null);
   const [addingBring, setAddingBring] = useState(false);
   const [familiesDraft, setFamiliesDraft] = useState(null); // comma string while editing, null when not
   const [wx, setWx] = useState(null); // forecast payload from the backend
@@ -347,6 +357,32 @@ export default function TripPlanner() {
     }
   }
 
+  /* Adds to ONE family's personal packing list. Same endpoint as everything
+   * else; the family is carried in assigned_to and the FAMILY_PACKING category
+   * keeps it out of the shared list. */
+  async function addPack(e, family) {
+    e.preventDefault();
+    const name = String(newPack[family] || "").trim();
+    if (!name || addingPack) return;
+    setAddingPack(family);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/trips/${slug}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, category: FAMILY_PACKING, assigned_to: family }),
+      });
+      const item = await res.json();
+      if (!res.ok) throw new Error(item.error || "add failed");
+      setTrip((t) => ({ ...t, items: [...t.items, item] }));
+      setNewPack((n) => ({ ...n, [family]: "" }));
+    } catch (err) {
+      setError(`Couldn't add that: ${err.message}`);
+    } finally {
+      setAddingPack(null);
+    }
+  }
+
   async function saveFamilies() {
     const fams = familiesDraft.split(",").map((f) => f.trim()).filter(Boolean);
     try {
@@ -459,7 +495,9 @@ export default function TripPlanner() {
   const mealFor = (date, type) => trip.meals.find((m) => m.date === date && m.meal_type === type);
   const mealById = Object.fromEntries(trip.meals.map((m) => [m.id, m]));
   const bringItems = trip.items.filter((i) => i.category === "Bringing");
-  const listItems = trip.items.filter((i) => i.category !== "Bringing");
+  const listItems = trip.items.filter(
+    (i) => i.category !== "Bringing" && i.category !== FAMILY_PACKING
+  );
   const families = trip.families || [];
   // Color-match "Angelle" but also "Angelle family" / "the Angelles".
   const colorFor = (name) => {
@@ -473,6 +511,26 @@ export default function TripPlanner() {
    * trip.families order so the section headings run in the same order as their
    * colour chips; a name that isn't on the list (or is blank) sorts to the end
    * under "Unclaimed" rather than being dropped. */
+  /* Each family's packing list: their shared-gear claims from "Who's bringing
+   * what" auto-included, plus whatever they've added themselves.
+   *
+   * Every family on the trip gets a section even with nothing in it — an empty
+   * list is the prompt to fill it in, and hiding it makes the feature invisible
+   * to whoever hasn't started. */
+  const familyPacking = (() => {
+    const matches = (who, family) =>
+      String(who || "").toLowerCase().includes(String(family).toLowerCase());
+    return families.map((family) => ({
+      family,
+      shared: sortByName(bringItems.filter((i) => matches(i.assigned_to, family))),
+      own: sortByName(
+        trip.items.filter(
+          (i) => i.category === FAMILY_PACKING && matches(i.assigned_to, family)
+        )
+      ),
+    }));
+  })();
+
   const bringGroups = (() => {
     const key = (item) => {
       const who = String(item.assigned_to || "").trim();
@@ -563,6 +621,7 @@ export default function TripPlanner() {
           <a href="#tp-meals">🍽️ Meals</a>
           <a href="#tp-packing">🛒 Shopping & packing{trip.items.some((i) => i.category !== "Bringing") ? ` (${trip.items.filter((i) => i.category !== "Bringing" && !i.checked).length} to go)` : ""}</a>
           <a href="#tp-bringing">🏕️ Bringing</a>
+          <a href="#tp-familypacking">🧳 Family packing</a>
           <a href="#tp-cabin">🏠 Cabin</a>
           <a href="#tp-notes">📝 Notes</a>
         </nav>
@@ -823,6 +882,76 @@ export default function TripPlanner() {
               {addingBring ? "Adding…" : "Add"}
             </button>
           </form>
+        </div>
+
+        <h2 id="tp-familypacking" style={{ fontSize: 19, margin: "28px 0 10px" }}>Packing, by family</h2>
+        <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
+          {families.length === 0 && (
+            <p style={{ color: "#6b7684", marginTop: 0 }}>
+              Add the families up by the trip name and each one gets its own list here.
+            </p>
+          )}
+          {familyPacking.map(({ family, shared, own }, idx) => (
+            <div
+              key={family}
+              style={{
+                paddingTop: idx === 0 ? 0 : 14,
+                marginTop: idx === 0 ? 0 : 14,
+                borderTop: idx === 0 ? "none" : "1px solid #f0ebe0",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <Chip color={colorFor(family)}>{family}</Chip>
+                <span style={{ fontSize: 12, color: "#a8a094" }}>
+                  {shared.length + own.length === 0
+                    ? "nothing yet"
+                    : `${shared.length + own.length} item${shared.length + own.length === 1 ? "" : "s"}`}
+                </span>
+              </div>
+
+              {/* Shared gear, pulled in from "Who's bringing what" so it can be
+                  ticked off while loading the car. No ✕ here on purpose: these
+                  are the same rows as the Bringing claims, and deleting shared
+                  gear from what looks like a personal list would surprise
+                  whoever else was counting on it. Remove it up there instead. */}
+              {shared.map((item) => (
+                <div key={item.id} className="tp-item-row">
+                  <input type="checkbox" className="tp-check" title="Packed / loaded" checked={item.checked} onChange={() => toggleItem(item)} />
+                  <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
+                    {item.name}
+                    <span style={{ fontSize: 12, color: "#a8a094", marginLeft: 6 }}>shared gear</span>
+                  </span>
+                </div>
+              ))}
+
+              {own.map((item) => (
+                <div key={item.id} className="tp-item-row">
+                  <input type="checkbox" className="tp-check" title="Packed" checked={item.checked} onChange={() => toggleItem(item)} />
+                  <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
+                    {item.name}
+                  </span>
+                  <button className="tp-del" title="Remove" onClick={() => deleteItem(item)}>✕</button>
+                </div>
+              ))}
+
+              <form onSubmit={(e) => addPack(e, family)} style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <input
+                  className="tp-input"
+                  style={{ flex: 1, marginBottom: 0 }}
+                  value={newPack[family] || ""}
+                  onChange={(e) => setNewPack((n) => ({ ...n, [family]: e.target.value }))}
+                  placeholder={`Add to ${family}'s list…`}
+                />
+                <button
+                  className="tp-btn"
+                  type="submit"
+                  disabled={!String(newPack[family] || "").trim() || addingPack === family}
+                >
+                  {addingPack === family ? "Adding…" : "Add"}
+                </button>
+              </form>
+            </div>
+          ))}
         </div>
 
         <h2 id="tp-cabin" style={{ fontSize: 19, margin: "28px 0 10px" }}>Cabin info</h2>
