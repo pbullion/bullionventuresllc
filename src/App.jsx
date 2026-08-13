@@ -54,6 +54,8 @@ import DaycareMemoryVaultHome from "./pages/daycare-memory-vault/Home.jsx";
 import DaycareMemoryVaultPrivacy from "./pages/daycare-memory-vault/Privacy.jsx";
 import DaycareMemoryVaultSupport from "./pages/daycare-memory-vault/Support.jsx";
 import Ashley from "./pages/ashley/index.jsx";
+import Hrw from "./pages/hrw/index.jsx";
+import HrwRestaurant from "./pages/hrw/Restaurant.jsx";
 
 export default function App() {
   const location = useLocation();
@@ -109,6 +111,8 @@ export default function App() {
           <Route path="/tripplanner" element={<TripPlannerHome />} />
           <Route path="/tripplanner/:slug" element={<TripPlanner />} />
           <Route path="/ashley" element={<Ashley />} />
+          <Route path="/hrw" element={<Hrw />} />
+          <Route path="/hrw/:slug" element={<HrwRestaurant />} />
           <Route path="/wnba-value" element={<Navigate to="/totals-value" replace />} />
           <Route path="/elite-edge-advisors" element={<EliteEdgeAdvisors />} />
           <Route path="/zargle" element={<ZargleHome />} />

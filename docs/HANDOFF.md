@@ -38,6 +38,11 @@ What works today:
   bet board"). The bet board plus the MyBookie-JSON input modal
   ([InputBets.jsx](../src/pages/elite-edge-advisors/InputBets.jsx)). **Not yet
   on the homepage** — see Known issues.
+- **Houston Restaurant Weeks** (`/hrw`, `/hrw/:slug`) — added 2026-08-13 from a
+  Google Sheet a friend was maintaining. 385 restaurants, 9,127 dishes,
+  searchable down to the ingredient, filterable, with a Leaflet map view. The
+  only page in the repo whose data is **baked at build time** rather than
+  fetched from the backend — see below.
 - **Farkle scorer, Mothers Day 2026 gift page** — static, done.
 
 Stubs/orphans: `src/pages/kentucky-derby/Tracker.jsx` was added 2026-05-02 and
@@ -87,6 +92,9 @@ silently at runtime.
 | `/gulf-hurricane` | `/nhc` | `GET /current-storms` (backend proxies NHC's CurrentStorms.json because that feed has no CORS; the graphics load straight from nhc.noaa.gov) |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` | `GET /patrick/tesla-dashboard-weather?lat&lon` (Apple WeatherKit proxy), `/patrick/all-data-2/mancavedisplaysllc@gmail.com` (hardcoded user), `/odds-screen/check-subscription/:email`, `/odds-screen/tracking/:user` |
 
+`/hrw` is deliberately absent from that table: it calls no backend at all. See
+the next section.
+
 Two corrections to what the **backend's** HANDOFF.md counterpart table says
 about this repo: this site does **not** call `/bullion-ventures` and does
 **not** call `/weather`. Weather comes through `/patrick/tesla-dashboard-weather`,
@@ -101,6 +109,45 @@ documented in the backend repo:
 - `sheline-art-website-api/docs/betting-engine.md`
 - `sheline-art-website-api/docs/auto-bet-spec.md`
 - `sheline-art-website-api/docs/totals-value.md`
+
+### The one build-time data pipeline (`/hrw`)
+
+Every other data page in this repo fetches from Heroku at runtime. Houston
+Restaurant Weeks does not — [scripts/build-hrw-data.mjs](../scripts/build-hrw-data.mjs)
+reads the source Google Sheet, geocodes it, and writes
+`public/data/hrw-2026.json`, which is committed and served as a static asset.
+The page fetches that one file and does all searching, filtering and sorting in
+the browser.
+
+That is the right trade here and worth understanding before "improving" it:
+
+- The data changes **once a year**. Proxying a spreadsheet through a Heroku dyno
+  on every page load would add a moving part, a rate limit and a failure mode to
+  something that is, correctly, a static file behind a CDN.
+- Dish search is the point of the page, so the menus are not optional payload.
+  All 9,127 dishes ship in one 1.4 MB JSON (~280 KB compressed) and search is
+  instant with no request per keystroke. Splitting the menus into a lazy second
+  fetch was considered and rejected; see the comment at the top of
+  `src/pages/hrw/data.js`.
+- The sheet has three tabs; the script reads "Restaurants" and "Menu Items" and
+  ignores "Ingredient word count" (a scratch analysis).
+
+Two traps the script documents at length, because both cost real time:
+
+1. **Tabs are read by numeric gid, not by name.** The friendlier gviz
+   `?sheet=<name>` endpoint returned HTTP 200 while silently dropping 26 of the
+   9,223 dish rows (all of one restaurant's later courses). Do not "simplify" it
+   back.
+2. **Rows join on Source URL, not restaurant name.** Two McCormick & Schmick's
+   locations share a name, and the Menu Items tab's own Neighborhood column is
+   wrong for the second of them.
+
+Geocoding is best-effort and currently pins **367 of 385**. The rest are
+suburban strip-mall addresses that neither the US Census geocoder nor OSM knows.
+Misses are cached as `null` in `scripts/hrw-geocache.json` so re-runs don't
+re-ask; to fix one by hand, add its coordinates to that file and re-run. The map
+view reports how many of the current results have no pin rather than silently
+dropping them.
 
 ### The `routes/bullion_ventures.js` backend module (namesake, not a site API)
 
@@ -136,6 +183,9 @@ keeps prediction logging and closing-line capture running.
 | Fix MyBookie→ESPN team-name matching | `nameAliases` in [src/pages/elite-edge-advisors/InputBets.jsx](../src/pages/elite-edge-advisors/InputBets.jsx) |
 | Elite Edge bet board | [src/pages/elite-edge-advisors/index.jsx](../src/pages/elite-edge-advisors/index.jsx) (2,855 lines — the biggest file in the repo) |
 | Hurricane feeds/imagery | [src/pages/gulf-hurricane/index.jsx](../src/pages/gulf-hurricane/index.jsx) (feed URLs at the top) |
+| Refresh Restaurant Weeks data from the sheet | `node scripts/build-hrw-data.mjs` ([script](../scripts/build-hrw-data.mjs)) — rewrites `public/data/hrw-2026.json`; commit the result |
+| Restaurant Weeks search/filters/cards | [src/pages/hrw/index.jsx](../src/pages/hrw/index.jsx); map in `MapView.jsx`, one restaurant in `Restaurant.jsx`, palette + injected CSS in `theme.js` |
+| A wrong pin on the Restaurant Weeks map | `scripts/hrw-geocache.json` — hand-editable, keyed by the sheet's address string; then re-run the build script |
 | Tesla dashboard widgets | [src/pages/tesla-dashboard/](../src/pages/tesla-dashboard/) — one file per widget, `OddsScreen.jsx` is the big one |
 | Any static app page (privacy/support) | `src/pages/<app>/Privacy.jsx` etc. |
 | Betting data model | backend repo `docs/betting-engine.md` / `auto-bet-spec.md` / `totals-value.md` |
@@ -318,6 +368,15 @@ backend's config; it is not in this repo.
   (Kalshi, Apple WeatherKit, Twilio, etc.). If it's down, the static pages
   still render; every data page shows empty states.
 - **ESPN public API** — no account, no key, no guarantees.
+- **Google Sheets (Houston Restaurant Weeks)** — read once per data refresh by
+  `scripts/build-hrw-data.mjs`, never at runtime. The sheet must stay
+  link-shareable or the script fails loudly. Not owned by us.
+- **US Census geocoder + OSM Nominatim** — build-time only, keyless, used to
+  turn the sheet's addresses into map pins. Results are cached in
+  `scripts/hrw-geocache.json`, so a refresh only geocodes what's new.
+- **CARTO dark basemap tiles** — loaded by the browser on the `/hrw` map. Free,
+  keyless, attributed in the corner. If CARTO ever blocks it, the map goes
+  blank and the list view is unaffected.
 - **NOAA/NHC imagery** — public, no account.
 - **GitHub `pbullion/bullionventuresllc`** — the deploy trigger; force-pushing
   master is deploying.

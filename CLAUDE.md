@@ -71,6 +71,31 @@ When you add a new tool/page, do **all** of these, not just the route:
      note that hiding it is obscurity only: the route stays public and
      unauthenticated.
 
+## The one page with build-time data (`/hrw`)
+
+Houston Restaurant Weeks is the exception to everything in the Backend section
+below: it calls **no** backend. `scripts/build-hrw-data.mjs` reads a public
+Google Sheet, geocodes the addresses, and writes the committed static asset
+`public/data/hrw-2026.json` (385 restaurants, 9,127 dishes); the page fetches
+that file and filters in the browser.
+
+```bash
+node scripts/build-hrw-data.mjs   # re-read the sheet, then commit the JSON
+```
+
+- **Read the header comment in that script before changing it.** Two
+  non-obvious things are load-bearing: tabs are addressed by numeric **gid**
+  (the gviz `?sheet=<name>` endpoint returns 200 while silently dropping rows),
+  and rows join on **Source URL**, not restaurant name (two McCormick &
+  Schmick's locations share a name).
+- Geocoding pins 367 of 385. `scripts/hrw-geocache.json` is committed and
+  hand-editable — fix a bad or missing pin there, not in the parser. Misses are
+  cached as `null` on purpose; delete an entry to force a retry.
+- Rationale, trade-offs and the full trap list: `docs/HANDOFF.md`.
+- `leaflet` is a dependency of this page only, lazy-loaded in `MapView.jsx` and
+  `MiniMap.jsx` so it stays out of the main bundle. Map tiles come from CARTO
+  (free, keyless, attributed).
+
 ## Backend
 
 Data-driven tools call the shared Sheline backend at
@@ -89,6 +114,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/gulf-hurricane` | `/nhc` |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` |
 | `/ashley` | `/ashley` |
+| `/hrw` | none — static `public/data/hrw-2026.json`, see above |
 
 - The site does **not** call `/bullion-ventures` (that backend route is
   push-notification plumbing, not a website API) and does **not** call

@@ -1,0 +1,1805 @@
+{
+ "5175 Westheimer Rd, Houston, TX 77056, United States": {
+  "lat": 29.740580119147,
+  "lon": -95.463733696411,
+  "precision": "rooftop"
+ },
+ "2300 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.742509026056,
+  "lon": -95.415224845119,
+  "precision": "rooftop"
+ },
+ "5161 San Felipe St, Houston, TX 77056, USA": {
+  "lat": 29.750117202733,
+  "lon": -95.46541972766,
+  "precision": "rooftop"
+ },
+ "Adair Kitchen, 5176 Buffalo Speedway, Houston, TX 77005, USA": {
+  "lat": 29.726995526884,
+  "lon": -95.427876176523,
+  "precision": "rooftop"
+ },
+ "1902 Washington Ave ste c, Houston, TX, USA": {
+  "lat": 29.767849302956,
+  "lon": -95.377268409207,
+  "precision": "rooftop"
+ },
+ "25250 Grogans Park Drive, The Woodlands, TX, USA": {
+  "lat": 30.128228364527,
+  "lon": -95.457187904145,
+  "precision": "rooftop"
+ },
+ "3310 South Shepherd Drive, Houston, TX, USA": {
+  "lat": 29.736680700185,
+  "lon": -95.410736772464,
+  "precision": "rooftop"
+ },
+ "3 Waterway Square Place, The Woodlands, TX, USA": {
+  "lat": 30.160489567843,
+  "lon": -95.455826456108,
+  "precision": "rooftop"
+ },
+ "3748 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.741749799056,
+  "lon": -95.440246270851,
+  "precision": "rooftop"
+ },
+ "2626 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.742360555457,
+  "lon": -95.419111966723,
+  "precision": "rooftop"
+ },
+ "1590 S Mason Rd, Katy, TX, USA": {
+  "lat": 29.759098401803,
+  "lon": -95.751666807537,
+  "precision": "rooftop"
+ },
+ "1616 Post Oak Blvd ste 1a, Houston, TX 77056, USA": {
+  "lat": 29.750680157142,
+  "lon": -95.461240363551,
+  "precision": "rooftop"
+ },
+ "201 West Bay Area Boulevard, Webster, TX, USA": {
+  "lat": 29.548023692705,
+  "lon": -95.129408450987,
+  "precision": "rooftop"
+ },
+ "4444 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.741468647598,
+  "lon": -95.452042547969,
+  "precision": "rooftop"
+ },
+ "16250 City Walk, Sugar Land, TX 77479, USA": {
+  "lat": 29.595246564869,
+  "lon": -95.623170029794,
+  "precision": "rooftop"
+ },
+ "1814 Washington Avenue, Houston, TX, USA": {
+  "lat": 29.767713172381,
+  "lon": -95.375888677509,
+  "precision": "rooftop"
+ },
+ "1560 S Mason Rd, Katy, TX, USA": {
+  "lat": 29.759222019312,
+  "lon": -95.751676078844,
+  "precision": "rooftop"
+ },
+ "21851 Katy Freeway, Katy, TX, USA": {
+  "lat": 29.784571814517,
+  "lon": -95.748704967103,
+  "precision": "rooftop"
+ },
+ "14021 Memorial Dr, Houston, TX 77079, USA": {
+  "lat": 29.770857162167,
+  "lon": -95.590262542543,
+  "precision": "rooftop"
+ },
+ "9061 Gaylord Drive, Houston, TX, USA": {
+  "lat": 29.78201061972,
+  "lon": -95.512531496473,
+  "precision": "rooftop"
+ },
+ "223 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.744589187149,
+  "lon": -95.383220437249,
+  "precision": "rooftop"
+ },
+ "907 Franklin Street, Houston, TX, USA": {
+  "lat": 29.763510818477,
+  "lon": -95.36087141594,
+  "precision": "rooftop"
+ },
+ "4444 Westheimer Road ste 175a, Houston, TX, USA": {
+  "lat": 29.741468647598,
+  "lon": -95.452042547969,
+  "precision": "rooftop"
+ },
+ "1300 Lamar Street, Houston, TX, USA": {
+  "lat": 29.754545385623,
+  "lon": -95.362898985812,
+  "precision": "rooftop"
+ },
+ "4712 Richmond Avenue, Houston, TX, USA": {
+  "lat": 29.73277256333,
+  "lon": -95.456100792858,
+  "precision": "rooftop"
+ },
+ "4210 Roseland Street, Houston, TX, USA": {
+  "lat": 29.735199361782,
+  "lon": -95.389888266279,
+  "precision": "rooftop"
+ },
+ "963 Judiway Street, Houston, TX, USA": {
+  "lat": 29.820709591056,
+  "lon": -95.423045818308,
+  "precision": "rooftop"
+ },
+ "1600 West Loop South, Houston, TX, USA": {
+  "lat": 29.751532416172,
+  "lon": -95.45615109766,
+  "precision": "rooftop"
+ },
+ "807 Taft Street, Houston, TX, USA": {
+  "lat": 29.758920236265,
+  "lon": -95.385694964318,
+  "precision": "rooftop"
+ },
+ "2604 Dunlavy Street, Houston, TX, USA": {
+  "lat": 29.742702409213,
+  "lon": -95.402131095931,
+  "precision": "rooftop"
+ },
+ "1800 Post Oak Blvd suite 6110, Houston, TX, USA": {
+  "lat": 29.747311879481,
+  "lon": -95.461248029217,
+  "precision": "rooftop"
+ },
+ "1440 Lamar Street, Houston, TX, USA": {
+  "lat": 29.753860346834,
+  "lon": -95.361737558517,
+  "precision": "rooftop"
+ },
+ "3300 Smith Street, Houston, TX, USA": {
+  "lat": 29.742984584083,
+  "lon": -95.381135749363,
+  "precision": "rooftop"
+ },
+ "1 Birdsall Street, Houston, TX, USA": {
+  "lat": 29.759774979642,
+  "lon": -95.420134750285,
+  "precision": "rooftop"
+ },
+ "10911 Katy Freeway, Houston, TX, USA": {
+  "lat": 29.783952509203,
+  "lon": -95.57026694823,
+  "precision": "rooftop"
+ },
+ "110 Vintage Park Boulevard suite t, Houston, TX, USA": {
+  "lat": 29.994092785116,
+  "lon": -95.574342385376,
+  "precision": "rooftop"
+ },
+ "1802 Shepherd Drive, Houston, TX, USA": {
+  "lat": 29.776377935519,
+  "lon": -95.409505519254,
+  "precision": "rooftop"
+ },
+ "15455 Memorial Dr Suite 100, Houston, TX 77079, USA": {
+  "lat": 29.779624859545,
+  "lon": -95.628429704358,
+  "precision": "rooftop"
+ },
+ "5757 Bissonnet Street, Bellaire, TX, USA": {
+  "lat": 29.700623909314,
+  "lon": -95.481545111419,
+  "precision": "rooftop"
+ },
+ "608 West 11th Street, Houston, TX, USA": {
+  "lat": 29.790556151847,
+  "lon": -95.403499594092,
+  "precision": "rooftop"
+ },
+ "2617 W Holcombe Blvd, Houston, TX 77030, USA": {
+  "lat": 29.706100817833,
+  "lon": -95.418613195118,
+  "precision": "rooftop"
+ },
+ "2200 Post Oak Blvd suite 160, Houston, TX, USA": {
+  "lat": 29.743225980864,
+  "lon": -95.461140149305,
+  "precision": "rooftop"
+ },
+ "3115 Kirby Drive, Houston, TX, USA": {
+  "lat": 29.73684687014,
+  "lon": -95.418651092119,
+  "precision": "rooftop"
+ },
+ "1399 South Voss Road, Houston, TX, USA": {
+  "lat": 29.753058805375,
+  "lon": -95.501043808777,
+  "precision": "rooftop"
+ },
+ "2800 Sage Rd Ste A100, Houston, TX 77056, USA": {
+  "lat": 29.737970965002,
+  "lon": -95.466847319069,
+  "precision": "rooftop"
+ },
+ "610 Main Street, Houston, TX, USA": {
+  "lat": 29.759894338958,
+  "lon": -95.362681557046,
+  "precision": "rooftop"
+ },
+ "2513 Bagby St, Houston, TX 77006, USA": {
+  "lat": 29.748957812483,
+  "lon": -95.378781267734,
+  "precision": "rooftop"
+ },
+ "1717 Allen Parkway, Houston, TX, USA": {
+  "lat": 29.761087658465,
+  "lon": -95.379092185406,
+  "precision": "rooftop"
+ },
+ "21 Waterway Ave, The Woodlands, TX 77380, USA": {
+  "lat": 30.159250020352,
+  "lon": -95.459162221596,
+  "precision": "rooftop"
+ },
+ "1106 Silber Rd ste e, Houston, TX, USA": {
+  "lat": 29.787796312497,
+  "lon": -95.46799303462,
+  "precision": "rooftop"
+ },
+ "17717 Clay Road, Houston, TX, USA": {
+  "lat": 29.831011197502,
+  "lon": -95.670457580881,
+  "precision": "rooftop"
+ },
+ "1971 West Gray Street, Houston, TX, USA": {
+  "lat": 29.753017113611,
+  "lon": -95.407233297272,
+  "precision": "rooftop"
+ },
+ "3320 White Oak Drive, Houston, TX, USA": {
+  "lat": 29.781592427206,
+  "lon": -95.393193605365,
+  "precision": "rooftop"
+ },
+ "5210 Morningside Drive, Houston, TX, USA": {
+  "lat": 29.718959002108,
+  "lon": -95.415022697431,
+  "precision": "rooftop"
+ },
+ "519 Shepherd Drive, Houston, TX, USA": {
+  "lat": 29.766978358879,
+  "lon": -95.409471641488,
+  "precision": "rooftop"
+ },
+ "5172 Buffalo Speedway, Houston, TX, USA": {
+  "lat": 29.727071828447,
+  "lon": -95.427882606426,
+  "precision": "rooftop"
+ },
+ "1920 Fountain View Drive, Houston, TX, USA": {
+  "lat": 29.747821873309,
+  "lon": -95.486039622935,
+  "precision": "rooftop"
+ },
+ "2220 Bevis Street, Houston, TX, USA": {
+  "lat": 29.805915502062,
+  "lon": -95.422324903921,
+  "precision": "rooftop"
+ },
+ "701 Texas Avenue, Houston, TX, USA": {
+  "lat": 29.761541904964,
+  "lon": -95.365035082589,
+  "precision": "rooftop"
+ },
+ "Building 5, 600 N Shepherd Dr, Houston, TX 77007, USA": {
+  "lat": 29.781570364433,
+  "lon": -95.409129201391,
+  "precision": "rooftop"
+ },
+ "14315 Cypress Rose Hill Road, Cypress, TX, USA": {
+  "lat": 29.975987114819,
+  "lon": -95.699493023641,
+  "precision": "rooftop"
+ },
+ "5082 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.740822595878,
+  "lon": -95.463614228306,
+  "precision": "rooftop"
+ },
+ "1900 Hughes Landing Boulevard, The Woodlands, TX, USA": {
+  "lat": 30.170614660784,
+  "lon": -95.470676775594,
+  "precision": "rooftop"
+ },
+ "15377 Memorial Drive, Houston, TX, USA": {
+  "lat": 29.779835056361,
+  "lon": -95.625663032128,
+  "precision": "rooftop"
+ },
+ "501 Pierce Street, Houston, TX, USA": {
+  "lat": 29.754077635306,
+  "lon": -95.387293495293,
+  "precision": "rooftop"
+ },
+ "410 Bagby Street, Houston, TX, USA": {
+  "lat": 29.764522614729,
+  "lon": -95.366720187349,
+  "precision": "rooftop"
+ },
+ "709 Harris Avenue, Kemah, TX, USA": {
+  "lat": 29.542390037745,
+  "lon": -95.019270261237,
+  "precision": "rooftop"
+ },
+ "2800 Kirby Drive suite a100, Houston, TX, USA": {
+  "lat": 29.740876670281,
+  "lon": -95.418837307736,
+  "precision": "rooftop"
+ },
+ "12848 Queensbury Lane, Houston, TX, USA": {
+  "lat": 29.778692606865,
+  "lon": -95.560011607861,
+  "precision": "rooftop"
+ },
+ "2425 University Boulevard, Houston, TX, USA": {
+  "lat": 29.71501014236,
+  "lon": -95.41536905141,
+  "precision": "rooftop"
+ },
+ "12440 Northwest Freeway, Houston, TX, USA": {
+  "lat": 29.83750917059,
+  "lon": -95.487530121573,
+  "precision": "rooftop"
+ },
+ "322 Westheimer Rd, Houston TX 77006": {
+  "lat": 29.744649175249,
+  "lon": -95.385081741946,
+  "precision": "rooftop"
+ },
+ "6100 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.737887183555,
+  "lon": -95.48862449992,
+  "precision": "rooftop"
+ },
+ "2605 South Gessner Road, Houston, TX, USA": {
+  "lat": 29.739050262171,
+  "lon": -95.538383955553,
+  "precision": "rooftop"
+ },
+ "20095 Katy Fwy, Katy, TX 77450": {
+  "lat": 29.783857164662,
+  "lon": -95.721013971018,
+  "precision": "rooftop"
+ },
+ "2360 South Loop West, Houston, TX, USA": {
+  "lat": 29.67834064173,
+  "lon": -95.414022265802,
+  "precision": "rooftop"
+ },
+ "2814 Navigation Boulevard, Houston, TX, USA": {
+  "lat": 29.756747580011,
+  "lon": -95.341794141636,
+  "precision": "rooftop"
+ },
+ "401 Franklin Street, Houston, TX, USA": {
+  "lat": 29.765376684335,
+  "lon": -95.366226090581,
+  "precision": "rooftop"
+ },
+ "3130 Richmond Avenue, Houston, TX, USA": {
+  "lat": 29.734092725981,
+  "lon": -95.424777919026,
+  "precision": "rooftop"
+ },
+ "114 Vintage Park Blvd, Houston, TX 77070, USA": {
+  "lat": 29.994208927319,
+  "lon": -95.574362892029,
+  "precision": "rooftop"
+ },
+ "5602 Washington Avenue, Houston, TX, USA": {
+  "lat": 29.770824940514,
+  "lon": -95.418557814642,
+  "precision": "rooftop"
+ },
+ "6700 Woodlands Parkway unit 250, The Woodlands, TX, USA": {
+  "lat": 30.180580115827,
+  "lon": -95.536221950014,
+  "precision": "rooftop"
+ },
+ "981 S Mason Rd #981, Katy, TX 77450, USA": {
+  "lat": 29.750637672868,
+  "lon": -95.751344641659,
+  "precision": "rooftop"
+ },
+ "5851 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.737699249001,
+  "lon": -95.482554736462,
+  "precision": "rooftop"
+ },
+ "4566 Bissonnet St, Bellaire, TX 77401, USA": {
+  "lat": 29.714478678853,
+  "lon": -95.454611468122,
+  "precision": "rooftop"
+ },
+ "2005 W Gray St, Houston, TX 77019, USA": {
+  "lat": 29.752993146614,
+  "lon": -95.408701244029,
+  "precision": "rooftop"
+ },
+ "1101-11 Uptown Park Boulevard, Houston, TX, USA": {
+  "lat": 29.758151597776,
+  "lon": -95.456054793555,
+  "precision": "rooftop"
+ },
+ "1985 Welch Street, Houston, TX, USA": {
+  "lat": 29.748105510997,
+  "lon": -95.407389484637,
+  "precision": "rooftop"
+ },
+ "Eunice, 3737 Buffalo Speedway Suite 100, Houston, TX, USA": {
+  "lat": 29.733262213416,
+  "lon": -95.4289869598,
+  "precision": "rooftop"
+ },
+ "2817 W Dallas St building c, Houston, TX 77019, USA": {
+  "lat": 29.757347247257,
+  "lon": -95.39525384847,
+  "precision": "rooftop"
+ },
+ "12360 Westheimer Rd, Houston, TX, USA": {
+  "lat": 29.73641726062,
+  "lon": -95.599736708936,
+  "precision": "rooftop"
+ },
+ "6365 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.737499159616,
+  "lon": -95.496398519257,
+  "precision": "rooftop"
+ },
+ "10403 Katy Fwy, Houston, TX, USA": {
+  "lat": 29.783847125781,
+  "lon": -95.553872723588,
+  "precision": "rooftop"
+ },
+ "1801 Binz Street, Houston, TX, USA": {
+  "lat": 29.721690891498,
+  "lon": -95.382688822651,
+  "precision": "rooftop"
+ },
+ "1221 McKinney Street, Houston, TX, USA": {
+  "lat": 29.755832931475,
+  "lon": -95.362945913029,
+  "precision": "rooftop"
+ },
+ "8731 Katy Freeway, Houston, TX, USA": {
+  "lat": 29.783859124681,
+  "lon": -95.503200570757,
+  "precision": "rooftop"
+ },
+ "2400 Mid Lane suite 100, Houston, TX, USA": {
+  "lat": 29.743099892322,
+  "lon": -95.450206966353,
+  "precision": "rooftop"
+ },
+ "510 Shepherd Drive, Houston, TX, USA": {
+  "lat": 29.766930801377,
+  "lon": -95.40933872268,
+  "precision": "rooftop"
+ },
+ "27700 Interstate 45 North, Oak Ridge North, TX, USA": {
+  "lat": 30.163317207493,
+  "lon": -95.449868514957,
+  "precision": "rooftop"
+ },
+ "705 East 11th Street, Houston, TX, USA": {
+  "lat": 29.790854808185,
+  "lon": -95.38980686117,
+  "precision": "rooftop"
+ },
+ "3750 Westheimer Road, Houston, TX 77027, USA": {
+  "lat": 29.741751144547,
+  "lon": -95.44030022496,
+  "precision": "rooftop"
+ },
+ "3422 Allen Parkway, Houston, TX, USA": {
+  "lat": 29.771069897462,
+  "lon": -95.394233596084,
+  "precision": "rooftop"
+ },
+ "8250 Westheimer Rd, Houston, TX 77063, USA": {
+  "lat": 29.737605739843,
+  "lon": -95.51274915528,
+  "precision": "rooftop"
+ },
+ "1900 Hughes Landing Blvd suite 400, The Woodlands, TX 77380, USA": {
+  "lat": 30.170614660784,
+  "lon": -95.470676775594,
+  "precision": "rooftop"
+ },
+ "1204 Caroline Street, Houston, TX, USA": {
+  "lat": 29.75384691397,
+  "lon": -95.36360700596,
+  "precision": "rooftop"
+ },
+ "126 Vintage Park Blvd H, Houston, TX 77070, USA": {
+  "lat": 29.994554096107,
+  "lon": -95.57440729267,
+  "precision": "rooftop"
+ },
+ "2715 Bissonnet Street, West University Place, TX, USA": {
+  "lat": 29.725371516109,
+  "lon": -95.420877683455,
+  "precision": "rooftop"
+ },
+ "3503 West Dallas Street, Houston, TX, USA": {
+  "lat": 29.757164023902,
+  "lon": -95.403022233313,
+  "precision": "rooftop"
+ },
+ "18321 West Airport Boulevard, suite 109 Richmond, TX, USA": {
+  "lat": 29.651557213222,
+  "lon": -95.701997544485,
+  "precision": "rooftop"
+ },
+ "3111 Kirby Drive, Houston, TX, USA": {
+  "lat": 29.736988030416,
+  "lon": -95.418652935534,
+  "precision": "rooftop"
+ },
+ "1200 Binz Street #120, Houston, TX, USA": {
+  "lat": 29.724692021705,
+  "lon": -95.38784923858,
+  "precision": "rooftop"
+ },
+ "4715 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.74116008406,
+  "lon": -95.455082264463,
+  "precision": "rooftop"
+ },
+ "1001 Rusk Street, Houston, TX, USA": {
+  "lat": 29.758464680001,
+  "lon": -95.363649248049,
+  "precision": "rooftop"
+ },
+ "500 Dallas Street suite 100, Houston, TX, USA": {
+  "lat": 29.757947586053,
+  "lon": -95.370394874383,
+  "precision": "rooftop"
+ },
+ "Gyu-Kaku Japanese BBQ, 11301 Katy Freeway, Houston, TX 77079, USA": {
+  "lat": 29.784088373232,
+  "lon": -95.58165293804,
+  "precision": "rooftop"
+ },
+ "510 Gray St a, Houston, TX 77002, USA": {
+  "lat": 29.75122242979,
+  "lon": -95.37563291501,
+  "precision": "rooftop"
+ },
+ "3300 Kirby Drive ste 9 a, Houston, TX, USA": {
+  "lat": 29.735654763641,
+  "lon": -95.418762479777,
+  "precision": "rooftop"
+ },
+ "5555 Morningside Drive suite 100, Houston, TX, USA": {
+  "lat": 29.71624294489,
+  "lon": -95.414861365857,
+  "precision": "rooftop"
+ },
+ "3728 Wakeforest St, Houston, TX 77098, USA": {
+  "lat": 29.732813413915,
+  "lon": -95.42222812549,
+  "precision": "rooftop"
+ },
+ "218 Travis St, Houston, TX 77002, USA": {
+  "lat": 29.763391315265,
+  "lon": -95.361196640334,
+  "precision": "rooftop"
+ },
+ "1515 Dallas St, Houston, TX 77010, USA": {
+  "lat": 29.752816232161,
+  "lon": -95.36158185201,
+  "precision": "rooftop"
+ },
+ "20 Waterway Ave suite 105, The Woodlands, TX 77380, USA": {
+  "lat": 30.158575020485,
+  "lon": -95.459034190236,
+  "precision": "rooftop"
+ },
+ "1343 Yale Street, Houston, TX, USA": {
+  "lat": 29.795156568956,
+  "lon": -95.399123141895,
+  "precision": "rooftop"
+ },
+ "1223 West 34th Street c500, Houston, TX, USA": {
+  "lat": 29.817293021182,
+  "lon": -95.420713130676,
+  "precision": "rooftop"
+ },
+ "633 Heidrich Street, Houston, TX, USA": {
+  "lat": 29.830896449099,
+  "lon": -95.408911531545,
+  "precision": "rooftop"
+ },
+ "1802 West 18th Street, Houston, TX, USA": {
+  "lat": 29.801569610384,
+  "lon": -95.431759410905,
+  "precision": "rooftop"
+ },
+ "1600 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.742855595321,
+  "lon": -95.399375558711,
+  "precision": "rooftop"
+ },
+ "9393 Bellaire Boulevard, Houston, TX, USA": {
+  "lat": 29.704833136789,
+  "lon": -95.548306468026,
+  "precision": "rooftop"
+ },
+ "1180 Uptown Park Boulevard, Houston, TX, USA": {
+  "lat": 29.756222935609,
+  "lon": -95.457775302439,
+  "precision": "rooftop"
+ },
+ "5602 Fulton Street, Houston, TX, USA": {
+  "lat": 29.810114273128,
+  "lon": -95.369618454935,
+  "precision": "rooftop"
+ },
+ "19333 David Memorial Drive, Shenandoah, TX, USA": {
+  "lat": 30.177081126794,
+  "lon": -95.449014398749,
+  "precision": "rooftop"
+ },
+ "6415 San Felipe St, Houston, TX 77057, USA": {
+  "lat": 29.750074598547,
+  "lon": -95.498048785419,
+  "precision": "rooftop"
+ },
+ "5857 Westheimer Road ste p, Houston, TX, USA": {
+  "lat": 29.737694145958,
+  "lon": -95.482700173325,
+  "precision": "rooftop"
+ },
+ "2032 Karbach Street, Houston, TX, USA": {
+  "lat": 29.804454151918,
+  "lon": -95.461056695673,
+  "precision": "rooftop"
+ },
+ "1533 North Shepherd Drive, Houston, TX, USA": {
+  "lat": 29.798505961925,
+  "lon": -95.410113676037,
+  "precision": "rooftop"
+ },
+ "1605 Post Oak Boulevard, Houston, TX, USA": {
+  "lat": 29.751625495884,
+  "lon": -95.460679624979,
+  "precision": "rooftop"
+ },
+ "2200 Post Oak Blvd #140, Houston, TX, USA": {
+  "lat": 29.743225980864,
+  "lon": -95.461140149305,
+  "precision": "rooftop"
+ },
+ "6440 West Sam Houston Parkway South, Houston, TX, USA": {
+  "lat": 29.863942080021,
+  "lon": -95.563451734742,
+  "precision": "rooftop"
+ },
+ "Kirby's Steakhouse, 1111 Timberloch Place, The Woodlands, TX, USA": {
+  "lat": 30.158867288988,
+  "lon": -95.450847132353,
+  "precision": "rooftop"
+ },
+ "11720 Katy Fwy ste 140, Houston, TX, USA": {
+  "lat": 29.785296517883,
+  "lon": -95.591606028766,
+  "precision": "rooftop"
+ },
+ "2313 Edwards Street, Houston, TX, USA": {
+  "lat": 29.77061450552,
+  "lon": -95.381779174177,
+  "precision": "rooftop"
+ },
+ "2310 Decatur St, Houston, TX 77007, USA": {
+  "lat": 29.766985097659,
+  "lon": -95.381739903775,
+  "precision": "rooftop"
+ },
+ "24 Waterway Avenue unit 110, The Woodlands, TX, USA": {
+  "lat": 30.158607837942,
+  "lon": -95.459036277843,
+  "precision": "rooftop"
+ },
+ "409 Travis Street #366, Houston, TX, USA": {
+  "lat": 29.761889197399,
+  "lon": -95.362227081264,
+  "precision": "rooftop"
+ },
+ "6324 Richmond Avenue, Houston, TX, USA": {
+  "lat": 29.731804108708,
+  "lon": -95.495229447611,
+  "precision": "rooftop"
+ },
+ "947 Gessner Road, Houston, TX, USA": {
+  "lat": 29.781367148422,
+  "lon": -95.544318499474,
+  "precision": "rooftop"
+ },
+ "300 Main St, Houston, TX 77002": {
+  "lat": 29.762251424089,
+  "lon": -95.360817858226,
+  "precision": "rooftop"
+ },
+ "2817 West Dallas Street, Houston, TX, USA": {
+  "lat": 29.757347247257,
+  "lon": -95.39525384847,
+  "precision": "rooftop"
+ },
+ "5709 Woodway Drive, Houston, TX, USA": {
+  "lat": 29.763694979842,
+  "lon": -95.478277307396,
+  "precision": "rooftop"
+ },
+ "8900 Gaylord Drive, Houston, TX, USA": {
+  "lat": 29.782802026683,
+  "lon": -95.508064866111,
+  "precision": "rooftop"
+ },
+ "4412 Washington Avenue, Houston, TX, USA": {
+  "lat": 29.770492185041,
+  "lon": -95.405513655369,
+  "precision": "rooftop"
+ },
+ "923 Wakefield Drive, Houston, TX, USA": {
+  "lat": 29.821441855926,
+  "lon": -95.421220077973,
+  "precision": "rooftop"
+ },
+ "5500 Main Street, Houston, TX, USA": {
+  "lat": 29.725960495415,
+  "lon": -95.38953921563,
+  "precision": "rooftop"
+ },
+ "2009 W Gray St a, Houston, TX 77019, USA": {
+  "lat": 29.752986326358,
+  "lon": -95.408988831869,
+  "precision": "rooftop"
+ },
+ "963 Bunker Hill Road, Houston, TX 77024, USA": {
+  "lat": 29.782466473239,
+  "lon": -95.53180846895,
+  "precision": "rooftop"
+ },
+ "5212 Morningside Dr, Houston, TX 77005, USA": {
+  "lat": 29.7189494011,
+  "lon": -95.415022402016,
+  "precision": "rooftop"
+ },
+ "4224 San Felipe Street, Houston, TX 77027, USA": {
+  "lat": 29.746708104084,
+  "lon": -95.448767743415,
+  "precision": "rooftop"
+ },
+ "21005 Interstate 45, Spring, TX, USA": {
+  "lat": 30.067187109354,
+  "lon": -95.435009864005,
+  "precision": "rooftop"
+ },
+ "5512 La Branch Street, Houston, TX, USA": {
+  "lat": 29.723946751121,
+  "lon": -95.384795267708,
+  "precision": "rooftop"
+ },
+ "955 Dairy Ashford Road, Houston, TX, USA": {
+  "lat": 29.777601867594,
+  "lon": -95.606426616435,
+  "precision": "rooftop"
+ },
+ "1001 Studewood Street suite a, Houston, TX, USA": {
+  "lat": 29.789043110206,
+  "lon": -95.387874123962,
+  "precision": "rooftop"
+ },
+ "2651 Kipling Street, Houston, TX, USA": {
+  "lat": 29.740034910513,
+  "lon": -95.419370661179,
+  "precision": "rooftop"
+ },
+ "888 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.74472810251,
+  "lon": -95.390379059464,
+  "precision": "rooftop"
+ },
+ "9655 Katy Freeway, Houston, TX, USA": {
+  "lat": 29.783763507885,
+  "lon": -95.530404438511,
+  "precision": "rooftop"
+ },
+ "1650 West Loop South, Houston, TX, USA": {
+  "lat": 29.750939631095,
+  "lon": -95.456245992257,
+  "precision": "rooftop"
+ },
+ "4720 Washington Avenue, Houston, TX, USA": {
+  "lat": 29.770531097846,
+  "lon": -95.408611806918,
+  "precision": "rooftop"
+ },
+ "1151 Uptown Park Boulevard, Houston, TX, USA": {
+  "lat": 29.75580231206,
+  "lon": -95.457640213386,
+  "precision": "rooftop"
+ },
+ "1201 Fannin Street, Houston, TX, USA": {
+  "lat": 29.754851207933,
+  "lon": -95.365217526799,
+  "precision": "rooftop"
+ },
+ "6100 Westheimer Rd 142a Suite 139, Houston, TX 77057, USA": {
+  "lat": 29.737887183555,
+  "lon": -95.48862449992,
+  "precision": "rooftop"
+ },
+ "3505 W Dallas St, Houston, TX 77019, USA": {
+  "lat": 29.757151830486,
+  "lon": -95.403638001807,
+  "precision": "rooftop"
+ },
+ "1001 Austin Street, Houston, TX, USA": {
+  "lat": 29.754788020227,
+  "lon": -95.361447702542,
+  "precision": "rooftop"
+ },
+ "202 Tuam Street, Houston, TX, USA": {
+  "lat": 29.747569614014,
+  "lon": -95.382389861015,
+  "precision": "rooftop"
+ },
+ "25 Waterway Avenue, The Woodlands, TX, USA": {
+  "lat": 30.160496778068,
+  "lon": -95.459124632655,
+  "precision": "rooftop"
+ },
+ "5000 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.74096060725,
+  "lon": -95.460976737897,
+  "precision": "rooftop"
+ },
+ "1001 McKinney Street, Houston, TX, USA": {
+  "lat": 29.756970103093,
+  "lon": -95.364823627477,
+  "precision": "rooftop"
+ },
+ "2445 Times Boulevard, Houston, TX, USA": {
+  "lat": 29.716610442971,
+  "lon": -95.415726181126,
+  "precision": "rooftop"
+ },
+ "5115 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.740638570383,
+  "lon": -95.462769250513,
+  "precision": "rooftop"
+ },
+ "505e Nasa parkway, Webster, TX, USA": {
+  "lat": 29.541279320254,
+  "lon": -95.113391710307,
+  "precision": "rooftop"
+ },
+ "9938 Bellaire Boulevard Suite G, Houston, TX, USA": {
+  "lat": 29.704632193884,
+  "lon": -95.555929808969,
+  "precision": "rooftop"
+ },
+ "2715 Bissonnet Street suite 160, Houston, TX, USA": {
+  "lat": 29.725371516109,
+  "lon": -95.420877683455,
+  "precision": "rooftop"
+ },
+ "818 Town & Country Blvd ste 100, Houston, TX 77024, USA": {
+  "lat": 29.782042629517,
+  "lon": -95.558204722993,
+  "precision": "rooftop"
+ },
+ "1700 Post Oak Boulevard suite 190, Houston, TX 77056, USA": {
+  "lat": 29.74883965074,
+  "lon": -95.461335196305,
+  "precision": "rooftop"
+ },
+ "1201 Lake Woodlands Drive #403, The Woodlands, TX 77380, USA": {
+  "lat": 30.167630627664,
+  "lon": -95.455163508484,
+  "precision": "rooftop"
+ },
+ "2020 Louisiana Street, Houston, TX, USA": {
+  "lat": 29.750812822314,
+  "lon": -95.373699726239,
+  "precision": "rooftop"
+ },
+ "3974 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.741763037718,
+  "lon": -95.444789438182,
+  "precision": "rooftop"
+ },
+ "500 North Shepherd Drive, Houston, TX, USA": {
+  "lat": 29.780508185993,
+  "lon": -95.409216380709,
+  "precision": "rooftop"
+ },
+ "125 W Gray Ste 500 Houston TX 77019": {
+  "lat": 29.753215796624,
+  "lon": -95.379893862917,
+  "precision": "rooftop"
+ },
+ "4001 Bellaire Blvd ste j, Houston, TX 77025, USA": {
+  "lat": 29.705930024907,
+  "lon": -95.44026467753,
+  "precision": "rooftop"
+ },
+ "500 Westheimer Road, Houston, TX 77006, USA": {
+  "lat": 29.74459198598,
+  "lon": -95.387298244352,
+  "precision": "rooftop"
+ },
+ "12230 Westheimer Road ste b270, Houston, TX, USA": {
+  "lat": 29.736461128458,
+  "lon": -95.596195329906,
+  "precision": "rooftop"
+ },
+ "1515 Texas Street, Houston, TX, USA": {
+  "lat": 29.757333742436,
+  "lon": -95.358030225939,
+  "precision": "rooftop"
+ },
+ "3939 San Felipe Street, Houston, TX, USA": {
+  "lat": 29.746680278771,
+  "lon": -95.442706780882,
+  "precision": "rooftop"
+ },
+ "2620 Briar Ridge Drive, Houston, TX, USA": {
+  "lat": 29.738707874363,
+  "lon": -95.491678039966,
+  "precision": "rooftop"
+ },
+ "10455 Briar Forest Drive, Houston, TX, USA": {
+  "lat": 29.747471203564,
+  "lon": -95.559428817452,
+  "precision": "rooftop"
+ },
+ "7109 Katy-Gaston Rd suite 1000, Richmond, TX 77406, USA": {
+  "lat": 29.698736593336,
+  "lon": -95.79266456499,
+  "precision": "rooftop"
+ },
+ "1344 Yale Street, Houston, TX, USA": {
+  "lat": 29.795193932244,
+  "lon": -95.398991713487,
+  "precision": "rooftop"
+ },
+ "9730 Cypresswood Drive, Houston, TX, USA": {
+  "lat": 29.987810998816,
+  "lon": -95.556488152918,
+  "precision": "rooftop"
+ },
+ "23501 Cinco Ranch Boulevard, Katy, TX, USA": {
+  "lat": 29.743854802255,
+  "lon": -95.773614897027,
+  "precision": "rooftop"
+ },
+ "9827 Katy Freeway, Houston, TX, USA": {
+  "lat": 29.783793057949,
+  "lon": -95.536369745263,
+  "precision": "rooftop"
+ },
+ "6700 Woodlands Parkway, The Woodlands, TX, USA": {
+  "lat": 30.180580115827,
+  "lon": -95.536221950014,
+  "precision": "rooftop"
+ },
+ "4110 Loretto Drive, Houston, TX, USA": {
+  "lat": 29.735938734093,
+  "lon": -95.397965420092,
+  "precision": "rooftop"
+ },
+ "23119 Colonial Parkway suite b2, Katy, TX, USA": {
+  "lat": 29.793769502255,
+  "lon": -95.773288971554,
+  "precision": "rooftop"
+ },
+ "2290 Buckthorne Place, Spring, TX, USA": {
+  "lat": 30.140793624262,
+  "lon": -95.471425195754,
+  "precision": "rooftop"
+ },
+ "2037 Mangum Road, Houston, TX, USA": {
+  "lat": 29.804516810799,
+  "lon": -95.458831114064,
+  "precision": "rooftop"
+ },
+ "2800 Kirby Drive suite b132, Houston, TX, USA": {
+  "lat": 29.740876670281,
+  "lon": -95.418837307736,
+  "precision": "rooftop"
+ },
+ "207 East Shore Drive, The Woodlands, TX, USA": {
+  "lat": 30.158036683535,
+  "lon": -95.473056540188,
+  "precision": "rooftop"
+ },
+ "1515 Texas Avenue, Houston, TX, USA": {
+  "lat": 29.757333742436,
+  "lon": -95.358030225939,
+  "precision": "rooftop"
+ },
+ "2118 Lamar Street suite 100, Houston, TX, USA": {
+  "lat": 29.750358824201,
+  "lon": -95.355921597913,
+  "precision": "rooftop"
+ },
+ "2011 Ella Boulevard, Houston, TX, USA": {
+  "lat": 29.804252808108,
+  "lon": -95.429316715051,
+  "precision": "rooftop"
+ },
+ "1100 Louisiana Street, Houston, TX 77002, USA": {
+  "lat": 29.757759634508,
+  "lon": -95.368206683515,
+  "precision": "rooftop"
+ },
+ "3211 West Grand Parkway North, Katy, TX, USA": {
+  "lat": 29.82030500199,
+  "lon": -95.769423930031,
+  "precision": "rooftop"
+ },
+ "7214 FM 1488, Magnolia, TX, USA": {
+  "lat": 30.220687630444,
+  "lon": -95.577530900768,
+  "precision": "rooftop"
+ },
+ "2810 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.742233597005,
+  "lon": -95.421264774659,
+  "precision": "rooftop"
+ },
+ "12850 Memorial Drive, Houston, TX, USA": {
+  "lat": 29.772803899801,
+  "lon": -95.560719702981,
+  "precision": "rooftop"
+ },
+ "132 West Bay Area Boulevard, Webster, TX, USA": {
+  "lat": 29.548151362776,
+  "lon": -95.129706145497,
+  "precision": "rooftop"
+ },
+ "1635 E Broadway St Ste 125, Pearland, TX 77581, USA": {
+  "lat": 29.547785195606,
+  "lon": -95.232779251448,
+  "precision": "rooftop"
+ },
+ "5714 Hillcroft Avenue, Houston, TX, USA": {
+  "lat": 29.72077872253,
+  "lon": -95.501086454941,
+  "precision": "rooftop"
+ },
+ "2241 Richmond Avenue, Houston, TX, USA": {
+  "lat": 29.734144351539,
+  "lon": -95.41379585167,
+  "precision": "rooftop"
+ },
+ "26435 Kuykendahl Road suite 100, Tomball, TX, USA": {
+  "lat": 30.143364713988,
+  "lon": -95.550525973879,
+  "precision": "rooftop"
+ },
+ "2347 University Boulevard, Houston, TX, USA": {
+  "lat": 29.715025612668,
+  "lon": -95.414237415128,
+  "precision": "rooftop"
+ },
+ "1972 Fairview Street, Houston, TX, USA": {
+  "lat": 29.744773103072,
+  "lon": -95.407239172311,
+  "precision": "rooftop"
+ },
+ "4564 Bissonnet Street, Bellaire, TX, USA": {
+  "lat": 29.714508824432,
+  "lon": -95.454553121838,
+  "precision": "rooftop"
+ },
+ "2245 West Alabama Street, Houston, TX, USA": {
+  "lat": 29.738480322549,
+  "lon": -95.413718247415,
+  "precision": "rooftop"
+ },
+ "1700 Research Forest Drive, Shenandoah, TX, USA": {
+  "lat": 30.177065209054,
+  "lon": -95.461849332943,
+  "precision": "rooftop"
+ },
+ "818 Town and Country Boulevard suite 105, Houston, TX 77024, USA": {
+  "lat": 29.782042629517,
+  "lon": -95.558204722993,
+  "precision": "rooftop"
+ },
+ "2407 Rice Boulevard, Houston, TX 77005, USA": {
+  "lat": 29.717413821219,
+  "lon": -95.415096714374,
+  "precision": "rooftop"
+ },
+ "4400 East Freeway Service Road, Baytown, TX, USA": {
+  "lat": 29.802411184544,
+  "lon": -94.993642484483,
+  "precision": "rooftop"
+ },
+ "1001 Avenida De Las Americas, Houston, TX, USA": {
+  "lat": 29.752625701334,
+  "lon": -95.358543911946,
+  "precision": "rooftop"
+ },
+ "8506 Syms Street, Fulshear, TX, USA": {
+  "lat": 29.691126083719,
+  "lon": -95.897832309536,
+  "precision": "rooftop"
+ },
+ "20090 Hwy 59, Humble, TX, USA": {
+  "lat": 30.007072106706,
+  "lon": -95.26644625295,
+  "precision": "rooftop"
+ },
+ "21855 Katy Freeway, Katy, TX, USA": {
+  "lat": 29.784569016311,
+  "lon": -95.748771074764,
+  "precision": "rooftop"
+ },
+ "8943 Katy Freeway, Houston, TX, USA": {
+  "lat": 29.783896152091,
+  "lon": -95.509194339457,
+  "precision": "rooftop"
+ },
+ "21284 U.S. 59, Roman Forest, TX, USA": {
+  "lat": 30.136509383539,
+  "lon": -95.227277357253,
+  "precision": "rooftop"
+ },
+ "1803 Shepherd Drive, Houston, TX, USA": {
+  "lat": 29.776367773354,
+  "lon": -95.409637241875,
+  "precision": "rooftop"
+ },
+ "9110 Southwest Freeway, Houston, TX, USA": {
+  "lat": 29.683752717435,
+  "lon": -95.534502841297,
+  "precision": "rooftop"
+ },
+ "Salt Grass Steakhouse, 20241 Gulf Freeway, Webster, TX, USA": {
+  "lat": 29.532418794635,
+  "lon": -95.133615282804,
+  "precision": "rooftop"
+ },
+ "1002 Aspen Rd, Clear Lake Shores, TX, USA": {
+  "lat": 29.541452826781,
+  "lon": -95.032478268575,
+  "precision": "rooftop"
+ },
+ "1777 Airline Drive, Houston, TX, USA": {
+  "lat": 29.802714580803,
+  "lon": -95.381969602197,
+  "precision": "rooftop"
+ },
+ "2929 Westpark Drive, Houston, TX, USA": {
+  "lat": 29.72862427784,
+  "lon": -95.424041475443,
+  "precision": "rooftop"
+ },
+ "300 Shepherd Drive, Houston, TX, USA": {
+  "lat": 29.765336266499,
+  "lon": -95.409385657994,
+  "precision": "rooftop"
+ },
+ "22762 Westheimer Pkwy, Katy, TX 77450, USA": {
+  "lat": 29.734636653001,
+  "lon": -95.762973381635,
+  "precision": "rooftop"
+ },
+ "415 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.744508080078,
+  "lon": -95.386172836864,
+  "precision": "rooftop"
+ },
+ "224 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.744695814969,
+  "lon": -95.383483562914,
+  "precision": "rooftop"
+ },
+ "10609 Grant Rd, Houston, TX 77070, USA": {
+  "lat": 29.967134794902,
+  "lon": -95.578149441105,
+  "precision": "rooftop"
+ },
+ "11755 West Little York Road suite 206b, Houston, TX, USA": {
+  "lat": 29.866991850952,
+  "lon": -95.584443475537,
+  "precision": "rooftop"
+ },
+ "1312 West Alabama Street, Houston, TX, USA": {
+  "lat": 29.738792778297,
+  "lon": -95.394912237987,
+  "precision": "rooftop"
+ },
+ "1900 Hughes Landing Boulevard ste 200, The Woodlands, TX 77380, USA": {
+  "lat": 30.170614660784,
+  "lon": -95.470676775594,
+  "precision": "rooftop"
+ },
+ "3401 Harrisburg Boulevard suite g, Houston, TX, USA": {
+  "lat": 29.748340216841,
+  "lon": -95.341270880852,
+  "precision": "rooftop"
+ },
+ "5216 Morningside Drive, Houston, TX, USA": {
+  "lat": 29.718930199083,
+  "lon": -95.415021811186,
+  "precision": "rooftop"
+ },
+ "1111 Studewood Street suite b, Houston, TX, USA": {
+  "lat": 29.790948360852,
+  "lon": -95.387894724977,
+  "precision": "rooftop"
+ },
+ "1140 Eldridge Parkway, Houston, TX, USA": {
+  "lat": 29.767898215401,
+  "lon": -95.623834698367,
+  "precision": "rooftop"
+ },
+ "6401 Woodway Drive suite 105, Houston, TX, USA": {
+  "lat": 29.755578904647,
+  "lon": -95.498014493188,
+  "precision": "rooftop"
+ },
+ "737 Preston St, Houston, TX 77002, USA": {
+  "lat": 29.762898731732,
+  "lon": -95.363552027784,
+  "precision": "rooftop"
+ },
+ "4200 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.741627034735,
+  "lon": -95.449215541338,
+  "precision": "rooftop"
+ },
+ "1709 Dryden Road, Houston, TX, USA": {
+  "lat": 29.709750995209,
+  "lon": -95.401031661626,
+  "precision": "rooftop"
+ },
+ "917 Franklin Street suite 101, Houston, TX, USA": {
+  "lat": 29.763463414803,
+  "lon": -95.360794686276,
+  "precision": "rooftop"
+ },
+ "5206 Bissonnet St, Bellaire, TX 77401, USA": {
+  "lat": 29.706402800284,
+  "lon": -95.470489776655,
+  "precision": "rooftop"
+ },
+ "3414 Business Center Dr suite 130, Pearland, TX 77584, USA": {
+  "lat": 29.54710308859,
+  "lon": -95.389726669388,
+  "precision": "rooftop"
+ },
+ "4723 Sweetwater Blvd, Sugar Land, TX 77479, USA": {
+  "lat": 29.584552218105,
+  "lon": -95.631198127209,
+  "precision": "rooftop"
+ },
+ "10001 Westheimer Rd suite 2124, Houston, TX 77042, USA": {
+  "lat": 29.736917325804,
+  "lon": -95.548440534934,
+  "precision": "rooftop"
+ },
+ "3105 College Park Drive, Conroe, TX 77384, USA": {
+  "lat": 30.206932661371,
+  "lon": -95.464358409919,
+  "precision": "rooftop"
+ },
+ "22764 Westheimer Parkway, Katy, TX, USA": {
+  "lat": 29.734636320053,
+  "lon": -95.763013668464,
+  "precision": "rooftop"
+ },
+ "1800 Post Oak Blvd suite 6170, Houston, TX 77056, USA": {
+  "lat": 29.747311879481,
+  "lon": -95.461248029217,
+  "precision": "rooftop"
+ },
+ "1301 4th Street, Seabrook, TX, USA": {
+  "lat": 29.559777768075,
+  "lon": -95.023080486416,
+  "precision": "rooftop"
+ },
+ "8145 Long Point Rd, Houston, TX, USA": {
+  "lat": 29.802891082841,
+  "lon": -95.491731623245,
+  "precision": "rooftop"
+ },
+ "1155 Lake Woodlands Drive, The Woodlands, TX, USA": {
+  "lat": 30.167602320618,
+  "lon": -95.454738905668,
+  "precision": "rooftop"
+ },
+ "5365 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.739277772727,
+  "lon": -95.469959528035,
+  "precision": "rooftop"
+ },
+ "2055 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.742682816174,
+  "lon": -95.408783083168,
+  "precision": "rooftop"
+ },
+ "110 Vintage Park Boulevard, Houston, TX, USA": {
+  "lat": 29.994092785116,
+  "lon": -95.574342385376,
+  "precision": "rooftop"
+ },
+ "700 Town and Country Boulevard, Houston, TX, USA": {
+  "lat": 29.777026338254,
+  "lon": -95.560493725821,
+  "precision": "rooftop"
+ },
+ "4201 Main Street suite 100, Houston, TX, USA": {
+  "lat": 29.73521309385,
+  "lon": -95.382043759947,
+  "precision": "rooftop"
+ },
+ "1111 Rusk Street, Houston, TX, USA": {
+  "lat": 29.757894033469,
+  "lon": -95.362694327522,
+  "precision": "rooftop"
+ },
+ "215 South Loop 336 West, Conroe, TX, USA": {
+  "lat": 30.278628076607,
+  "lon": -95.46194412702,
+  "precision": "rooftop"
+ },
+ "2316 South Shepherd Drive, Houston, TX, USA": {
+  "lat": 29.745307966753,
+  "lon": -95.410714348909,
+  "precision": "rooftop"
+ },
+ "1830 West Alabama Street, Houston, TX, USA": {
+  "lat": 29.738676532433,
+  "lon": -95.405749273693,
+  "precision": "rooftop"
+ },
+ "1520 Texas Avenue, Houston, TX 77002, USA": {
+  "lat": 29.757210666203,
+  "lon": -95.358053794631,
+  "precision": "rooftop"
+ },
+ "1755 Allen Pkwy, Suite 101, Houston, TX 77019": {
+  "lat": 29.761264143753,
+  "lon": -95.380426342058,
+  "precision": "rooftop"
+ },
+ "2555 Bay Area Boulevard, Houston, TX, USA": {
+  "lat": 29.576222614645,
+  "lon": -95.107595186679,
+  "precision": "rooftop"
+ },
+ "8945 South Fry Road suite a, Katy, TX, USA": {
+  "lat": 29.712594740914,
+  "lon": -95.805007592975,
+  "precision": "rooftop"
+ },
+ "12153 Katy Freeway, Houston, TX, USA": {
+  "lat": 29.784186510214,
+  "lon": -95.601334196896,
+  "precision": "rooftop"
+ },
+ "3410 Montrose Boulevard, Houston, TX, USA": {
+  "lat": 29.742215161135,
+  "lon": -95.391282663955,
+  "precision": "rooftop"
+ },
+ "24515 Katy Freeway #100, Katy, TX, USA": {
+  "lat": 29.784940770862,
+  "lon": -95.795475263061,
+  "precision": "rooftop"
+ },
+ "4412 Montrose Blvd, Houston, TX, USA": {
+  "lat": 29.733216722285,
+  "lon": -95.391169077576,
+  "precision": "rooftop"
+ },
+ "10211 Cypresswood Drive, Houston, TX, USA": {
+  "lat": 29.978632640581,
+  "lon": -95.571373300445,
+  "precision": "rooftop"
+ },
+ "911 W 11th St, Houston, TX 77008, USA": {
+  "lat": 29.790617626714,
+  "lon": -95.406286439896,
+  "precision": "rooftop"
+ },
+ "520 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.744586927123,
+  "lon": -95.387600090046,
+  "precision": "rooftop"
+ },
+ "5350 Westheimer Road, Houston, TX 77056, USA": {
+  "lat": 29.739941164856,
+  "lon": -95.468879430576,
+  "precision": "rooftop"
+ },
+ "1900 Hughes Landing Blvd suite 600, The Woodlands, TX 77380, USA": {
+  "lat": 30.170614660784,
+  "lon": -95.470676775594,
+  "precision": "rooftop"
+ },
+ "1121 Uptown Park Blvd, Houston, TX 77056, USA": {
+  "lat": 29.756853288895,
+  "lon": -95.457648554737,
+  "precision": "rooftop"
+ },
+ "1510 Texas Avenue, Houston, TX, USA": {
+  "lat": 29.757255144838,
+  "lon": -95.358133485508,
+  "precision": "rooftop"
+ },
+ "15977 City Walk, Sugar Land, TX, USA": {
+  "lat": 29.596649771207,
+  "lon": -95.621344327717,
+  "precision": "rooftop"
+ },
+ "7620 Katy Freeway, Houston, TX, USA": {
+  "lat": 29.784782370434,
+  "lon": -95.463384814223,
+  "precision": "rooftop"
+ },
+ "1640 West Loop South, Houston, TX, USA": {
+  "lat": 29.751058083211,
+  "lon": -95.45622230183,
+  "precision": "rooftop"
+ },
+ "3622 Main Street, Houston, TX, USA": {
+  "lat": 29.738925340386,
+  "lon": -95.37927195643,
+  "precision": "rooftop"
+ },
+ "5888 Westheimer Road, Houston, TX, USA": {
+  "lat": 29.737939550831,
+  "lon": -95.483933252241,
+  "precision": "rooftop"
+ },
+ "103 Midway Street, Spring, TX, USA": {
+  "lat": 30.079318628923,
+  "lon": -95.417497215872,
+  "precision": "rooftop"
+ },
+ "1335 Lake Woodlands Drive, Spring, TX, USA": {
+  "lat": 30.167663609568,
+  "lon": -95.456405165098,
+  "precision": "rooftop"
+ },
+ "1777 Walker St, Houston, TX 77010, USA": {
+  "lat": 29.753898253068,
+  "lon": -95.357823591112,
+  "precision": "rooftop"
+ },
+ "14642 Memorial Drive, Houston, TX, USA": {
+  "lat": 29.770139774441,
+  "lon": -95.608845810339,
+  "precision": "rooftop"
+ },
+ "1660 West Lake Houston Parkway, Kingwood, TX, USA": {
+  "lat": 30.032518410122,
+  "lon": -95.17436363285,
+  "precision": "rooftop"
+ },
+ "1550 Lamar Street, Houston, TX, USA": {
+  "lat": 29.753215222847,
+  "lon": -95.360860823109,
+  "precision": "rooftop"
+ },
+ "3800 Southwest Freeway ste 104, Houston, TX, USA": {
+  "lat": 29.729917,
+  "lon": -95.4374145,
+  "precision": "street"
+ },
+ "9595 Six Pines Dr, The Woodlands, TX 77380": {
+  "lat": 30.1639034,
+  "lon": -95.4629372,
+  "precision": "street"
+ },
+ "12350 Southwest Freeway, Stafford, TX, USA": {
+  "lat": 29.6282856,
+  "lon": -95.5928824,
+  "precision": "street"
+ },
+ "Babin's Seafood House, Interstate 45, Shenandoah, TX, USA": {
+  "lat": 30.187922,
+  "lon": -95.4523532,
+  "precision": "street"
+ },
+ "Bistro Mistral - Bellaire, Bellaire Boulevard, Bellaire, TX, USA": {
+  "lat": 29.7057271,
+  "lon": -95.4739851,
+  "precision": "street"
+ },
+ "Bistro Mistral - Memorial, Memorial Drive, Houston, TX, USA": {
+  "lat": 29.7626914,
+  "lon": -95.3816962,
+  "precision": "street"
+ },
+ "Black Walnut - Memorial Drive, Memorial Drive, Houston, TX, USA": {
+  "lat": 29.7626914,
+  "lon": -95.3816962,
+  "precision": "street"
+ },
+ "Black Walnut Kitchen & Bar - Rice Village, Morningside Drive, Houston, TX, USA": {
+  "lat": 29.7214916,
+  "lon": -95.4149911,
+  "precision": "street"
+ },
+ "Black Walnut - The Woodlands, New Trails Drive, The Woodlands, TX, USA": {
+  "lat": 30.1725307,
+  "lon": -95.4828476,
+  "precision": "street"
+ },
+ "Black Walnut Cafe, Louetta Road, Houston, TX, USA": {
+  "lat": 29.9934552,
+  "lon": -95.7156616,
+  "precision": "street"
+ },
+ "9595 Six Pines Drive, The Woodlands, TX, USA": {
+  "lat": 30.1634905,
+  "lon": -95.4667754,
+  "precision": "street"
+ },
+ "3803 Emancipation Avenue, Houston, TX, USA": {
+  "lat": 29.7305472,
+  "lon": -95.368002,
+  "precision": "street"
+ },
+ "2850 Riverby Road, Houston, TX, USA": {
+  "lat": 29.7629909,
+  "lon": -95.3413273,
+  "precision": "street"
+ },
+ "800 Sorella Court ste 940, Houston, TX, USA": {
+  "lat": 29.7801906,
+  "lon": -95.5614001,
+  "precision": "street"
+ },
+ "3737 Cogdell Street unit 145, Houston, TX, USA": {
+  "lat": 29.7583684,
+  "lon": -95.4059694,
+  "precision": "street"
+ },
+ "Dough Zone Dumpling Houston Westchase, Westheimer Road, Houston, TX, USA": {
+  "lat": 29.7358492,
+  "lon": -95.6302355,
+  "precision": "street"
+ },
+ "Dough Zone Dumpling House, Louisiana Street, Houston, TX, USA": {
+  "lat": 29.7422624,
+  "lon": -95.3803759,
+  "precision": "street"
+ },
+ "Dough Zone Dumpling House Sugar Land, Town Center Boulevard North, Sugar Land, TX, USA": {
+  "lat": 29.5945142,
+  "lon": -95.6213832,
+  "precision": "street"
+ },
+ "12710 Southwest Fwy, Stafford, TX 77477, USA": {
+  "lat": 29.6374509,
+  "lon": -95.5845341,
+  "precision": "street"
+ },
+ "Katy Fwy, Houston, TX, USA": {
+  "lat": 29.7842254,
+  "lon": -95.5360332,
+  "precision": "street"
+ },
+ "21792 Katy Freeway, Houston, TX, USA": {
+  "lat": 29.7835225,
+  "lon": -95.4751459,
+  "precision": "street"
+ },
+ "716 Hwy 6, Sugar Land, TX, USA": {
+  "lat": 29.5972129,
+  "lon": -95.6188842,
+  "precision": "street"
+ },
+ "1966 Research Forest Drive, The Woodlands, TX, USA": {
+  "lat": 30.1914816,
+  "lon": -95.4917307,
+  "precision": "street"
+ },
+ "19820 Northwest Freeway, Houston, TX, USA": {
+  "lat": 29.9162014,
+  "lon": -95.6143505,
+  "precision": "street"
+ },
+ "910 W Grand Pkwy S, Katy, TX 77494, USA": {
+  "lat": 29.7669755,
+  "lon": -95.777397,
+  "precision": "street"
+ },
+ "415 Royal Tern Wy, Webster, TX 77598, USA": {
+  "lat": 29.5135904,
+  "lon": -95.1169248,
+  "precision": "street"
+ },
+ "7748 Cypress Creek Pkwy, Houston, TX 77070, USA": {
+  "lat": 29.963049,
+  "lon": -95.5449375,
+  "precision": "street"
+ },
+ "213 Milam Street, Houston, TX, USA": {
+  "lat": 29.766541,
+  "lon": -95.3608688,
+  "precision": "street"
+ },
+ "20900 Katy Freeway, Katy, TX, USA": {
+  "lat": 29.7811902,
+  "lon": -95.8121701,
+  "precision": "street"
+ },
+ "Little Italy Restaurant, Katy Freeway, Katy, TX, USA": {
+  "lat": 29.7811902,
+  "lon": -95.8121701,
+  "precision": "street"
+ },
+ "Loch Bar, Westheimer Road, Houston, TX, USA": {
+  "lat": 29.7358492,
+  "lon": -95.6302355,
+  "precision": "street"
+ },
+ "Lulu's, Kirby Drive, Houston, TX, USA": {
+  "lat": 29.6285238,
+  "lon": -95.3968162,
+  "precision": "street"
+ },
+ "11025 North Fwy, Houston, TX 77037, USA": {
+  "lat": 29.9263561,
+  "lon": -95.4115505,
+  "precision": "street"
+ },
+ "24002 Northwest Freeway, Cypress, TX, USA": {
+  "lat": 29.9548955,
+  "lon": -95.6756804,
+  "precision": "street"
+ },
+ "8921 Harlem Rd, Richmond, TX 77406, USA": {
+  "lat": 29.6449225,
+  "lon": -95.715181,
+  "precision": "street"
+ },
+ "Murray's Pizza & Wine, Katy Freeway, Houston, TX, USA": {
+  "lat": 29.7791362,
+  "lon": -95.377293,
+  "precision": "street"
+ },
+ "26151 Nelson Way, Katy, TX, USA": {
+  "lat": 29.7743018,
+  "lon": -95.8200986,
+  "precision": "street"
+ },
+ "2115 Town Square Place, Sugar Land, TX, USA": {
+  "lat": 29.5965058,
+  "lon": -95.6229606,
+  "precision": "street"
+ },
+ "Pizzana, West Gray Street, Houston, TX, USA": {
+  "lat": 29.753286,
+  "lon": -95.3804327,
+  "precision": "street"
+ },
+ "Prime 131, West 11th Street, Houston, TX, USA": {
+  "lat": 29.7906157,
+  "lon": -95.4030164,
+  "precision": "street"
+ },
+ "23952 Northwest Freeway, Cypress, TX, USA": {
+  "lat": 29.9521702,
+  "lon": -95.6703168,
+  "precision": "street"
+ },
+ "14909 I-45, Houston, TX, USA": {
+  "lat": 29.59283,
+  "lon": -95.192159,
+  "precision": "street"
+ },
+ "520 Meyerland Plaza, Houston, TX 77096, USA": {
+  "lat": 29.6861826,
+  "lon": -95.459885,
+  "precision": "street"
+ },
+ "3233 East Sam Houston Parkway South, Pasadena, TX, USA": {
+  "lat": 29.6642054,
+  "lon": -95.1562387,
+  "precision": "street"
+ },
+ "19720 Southwest Freeway, Sugar Land, TX, USA": {
+  "lat": 29.5721799,
+  "lon": -95.6615463,
+  "precision": "street"
+ },
+ "19533 Interstate 45, Shenandoah, TX, USA": {
+  "lat": 30.187922,
+  "lon": -95.4523532,
+  "precision": "street"
+ },
+ "17275 Tomball Parkway, Houston, TX, USA": {
+  "lat": 29.9550259,
+  "lon": -95.5420825,
+  "precision": "street"
+ },
+ "842 West Sam Houston Parkway North, Houston, TX, USA": {
+  "lat": 29.780464,
+  "lon": -95.5619061,
+  "precision": "street"
+ },
+ "840 West Sam Houston Parkway North, Houston, TX, USA": {
+  "lat": 29.7800166,
+  "lon": -95.5618731,
+  "precision": "street"
+ },
+ "Turner's, Ambassador Way, Houston, TX, USA": {
+  "lat": 29.7467215,
+  "lon": -95.4623099,
+  "precision": "street"
+ },
+ "Zanti River Oaks, West Gray Street, Houston, TX, USA": {
+  "lat": 29.753286,
+  "lon": -95.3804327,
+  "precision": "street"
+ },
+ "Zanti The Woodlands, Research Forest Drive, The Woodlands, TX, USA": {
+  "lat": 30.1950427,
+  "lon": -95.4942087,
+  "precision": "street"
+ },
+ "1520 Lake Pointe Parkway suite 500, Sugar Land, TX 77478, USA": {
+  "lat": 29.6026942,
+  "lon": -95.6220722,
+  "precision": "street"
+ },
+ "947 Gessner Rd unit b 290, Houston, TX, USA": {
+  "lat": 29.781367148422,
+  "lon": -95.544318499474,
+  "precision": "rooftop"
+ },
+ "811 Buffalo Pk Dr #100, Houston, TX 77019, USA": {
+  "lat": 29.7583599,
+  "lon": -95.4053713,
+  "precision": "street"
+ },
+ "1531 South Texas 6 #130, Sugar Land, TX 77478, USA": {
+  "lat": 29.6014162,
+  "lon": -95.6292339,
+  "precision": "street"
+ },
+ "9108 Farm to Market 1489, Wallis, TX, USA": null,
+ "Black Walnut Café - Katy, Cinco Ranch Boulevard, Katy, TX, USA": null,
+ "315 Enclave Drive, Conroe, TX, USA": null,
+ "Corner 99 Viet Kitchen, Grand West Boulevard, Katy, TX, USA": null,
+ "727 West Grand Parkway South, Katy, TX, USA": null,
+ "26400 Kuykendahl Road, Spring, TX, USA": null,
+ "700 Baybrook Mall g 100, Friendswood, TX 77546, USA": null,
+ "222 W Grand Pkwy S, Katy, TX, USA": null,
+ "Westview Dr @ Wirt Rd, Houston, TX 77055, USA": null,
+ "545 Woodland Square Boulevard, Conroe, TX, USA": null,
+ "811 Buffalo Park Dr. Suite 130 Houston, TX 77019": null,
+ "700 Baybrook Mall Drive, Friendswood, TX, USA": null,
+ "11900 Interstate 10 Frontage Road, Houston, TX, USA": null,
+ "300 Gulfgate Mall, Houston, TX, USA": null,
+ "3251 Silverlake Village Drive, Pearland, TX, USA": null,
+ "29807 Jordan Crossing Blvd suite 700, Katy, TX, USA": null,
+ "25510 Zion Lutheran Cemetery Road, Tomball, TX, USA": null,
+ "23227 Mercantile Parkway suite a4, Katy, TX, USA": null
+}
