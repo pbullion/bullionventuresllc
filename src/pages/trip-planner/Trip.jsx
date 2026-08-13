@@ -188,6 +188,30 @@ export default function TripPlanner() {
   const [newBring, setNewBring] = useState({ name: "", assigned_to: "" });
   // One draft per family, keyed by name, so typing in one family's box doesn't
   // clear another's.
+  /* Which shopping-list categories are collapsed, persisted per trip: a 39-item
+   * grocery list is worth folding away once you've shopped, and it should stay
+   * folded when you come back to the page rather than every visit. */
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const raw = window.localStorage.getItem(`tp_collapsed_${slug}`);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const toggleCollapsed = (cat) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      try {
+        window.localStorage.setItem(`tp_collapsed_${slug}`, JSON.stringify([...next]));
+      } catch {
+        /* private mode — collapsing still works for this visit */
+      }
+      return next;
+    });
+
   const [newPack, setNewPack] = useState({});
   const [addingPack, setAddingPack] = useState(null);
   const [addingBring, setAddingBring] = useState(false);
@@ -743,11 +767,35 @@ export default function TripPlanner() {
           {listItems.length === 0 && (
             <p style={{ color: "#6b7684", marginTop: 0 }}>Nothing on the list yet — add the essentials below.</p>
           )}
-          {categories.map((cat) => (
+          {categories.map((cat) => {
+            const catItems = listItems.filter((i) => i.category === cat);
+            const left = catItems.filter((i) => !i.checked).length;
+            const isCollapsed = collapsed.has(cat);
+            return (
             <div key={cat} style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>
+              {/* The whole heading is the toggle — a 39-item grocery list is the
+                  bulk of this page once the meals are planned, and the count
+                  stays visible while collapsed so it still tells you where you
+                  are. aria-expanded so it reads as a disclosure, not a label. */}
+              <button
+                type="button"
+                onClick={() => toggleCollapsed(cat)}
+                aria-expanded={!isCollapsed}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, width: "100%",
+                  background: "none", border: "none", padding: "4px 0", cursor: "pointer",
+                  font: "inherit", fontSize: 12, fontWeight: 700, color: "#6b7684",
+                  textTransform: "uppercase", letterSpacing: 0.5, textAlign: "left",
+                }}
+              >
+                <span style={{ fontSize: 10, color: "#a8a094" }}>{isCollapsed ? "▶" : "▼"}</span>
                 {cat}
-              </div>
+                <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "#a8a094" }}>
+                  {left > 0 ? `${left} to go` : `${catItems.length} done`}
+                </span>
+              </button>
+              {!isCollapsed && (
+                <>
               {/* Groceries get aisle sub-headings so the trip is one pass through
                   the store; every other category is just sorted A-Z, because an
                   aisle means nothing for beach chairs. */}
@@ -782,8 +830,11 @@ export default function TripPlanner() {
                   })}
                 </div>
               ))}
+                </>
+              )}
             </div>
-          ))}
+            );
+          })}
 
           <form onSubmit={addItem} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
             <input
