@@ -143,7 +143,13 @@ export default function CompanyDetail({ slug, meta, onBack, onCompanyChange, onD
             <div style={{ minWidth: 0 }}>
               <div className="pros-brand">{company.name}</div>
               <div className="pros-sub">
-                {[company.dba && `dba ${company.dba}`, company.city, areaFor(company.city)]
+                {/* Dedupe: areaFor("Houston") is "Houston", so a Houston company
+                    read "Houston · Houston" here. */}
+                {[
+                  company.dba && `dba ${company.dba}`,
+                  company.city,
+                  areaFor(company.city) === company.city ? null : areaFor(company.city),
+                ]
                   .filter(Boolean)
                   .join(" · ")}
               </div>
