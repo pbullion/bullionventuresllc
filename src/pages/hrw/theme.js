@@ -223,6 +223,21 @@ export const HRW_CSS = `
   animation: hrw-spin .8s linear infinite;
 }
 
+/* The "happening now" dot. Slow enough to read as a pulse rather than a blink. */
+@keyframes hrw-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(94, 234, 212, .55); }
+  70% { box-shadow: 0 0 0 7px rgba(94, 234, 212, 0); }
+}
+.hrw-live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: ${C.mint};
+  display: inline-block;
+  flex-shrink: 0;
+  animation: hrw-pulse 2s ease-out infinite;
+}
+
 @keyframes hrw-in { from { opacity: 0; transform: translateY(6px); } }
 .hrw-in { animation: hrw-in .22s ease both; }
 

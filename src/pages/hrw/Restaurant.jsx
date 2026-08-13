@@ -9,6 +9,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { C, HRW_CSS } from "./theme.js";
 import {
+  EVENT,
   dishCount,
   loadHrw,
   mapsHref,
@@ -318,8 +319,9 @@ export default function Restaurant() {
       )}
 
       <p style={{ marginTop: 26, fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
-        Menu as published for Houston Restaurant Weeks (compiled {data.generated}).
-        Dishes, prices and availability can change — confirm with the restaurant.
+        Available {EVENT.range}. Menu as published for Houston Restaurant Weeks
+        (compiled {data.generated}). Dishes, prices and availability can change —
+        confirm with the restaurant.
       </p>
     </>,
   );

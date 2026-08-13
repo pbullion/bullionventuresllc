@@ -102,7 +102,7 @@ const tools = [
     path: "/hrw",
     tagline: "Search 9,000 dishes",
     description:
-      "Every restaurant and every prix-fixe menu in Houston Restaurant Weeks 2026, searchable down to the dish. Filter by meal, price, neighborhood and diet, see what's closest to you on a map, and save a shortlist for the month.",
+      "Every restaurant and every prix-fixe menu in Houston Restaurant Weeks 2026 (August 1 – September 7), searchable down to the dish. Filter by meal, price, neighborhood and diet, see what's closest to you on a map, and save a shortlist before the clock runs out.",
   },
   {
     emoji: "🚗",

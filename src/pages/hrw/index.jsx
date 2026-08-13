@@ -13,14 +13,17 @@ import { Link, useNavigate } from "react-router-dom";
 import { C, HRW_CSS } from "./theme.js";
 import {
   DIETS,
+  EVENT,
   MEALS,
   TIERS,
   dishCount,
+  eventStatus,
   loadHrw,
   mealLabel,
   milesBetween,
   readFaves,
   tierColor,
+  timeLeft,
   writeFaves,
 } from "./data.js";
 
@@ -269,7 +272,7 @@ export default function Hrw() {
             marginBottom: 16,
           }}
         >
-          🍽️ Houston Restaurant Weeks 2026
+          🍽️ Houston Restaurant Weeks 2026 · {EVENT.shortRange}
         </div>
         <h1
           className="hrw-hero-title"
@@ -296,6 +299,7 @@ export default function Hrw() {
           price and neighborhood, and find what's near you on the map. Every
           meal supports the Houston Food Bank.
         </p>
+        <Countdown />
       </header>
 
       {/* Controls ------------------------------------------------------ */}
@@ -595,10 +599,11 @@ export default function Hrw() {
             lineHeight: 1.7,
           }}
         >
-          Menus, prices and hours as published by the restaurants for Houston
-          Restaurant Weeks {data ? `(data compiled ${data.generated})` : ""}. Always
-          confirm with the restaurant before you go — participation, pricing and
-          special hours change.{" "}
+          Houston Restaurant Weeks runs {EVENT.range}. Menus, prices and hours as
+          published by the restaurants{" "}
+          {data ? `(data compiled ${data.generated})` : ""}. Always confirm with
+          the restaurant before you go — participation, pricing and special hours
+          change.{" "}
           <a href="https://houstonrestaurantweeks.com" target="_blank" rel="noreferrer" style={{ color: C.dim, textDecoration: "underline" }}>
             houstonrestaurantweeks.com
           </a>
@@ -609,6 +614,116 @@ export default function Hrw() {
 }
 
 /* ------------------------------------------------------------- small pieces */
+
+/* Time left to eat. Restaurant Weeks is a deadline, not a season — the whole
+ * reason to open this page in late August is that the clock is running — so the
+ * hero counts down to midnight at the end of the last night rather than printing
+ * a date range and leaving the arithmetic to the reader.
+ *
+ * Ticks once a second. That is cheap here because it re-renders four <span>s and
+ * nothing else: the countdown is its own component precisely so a tick can't
+ * touch the 385-card list next to it. */
+function Countdown() {
+  const [now, setNow] = useState(() => new Date());
+  const status = eventStatus(now);
+
+  useEffect(() => {
+    if (status.state === "over") return; // nothing left to tick towards
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, [status.state]);
+
+  if (status.state === "over")
+    return (
+      <p style={{ margin: "18px 0 0", fontSize: 14, color: C.muted }}>
+        Restaurant Weeks {EVENT.range} has ended — the menus below are kept for
+        reference.
+      </p>
+    );
+
+  if (status.state === "upcoming")
+    return (
+      <p style={{ margin: "18px 0 0", fontSize: 14.5, color: C.dim }}>
+        Starts in <strong style={{ color: C.goldBright }}>{status.days}</strong>{" "}
+        {status.days === 1 ? "day" : "days"} — {EVENT.range}
+      </p>
+    );
+
+  const left = timeLeft(EVENT.deadline, now);
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 7,
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: ".07em",
+          textTransform: "uppercase",
+          color: C.mint,
+          marginBottom: 9,
+        }}
+      >
+        <span className="hrw-live" aria-hidden />
+        Happening now — time left to eat
+      </div>
+      <div
+        style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}
+        /* One reading for a screen reader instead of eight disconnected numbers,
+           and not a live region — an assertive tick every second is unusable. */
+        role="timer"
+        aria-label={`${left.days} days, ${left.hours} hours, ${left.minutes} minutes left in Houston Restaurant Weeks`}
+      >
+        <Unit n={left.days} label="days" />
+        <Unit n={left.hours} label="hrs" />
+        <Unit n={left.minutes} label="min" />
+        <Unit n={left.seconds} label="sec" />
+      </div>
+    </div>
+  );
+}
+
+function Unit({ n, label }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        minWidth: 66,
+        background: C.surface,
+        border: `1px solid ${C.border}`,
+        borderRadius: 12,
+        padding: "9px 12px 7px",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 25,
+          fontWeight: 800,
+          lineHeight: 1.05,
+          color: C.goldBright,
+          /* Tabular figures so the seconds don't shuffle the row every tick. */
+          fontVariantNumeric: "tabular-nums",
+          fontFeatureSettings: '"tnum"',
+        }}
+      >
+        {String(n).padStart(2, "0")}
+      </div>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+          color: C.muted,
+          marginTop: 3,
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
 
 function Chip({ on, onClick, children }) {
   return (

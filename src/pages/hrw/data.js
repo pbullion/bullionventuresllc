@@ -31,6 +31,48 @@ export function loadHrw() {
   return promise;
 }
 
+/* When it runs (Patrick, 2026-08-13). This is NOT in the source spreadsheet —
+ * the sheet has menus and prices but no dates anywhere — so it is hardcoded and
+ * has to be updated by hand each year along with the data file.
+ *
+ * Local midnight, and `end` is the last day you can still go, inclusive.
+ */
+export const EVENT = {
+  start: new Date(2026, 7, 1), // August 1, 2026
+  end: new Date(2026, 8, 7), // September 7, 2026 — the last day you can go
+  // What the countdown counts to: midnight at the END of September 7, since the
+  // 7th is still a night out.
+  deadline: new Date(2026, 8, 8),
+  range: "August 1 – September 7, 2026",
+  shortRange: "Aug 1 – Sep 7",
+};
+
+/* Days/hours/minutes/seconds left, clamped at zero. */
+export function timeLeft(to, now = new Date()) {
+  const ms = Math.max(0, to - now);
+  const s = Math.floor(ms / 1000);
+  return {
+    done: ms === 0,
+    days: Math.floor(s / 86400),
+    hours: Math.floor((s % 86400) / 3600),
+    minutes: Math.floor((s % 3600) / 60),
+    seconds: s % 60,
+  };
+}
+
+/* Drives the live badge in the hero: counting down while it runs is the useful
+ * version of printing a date range, and the page keeps working as an archive
+ * once it's over. */
+export function eventStatus(now = new Date()) {
+  const day = 86400000;
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = (a, b) => Math.round((a - b) / day);
+  if (midnight < EVENT.start)
+    return { state: "upcoming", days: days(EVENT.start, midnight) };
+  if (midnight > EVENT.end) return { state: "over", days: 0 };
+  return { state: "on", days: days(EVENT.end, midnight) };
+}
+
 /* The three HRW price points are the page's main visual key: they colour the
  * price chips on every card and the pins on the map. Cheapest first. */
 export const TIERS = {
