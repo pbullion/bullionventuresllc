@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
 import { deleteTripWithPin, TRIP_DELETE_VISIBLE } from "./tripPin";
+import { groupByAisle, sortByName } from "./groceryAisles";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 
@@ -182,8 +183,6 @@ export default function TripPlanner() {
   const [addingBring, setAddingBring] = useState(false);
   const [familiesDraft, setFamiliesDraft] = useState(null); // comma string while editing, null when not
   const [wx, setWx] = useState(null); // forecast payload from the backend
-  const [newActivity, setNewActivity] = useState({ date: "", time_label: "", title: "" });
-  const [addingActivity, setAddingActivity] = useState(false);
   const [cabinDraft, setCabinDraft] = useState(null); // cabin object while editing
   const notesTimer = useRef(null);
 
@@ -400,39 +399,6 @@ export default function TripPlanner() {
     return saved;
   }
 
-  async function addActivity(e) {
-    e.preventDefault();
-    if (!newActivity.title.trim() || !newActivity.date || addingActivity) return;
-    setAddingActivity(true);
-    setError("");
-    try {
-      const res = await fetch(`${API_BASE}/trips/${slug}/activities`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newActivity),
-      });
-      const act = await res.json();
-      if (!res.ok) throw new Error(act.error || "add failed");
-      setTrip((t) => ({ ...t, activities: [...t.activities, act] }));
-      setNewActivity((n) => ({ ...n, time_label: "", title: "" }));
-    } catch (err) {
-      setError(`Couldn't add that activity: ${err.message}`);
-    } finally {
-      setAddingActivity(false);
-    }
-  }
-
-  async function deleteActivity(act) {
-    setTrip((t) => ({ ...t, activities: t.activities.filter((a) => a.id !== act.id) }));
-    try {
-      const res = await fetch(`${API_BASE}/activities/${act.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
-    } catch {
-      setTrip((t) => ({ ...t, activities: [...t.activities, act] }));
-      setError("Couldn't delete that activity — try again.");
-    }
-  }
-
   async function saveCabin() {
     try {
       await patchTrip({ cabin: cabinDraft });
@@ -502,6 +468,31 @@ export default function TripPlanner() {
     return idx >= 0 ? FAMILY_COLORS[idx % FAMILY_COLORS.length] : undefined;
   };
   const categories = [...new Set(listItems.map((i) => i.category))];
+  /* "Who's bringing what" grouped by family rather than by when it was claimed —
+   * the question it answers is "what am I loading in my car". Families keep
+   * trip.families order so the section headings run in the same order as their
+   * colour chips; a name that isn't on the list (or is blank) sorts to the end
+   * under "Unclaimed" rather than being dropped. */
+  const bringGroups = (() => {
+    const key = (item) => {
+      const who = String(item.assigned_to || "").trim();
+      if (!who) return "Unclaimed";
+      const match = families.find((f) => who.toLowerCase().includes(f.toLowerCase()));
+      return match || who;
+    };
+    const buckets = new Map();
+    bringItems.forEach((item) => {
+      const k = key(item);
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(item);
+    });
+    const ordered = [
+      ...families.filter((f) => buckets.has(f)),
+      ...[...buckets.keys()].filter((k) => !families.includes(k) && k !== "Unclaimed").sort(),
+      ...(buckets.has("Unclaimed") ? ["Unclaimed"] : []),
+    ];
+    return ordered.map((label) => ({ label, items: sortByName(buckets.get(label)) }));
+  })();
   const categorySuggestions = [...new Set(["Packing", "Groceries", "Beach gear", "Kids", ...categories])];
   // Listing + address ride along in the header too — they're what everyone
   // reaches for on the drive down, and the cabin card is at the bottom.
@@ -570,7 +561,6 @@ export default function TripPlanner() {
 
         <nav className="tp-jump">
           <a href="#tp-meals">🍽️ Meals</a>
-          <a href="#tp-itinerary">📅 Itinerary</a>
           <a href="#tp-packing">🛒 Shopping & packing{trip.items.some((i) => i.category !== "Bringing") ? ` (${trip.items.filter((i) => i.category !== "Bringing" && !i.checked).length} to go)` : ""}</a>
           <a href="#tp-bringing">🏕️ Bringing</a>
           <a href="#tp-cabin">🏠 Cabin</a>
@@ -689,64 +679,6 @@ export default function TripPlanner() {
           })}
         </div>
 
-        <h2 id="tp-itinerary" style={{ fontSize: 19, margin: "28px 0 10px" }}>Itinerary</h2>
-        <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
-          {(trip.activities || []).length === 0 && (
-            <p style={{ color: "#6b7684", marginTop: 0 }}>Nothing planned yet — beach mornings, fishing charter, poker night…</p>
-          )}
-          {days.map((day) => {
-            const date = format(day, "yyyy-MM-dd");
-            const acts = (trip.activities || []).filter((a) => a.date === date);
-            if (!acts.length) return null;
-            return (
-              <div key={date} style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>
-                  {format(day, "EEEE MMM d")}
-                </div>
-                {acts.map((a) => (
-                  <div key={a.id} className="tp-item-row">
-                    {a.time_label && <span style={{ fontSize: 13, fontWeight: 700, color: "#2a9d8f", minWidth: 52 }}>{a.time_label}</span>}
-                    <span style={{ flex: 1 }}>{a.title}</span>
-                    <button className="tp-del" title="Remove" onClick={() => deleteActivity(a)}>✕</button>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-          <form onSubmit={addActivity} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-            <select
-              className="tp-input"
-              style={{ flex: "1 1 110px", marginBottom: 0 }}
-              value={newActivity.date}
-              onChange={(e) => setNewActivity((n) => ({ ...n, date: e.target.value }))}
-            >
-              <option value="">Day…</option>
-              {days.map((day) => (
-                <option key={format(day, "yyyy-MM-dd")} value={format(day, "yyyy-MM-dd")}>
-                  {format(day, "EEE MMM d")}
-                </option>
-              ))}
-            </select>
-            <input
-              className="tp-input"
-              style={{ flex: "1 1 70px", marginBottom: 0 }}
-              value={newActivity.time_label}
-              onChange={(e) => setNewActivity((n) => ({ ...n, time_label: e.target.value }))}
-              placeholder="9am"
-            />
-            <input
-              className="tp-input"
-              style={{ flex: "2 1 160px", marginBottom: 0 }}
-              value={newActivity.title}
-              onChange={(e) => setNewActivity((n) => ({ ...n, title: e.target.value }))}
-              placeholder="What's happening?"
-            />
-            <button className="tp-btn" type="submit" disabled={!newActivity.title.trim() || !newActivity.date || addingActivity}>
-              {addingActivity ? "Adding…" : "Add"}
-            </button>
-          </form>
-        </div>
-
         <h2 id="tp-packing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Shopping & packing list</h2>
         <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
           {listItems.length === 0 && (
@@ -757,9 +689,20 @@ export default function TripPlanner() {
               <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>
                 {cat}
               </div>
-              {listItems
-                .filter((i) => i.category === cat)
-                .map((item) => {
+              {/* Groceries get aisle sub-headings so the trip is one pass through
+                  the store; every other category is just sorted A-Z, because an
+                  aisle means nothing for beach chairs. */}
+              {(cat.toLowerCase() === "groceries"
+                ? groupByAisle(listItems.filter((i) => i.category === cat))
+                : [{ label: null, items: sortByName(listItems.filter((i) => i.category === cat)) }]
+              ).map((group) => (
+                <div key={group.label || "all"}>
+                  {group.label && (
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#a8a094", textTransform: "uppercase", letterSpacing: 0.4, margin: "10px 0 2px" }}>
+                      {group.label}
+                    </div>
+                  )}
+                  {group.items.map((item) => {
                   const meal = item.meal_id ? mealById[item.meal_id] : null;
                   return (
                     <div key={item.id} className="tp-item-row">
@@ -777,7 +720,9 @@ export default function TripPlanner() {
                       <button className="tp-del" title="Remove item" onClick={() => deleteItem(item)}>✕</button>
                     </div>
                   );
-                })}
+                  })}
+                </div>
+              ))}
             </div>
           ))}
 
@@ -822,14 +767,27 @@ export default function TripPlanner() {
               Nothing claimed yet — pop-up canopy, beach cart, cooler, cornhole…
             </p>
           )}
-          {bringItems.map((item) => (
-            <div key={item.id} className="tp-item-row">
-              <input type="checkbox" className="tp-check" title="Packed / loaded" checked={item.checked} onChange={() => toggleItem(item)} />
-              <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
-                {item.name}
-              </span>
-              <Chip color={colorFor(item.assigned_to)}>{item.assigned_to}</Chip>
-              <button className="tp-del" title="Remove" onClick={() => deleteItem(item)}>✕</button>
+          {/* Grouped by family, A-Z inside each: the question this list answers
+              is "what goes in MY car", which reading down one family's rows
+              gives you and a claim-ordered list does not. The per-row chip is
+              dropped inside a group — the heading already says whose it is. */}
+          {bringGroups.map((group) => (
+            <div key={group.label}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0 2px" }}>
+                <Chip color={colorFor(group.label)}>{group.label}</Chip>
+                <span style={{ fontSize: 12, color: "#a8a094" }}>
+                  {group.items.length} item{group.items.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              {group.items.map((item) => (
+                <div key={item.id} className="tp-item-row">
+                  <input type="checkbox" className="tp-check" title="Packed / loaded" checked={item.checked} onChange={() => toggleItem(item)} />
+                  <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
+                    {item.name}
+                  </span>
+                  <button className="tp-del" title="Remove" onClick={() => deleteItem(item)}>✕</button>
+                </div>
+              ))}
             </div>
           ))}
           <form onSubmit={addBring} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
