@@ -73,7 +73,11 @@ const externalHref = (url) => (/^https?:\/\//i.test(url) ? url : `https://${url}
 
 const CABIN_FIELDS = [
   { key: "link", label: "Listing link" },
-  { key: "address", label: "Address" },
+  // isAddress drives the Maps link. It's a flag rather than a `key === "address"`
+  // check in the renderer so a second address field gets the same treatment for
+  // free — which is the whole point of key pickup being here.
+  { key: "address", label: "Address", isAddress: true },
+  { key: "key_pickup", label: "Key pickup", isAddress: true },
   { key: "door_code", label: "Door code" },
   { key: "wifi_name", label: "WiFi network" },
   { key: "wifi_password", label: "WiFi password" },
@@ -1061,13 +1065,13 @@ export default function TripPlanner() {
               {CABIN_FIELDS.every(({ key }) => !(trip.cabin || {})[key]) && (
                 <p style={{ color: "#6b7684", marginTop: 0 }}>Door code, WiFi, address — the stuff everyone texts you for.</p>
               )}
-              {CABIN_FIELDS.map(({ key, label }) => {
+              {CABIN_FIELDS.map(({ key, label, isAddress }) => {
                 const val = (trip.cabin || {})[key];
                 if (!val) return null;
                 return (
                   <div key={key} style={{ padding: "6px 0", borderBottom: "1px solid #f0ebe0", display: "flex", gap: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#6b7684", minWidth: 110 }}>{label}</span>
-                    {key === "address" ? (
+                    {isAddress ? (
                       <a href={mapsHref(val)} target="_blank" rel="noreferrer" style={{ color: "#2a9d8f" }}>
                         {val} ↗
                       </a>
