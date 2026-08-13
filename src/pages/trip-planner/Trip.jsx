@@ -212,6 +212,32 @@ export default function TripPlanner() {
       return next;
     });
 
+  /* Family packing lists start CLOSED, so this tracks which are OPEN — the
+   * inverse of the shopping-list set above. Storing "expanded" rather than
+   * "collapsed" is what makes closed the default without seeding the set from
+   * the family list, and it means a family added later also arrives closed
+   * instead of being the one that is mysteriously open. */
+  const [expandedFams, setExpandedFams] = useState(() => {
+    try {
+      const raw = window.localStorage.getItem(`tp_openfams_${slug}`);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const toggleFamily = (family) =>
+    setExpandedFams((prev) => {
+      const next = new Set(prev);
+      if (next.has(family)) next.delete(family);
+      else next.add(family);
+      try {
+        window.localStorage.setItem(`tp_openfams_${slug}`, JSON.stringify([...next]));
+      } catch {
+        /* private mode — expanding still works for this visit */
+      }
+      return next;
+    });
+
   const [newPack, setNewPack] = useState({});
   const [addingPack, setAddingPack] = useState(null);
   const [addingBring, setAddingBring] = useState(false);
@@ -942,7 +968,11 @@ export default function TripPlanner() {
               Add the families up by the trip name and each one gets its own list here.
             </p>
           )}
-          {familyPacking.map(({ family, shared, own }, idx) => (
+          {familyPacking.map(({ family, shared, own }, idx) => {
+            const total = shared.length + own.length;
+            const packed = [...shared, ...own].filter((i) => i.checked).length;
+            const isOpen = expandedFams.has(family);
+            return (
             <div
               key={family}
               style={{
@@ -951,14 +981,30 @@ export default function TripPlanner() {
                 borderTop: idx === 0 ? "none" : "1px solid #f0ebe0",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              {/* The whole row is the toggle. Closed is the default because with
+                  four families this page was mostly other people's lists — but
+                  the count and the packed/total progress stay visible while
+                  closed, so you can still see at a glance who has not started. */}
+              <button
+                type="button"
+                onClick={() => toggleFamily(family)}
+                aria-expanded={isOpen}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8, width: "100%",
+                  background: "none", border: "none", padding: "4px 0",
+                  cursor: "pointer", font: "inherit", textAlign: "left",
+                }}
+              >
+                <span style={{ fontSize: 10, color: "#a8a094" }}>{isOpen ? "▼" : "▶"}</span>
                 <Chip color={colorFor(family)}>{family}</Chip>
                 <span style={{ fontSize: 12, color: "#a8a094" }}>
-                  {shared.length + own.length === 0
+                  {total === 0
                     ? "nothing yet"
-                    : `${shared.length + own.length} item${shared.length + own.length === 1 ? "" : "s"}`}
+                    : `${packed}/${total} packed`}
                 </span>
-              </div>
+              </button>
+              {isOpen && (
+                <>
 
               {/* Shared gear, pulled in from "Who's bringing what" so it can be
                   ticked off while loading the car. No ✕ here on purpose: these
@@ -1001,8 +1047,11 @@ export default function TripPlanner() {
                   {addingPack === family ? "Adding…" : "Add"}
                 </button>
               </form>
+                </>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <h2 id="tp-cabin" style={{ fontSize: 19, margin: "28px 0 10px" }}>Cabin info</h2>
