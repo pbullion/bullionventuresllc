@@ -216,12 +216,18 @@ export function revenueLabel(c) {
  * either the $50–250M or the $250M–1B bucket, and hiding it from one of them
  * would be pretending the estimate is sharper than it is. */
 export const REVENUE_BANDS = [
-  { key: "50-250", label: "$50M–250M", min: 50e6, max: 250e6 },
+  // $50–100M is the target band (Patrick, 2026-08-13) and the default filter.
+  { key: "50-100", label: "$50M–100M", min: 50e6, max: 100e6 },
+  { key: "100-250", label: "$100M–250M", min: 100e6, max: 250e6 },
   { key: "250-1b", label: "$250M–1B", min: 250e6, max: 1e9 },
   { key: "1b-5b", label: "$1B–5B", min: 1e9, max: 5e9 },
   { key: "5b+", label: "$5B+", min: 5e9, max: Infinity },
   { key: "none", label: "No figure", min: null, max: null },
 ];
+
+// The band she is actually prospecting, referenced by the default filter and the
+// quick chip so the two cannot drift apart.
+export const TARGET_BAND = "50-100";
 
 export function matchesBand(company, bandKey) {
   const band = REVENUE_BANDS.find((b) => b.key === bandKey);
@@ -779,7 +785,10 @@ input.pros-input[type="datetime-local"]::-webkit-date-and-time-value { text-alig
 .pros-ok { background: #E6F5EA; border: 1px solid #C3E6CD; color: #1C6B31; border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-bottom: 12px; }
 .pros-warn { background: #FDF6E7; border: 1px solid #F0E0BC; color: #7A5A10; border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; line-height: 1.5; }
 
-.pros-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 9px; margin-bottom: 13px; }
+/* minmax 150px, not 104: at 104 a 375px phone fits three tiles and drops the
+   fourth onto a row of its own, which reads as a broken grid. At 150 it is an
+   even 2x2 on a phone and a single row of four on a laptop. */
+.pros-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px; margin-bottom: 13px; }
 .pros-stat { background: #fff; border: 1px solid var(--p-line); border-radius: 11px; padding: 10px 11px; text-align: left; font: inherit; cursor: pointer; }
 .pros-stat[aria-pressed="true"] { border-color: var(--p-teal); box-shadow: inset 0 0 0 1px var(--p-teal); }
 .pros-stat-n { font-size: 20px; font-weight: 800; color: var(--p-teal-dark); line-height: 1.15; }

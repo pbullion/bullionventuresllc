@@ -158,6 +158,12 @@ export default function CompanyDetail({ slug, meta, onBack, onCompanyChange, onD
       <div className="pros-shell">
         {error && <div className="pros-err">{error}</div>}
 
+        {company.archived && (
+          <div className="pros-warn">
+            Archived — hidden from the list. “Put back in the list” below undoes it.
+          </div>
+        )}
+
         {company.do_not_contact && (
           <div className="pros-err">
             Marked <strong>do not contact</strong>. Don&apos;t reach out without checking why.
@@ -554,17 +560,26 @@ export default function CompanyDetail({ slug, meta, onBack, onCompanyChange, onD
               {company.do_not_contact ? "Allow contact again" : "Mark do not contact"}
             </button>
             <button
+              className="pros-btn pros-btn-ghost pros-btn-sm"
+              disabled={busy}
+              onClick={() => patch({ archived: !company.archived })}
+            >
+              {company.archived ? "Put back in the list" : "Archive (hide it)"}
+            </button>
+            <button
               className="pros-btn pros-btn-danger pros-btn-sm"
               disabled={busy}
               onClick={() => setConfirmDelete(true)}
             >
-              {company.is_seed ? "Hide from the list" : "Delete"}
+              Delete
             </button>
           </div>
           <div className="pros-tiny" style={{ marginTop: 10, lineHeight: 1.5 }}>
+            Archiving hides it and keeps everything — find it again with “Show archived” in
+            Filters. Deleting removes it and its notes for good.
             {company.is_seed
-              ? "This one came from the seeded Houston catalog, so it gets archived rather than deleted — a delete would come back on the next deploy and lose your notes with it."
-              : "You added this one, so deleting removes it and its notes for good."}
+              ? " Because it came from the seeded catalog, the delete is remembered so it won't reappear on the next deploy — and it can be restored, empty, from the ⋯ menu."
+              : ""}
           </div>
         </div>
       </div>
@@ -607,12 +622,19 @@ export default function CompanyDetail({ slug, meta, onBack, onCompanyChange, onD
       )}
 
       {confirmDelete && (
-        <Sheet title={company.is_seed ? "Hide this company?" : "Delete this company?"} onClose={() => setConfirmDelete(false)}>
+        <Sheet title="Delete this company?" onClose={() => setConfirmDelete(false)}>
           <div className="pros-card">
             <p style={{ marginTop: 0, lineHeight: 1.6 }}>
+              <strong>{company.name}</strong> and everything logged against it —{" "}
+              {company.contact_count || 0} contact{company.contact_count === 1 ? "" : "s"} and{" "}
+              {company.note_count || 0} note{company.note_count === 1 ? "" : "s"} — will be
+              deleted.
               {company.is_seed
-                ? `"${company.name}" will be archived and drop out of the list. Its notes and contacts stay put, so unarchiving brings everything back.`
-                : `"${company.name}" and everything logged against it will be deleted. There is no undo.`}
+                ? " The catalog record itself can be restored later from the ⋯ menu, but the notes and contacts cannot."
+                : " There is no undo."}
+            </p>
+            <p className="pros-muted" style={{ lineHeight: 1.6 }}>
+              If you only want it out of the way, archive it instead — that keeps everything.
             </p>
             <div className="pros-row">
               <button
@@ -627,7 +649,17 @@ export default function CompanyDetail({ slug, meta, onBack, onCompanyChange, onD
                   }
                 }}
               >
-                {company.is_seed ? "Archive it" : "Delete it"}
+                Delete it
+              </button>
+              <button
+                className="pros-btn pros-btn-ghost"
+                onClick={async () => {
+                  setConfirmDelete(false);
+                  await patch({ archived: true });
+                  onBack();
+                }}
+              >
+                Archive instead
               </button>
               <button className="pros-btn pros-btn-ghost" onClick={() => setConfirmDelete(false)}>
                 Keep it

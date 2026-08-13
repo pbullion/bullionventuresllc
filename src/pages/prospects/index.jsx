@@ -8,9 +8,11 @@ import {
   contactName,
   dueLabel,
   daysAgoLabel,
+  fmtDate,
   mailHref,
   mapsHref,
   matchesBand,
+  TARGET_BAND,
   priorityColor,
   prettyHost,
   revenueLabel,
@@ -54,6 +56,8 @@ const SORTS = [
 ];
 
 const FILTER_KEY = "pros_filters";
+
+// "Clear all filters" means all of them, including the default band.
 const EMPTY_FILTERS = {
   q: "",
   sectors: [],
@@ -62,7 +66,20 @@ const EMPTY_FILTERS = {
   statuses: [],
   quick: [],
   sort: "name",
+  // Archived companies ride along in the same payload and are filtered out here,
+  // so unarchiving is possible without a second endpoint or a page reload.
+  showArchived: false,
 };
+
+/* What she sees the first time, before she has touched anything: scoped to the
+ * $50–100M band she actually prospects (Patrick, 2026-08-13).
+ *
+ * Worth knowing while reading the empty state: the seeded catalog was built to a
+ * ">$50M" brief and skews large, so only ~22 of its 184 records overlap this
+ * band and none sit wholly inside it — a company's revenue is only publicly
+ * knowable when it is big enough to file. Real coverage of $50–100M comes from
+ * importing a list; that is what the importer is for. */
+const DEFAULT_FILTERS = { ...EMPTY_FILTERS, bands: [TARGET_BAND] };
 
 // Quick chips, in the order they appear under the search box. Each is a
 // predicate over one company plus today's date — kept here so the chip, its
@@ -80,7 +97,7 @@ const QUICK = [
   },
   { key: "working", label: "In play", test: (c) => c.contacted && !isClosed(c.status) },
   { key: "a", label: "A priority", test: (c) => c.priority === "A" },
-  { key: "midmarket", label: "Middle market", test: (c) => matchesBand(c, "50-250") || matchesBand(c, "250-1b") },
+  { key: "target", label: "$50–100M", test: (c) => matchesBand(c, TARGET_BAND) },
   { key: "notes", label: "Has notes", test: (c) => Boolean(c.notes) || c.note_count > 0 },
 ];
 
@@ -102,9 +119,9 @@ export default function Prospects() {
      * instead of re-picking it — which on a phone is a dozen taps. */
     try {
       const saved = JSON.parse(window.localStorage.getItem(FILTER_KEY) || "null");
-      return saved ? { ...EMPTY_FILTERS, ...saved } : EMPTY_FILTERS;
+      return saved ? { ...EMPTY_FILTERS, ...saved } : DEFAULT_FILTERS;
     } catch {
-      return EMPTY_FILTERS;
+      return DEFAULT_FILTERS;
     }
   });
   const [showFilters, setShowFilters] = useState(false);
@@ -132,7 +149,7 @@ export default function Prospects() {
 
   const load = useCallback(async () => {
     try {
-      const data = await api.get("/companies");
+      const data = await api.get("/companies?archived=true");
       setCompanies(data.companies || []);
       setError("");
     } catch (e) {
@@ -182,6 +199,7 @@ export default function Prospects() {
     const needle = filters.q.trim().toLowerCase();
 
     const passesExceptQuick = (c, exclude) => {
+      if (c.archived && !filters.showArchived) return false;
       if (needle) {
         const hay = [
           c.name,
@@ -253,7 +271,8 @@ export default function Prospects() {
   }, [companies, filters]);
 
   const stats = useMemo(() => {
-    const all = companies || [];
+    // Archived rows are out of the book, so they are out of the counts too.
+    const all = (companies || []).filter((c) => !c.archived);
     return {
       total: all.length,
       contacted: all.filter((c) => c.contacted).length,
@@ -554,6 +573,18 @@ export default function Prospects() {
               onChange={(v) => setFilters((f) => ({ ...f, statuses: v }))}
             />
           </div>
+          <div className="pros-card">
+            <div className="pros-h2">Archived</div>
+            <MultiToggle
+              options={[{ value: "yes", label: "Show archived companies" }]}
+              selected={filters.showArchived ? ["yes"] : []}
+              onChange={(v) => setFilters((f) => ({ ...f, showArchived: v.length > 0 }))}
+            />
+            <div className="pros-tiny" style={{ marginTop: 8, lineHeight: 1.5 }}>
+              Archiving hides a company without losing anything. Turn this on to find one and put
+              it back.
+            </div>
+          </div>
           <div className="pros-row">
             <button className="pros-btn" onClick={() => setShowFilters(false)}>
               Show {visible.length}
@@ -610,6 +641,7 @@ export default function Prospects() {
               </button>
             </div>
           </div>
+          <DeletedList onRestored={load} />
           <div className="pros-card">
             <div className="pros-h2">Download</div>
             <p className="pros-muted" style={{ marginTop: 0 }}>
@@ -639,6 +671,14 @@ export default function Prospects() {
               pre-filled: a plausible wrong number is worse than a blank one, so each company
               carries research links instead — and anything you confirm, you add yourself.
             </p>
+            <div className="pros-warn">
+              <strong>On the $50–100M target:</strong> that band is mostly private companies that
+              never publish a revenue figure, so a catalog built from public sources can&apos;t
+              cover it — only about 22 of these {meta?.seed?.loaded || 184} records even overlap
+              it, and the rest of the list runs larger. For real coverage of $50–100M, import a
+              list (a purchased file, or the Business Journal&apos;s Book of Lists) and the whole
+              screen works the same on it.
+            </div>
             {meta && !meta.codeRequired && (
               <div className="pros-warn" style={{ marginBottom: 0 }}>
                 This page has no login. Anyone with the URL can read and edit these notes.
@@ -647,6 +687,67 @@ export default function Prospects() {
           </div>
         </Sheet>
       )}
+    </div>
+  );
+}
+
+/* Catalog companies she has deleted, with a way back.
+ *
+ * Deleting a seeded company writes a tombstone so the seeder stops re-inserting
+ * it — which is what makes the delete stick across deploys, and also what would
+ * make it permanent and unrecoverable without this. Only the catalog record comes
+ * back; the notes and contacts that hung off the deleted row are gone. Loads
+ * lazily, because the common case is an empty list nobody needs to see. */
+function DeletedList({ onRestored }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
+
+  useEffect(() => {
+    api
+      .get("/deleted")
+      .then((d) => setRows(d.deleted || []))
+      .catch(() => setRows([]));
+  }, []);
+
+  if (!rows || rows.length === 0) return null;
+
+  return (
+    <div className="pros-card">
+      <div className="pros-h2">Deleted from the catalog</div>
+      {error && <div className="pros-err">{error}</div>}
+      <p className="pros-muted" style={{ marginTop: 0, lineHeight: 1.55 }}>
+        These stay out of the list, including after a redeploy. Putting one back restores the
+        catalog record only — its old notes and contacts are gone.
+      </p>
+      {rows.map((r) => (
+        <div className="pros-person" key={r.slug}>
+          <div className="pros-between">
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 650 }}>{r.name || r.slug}</div>
+              <div className="pros-tiny">deleted {fmtDate(r.deleted_at)}</div>
+            </div>
+            <button
+              className="pros-btn pros-btn-ghost pros-btn-sm"
+              disabled={busy === r.slug}
+              onClick={async () => {
+                setBusy(r.slug);
+                try {
+                  await api.post(`/deleted/${encodeURIComponent(r.slug)}/restore`);
+                  setRows((prev) => prev.filter((x) => x.slug !== r.slug));
+                  onRestored?.();
+                } catch (e) {
+                  setError(e.message);
+                } finally {
+                  setBusy("");
+                }
+              }}
+            >
+              {busy === r.slug ? "…" : "Put back"}
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -684,7 +785,12 @@ function CompanyCard({ c, onOpen, onQuickContacted }) {
       }}
     >
       <div className="pros-between">
-        <div className="pros-row" style={{ gap: 9, alignItems: "flex-start", minWidth: 0 }}>
+        {/* nowrap: with wrapping on, a long name pushed itself onto the line
+            BELOW the priority badge, so cards in the same list didn't line up. */}
+        <div
+          className="pros-row"
+          style={{ gap: 9, alignItems: "flex-start", minWidth: 0, flexWrap: "nowrap" }}
+        >
           <span
             className="pros-prio"
             style={{ background: prio.bg, color: prio.fg, borderColor: prio.border }}

@@ -167,6 +167,21 @@ both rendering `index.jsx`, so one company is bookmarkable.
   `not_reported` for a US arm that doesn't break itself out. Keep that
   distinction in any new UI — it is the difference between a figure she can quote
   and one she has to confirm.
+- **The target band is $50–100M** (`TARGET_BAND` in `ui.js`), and it is the
+  default filter on a first visit. **The seeded catalog does not cover it well
+  and cannot be made to** — only ~22 of the 184 records overlap $50–100M and none
+  sit wholly inside it, because revenue is publicly knowable only once a company
+  is big enough to file or to be written about. Don't "fix" this by inventing
+  figures for small private firms; a list that looks right and is wrong is worse
+  than a short one. Real coverage comes from the importer.
+- **Archive and delete are different, and both exist.** Archive is a PATCH of
+  `archived` and loses nothing; the list fetches with `?archived=true` and hides
+  them client-side so "Show archived" in Filters can bring one back. Delete is
+  real, including for seeded rows — and it **tombstones the slug** in
+  `pros_deleted_slugs`, because the seeder inserts any slug it can't find and the
+  delete would otherwise undo itself on the next deploy. The ⋯ menu lists
+  tombstoned companies with a "Put back" that restores the catalog record only
+  (its notes and contacts are gone) — so don't present restore as a full undo.
 - **No invented contact data, deliberately.** The seed ships no direct emails and
   no cell numbers, and the officer names it does carry are flagged `unverified`
   (a name from an August filing is wrong by October). Each company instead gets
