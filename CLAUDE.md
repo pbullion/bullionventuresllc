@@ -113,6 +113,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/elite-edge-advisors` | `/elite-edge-advisors`, `/odds`, `/parlays` |
 | `/gulf-hurricane` | `/nhc` |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` |
+| `/prospects` | `/prospects` |
 | `/ashley` | `/ashley` |
 | `/hrw` | none — static `public/data/hrw-2026.json`, see above |
 
@@ -127,6 +128,46 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
   Grep this repo for the endpoint path before reshaping any backend response.
 - Backend platform constraints (30s timeout, `{}` error bodies, deploys) are
   in `sheline-art-website-api/docs/HANDOFF.md`.
+
+## `/prospects` — the Houston C&I prospect book
+
+A second tool for the same person as `/ashley`, sharing no code with it on
+purpose. `/ashley` works the book she already owns; `/prospects`
+(`src/pages/prospects/`) works the market — greater-Houston C&I operating
+companies over roughly $50M of revenue — and answers "who do I call next, and
+what do I know before I dial". Routes are `/prospects` and `/prospects/:slug`,
+both rendering `index.jsx`, so one company is bookmarkable.
+
+- **Cardless AND unlisted, like `/ashley`** — not on the home page, not in
+  `PRIVATE_TOOLS`. Reached by typing the URL.
+- **Unlike `/ashley`, there is NO LOGIN** (Patrick, 2026-08-13). Anyone who
+  reaches the URL can read, edit and delete the whole book. The seeded catalog is
+  public information; the overlay of statuses, notes and contacts is not. Setting
+  `PROSPECTS_ACCESS_CODE` on Heroku turns on a shared-code gate (sent as
+  `X-Prospects-Code`, cached in `localStorage["pros_code"]`) with **no frontend
+  change** — `GET /prospects/meta` reports whether it is on.
+- **The catalog lives in the BACKEND repo**, not here — seeded on boot from
+  `data/prospects-houston-seed.json`, keyed on slug with `ON CONFLICT DO
+  NOTHING`. A redeploy inserts what is new to that file and never overwrites a
+  row she has edited.
+- **Revenue is a band with a basis attached**, never a bare number: `filing` for
+  a public reporter, `estimate` for an outside guess at a private company,
+  `not_reported` for a US arm that doesn't break itself out. Keep that
+  distinction in any new UI — it is the difference between a figure she can quote
+  and one she has to confirm.
+- **No invented contact data, deliberately.** The seed ships no direct emails and
+  no cell numbers, and the officer names it does carry are flagged `unverified`
+  (a name from an August filing is wrong by October). Each company instead gets
+  one-tap research links built from its own fields — `researchLinks` in `ui.js`:
+  Google News, a LinkedIn people search for the CFO/treasurer/controller, EDGAR
+  for public filers, the TX entity lookup. **Don't "improve" this by hardcoding
+  people** — a stale name on a cold call is worse than a search that works.
+- Search and filters run in the browser over one `GET /companies` (~190 KB for
+  184 companies), so the list keeps working on a bad connection. Revisit only if
+  it passes a few thousand rows.
+- Phone-first: every number, email, address and website is a real
+  `tel:`/`mailto:`/maps/`https` link, inputs are 16px so iOS doesn't zoom, and
+  modals are bottom sheets (`Sheet.jsx`).
 
 ## Conventions
 
