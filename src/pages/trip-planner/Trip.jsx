@@ -288,10 +288,25 @@ export default function TripPlanner() {
     setSavingSlot(slotKey);
     setError("");
     try {
+      /* `keep` tells the server not to treat "every text field empty" as a
+       * request to clear the slot when there are ingredients here. Only the
+       * client knows this on a NEW slot: the items don't exist server-side yet,
+       * so there is nothing for it to count. Snacks & drinks is the case that
+       * needs it — you add "chips, queso" and never type a meal title, so all
+       * three fields are blank and the slot was being deleted out from under the
+       * ingredients before they were ever posted. */
+      const existingIngredients = (() => {
+        const slot = trip.meals.find((m) => m.date === date && m.meal_type === mealType);
+        return slot ? trip.items.some((i) => i.meal_id === slot.id) : false;
+      })();
+      const keep =
+        ingChanges.addNames.length > 0 ||
+        (existingIngredients && ingChanges.removeIds.length === 0);
+
       const res = await fetch(`${API_BASE}/trips/${slug}/meals`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, meal_type: mealType, ...fields }),
+        body: JSON.stringify({ date, meal_type: mealType, ...fields, keep }),
       });
       const saved = await res.json();
       if (!res.ok) throw new Error(saved.error || "save failed");
