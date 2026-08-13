@@ -2277,8 +2277,15 @@ export default function MyBets() {
                               justifyContent: "space-between",
                             }}
                           >
+                            {/* `label` is the engine's own written name for the
+                                bet ("Cleveland vs Detroit · Over 2.5"). It is
+                                NULL for a manual position, which has no ledger
+                                row to name it — then the ticker is all there is,
+                                so it takes the headline instead of leaving a
+                                blank one. The ticker stays visible either way:
+                                it is what you reconcile against Kalshi. */}
                             <span style={{ fontWeight: 700 }}>
-                              {c.market_ticker}{" "}
+                              {c.label || c.market_ticker}{" "}
                               <span style={{ color: C.muted, fontWeight: 400 }}>
                                 {String(c.side || "").toUpperCase()}
                                 {c.status === "partial" ? " · partial" : ""}
@@ -2296,6 +2303,7 @@ export default function MyBets() {
                             {maxPayout > 0
                               ? ` · ${usd(maxPayout)} if it had won`
                               : ""}
+                            {c.label ? ` · ${c.market_ticker}` : ""}
                           </div>
                           <div style={S.metrics}>
                             <div style={S.metricsPlain}>
