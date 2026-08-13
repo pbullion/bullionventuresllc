@@ -13,7 +13,7 @@ const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 
 /* Per-family packing lives in tp_items like everything else — category plus
  * assigned_to, no schema change. It needs its OWN category rather than reusing
- * "Packing" so it can be excluded from the shared Shopping & packing list; with
+ * "Packing" so it can be excluded from the shared Shopping list; with
  * category "Packing" every personal item would show up in both places. */
 const FAMILY_PACKING = "Family packing";
 
@@ -187,7 +187,7 @@ export default function TripPlanner() {
   const [editingSlot, setEditingSlot] = useState(null); // "YYYY-MM-DD|meal_type"
   const [savingSlot, setSavingSlot] = useState(null);
   const [pickingDay, setPickingDay] = useState(null); // date whose meal-slot picker is open
-  const [newItem, setNewItem] = useState({ name: "", category: "Packing", assigned_to: "" });
+  const [newItem, setNewItem] = useState({ name: "", category: "Groceries", assigned_to: "" });
   const [addingItem, setAddingItem] = useState(false);
   const [newBring, setNewBring] = useState({ name: "", assigned_to: "" });
   // One draft per family, keyed by name, so typing in one family's box doesn't
@@ -605,7 +605,7 @@ export default function TripPlanner() {
     ];
     return ordered.map((label) => ({ label, items: sortByName(buckets.get(label)) }));
   })();
-  const categorySuggestions = [...new Set(["Packing", "Groceries", "Beach gear", "Kids", ...categories])];
+  const categorySuggestions = [...new Set(["Groceries", "Beach gear", "Kids", ...categories])];
   // Listing + address ride along in the header too — they're what everyone
   // reaches for on the drive down, and the cabin card is at the bottom.
   const cabin = trip.cabin || {};
@@ -673,7 +673,7 @@ export default function TripPlanner() {
 
         <nav className="tp-jump">
           <a href="#tp-meals">🍽️ Meals</a>
-          <a href="#tp-packing">🛒 Shopping & packing{trip.items.some((i) => i.category !== "Bringing") ? ` (${trip.items.filter((i) => i.category !== "Bringing" && !i.checked).length} to go)` : ""}</a>
+          <a href="#tp-packing">🛒 Shopping{trip.items.some((i) => i.category !== "Bringing") ? ` (${trip.items.filter((i) => i.category !== "Bringing" && !i.checked).length} to go)` : ""}</a>
           <a href="#tp-bringing">🏕️ Bringing</a>
           <a href="#tp-familypacking">🧳 Family packing</a>
           <a href="#tp-cabin">🏠 Cabin</a>
@@ -792,7 +792,7 @@ export default function TripPlanner() {
           })}
         </div>
 
-        <h2 id="tp-packing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Shopping & packing list</h2>
+        <h2 id="tp-packing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Shopping list</h2>
         <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
           {listItems.length === 0 && (
             <p style={{ color: "#6b7684", marginTop: 0 }}>Nothing on the list yet — add the essentials below.</p>
