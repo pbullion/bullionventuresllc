@@ -190,6 +190,29 @@ export default function Patrick() {
     );
   };
 
+  /* Move a task to another board. Optimistic on both sides at once — pulled out
+   * of the source card and appended to the destination — because a captured item
+   * being filed is the one moment the wall is showing two cards that both have
+   * to change. The server recomputes the destination position itself. */
+  const moveTask = (task, toProject) =>
+    write(
+      (prev) =>
+        prev.map((p) => {
+          if (p.id === task.project_id) {
+            return { ...p, tasks: (p.tasks || []).filter((t) => t.id !== task.id) };
+          }
+          if (p.id === toProject.id) {
+            const end = (p.tasks || []).reduce((m, t) => Math.max(m, t.position), 0) + 1;
+            return {
+              ...p,
+              tasks: [...(p.tasks || []), { ...task, project_id: p.id, position: end }],
+            };
+          }
+          return p;
+        }),
+      () => api.updateTask(task.id, { project_id: toProject.id })
+    );
+
   const deleteTask = (task) =>
     write(
       mapTasks(task.project_id, (tasks) => tasks.filter((t) => t.id !== task.id)),
@@ -409,6 +432,8 @@ export default function Patrick() {
             <ProjectCard
               key={project.id}
               project={project}
+              otherProjects={projects.filter((p) => p.id !== project.id)}
+              onMoveTask={moveTask}
               flash={flashId === project.id}
               canMoveLeft={i > 0}
               canMoveRight={i < projects.length - 1}

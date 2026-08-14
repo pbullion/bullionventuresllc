@@ -106,7 +106,7 @@ function InlineEditor({ initial, onCommit, onCancel }) {
   );
 }
 
-function TaskRow({ task, editing, onStartEdit, onEndEdit, onToggle, onBump, onDelete }) {
+function TaskRow({ task, editing, onStartEdit, onEndEdit, onToggle, onBump, onMove, onDelete }) {
   if (editing) {
     return (
       <li className="pb-task">
@@ -147,6 +147,18 @@ function TaskRow({ task, editing, onStartEdit, onEndEdit, onToggle, onBump, onDe
             ↑
           </button>
         )}
+        {/* Only when there is somewhere to move it to — on a one-project board
+            this would be a button that can't do anything. */}
+        {onMove && (
+          <button
+            type="button"
+            className="pb-act"
+            onClick={(e) => onMove(e.currentTarget)}
+            title="Move to another board"
+          >
+            →
+          </button>
+        )}
         <button type="button" className="pb-act" onClick={onDelete} title="Delete">
           ✕
         </button>
@@ -157,6 +169,8 @@ function TaskRow({ task, editing, onStartEdit, onEndEdit, onToggle, onBump, onDe
 
 export default function ProjectCard({
   project,
+  otherProjects,
+  onMoveTask,
   flash,
   canMoveLeft,
   canMoveRight,
@@ -182,6 +196,8 @@ export default function ProjectCard({
   const [editingTitle, setEditingTitle] = useState(false);
   const [draft, setDraft] = useState("");
   const [menuAnchor, setMenuAnchor] = useState(null);
+  // { task, anchor } while a row's "move to another board" list is open.
+  const [moving, setMoving] = useState(null);
 
   const submitAdd = (e) => {
     e?.preventDefault();
@@ -246,6 +262,9 @@ export default function ProjectCard({
               rename: (title) => onRenameTask(t, title),
             }}
             onBump={() => onBumpTask(t)}
+            onMove={
+              otherProjects.length ? (anchor) => setMoving({ task: t, anchor }) : null
+            }
             onDelete={() => onDeleteTask(t)}
           />
         ))}
@@ -303,6 +322,28 @@ export default function ProjectCard({
           aria-label={`Add a task to ${project.name}`}
         />
       </form>
+
+      {/* Filing a task off this board — the other half of capture. Inbox items
+          arrive here with no home, and this is how they get one. */}
+      {moving && (
+        <Menu anchor={moving.anchor} onClose={() => setMoving(null)}>
+          <div className="pb-pop-label">Move to</div>
+          {otherProjects.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="pb-pop-item"
+              onClick={() => {
+                const task = moving.task;
+                setMoving(null);
+                onMoveTask(task, p);
+              }}
+            >
+              {p.name}
+            </button>
+          ))}
+        </Menu>
+      )}
 
       {menuAnchor && (
         <Menu anchor={menuAnchor} onClose={closeMenu}>

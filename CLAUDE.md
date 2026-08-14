@@ -234,6 +234,25 @@ see or change a task does not belong on this page.
 - The add box handles Enter itself instead of relying on implicit form
   submission. Typing a task and pressing Enter is the single most common action
   on the page; it doesn't get to depend on a browser corner case.
+- **Capture is `POST /patrick-board/capture`** — a Siri Shortcut named "Claude"
+  dictates a sentence and posts it. Routing is a leading project name
+  (`"cellr fix the parser"` → the cellr board), everything else lands in an
+  **Inbox** board created on first use and pinned to the front of the wall.
+  Matching is done on WORDS, not whitespace tokens, because dictation supplies
+  neither punctuation nor hyphens — `"southside app ..."`, `"southside-app ..."`
+  and `"Southside App: ..."` all have to hit the same board. Longest name wins,
+  which is what keeps `daycare-memory-vault` out of `daycare`.
+  - It is the **one endpoint with a key** (`PATRICK_BOARD_CAPTURE_KEY`, sent as
+    `X-Capture-Key`), and the key is required — unset returns 503. The rest of
+    this API is open because using it means already having the unlisted URL; a
+    capture URL lives in a Shortcut and writes on every call.
+  - The response carries a `spoken` string ("Added to cellr.") for the Shortcut
+    to read back. Naming the board IS the confirmation — it's how you learn the
+    prefix was heard the way you meant it.
+- **A task can be moved between boards** (`PATCH /tasks/:id {project_id}`, the
+  `→` on a task row). This exists *for* capture — an Inbox that can't be filed
+  is a dead end — and it appends to the destination rather than carrying its old
+  position into a list it has never been ranked against.
 - Local dev: `node scripts/patrick-board-local.js` in the backend repo (port
   3003) — `api.js` points at localhost automatically when served from localhost,
   so a UI experiment can't reorder the live board.
