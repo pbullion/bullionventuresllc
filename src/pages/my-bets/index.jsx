@@ -348,6 +348,20 @@ const S = {
     color: won ? C.green : C.red,
     backgroundColor: won ? C.greenSoft : C.redSoft,
   }),
+  /* Sold before the market resolved — a third outcome, not a shade of the
+   * other two, so it gets its own color rather than borrowing won/lost. */
+  cashedPill: {
+    flexShrink: 0,
+    fontSize: 12,
+    fontWeight: 800,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    padding: "4px 10px",
+    borderRadius: 999,
+    color: C.amber,
+    backgroundColor: "rgba(234, 179, 8, 0.14)",
+    whiteSpace: "nowrap",
+  },
   histSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
   histLegs: {
     marginTop: 14,
@@ -1301,17 +1315,36 @@ function LiveSituation({ sit, inning, compact }) {
   );
 }
 
-/* A settled (won/lost) bet in the History tab. Collapsed shows the result +
- * P&L; expanded lists each leg's pick and whether it hit. */
+/* One finished bet in the History tab — settled, sold early, or both (see the
+ * merge in the page body). Collapsed shows the outcome + P&L; expanded lists
+ * each leg's pick and whether it hit. */
 function HistoryCard({ item, isOpen, onToggle }) {
-  const d = item.display || {};
-  const legs = Array.isArray(d.legs) ? d.legs : [];
-  const isCombo = legs.length > 1 || (d.leg_count || 0) > 1;
-  const won = d.won;
-  const pnl = Number(d.total_pnl_dollars) || 0;
-  const title = isCombo
-    ? `${legs.length || d.leg_count}-Leg Parlay`
-    : legs[0]?.matchup || parseTitleLegs(d.title)[0]?.label || d.title;
+  const legs = item.legs || [];
+  const isCombo = legs.length > 1 || (item.legCount || 0) > 1;
+  const cashed = item.outcome === "cashed";
+  const pnl = Number(item.pnl) || 0;
+  const title =
+    item.title ||
+    (isCombo
+      ? `${legs.length || item.legCount}-Leg Parlay`
+      : legs[0]?.matchup || parseTitleLegs(item.rawTitle)[0]?.label || item.rawTitle);
+  // What the sale looked like: how much went out the door, and — for a position
+  // that was gone before the market resolved — whether holding would have paid.
+  const soldNote = item.sold
+    ? [
+        `sold ${Math.round(item.sold.contracts * 100) / 100} for ${usd(item.sold.proceeds)}`,
+        item.pending
+          ? "market hasn't settled yet"
+          : cashed && item.marketWon != null
+            ? item.marketWon
+              ? "would have won"
+              : "would have lost"
+            : null,
+        item.partial ? "rest held to settlement" : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
   return (
     <div style={S.bet}>
       <div
@@ -1325,9 +1358,14 @@ function HistoryCard({ item, isOpen, onToggle }) {
             <span style={S.chevron(isOpen)}>▶</span>
             <span style={S.betTitle}>{title}</span>
           </div>
-          <div style={S.resultPill(won)}>{won ? "Won" : "Lost"}</div>
+          <div style={cashed ? S.cashedPill : S.resultPill(item.outcome === "won")}>
+            {cashed ? "💰 Cashed out" : item.outcome === "won" ? "Won" : "Lost"}
+          </div>
         </div>
-        <div style={S.histSub}>{formatSettled(d.settled_time)}</div>
+        <div style={S.histSub}>
+          {formatSettled(item.at)}
+          {soldNote ? ` · ${soldNote}` : ""}
+        </div>
       </div>
 
       {isOpen && legs.length ? (
@@ -1350,16 +1388,25 @@ function HistoryCard({ item, isOpen, onToggle }) {
         <div style={S.metricsPlain}>
           <div>
             <div style={S.mLabel}>Cost</div>
-            <div style={S.mValue}>{usd(d.cost_dollars)}</div>
+            <div style={S.mValue}>
+              {item.cost == null ? "—" : usd(item.cost)}
+            </div>
           </div>
           <div>
-            <div style={S.mLabel}>Payout</div>
-            <div style={S.mValue}>{usd(d.payout_dollars)}</div>
+            {/* One number either way: the market's payout, what we sold for, or
+                the two added together on a partial. */}
+            <div style={S.mLabel}>{cashed ? "Cashed out" : "Payout"}</div>
+            <div style={S.mValue}>{usd(item.payout)}</div>
           </div>
           <div>
             <div style={S.mLabel}>P&L</div>
-            <div style={{ ...S.mValue, color: pnlColor(pnl) }}>
-              {pnlStr(pnl)}
+            <div
+              style={{
+                ...S.mValue,
+                color: item.pnl == null ? C.muted : pnlColor(pnl),
+              }}
+            >
+              {item.pnl == null ? "—" : pnlStr(pnl)}
             </div>
           </div>
         </div>
@@ -1823,7 +1870,13 @@ export default function MyBets() {
    * leaves raising `histLoading` to its callers (both are click handlers). */
   const loadSettlements = async () => {
     try {
-      const res = await fetch(`${API_BASE}/settlements`);
+      // Cash-outs are fetched WITH the settlements, not after them: the history
+      // list folds each sale into the settlement it belongs to, so landing the
+      // two separately would flash every sold position as a total loss.
+      const [res] = await Promise.all([
+        fetch(`${API_BASE}/settlements`),
+        loadCashouts(),
+      ]);
       if (!res.ok) throw new Error(`History request failed (${res.status})`);
       const data = await res.json();
       setSettlements(data?.settlements || []);
@@ -1832,17 +1885,18 @@ export default function MyBets() {
     } finally {
       setHistLoading(false);
     }
-    loadCashouts();
   };
 
-  // Best-effort — the page works fine without it (older backend deploys
-  // don't have the endpoint), so failures stay silent.
+  // Best-effort — the page works fine without it (older backend deploys don't
+  // have the endpoint), so failures stay silent. Without it the History tab
+  // falls back to what Kalshi alone reports, which books a sold position as a
+  // total loss; the armed chip simply doesn't render.
   const loadCashouts = async () => {
     try {
       const res = await fetch(`${API_BASE}/cashouts`);
       if (res.ok) setCashouts(await res.json());
     } catch {
-      /* chip and section simply don't render */
+      /* chip doesn't render; history shows Kalshi's own numbers */
     }
   };
 
@@ -1942,14 +1996,114 @@ export default function MyBets() {
     0,
   );
 
-  // History summary: W-L record and net realized P&L across settled bets.
-  const hist = settlements || [];
-  const histWins = hist.filter((s) => s.display?.won).length;
-  const histLosses = hist.length - histWins;
-  const histPnl = hist.reduce(
-    (acc, s) => acc + (Number(s.display?.total_pnl_dollars) || 0),
-    0,
-  );
+  /* ── History: settled bets and cash-outs in ONE list ──
+   * They were never two separate events. A position the monitor sold still
+   * settles on Kalshi, and the settlements feed reports it with the contracts
+   * we bought but revenue $0 — so every cash-out ALSO arrives as a settlement
+   * that looks like a total loss (verified 2026-08-14: all 52 sales in the
+   * loaded window had one). Listing the two feeds separately therefore showed
+   * each sale twice, once as a full loss and once at its real P&L, and the
+   * tab's own record summed the false losses: −$1,038.67 against a true
+   * −$303.58 over the same 120 settlements.
+   *
+   * So a sale is folded into its settlement by ticker — payout = what the
+   * market paid PLUS what we sold it for, against Kalshi's cost for the whole
+   * position (which is why the folded number can differ by pennies from the
+   * engine's own: Kalshi's cost_dollars includes the entry fee). A cash-out
+   * only gets its own card when its market hasn't settled yet. */
+  const soldByTicker = new Map();
+  (cashouts?.cashouts || [])
+    .filter((c) => c.status === "filled" || c.status === "partial")
+    .forEach((c) => {
+      const prev = soldByTicker.get(c.market_ticker) || {
+        proceeds: 0,
+        contracts: 0,
+        cost: 0,
+        costKnown: true,
+        rows: [],
+        matched: false,
+      };
+      prev.proceeds += Number(c.proceeds_net_dollars) || 0;
+      prev.contracts += Number(c.sold_contracts) || 0;
+      if (c.cost_basis_dollars == null) prev.costKnown = false;
+      else prev.cost += Number(c.cost_basis_dollars);
+      prev.rows.push(c);
+      soldByTicker.set(c.market_ticker, prev);
+    });
+
+  const hist = (settlements || []).map((s) => {
+    const d = s.display || {};
+    const sale = soldByTicker.get(s.ticker);
+    if (sale) sale.matched = true;
+    const cost = Number(d.cost_dollars) || 0;
+    const revenue = Number(d.payout_dollars) || 0;
+    const proceeds = sale ? sale.proceeds : 0;
+    const payout = revenue + proceeds;
+    return {
+      key: `bet:${s.ticker}`,
+      at: d.settled_time || s.settled_time,
+      title: null, // HistoryCard derives it from the legs / market title
+      legs: Array.isArray(d.legs) ? d.legs : [],
+      legCount: d.leg_count || 0,
+      rawTitle: d.title,
+      // Revenue $0 with proceeds means the position was gone before the market
+      // resolved — "Lost" would be a lie about where the money went. When part
+      // of it was held to settlement (revenue > 0) the win/loss still stands
+      // and the sale is a footnote.
+      outcome: proceeds > 0 && revenue === 0 ? "cashed" : d.won ? "won" : "lost",
+      cost,
+      payout,
+      pnl: payout - cost,
+      // `won` here is how the MARKET resolved for the side we held, which the
+      // settlement row still reports after a sale — that's what makes it worth
+      // showing on a cashed-out card: it says whether selling was the right
+      // call, not whether we got paid.
+      marketWon: !!d.won,
+      sold: sale
+        ? { contracts: sale.contracts, proceeds: sale.proceeds, rows: sale.rows }
+        : null,
+      partial: proceeds > 0 && revenue > 0,
+    };
+  });
+
+  // Sales whose market hasn't settled yet (or settled outside the loaded
+  // window) have no card above, so they carry their own.
+  soldByTicker.forEach((sale, ticker) => {
+    if (sale.matched) return;
+    const label = sale.rows.find((r) => r.label)?.label;
+    hist.push({
+      key: `sale:${ticker}`,
+      at: sale.rows.reduce(
+        (latest, r) =>
+          String(r.created_at) > String(latest) ? r.created_at : latest,
+        sale.rows[0]?.created_at,
+      ),
+      title: label || ticker,
+      legs: [],
+      legCount: 0,
+      rawTitle: label || ticker,
+      outcome: "cashed",
+      // Cost is stamped at sale time and is genuinely unknowable for a manual
+      // position or an un-backfilled fill_price — a dash beats a number that
+      // would flatter the profit.
+      cost: sale.costKnown ? sale.cost : null,
+      payout: sale.proceeds,
+      pnl: sale.costKnown ? sale.proceeds - sale.cost : null,
+      marketWon: null,
+      sold: { contracts: sale.contracts, proceeds: sale.proceeds, rows: sale.rows },
+      partial: false,
+      pending: true,
+    });
+  });
+  hist.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+
+  // Record across the merged list. A cash-out is its own outcome — folding it
+  // into the losses is what made the old record read 0-for-everything on days
+  // the monitor was busy.
+  const histWins = hist.filter((h) => h.outcome === "won").length;
+  const histLosses = hist.filter((h) => h.outcome === "lost").length;
+  const histCashed = hist.filter((h) => h.outcome === "cashed").length;
+  const histPnl = hist.reduce((acc, h) => acc + (Number(h.pnl) || 0), 0);
 
   // Portfolio = cash + the live mark of open positions. Kalshi's
   // portfolio_value is that mark (the open positions only, not the account
@@ -2219,12 +2373,18 @@ export default function MyBets() {
             <PnlChart title="Profit & loss over time" />
 
             <div style={S.sectionHeader}>
-              <div style={S.sectionTitle}>Settled bets</div>
+              <div style={S.sectionTitle}>Finished bets</div>
               {hist.length ? (
                 <div style={S.histRecord}>
                   <span style={{ color: C.green }}>{histWins}W</span>
                   <span style={S.histRecordDash}>·</span>
                   <span style={{ color: C.red }}>{histLosses}L</span>
+                  {histCashed > 0 ? (
+                    <>
+                      <span style={S.histRecordDash}>·</span>
+                      <span style={{ color: C.amber }}>{histCashed} sold</span>
+                    </>
+                  ) : null}
                   <span style={S.histRecordDash}>·</span>
                   <span style={{ color: pnlColor(histPnl) }}>
                     {pnlStr(histPnl)}
@@ -2233,124 +2393,18 @@ export default function MyBets() {
               ) : null}
             </div>
 
-            {/* Positions the monitor sold early. The settlements feed shows a
-                sold-flat position as revenue $0 at best, so this list is where
-                that money actually shows up in history. */}
-            {(cashouts?.cashouts || []).filter(
-              (c) => c.status === "filled" || c.status === "partial",
-            ).length > 0 && (
-              <>
-                <div style={S.sectionHeader}>
-                  <div style={S.sectionTitle}>💰 Auto cash-outs</div>
-                </div>
-                <div className="mb-bets" style={{ marginBottom: 18 }}>
-                  {(cashouts?.cashouts || [])
-                    .filter(
-                      (c) => c.status === "filled" || c.status === "partial",
-                    )
-                    .map((c) => {
-                      /* Cost is stamped at sale time (kalshi_cashouts
-                       * .cost_basis_dollars) because it cannot be re-derived: the
-                       * same market+side can be cashed out more than once, so
-                       * nothing links a sale to the contracts it took. NULL means
-                       * genuinely unknowable — a manual position, or a fill_price
-                       * not yet backfilled — so show a dash rather than a number
-                       * that would understate cost and flatter the profit. */
-                      const cost =
-                        c.cost_basis_dollars == null
-                          ? null
-                          : Number(c.cost_basis_dollars);
-                      const cashedFor = Number(c.proceeds_net_dollars) || 0;
-                      const pnl = cost == null ? null : cashedFor - cost;
-                      const maxPayout = Number(c.max_payout_dollars) || 0;
-                      return (
-                        <div
-                          key={c.id}
-                          style={{ ...S.gameCard, padding: "12px 14px" }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: 8,
-                              alignItems: "baseline",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            {/* `label` is the engine's own written name for the
-                                bet ("Cleveland vs Detroit · Over 2.5"). It is
-                                NULL for a manual position, which has no ledger
-                                row to name it — then the ticker is all there is,
-                                so it takes the headline instead of leaving a
-                                blank one. The ticker stays visible either way:
-                                it is what you reconcile against Kalshi. */}
-                            <span style={{ fontWeight: 700 }}>
-                              {c.label || c.market_ticker}{" "}
-                              <span style={{ color: C.muted, fontWeight: 400 }}>
-                                {String(c.side || "").toUpperCase()}
-                                {c.status === "partial" ? " · partial" : ""}
-                              </span>
-                            </span>
-                            <span style={{ color: C.muted, fontSize: 12 }}>
-                              {formatSettled(c.created_at)}
-                            </span>
-                          </div>
-                          <div
-                            style={{ color: C.muted, fontSize: 12, marginTop: 3 }}
-                          >
-                            sold {Number(c.sold_contracts) || 0} @{" "}
-                            {Math.round((Number(c.quoted_price) || 0) * 100)}¢
-                            {maxPayout > 0
-                              ? ` · ${usd(maxPayout)} if it had won`
-                              : ""}
-                            {c.label ? ` · ${c.market_ticker}` : ""}
-                          </div>
-                          <div style={S.metrics}>
-                            <div style={S.metricsPlain}>
-                              <div>
-                                <div style={S.mLabel}>Cost</div>
-                                <div style={S.mValue}>
-                                  {cost == null ? "—" : usd(cost)}
-                                </div>
-                              </div>
-                              <div>
-                                <div style={S.mLabel}>Cashed out</div>
-                                <div style={{ ...S.mValue, color: C.green }}>
-                                  {usd(cashedFor)}
-                                </div>
-                              </div>
-                              <div>
-                                <div style={S.mLabel}>P&L</div>
-                                <div
-                                  style={{
-                                    ...S.mValue,
-                                    color: pnl == null ? C.muted : pnlColor(pnl),
-                                  }}
-                                >
-                                  {pnl == null ? "—" : pnlStr(pnl)}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </>
-            )}
-
             {histLoading && settlements === null ? (
               <div style={S.muted}>Loading your history…</div>
             ) : hist.length === 0 ? (
-              <div style={S.muted}>No settled bets yet.</div>
+              <div style={S.muted}>No finished bets yet.</div>
             ) : (
               <div className="mb-bets">
                 {hist.map((item) => (
                   <HistoryCard
-                    key={item.ticker}
+                    key={item.key}
                     item={item}
-                    isOpen={histExpanded.has(item.ticker)}
-                    onToggle={() => toggleHist(item.ticker)}
+                    isOpen={histExpanded.has(item.key)}
+                    onToggle={() => toggleHist(item.key)}
                   />
                 ))}
               </div>
