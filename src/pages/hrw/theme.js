@@ -121,7 +121,29 @@ export const HRW_CSS = `
 @media (max-width: 520px) {
   .hrw-searchrow { flex-wrap: wrap; }
   .hrw-searchbox { flex: 1 1 100%; }
-  .hrw-viewtoggle { margin-left: auto; }
+  /* Full width rather than shoved right. Dropped to its own row it read as a
+     leftover — as a two-up segmented control it reads as a choice. */
+  .hrw-viewtoggle { flex: 1 1 100%; }
+  .hrw-viewtoggle button { flex: 1; }
+}
+
+/* The three dropdowns + the Near me / Surprise me chips.
+   Sizing lives here, not inline, because the mobile rule has to be able to
+   override it — an inline width wins over any stylesheet. */
+.hrw-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.hrw-filters .hrw-select { width: auto; max-width: 200px; font-size: 13px; padding: 8px 30px 8px 12px; }
+.hrw-count { margin-left: auto; font-size: 13px; font-weight: 600; }
+@media (max-width: 520px) {
+  /* A select is as wide as its longest option, so neighbourhood and cuisine
+     were ~200px each: 8px too wide to share a 375px row, which left the first
+     one sitting alone next to a hole. Halving them pairs them up. */
+  /* All three, including the short sort one: half-width puts every dropdown on
+     the same two-column grid, so the rows line up instead of each one being as
+     wide as whatever its longest option happens to be. */
+  /* flex-grow 0 on purpose: growing to fill the leftover space made the sort
+     select the width of "whatever the chip beside it isn't", which is a
+     different edge on every row. */
+  .hrw-filters .hrw-select { flex: 0 1 calc(50% - 4px); min-width: 0; max-width: none; }
 }
 
 /* Star toggle sits over the card link, so it needs its own stacking context. */
@@ -182,8 +204,39 @@ export const HRW_CSS = `
   padding-bottom: 2px;
 }
 .hrw-scroller::-webkit-scrollbar { display: none; }
+/* Below the wrap breakpoint the row always ends on a chip sliced in half at the
+   screen edge, which reads as a rendering bug rather than as "swipe for more".
+   Fading the last few pixels says the same thing on purpose. */
+@media (max-width: 699px) {
+  .hrw-scroller {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+  }
+}
 @media (min-width: 700px) {
   .hrw-scroller { flex-wrap: wrap; overflow-x: visible; row-gap: 8px; }
+}
+
+/* Book / phone / directions / website / Instagram / HRW page. */
+.hrw-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 6px; }
+@media (max-width: 520px) {
+  /* Six links of six different widths wrapped into three ragged rows, each
+     ending somewhere different. A two-column grid lines them up, and every
+     button gets a bigger thumb target out of it. The first one — the booking
+     link, or the phone number when there's nothing to book — spans the row,
+     because it's the one people came for. */
+  .hrw-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .hrw-actions > * { text-align: center; }
+  .hrw-actions > :first-child { grid-column: 1 / -1; }
+}
+
+/* The hero's date pill. "… 2026 · Aug 1 – Sep 7" broke after the separator on a
+   phone, leaving the dot dangling at the end of the first line; the date itself
+   must never break mid-range. */
+.hrw-pill { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 7px; }
+.hrw-pill-dates { white-space: nowrap; }
+@media (max-width: 520px) {
+  .hrw-pill-sep { display: none; }
 }
 
 /* Menus ------------------------------------------------------------------ */

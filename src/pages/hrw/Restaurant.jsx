@@ -160,7 +160,7 @@ export default function Restaurant() {
       </div>
 
       {/* Actions ------------------------------------------------------ */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "18px 0 6px" }}>
+      <div className="hrw-actions">
         {r.links.reservation && (
           <a
             href={r.links.reservation}

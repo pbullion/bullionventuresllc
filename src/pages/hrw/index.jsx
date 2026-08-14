@@ -69,6 +69,11 @@ export default function Hrw() {
   // that changing a filter restarts the list at the top without an effect that
   // resets it a render late. See the sentinel below for the growing part.
   const [page, setPage] = useState({ key: "", n: 60 });
+  /* Phone-width, for the one thing CSS can't reach: placeholder TEXT. Same
+   * 520px breakpoint as the stylesheet — keep the two in step. Read once at
+   * mount rather than on resize; a phone doesn't change width mid-visit, and
+   * this only decides which of two strings sits in an empty search box. */
+  const [narrow] = useState(() => window.matchMedia("(max-width: 520px)").matches);
 
   useEffect(() => {
     loadHrw().then(setData, (e) => setError(e.message));
@@ -283,10 +288,8 @@ export default function Hrw() {
         }}
       >
         <div
+          className="hrw-pill"
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 7,
             fontSize: 12,
             fontWeight: 700,
             letterSpacing: ".1em",
@@ -298,7 +301,9 @@ export default function Hrw() {
             marginBottom: 16,
           }}
         >
-          🍽️ Houston Restaurant Weeks 2026 · {EVENT.shortRange}
+          <span>🍽️ Houston Restaurant Weeks 2026</span>
+          <span className="hrw-pill-sep" aria-hidden>·</span>
+          <span className="hrw-pill-dates">{EVENT.shortRange}</span>
         </div>
         <h1
           className="hrw-hero-title"
@@ -355,7 +360,14 @@ export default function Hrw() {
                 type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Restaurant, cuisine, or a dish — try “short rib”"
+                /* The long version truncates mid-word on a phone even with the
+                   whole row to itself — a placeholder that ends in "try “sho"
+                   looks broken, and the example is the part that gets cut. */
+                placeholder={
+                  narrow
+                    ? "Restaurant, cuisine, or dish"
+                    : "Restaurant, cuisine, or a dish — try “short rib”"
+                }
                 aria-label="Search restaurants and dishes"
               />
               {q && (
@@ -445,18 +457,9 @@ export default function Hrw() {
             </Chip>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 8,
-              marginTop: 10,
-              alignItems: "center",
-            }}
-          >
+          <div className="hrw-filters">
             <select
               className="hrw-select"
-              style={{ width: "auto", maxWidth: 200, fontSize: 13, padding: "8px 12px" }}
               value={hood}
               onChange={(e) => setHood(e.target.value)}
               aria-label="Neighborhood"
@@ -470,7 +473,6 @@ export default function Hrw() {
             </select>
             <select
               className="hrw-select"
-              style={{ width: "auto", maxWidth: 200, fontSize: 13, padding: "8px 12px" }}
               value={cuisine}
               onChange={(e) => setCuisine(e.target.value)}
               aria-label="Cuisine"
@@ -483,8 +485,7 @@ export default function Hrw() {
               ))}
             </select>
             <select
-              className="hrw-select"
-              style={{ width: "auto", fontSize: 13, padding: "8px 12px" }}
+              className="hrw-select hrw-sortsel"
               value={sort}
               onChange={(e) => {
                 if (e.target.value === "near" && !here) locate();
@@ -520,7 +521,7 @@ export default function Hrw() {
                 Clear all
               </button>
             )}
-            <span style={{ marginLeft: "auto", fontSize: 13, color: C.muted, fontWeight: 600 }}>
+            <span className="hrw-count" style={{ color: C.muted }}>
               {data ? `${results.length} of ${data.restaurants.length}` : ""}
             </span>
           </div>
