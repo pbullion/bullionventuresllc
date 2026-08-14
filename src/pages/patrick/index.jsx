@@ -3,6 +3,7 @@ import { api } from "./api.js";
 import { PB_CSS, colorFor, openTasks } from "./ui.js";
 import ProjectCard from "./ProjectCard.jsx";
 import ProjectModal from "./ProjectModal.jsx";
+import HelpModal from "./HelpModal.jsx";
 
 /* /patrick — a wall of mini boards, one per app still being finished.
  *
@@ -44,6 +45,7 @@ export default function Patrick() {
   const [fatal, setFatal] = useState(null);
   const [toast, setToast] = useState(null); // { text, undo?, kind? }
   const [modal, setModal] = useState(null); // null | { project?: {...} }
+  const [help, setHelp] = useState(false);
   const [flashId, setFlashId] = useState(null);
 
   const cardRefs = useRef({});
@@ -364,6 +366,17 @@ export default function Patrick() {
               : `${totalOpen} open · ${projects.length} project${projects.length === 1 ? "" : "s"}`}
           </span>
           <span className="pb-top-spacer" />
+          {/* Almost nothing on a card is labelled — the density is bought with
+              glyphs — so there has to be somewhere that says what they mean. */}
+          <button
+            type="button"
+            className="pb-btn pb-btn-ghost"
+            onClick={() => setHelp(true)}
+            title="How this board works"
+            aria-label="How this board works"
+          >
+            ?
+          </button>
           <button type="button" className="pb-btn pb-btn-ghost" onClick={load} title="Refresh">
             ↻
           </button>
@@ -394,6 +407,13 @@ export default function Patrick() {
             <button type="button" className="pb-btn" onClick={() => setModal({})}>
               + New project
             </button>
+            {/* An empty wall is the one moment there is nothing to look at, so it
+                is the best place to offer the explanation. */}
+            <div>
+              <button type="button" className="pb-empty-help" onClick={() => setHelp(true)}>
+                or read how this works
+              </button>
+            </div>
           </div>
         )}
 
@@ -459,6 +479,8 @@ export default function Patrick() {
       {modal && (
         <ProjectModal project={modal.project} onSave={saveProject} onClose={() => setModal(null)} />
       )}
+
+      {help && <HelpModal onClose={() => setHelp(false)} />}
 
       {toast && (
         <div className={`pb-toast${toast.kind === "err" ? " pb-toast-err" : ""}`} role="status">

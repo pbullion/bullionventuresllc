@@ -284,6 +284,45 @@ export const PB_CSS = `
 }
 .pb-input:focus { outline: 2px solid var(--pb-indigo); outline-offset: -1px; border-color: var(--pb-indigo); }
 .pb-modal-acts { display: flex; gap: 9px; justify-content: flex-end; margin-top: 16px; }
+
+/* ── Help ────────────────────────────────────────────────────────────────── */
+/* Wider than the project form and scrollable inside itself, so the page behind
+   it never scrolls and the Got-it button is always reachable on a phone. */
+.pb-modal-wide { max-width: 560px; max-height: 86vh; overflow-y: auto; }
+.pb-help-top { display: flex; align-items: flex-start; gap: 10px; }
+.pb-help-top h2 { flex: 1 1 auto; }
+.pb-help-x {
+  background: none; border: none; color: var(--pb-muted); font-size: 15px;
+  cursor: pointer; padding: 2px 6px; border-radius: 6px; line-height: 1;
+}
+.pb-help-x:hover { background: #f1f3f6; color: var(--pb-ink); }
+.pb-help-lede { font-size: 14px; line-height: 1.55; margin: 0 0 18px; color: #3c4454; }
+.pb-help-sec { margin-bottom: 18px; }
+.pb-help-h {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--pb-muted); padding-bottom: 7px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--pb-line);
+}
+.pb-help-row {
+  display: flex; gap: 11px; align-items: baseline; font-size: 13.5px; line-height: 1.5;
+  margin-bottom: 9px;
+}
+/* Fixed-width glyph column, so the ↑ → ✕ ⋯ line up as a legend rather than
+   reading as bullets of different sizes. */
+.pb-help-key {
+  flex: 0 0 34px; text-align: center; font-size: 12px; font-weight: 700;
+  color: var(--pb-indigo); background: #eeeffb; border-radius: 6px; padding: 3px 0;
+}
+.pb-help-p { font-size: 13.5px; line-height: 1.55; margin: 0 0 9px; }
+.pb-help-p:last-child { margin-bottom: 0; }
+.pb-help-say {
+  font-size: 14px; background: #f2f4f7; border-left: 3px solid var(--pb-indigo);
+  border-radius: 0 7px 7px 0; padding: 9px 11px; margin: 0 0 10px;
+}
+.pb-help-note { color: var(--pb-muted); font-size: 12.5px; }
+.pb-help-note code {
+  background: #f2f4f7; border-radius: 4px; padding: 1px 4px; font-size: 11.5px;
+}
 .pb-btn-plain {
   background: #eef0f4; color: var(--pb-ink); border: none; border-radius: 9px;
   padding: 9px 14px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
@@ -294,6 +333,11 @@ export const PB_CSS = `
 .pb-empty { text-align: center; padding: 76px 16px; color: #9aa3ae; }
 .pb-empty h2 { color: #e8eaee; font-size: 20px; margin: 0 0 8px; }
 .pb-empty p { margin: 0 auto 20px; max-width: 420px; font-size: 14px; line-height: 1.5; }
+.pb-empty-help {
+  background: none; border: none; color: #8b94a1; font-size: 13px; font-family: inherit;
+  cursor: pointer; margin-top: 14px; text-decoration: underline; padding: 6px;
+}
+.pb-empty-help:hover { color: #e8eaee; }
 
 /* ── Toast ───────────────────────────────────────────────────────────────── */
 .pb-toast {
