@@ -44,6 +44,41 @@ export function colorFor(project) {
 export const openTasks = (project) => (project.tasks || []).filter((t) => !t.done);
 export const doneTasks = (project) => (project.tasks || []).filter((t) => t.done);
 
+export const isInbox = (project) => String(project.name || "").trim().toLowerCase() === "inbox";
+
+/* Display order for the wall: busiest board first.
+ *
+ * Two rules, and they are Patrick's (2026-08-14):
+ *   1. Most open tasks first, so the wall opens on the work rather than on
+ *      whatever order the boards happened to be created in.
+ *   2. INBOX is the exception. It leads the wall while it has anything waiting
+ *      to be filed — that is the point of capture, a queue you can see — and
+ *      drops to the very end once it's empty, where an empty card isn't in the
+ *      way of five that have work on them.
+ *
+ * Ties fall back to the manual position, which is what the ⋯ menu's "move
+ * earlier/later" writes. That is the only thing manual ordering still decides
+ * once the wall sorts itself.
+ *
+ * Called when the board LOADS, not on every write — see the note on `order` in
+ * index.jsx. A wall that re-sorts the instant you tick a checkbox moves the card
+ * you're working on out from under the cursor. */
+export function sortForWall(projects) {
+  return [...projects].sort((a, b) => {
+    const ai = isInbox(a);
+    const bi = isInbox(b);
+    if (ai !== bi) {
+      const inbox = ai ? a : b;
+      const trailing = openTasks(inbox).length === 0;
+      if (ai) return trailing ? 1 : -1;
+      return trailing ? -1 : 1;
+    }
+    const byOpen = openTasks(b).length - openTasks(a).length;
+    if (byOpen) return byOpen;
+    return a.position - b.position || a.id - b.id;
+  });
+}
+
 export const PB_CSS = `
 /* Palette: near-black wall, white cards, indigo chrome. The dark wall is doing a
    job — with 10-25 cards on screen at once, a light background makes the gutters

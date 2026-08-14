@@ -98,6 +98,21 @@ export default function HelpModal({ onClose }) {
         </div>
 
         <div className="pb-help-sec">
+          <div className="pb-help-h">How the wall is ordered</div>
+          <p className="pb-help-p">
+            Busiest board first — most open tasks to fewest — so opening the page puts the work in
+            front of you. <strong>Inbox</strong> is the exception: it leads the wall while it has
+            anything waiting to be filed, and drops to the very end once it’s empty.
+          </p>
+          <p className="pb-help-p">
+            The order is worked out when the board <strong>loads</strong>, not after every tick —
+            otherwise a card would jump out from under your cursor the moment you finished its last
+            task. Press <strong>↻</strong> to re-sort. Among cards with the same number of open
+            tasks, “move earlier / later” in the <code>⋯</code> menu decides.
+          </p>
+        </div>
+
+        <div className="pb-help-sec">
           <div className="pb-help-h">Next up, along the top</div>
           <p className="pb-help-p">
             The first open task from every board, so you can see the whole wall’s worth of “what’s

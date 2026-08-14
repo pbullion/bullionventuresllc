@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api.js";
-import { PB_CSS, colorFor, openTasks } from "./ui.js";
+import { PB_CSS, colorFor, openTasks, sortForWall } from "./ui.js";
 import ProjectCard from "./ProjectCard.jsx";
 import ProjectModal from "./ProjectModal.jsx";
 import HelpModal from "./HelpModal.jsx";
@@ -39,6 +39,15 @@ const sortState = (projects) =>
     .sort(byPosition)
     .map((p) => ({ ...p, tasks: [...(p.tasks || [])].sort(byPosition) }));
 
+/* Arranges projects by a snapshot of ids (see `order` below). Unknown ids sort
+ * last, which is where a project created since the snapshot belongs. */
+const applyOrder = (projects, order) => {
+  const rank = new Map(order.map((id, i) => [id, i]));
+  return [...projects].sort(
+    (a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity) || a.id - b.id
+  );
+};
+
 export default function Patrick() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +56,16 @@ export default function Patrick() {
   const [modal, setModal] = useState(null); // null | { project?: {...} }
   const [help, setHelp] = useState(false);
   const [flashId, setFlashId] = useState(null);
+
+  /* The wall's display order, as project ids, decided when the board LOADS.
+   *
+   * Sorting live off `projects` would be one line — and it would move cards out
+   * from under the cursor: tick the last open task on a busy board and it would
+   * jump to the end of the wall mid-click. So the order is a snapshot, taken by
+   * sortForWall() on load and on ↻, and everything that happens in between
+   * leaves the layout still. Ids not in the snapshot (a project created since)
+   * render at the end. */
+  const [order, setOrder] = useState([]);
 
   const cardRefs = useRef({});
   const toastTimer = useRef(null);
@@ -72,7 +91,9 @@ export default function Patrick() {
       api
         .state()
         .then((data) => {
-          setProjects(sortState(data.projects || []));
+          const next = sortState(data.projects || []);
+          setProjects(next);
+          setOrder(sortForWall(next).map((p) => p.id));
           setFatal(null);
         })
         .catch((e) => setFatal(e.message))
@@ -88,7 +109,9 @@ export default function Patrick() {
     api
       .state()
       .then((data) => {
-        setProjects(sortState(data.projects || []));
+        const next = sortState(data.projects || []);
+        setProjects(next);
+        setOrder(sortForWall(next).map((p) => p.id));
         setFatal(null);
       })
       .catch((e) => setFatal(e.message))
@@ -307,12 +330,20 @@ export default function Patrick() {
 
   /* Reorder by swapping position values with the neighbour. Two PATCHes rather
    * than renumbering the wall — with a handful of projects that is the whole
-   * cost, and it keeps every other card's position untouched. */
+   * cost, and it keeps every other card's position untouched.
+   *
+   * The DISPLAY snapshot is swapped too, or the card wouldn't visibly move:
+   * position is only the tie-break under the workload sort, so on cards with
+   * different open counts the stored swap alone changes nothing on screen. Worth
+   * being clear about the consequence — a manual move survives until the next
+   * load, and then the workload sort decides again. */
   const moveProject = (project, dir) => {
-    const i = projects.findIndex((p) => p.id === project.id);
+    const i = ordered.findIndex((p) => p.id === project.id);
     const j = i + dir;
-    if (i < 0 || j < 0 || j >= projects.length) return;
-    const other = projects[j];
+    if (i < 0 || j < 0 || j >= ordered.length) return;
+    const other = ordered[j];
+    const ids = ordered.map((p) => p.id);
+    setOrder(ids.map((id, k) => (k === i ? ids[j] : k === j ? ids[i] : id)));
     write(
       (prev) =>
         prev.map((p) => {
@@ -329,17 +360,23 @@ export default function Patrick() {
 
   // ── Next up ────────────────────────────────────────────────────────────────
 
+  /* The wall, in the snapshot's order. Projects created since the last load have
+   * no place in the snapshot yet and go on the end — which is also where a
+   * brand-new empty board belongs. */
+  const ordered = applyOrder(projects, order);
+
   /* One chip per project that has anything open, showing its TOP open task. Not
    * a global priority list — there is no cross-project ranking to build one
    * from, and inventing one would be a number Patrick would have to maintain.
    * "The next thing on each board" is a question the data can actually answer. */
-  const nextUp = useMemo(
-    () =>
-      projects
-        .map((p) => ({ project: p, task: openTasks(p)[0] }))
-        .filter((x) => x.task && !x.task.pending),
-    [projects]
-  );
+  /* Neither this nor `ordered` is wrapped in useMemo. The React Compiler
+   * memoizes them itself, and a hand-written memo it can't prove equivalent
+   * makes it skip optimizing the whole component — sorting a couple of dozen
+   * projects per render is free, so the manual version bought nothing and cost
+   * the automatic one. */
+  const nextUp = ordered
+    .map((p) => ({ project: p, task: openTasks(p)[0] }))
+    .filter((x) => x.task && !x.task.pending);
 
   const jumpTo = (projectId) => {
     const el = cardRefs.current[projectId];
@@ -448,15 +485,15 @@ export default function Patrick() {
         )}
 
         <div className="pb-wall">
-          {projects.map((project, i) => (
+          {ordered.map((project, i) => (
             <ProjectCard
               key={project.id}
               project={project}
-              otherProjects={projects.filter((p) => p.id !== project.id)}
+              otherProjects={ordered.filter((p) => p.id !== project.id)}
               onMoveTask={moveTask}
               flash={flashId === project.id}
               canMoveLeft={i > 0}
-              canMoveRight={i < projects.length - 1}
+              canMoveRight={i < ordered.length - 1}
               cardRef={(el) => {
                 cardRefs.current[project.id] = el;
               }}
