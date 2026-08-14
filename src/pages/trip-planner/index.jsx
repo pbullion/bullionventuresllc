@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { deleteTripWithPin, TRIP_DELETE_VISIBLE } from "./tripPin";
+import { deleteTripWithPin, setTripAccess, TRIP_DELETE_VISIBLE } from "./tripPin";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 
@@ -43,7 +43,7 @@ export default function TripPlannerHome() {
   const [trips, setTrips] = useState(null);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", location: "", start_date: "", end_date: "", families: "" });
+  const [form, setForm] = useState({ name: "", location: "", start_date: "", end_date: "", families: "", pin: "" });
   const [creating, setCreating] = useState(false);
   const [confirmSlug, setConfirmSlug] = useState(null);
   const [deletingSlug, setDeletingSlug] = useState(null);
@@ -56,7 +56,11 @@ export default function TripPlannerHome() {
   }, []);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
-  const canCreate = form.name.trim() && form.start_date && form.end_date && form.end_date >= form.start_date;
+  // Same rule the server enforces (4–8 digits). Checking it here too keeps the
+  // button honest instead of letting a submit come back 400.
+  const pinOk = /^\d{4,8}$/.test(form.pin.trim());
+  const canCreate =
+    form.name.trim() && form.start_date && form.end_date && form.end_date >= form.start_date && pinOk;
 
   async function createTrip(e) {
     e.preventDefault();
@@ -74,6 +78,9 @@ export default function TripPlannerHome() {
       });
       const trip = await res.json();
       if (!res.ok || !trip.slug) throw new Error(trip.error || "create failed");
+      // Remember it for the creator — being asked for a PIN you typed two
+      // seconds ago reads like the create failed.
+      setTripAccess(trip.slug, form.pin.trim());
       navigate(`/tripplanner/${trip.slug}`);
     } catch (err) {
       setError(`Couldn't create the trip: ${err.message}`);
@@ -116,7 +123,7 @@ export default function TripPlannerHome() {
           </Link>
         </div>
         <p style={{ color: "#6b7684", marginTop: 4, marginBottom: 24 }}>
-          Meals and packing lists for group trips — everyone with the link can edit.
+          Meals and packing lists for group trips — everyone with the link and the trip PIN can edit.
         </p>
 
         {error && (
@@ -130,7 +137,10 @@ export default function TripPlannerHome() {
         {trips?.map((t) => (
           <div key={t.id} className="tp-cardwrap">
             <Link to={`/tripplanner/${t.slug}`} className="tp-card">
-              <div style={{ fontSize: 18, fontWeight: 700 }}>{t.name}</div>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>
+                {t.locked && <span title="PIN required" style={{ marginRight: 6 }}>🔒</span>}
+                {t.name}
+              </div>
               <div style={{ color: "#6b7684", fontSize: 14, marginTop: 4 }}>
                 {t.location ? `${t.location} · ` : ""}
                 {dateRange(t)}
@@ -194,6 +204,25 @@ export default function TripPlannerHome() {
                 Families <span style={{ fontWeight: 400, color: "#6b7684" }}>— comma separated, used for color coding</span>
               </label>
               <input className="tp-input" value={form.families} onChange={set("families")} placeholder="Angelle, Bullion, Hays" />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>
+                Trip PIN <span style={{ fontWeight: 400, color: "#6b7684" }}>— 4 to 8 digits, needed to open this trip</span>
+              </label>
+              <input
+                className="tp-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={8}
+                value={form.pin}
+                onChange={set("pin")}
+                placeholder="1234"
+              />
+              <p style={{ fontSize: 12, color: "#6b7684", margin: "5px 0 0" }}>
+                Share it with everyone on the trip — they type it once per device.
+                There is no way to look it up later, so write it down.
+              </p>
             </div>
             <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
               <div className="tp-datecol">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
-import { deleteTripWithPin, TRIP_DELETE_VISIBLE } from "./tripPin";
+import { deleteTripWithPin, setTripAccess, tripFetch, TRIP_DELETE_VISIBLE } from "./tripPin";
 import { groupByAisle, sortByName } from "./groceryAisles";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
@@ -263,27 +263,64 @@ export default function TripPlanner() {
   const [familiesDraft, setFamiliesDraft] = useState(null); // comma string while editing, null when not
   const [wx, setWx] = useState(null); // forecast payload from the backend
   const [cabinDraft, setCabinDraft] = useState(null); // cabin object while editing
+  const [locked, setLocked] = useState(null); // { name } while the PIN is needed
+  const [pinDraft, setPinDraft] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
   const notesTimer = useRef(null);
 
   const load = useCallback(() => {
-    fetch(`${API_BASE}/trips/${slug}`)
+    tripFetch(slug, `${API_BASE}/trips/${slug}`)
       .then((r) => {
         if (r.status === 404) {
           setNotFound(true);
           return null;
         }
+        /* 401 is the trip's access PIN: either none is stored yet or the one
+         * stored is wrong (someone rotated it). Both land on the unlock screen.
+         * The stored PIN is deliberately NOT cleared here — leaving it means a
+         * network blip that 401s doesn't log the whole family out. */
+        if (r.status === 401) {
+          return r.json().then((body) => {
+            setLocked({ name: body.name || "" });
+            return null;
+          });
+        }
         return r.json();
       })
       .then((data) => {
-        if (data) setTrip(data);
+        if (data) {
+          setLocked(null);
+          setTrip(data);
+        }
       })
       .catch(() => setError("Couldn't load the trip. Check your connection and refresh."));
   }, [slug]);
 
+  /* Unlocking is just "store the PIN, load again" — there's no separate verify
+   * endpoint, because the load itself is the verification and a second one
+   * would be a second place for the two answers to disagree. */
+  function unlock(e) {
+    e.preventDefault();
+    const entered = pinDraft.trim();
+    if (!entered) return;
+    setUnlocking(true);
+    setError("");
+    setTripAccess(slug, entered);
+    tripFetch(slug, `${API_BASE}/trips/${slug}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 401 ? "wrong" : `HTTP ${r.status}`))))
+      .then((data) => {
+        setLocked(null);
+        setTrip(data);
+        setPinDraft("");
+      })
+      .catch((err) => setError(err.message === "wrong" ? "That's not the PIN for this trip." : "Couldn't reach the server — try again."))
+      .finally(() => setUnlocking(false));
+  }
+
   useEffect(load, [load]);
 
   useEffect(() => {
-    fetch(`${API_BASE}/trips/${slug}/weather`)
+    tripFetch(slug, `${API_BASE}/trips/${slug}/weather`)
       .then((r) => r.json())
       .then(setWx)
       .catch(() => {}); // weather is decoration — never block the page on it
@@ -318,7 +355,7 @@ export default function TripPlanner() {
         ingChanges.addNames.length > 0 ||
         (existingIngredients && ingChanges.removeIds.length === 0);
 
-      const res = await fetch(`${API_BASE}/trips/${slug}/meals`, {
+      const res = await tripFetch(slug, `${API_BASE}/trips/${slug}/meals`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date, meal_type: mealType, ...fields, keep }),
@@ -343,14 +380,14 @@ export default function TripPlanner() {
       const [added] = await Promise.all([
         Promise.all(
           ingChanges.addNames.map((name) =>
-            fetch(`${API_BASE}/trips/${slug}/items`, {
+            tripFetch(slug, `${API_BASE}/trips/${slug}/items`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ name, category: "Groceries", meal_id: saved.id }),
             }).then((r) => (r.ok ? r.json() : null))
           )
         ),
-        Promise.all(ingChanges.removeIds.map((id) => fetch(`${API_BASE}/items/${id}`, { method: "DELETE" }))),
+        Promise.all(ingChanges.removeIds.map((id) => tripFetch(slug, `${API_BASE}/items/${id}`, { method: "DELETE" }))),
       ]);
 
       setTrip((t) => ({
@@ -372,7 +409,7 @@ export default function TripPlanner() {
     setAddingItem(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/trips/${slug}/items`, {
+      const res = await tripFetch(slug, `${API_BASE}/trips/${slug}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newItem),
@@ -394,7 +431,7 @@ export default function TripPlanner() {
       setTrip((t) => ({ ...t, items: t.items.map((i) => (i.id === item.id ? { ...i, checked } : i)) }));
     flip(!item.checked);
     try {
-      const res = await fetch(`${API_BASE}/items/${item.id}`, {
+      const res = await tripFetch(slug, `${API_BASE}/items/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ checked: !item.checked }),
@@ -409,7 +446,7 @@ export default function TripPlanner() {
   async function deleteItem(item) {
     setTrip((t) => ({ ...t, items: t.items.filter((i) => i.id !== item.id) }));
     try {
-      const res = await fetch(`${API_BASE}/items/${item.id}`, { method: "DELETE" });
+      const res = await tripFetch(slug, `${API_BASE}/items/${item.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
     } catch {
       setTrip((t) => ({ ...t, items: [...t.items, item] }));
@@ -425,7 +462,7 @@ export default function TripPlanner() {
     setAddingBring(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/trips/${slug}/items`, {
+      const res = await tripFetch(slug, `${API_BASE}/trips/${slug}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...newBring, category: "Bringing" }),
@@ -451,7 +488,7 @@ export default function TripPlanner() {
     setAddingPack(family);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/trips/${slug}/items`, {
+      const res = await tripFetch(slug, `${API_BASE}/trips/${slug}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, category: FAMILY_PACKING, assigned_to: family }),
@@ -470,7 +507,7 @@ export default function TripPlanner() {
   async function saveFamilies() {
     const fams = familiesDraft.split(",").map((f) => f.trim()).filter(Boolean);
     try {
-      const res = await fetch(`${API_BASE}/trips/${slug}`, {
+      const res = await tripFetch(slug, `${API_BASE}/trips/${slug}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ families: fams }),
@@ -493,7 +530,7 @@ export default function TripPlanner() {
     const prev = trip.day_meals;
     setTrip((t) => ({ ...t, day_meals: dayMeals }));
     try {
-      const res = await fetch(`${API_BASE}/trips/${slug}`, {
+      const res = await tripFetch(slug, `${API_BASE}/trips/${slug}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ day_meals: dayMeals }),
@@ -508,7 +545,7 @@ export default function TripPlanner() {
   // Generic trip-field save; merges the returned trip row over local state
   // while keeping the child collections (meals/items/expenses/activities).
   async function patchTrip(body) {
-    const res = await fetch(`${API_BASE}/trips/${slug}`, {
+    const res = await tripFetch(slug, `${API_BASE}/trips/${slug}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -532,7 +569,7 @@ export default function TripPlanner() {
     setTrip((t) => ({ ...t, notes }));
     clearTimeout(notesTimer.current);
     notesTimer.current = setTimeout(() => {
-      fetch(`${API_BASE}/trips/${slug}`, {
+      tripFetch(slug, `${API_BASE}/trips/${slug}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes }),
@@ -559,6 +596,49 @@ export default function TripPlanner() {
           <h1>Trip not found</h1>
           <p style={{ color: "#6b7684" }}>That trip doesn't exist (or was deleted).</p>
           <Link to="/tripplanner" style={{ color: "#2a9d8f" }}>← All trips</Link>
+        </div>
+      </div>
+    );
+  }
+
+  /* Checked before the loading state, and before `trip` exists at all — nothing
+   * about a locked trip has been fetched, so there is nothing to render behind
+   * this screen. */
+  if (locked) {
+    return (
+      <div className="tp-root">
+        <style>{TP_CSS}</style>
+        <div className="tp-shell" style={{ maxWidth: 420 }}>
+          <Link to="/tripplanner" style={{ color: "#2a9d8f", fontSize: 14, textDecoration: "none" }}>
+            ← All trips
+          </Link>
+          <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 20, marginTop: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 34 }}>🔒</div>
+            <h1 style={{ fontSize: 21, margin: "6px 0 4px" }}>{locked.name || "This trip"}</h1>
+            <p style={{ color: "#6b7684", fontSize: 14, margin: "0 0 16px" }}>
+              Enter the trip PIN to open it.
+            </p>
+            <form onSubmit={unlock}>
+              <input
+                className="tp-input"
+                /* Not type="number": that draws spinners and strips leading
+                   zeros, and 0930 is a perfectly good PIN. inputMode still gets
+                   the number pad on a phone. */
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                value={pinDraft}
+                onChange={(e) => setPinDraft(e.target.value)}
+                placeholder="••••"
+                style={{ textAlign: "center", letterSpacing: 6, fontSize: 20, marginBottom: 12 }}
+                autoFocus
+              />
+              <button className="tp-btn" type="submit" disabled={!pinDraft.trim() || unlocking} style={{ width: "100%" }}>
+                {unlocking ? "Checking…" : "Open trip"}
+              </button>
+            </form>
+            {error && <p style={{ color: "#a33a2f", fontSize: 14, marginBottom: 0 }}>{error}</p>}
+          </div>
         </div>
       </div>
     );

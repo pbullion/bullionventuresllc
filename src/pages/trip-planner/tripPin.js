@@ -9,6 +9,56 @@
  */
 const PIN_KEY = "bv_trip_pin";
 
+/* ── Per-trip access PIN ──────────────────────────────────────────────────────
+ *
+ * Different thing from PIN_KEY above, which is the owner's admin PIN for
+ * deleting. This is the PIN a trip is created with and everyone on the trip
+ * types once to get in — one per trip, so being let into the beach trip doesn't
+ * let you into anyone else's, and so rotating one doesn't sign you out of the
+ * rest. Sent on every request as x-trip-access-pin; the server stores only a
+ * salted hash and answers 401 { locked: true }.
+ *
+ * localStorage, not sessionStorage: this is a family shopping list on a phone
+ * that gets opened once a day for a month. Being asked to retype the PIN every
+ * visit is how people stop opening it. */
+const ACCESS_KEY = (slug) => `bv_trip_access_${slug}`;
+
+// Every accessor swallows storage errors — Safari private mode throws on read
+// as well as write, and a thrown getItem would blank the whole trip screen.
+export function getTripAccess(slug) {
+  try {
+    return window.localStorage.getItem(ACCESS_KEY(slug)) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setTripAccess(slug, pin) {
+  try {
+    window.localStorage.setItem(ACCESS_KEY(slug), pin);
+  } catch {
+    /* private mode — the PIN still works for this visit, held in React state */
+  }
+}
+
+export function clearTripAccess(slug) {
+  try {
+    window.localStorage.removeItem(ACCESS_KEY(slug));
+  } catch {
+    /* nothing to do */
+  }
+}
+
+/* fetch() with the trip's access PIN attached. Every Trip.jsx call goes through
+ * this rather than raw fetch — a single missed call site is a request that 401s
+ * on a locked trip and looks to the user like a save that silently failed. */
+export function tripFetch(slug, url, opts = {}) {
+  return fetch(url, {
+    ...opts,
+    headers: { ...(opts.headers || {}), "x-trip-access-pin": getTripAccess(slug) },
+  });
+}
+
 /* Master switch for the delete UI, off at Patrick's request 2026-08-09 — the
  * planner is shared with other families and a visible trash can invites a
  * mistake no PIN prompt fully undoes.
