@@ -55,6 +55,7 @@ import DaycareMemoryVaultPrivacy from "./pages/daycare-memory-vault/Privacy.jsx"
 import DaycareMemoryVaultSupport from "./pages/daycare-memory-vault/Support.jsx";
 import Ashley from "./pages/ashley/index.jsx";
 import Prospects from "./pages/prospects/index.jsx";
+import PatrickBoard from "./pages/patrick/index.jsx";
 import Hrw from "./pages/hrw/index.jsx";
 import HrwRestaurant from "./pages/hrw/Restaurant.jsx";
 
@@ -79,7 +80,11 @@ export default function App() {
   // Also full-screen and also unlisted — her Houston C&I calling list. Unlike
   // /ashley it has no login at all; see the header of src/pages/prospects/index.jsx.
   const isProspects = location.pathname.startsWith("/prospects");
-  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isTotalsValue || isCryptoValue || isMorningReview || isEliteEdge || isGulfHurricane || isTripPlanner || isAshley || isProspects;
+  // Patrick's own project board — a wall of mini todo boards, one per app he is
+  // still finishing. Full-screen because the whole point is seeing every board
+  // at once; unlisted and unauthenticated like /prospects.
+  const isPatrickBoard = location.pathname.startsWith("/patrick");
+  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isTotalsValue || isCryptoValue || isMorningReview || isEliteEdge || isGulfHurricane || isTripPlanner || isAshley || isProspects || isPatrickBoard;
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ScrollToTop />
@@ -119,6 +124,8 @@ export default function App() {
               a slug, so /prospects/quanta-services is bookmarkable. */}
           <Route path="/prospects" element={<Prospects />} />
           <Route path="/prospects/:slug" element={<Prospects />} />
+          {/* Cardless and unlisted on purpose — reached by typing the URL. */}
+          <Route path="/patrick" element={<PatrickBoard />} />
           <Route path="/hrw" element={<Hrw />} />
           <Route path="/hrw/:slug" element={<HrwRestaurant />} />
           <Route path="/wnba-value" element={<Navigate to="/totals-value" replace />} />

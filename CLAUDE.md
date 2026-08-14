@@ -64,6 +64,10 @@ When you add a new tool/page, do **all** of these, not just the route:
      email/password login, JWT in `localStorage["ash_token"]`, and
      `routes/ashley.js` requires a bearer token on every endpoint including the
      reads. Needs `ASHLEY_JWT_SECRET` and `ASHLEY_SIGNUP_CODE` set on Heroku.
+   - **`/patrick` is cardless AND unlisted too.** Patrick's own project board
+     (`src/pages/patrick/`) — one mini todo board per app he is still finishing.
+     Not on the home page, not in `PRIVATE_TOOLS`, no login, reached by typing
+     the URL. See its own section below.
    - **Betting screens go somewhere else.** The five Kalshi/betting pages are
      kept off the public home page (Patrick, 2026-07-30) and live in
      `PRIVATE_TOOLS` in `src/components/PrivateTools.jsx`, reached by
@@ -127,6 +131,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` |
 | `/prospects` | `/prospects` |
 | `/ashley` | `/ashley` |
+| `/patrick` | `/patrick-board` (NOT `/patrick` — that prefix is the Tesla dashboard's feed) |
 | `/hrw` | `/hrw` (reviews only — restaurant data is the static `public/data/hrw-2026.json`, see above) |
 
 - The site does **not** call `/bullion-ventures` (that backend route is
@@ -196,6 +201,43 @@ both rendering `index.jsx`, so one company is bookmarkable.
   `tel:`/`mailto:`/maps/`https` link, inputs are 16px so iOS doesn't zoom, and
   modals are bottom sheets (`Sheet.jsx`).
 
+## `/patrick` — Patrick's project board
+
+A wall of mini todo boards, one card per app he is still finishing
+(`src/pages/patrick/`). Built 2026-08-13. The premise is that **everything is on
+one screen**: no project route, no task detail view, no navigation at all. Every
+write happens in place on the card. Anything that would need a second screen to
+see or change a task does not belong on this page.
+
+- **Backend is `/patrick-board`, not `/patrick`.** The `/patrick` prefix on the
+  Sheline backend is 6,000+ lines of Tesla dashboard and sports scraping with its
+  own crons; the board is a separate router (`routes/patrickBoard.js`) sharing
+  nothing with it. Only the frontend path is `/patrick`.
+- **A task is OPEN or DONE and nothing else** (Patrick, 2026-08-13, asked
+  directly and against a doing/blocked middle state). Rank is expressed by ORDER
+  instead — hence the `↑` on every open row, which is a `PATCH {top:true}` the
+  backend resolves to `min(position) - 1` itself. Don't add a status field; add
+  a way to order things.
+- **The "Next up" strip reads the top open task of each card.** It is not a
+  cross-project priority list — there is no ranking to build one from, and
+  inventing one would be a number he'd have to maintain.
+- **No login, no access code.** Same call as `/prospects`: anyone reaching the
+  URL can read and edit. What's exposed is a list of his own side projects. If
+  that changes, copy the `PROSPECTS_ACCESS_CODE` switch out of
+  `routes/prospects.js` — a dozen lines, no frontend deploy.
+- **Deletes are soft, so Undo is a real restore**, not a re-create with new ids.
+  Deleting a project keeps its tasks and `POST /projects/:id/restore` brings the
+  card back intact. Nothing purges the dead rows.
+- **Every write is optimistic and a failure REFETCHES `/state`** rather than
+  rolling back by hand. The whole board is one small request, so a refetch is
+  both simpler and more truthful — it also picks up edits made on another device.
+- The add box handles Enter itself instead of relying on implicit form
+  submission. Typing a task and pressing Enter is the single most common action
+  on the page; it doesn't get to depend on a browser corner case.
+- Local dev: `node scripts/patrick-board-local.js` in the backend repo (port
+  3003) — `api.js` points at localhost automatically when served from localhost,
+  so a UI experiment can't reorder the live board.
+
 ## Conventions
 
 - One folder per tool under `src/pages/`; pages are self-contained single
@@ -224,6 +266,16 @@ both rendering `index.jsx`, so one company is bookmarkable.
   `routes/bullion_ventures.js` — hard-disabled 2026-07-22 (commented out, not
   env-gated) because the auto-bettor's per-bet pushes made them redundant
   spam. The code comments there say why; manual `/push/test` still works.
+- **Trip Planner has TWO different PINs, and they are not interchangeable.**
+  The *access* PIN is per trip, chosen when the trip is created, cached in
+  `localStorage["bv_trip_access_<slug>"]` and sent as `x-trip-access-pin` on
+  every request — it's what the families type to open a trip. The *admin* PIN
+  is one shared value (`TRIP_PLANNER_PIN`, header `x-trip-pin`) and only guards
+  deletes and the recycle bin. Sharing a trip must never hand anyone the second
+  one. **Every backend call in `Trip.jsx` must go through `tripFetch()`** from
+  `tripPin.js`; a raw `fetch` 401s on a locked trip and looks to the user like a
+  save that silently did nothing. Trips created before 2026-08-13 have no access
+  PIN and stay open — that's grandfathering, not a supported mode.
 - Betting pages poll (15s my-bets, 30s totals-value panel). Keep any new
   polling interval ≥ that order — every tab multiplies Kalshi API load.
 - ESPN (`site.api.espn.com`) is called directly from the browser with no key —
