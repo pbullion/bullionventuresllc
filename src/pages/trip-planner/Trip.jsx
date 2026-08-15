@@ -261,6 +261,8 @@ export default function TripPlanner() {
   const [addingPack, setAddingPack] = useState(null);
   const [addingBring, setAddingBring] = useState(false);
   const [familiesDraft, setFamiliesDraft] = useState(null); // comma string while editing, null when not
+  const [datesDraft, setDatesDraft] = useState(null); // { start_date, end_date } while editing
+  const [savingDates, setSavingDates] = useState(false);
   const [wx, setWx] = useState(null); // forecast payload from the backend
   const [cabinDraft, setCabinDraft] = useState(null); // cabin object while editing
   const [locked, setLocked] = useState(null); // { name } while the PIN is needed
@@ -319,12 +321,19 @@ export default function TripPlanner() {
 
   useEffect(load, [load]);
 
-  useEffect(() => {
+  /* A callback rather than an inline effect because changing the trip dates has
+   * to re-run it: the forecast is computed server-side for the trip's range, so
+   * a strip left unfetched after a date change is showing days the trip no
+   * longer has. (The caller clears `wx` first — doing it in here would be a
+   * setState in the mount effect below.) */
+  const loadWeather = useCallback(() => {
     tripFetch(slug, `${API_BASE}/trips/${slug}/weather`)
       .then((r) => r.json())
       .then(setWx)
       .catch(() => {}); // weather is decoration — never block the page on it
   }, [slug]);
+
+  useEffect(loadWeather, [loadWeather]);
 
   // Pick up other families' edits whenever the tab comes back into view.
   useEffect(() => {
@@ -521,6 +530,57 @@ export default function TripPlanner() {
     }
   }
 
+  /* Trips move — a night gets added, everyone leaves a day early. The dates are
+   * the spine of this page (the meal grid, the header range and the forecast are
+   * all derived from them), so editing them re-derives all three rather than
+   * touching any of the child rows.
+   *
+   * Nothing is deleted when the trip shrinks. Meals planned on days that fall
+   * away stop being rendered but stay in tp_meals, and their day_meals entries
+   * are left alone too, so widening the dates back restores the grid exactly as
+   * it was. That's the whole reason the confirm below can promise it. */
+  async function saveDates() {
+    const start_date = datesDraft.start_date;
+    const end_date = datesDraft.end_date;
+    if (!start_date || !end_date) {
+      setError("Pick both a first and a last day.");
+      return;
+    }
+    if (end_date < start_date) {
+      setError("The last day can't be before the first day.");
+      return;
+    }
+    if (start_date !== trip.start_date || end_date !== trip.end_date) {
+      const dropped = trip.meals.filter((m) => m.date < start_date || m.date > end_date);
+      if (dropped.length > 0) {
+        const dayList = [...new Set(dropped.map((m) => m.date))]
+          .sort()
+          .map((d) => format(parseISO(d), "EEE MMM d"))
+          .join(", ");
+        const ok = window.confirm(
+          `${dropped.length} planned meal${dropped.length === 1 ? "" : "s"} (${dayList}) ` +
+            `fall outside those dates. They'll be hidden, not deleted — widening the dates ` +
+            `again brings them back. Save anyway?`
+        );
+        if (!ok) return;
+      }
+    }
+    setSavingDates(true);
+    setError("");
+    try {
+      await patchTrip({ start_date, end_date });
+      setDatesDraft(null);
+      // The forecast is built for the trip's range: blank the old days out
+      // rather than leave them looking current while the new ones load.
+      setWx(null);
+      loadWeather();
+    } catch (err) {
+      setError(`Couldn't save the dates: ${err.message}`);
+    } finally {
+      setSavingDates(false);
+    }
+  }
+
   async function toggleDayMeal(date, mealKey) {
     const current = trip.day_meals?.[date] || MEAL_TYPES.map((t) => t.key);
     const next = current.includes(mealKey)
@@ -655,7 +715,18 @@ export default function TripPlanner() {
     );
   }
 
-  const days = eachDayOfInterval({ start: parseISO(trip.start_date), end: parseISO(trip.end_date) });
+  /* eachDayOfInterval throws on a backwards interval, which would white-screen
+   * the whole page. The date editor and the backend both refuse to save one, but
+   * this render runs against whatever the row already holds — so it degrades to
+   * a single day instead of taking the trip down. */
+  const tripStart = parseISO(trip.start_date);
+  const tripEnd = parseISO(trip.end_date);
+  const days = tripEnd >= tripStart ? eachDayOfInterval({ start: tripStart, end: tripEnd }) : [tripStart];
+  // Meals still stored on days the trip no longer covers (someone shortened it).
+  // Surfaced rather than silently dropped — see the banner under the Meals
+  // heading and the marker on their ingredients in the shopping list.
+  const outsideDate = (date) => date < trip.start_date || date > trip.end_date;
+  const outsideMeals = trip.meals.filter((m) => outsideDate(m.date));
   const mealFor = (date, type) => trip.meals.find((m) => m.date === date && m.meal_type === type);
   const mealById = Object.fromEntries(trip.meals.map((m) => [m.id, m]));
   const bringItems = trip.items.filter((i) => i.category === "Bringing");
@@ -737,10 +808,58 @@ export default function TripPlanner() {
         </Link>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
           <h1 style={{ fontSize: 26, margin: 0 }}>{trip.name}</h1>
-          <div style={{ color: "#6b7684", fontSize: 15 }}>
-            {trip.location ? `${trip.location} · ` : ""}
-            {format(days[0], "EEE MMM d")} – {format(days[days.length - 1], "EEE MMM d")}
-          </div>
+          {datesDraft === null ? (
+            <div style={{ color: "#6b7684", fontSize: 15, display: "flex", alignItems: "baseline", gap: 6 }}>
+              <span>
+                {trip.location ? `${trip.location} · ` : ""}
+                {format(days[0], "EEE MMM d")} – {format(days[days.length - 1], "EEE MMM d")}
+              </span>
+              {/* The dates are where the day cards come from, so editing them
+                  lives on the label that shows them rather than off in the
+                  cabin card with the check-in time. */}
+              <button
+                className="tp-btn-quiet"
+                style={{ fontSize: 13, padding: "2px 6px" }}
+                onClick={() => setDatesDraft({ start_date: trip.start_date, end_date: trip.end_date })}
+              >
+                edit dates
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <input
+                className="tp-input"
+                type="date"
+                style={{ marginBottom: 0, width: "auto" }}
+                value={datesDraft.start_date}
+                onChange={(e) => setDatesDraft((d) => ({ ...d, start_date: e.target.value }))}
+              />
+              <span style={{ color: "#6b7684" }}>–</span>
+              <input
+                className="tp-input"
+                type="date"
+                style={{ marginBottom: 0, width: "auto" }}
+                value={datesDraft.end_date}
+                min={datesDraft.start_date || undefined}
+                onChange={(e) => setDatesDraft((d) => ({ ...d, end_date: e.target.value }))}
+              />
+              <button
+                className="tp-btn"
+                onClick={saveDates}
+                disabled={
+                  savingDates ||
+                  !datesDraft.start_date ||
+                  !datesDraft.end_date ||
+                  datesDraft.end_date < datesDraft.start_date
+                }
+              >
+                {savingDates ? "Saving…" : "Save"}
+              </button>
+              <button className="tp-btn-quiet" disabled={savingDates} onClick={() => setDatesDraft(null)}>
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
 
         {(cabin.link || mapQuery) && (
@@ -840,6 +959,16 @@ export default function TripPlanner() {
         )}
 
         <h2 id="tp-meals" style={{ fontSize: 19, margin: "22px 0 10px" }}>Meals</h2>
+        {/* Shortening a trip has to say so. Without this the day cards just
+            quietly stop existing and the meals planned on them look deleted —
+            they aren't, and the fix is to widen the dates back. */}
+        {outsideMeals.length > 0 && (
+          <div style={{ background: "#fff8e6", border: "1px solid #f0dfae", color: "#7a5c11", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 14, maxWidth: 640 }}>
+            📅 {outsideMeals.length} planned meal{outsideMeals.length === 1 ? "" : "s"} fall outside these
+            dates ({[...new Set(outsideMeals.map((m) => m.date))].sort().map((d) => format(parseISO(d), "EEE MMM d")).join(", ")}).
+            Still saved, just not shown — widen the trip dates to get them back.
+          </div>
+        )}
         <div className="tp-days">
           {days.map((day) => {
             const date = format(day, "yyyy-MM-dd");
@@ -985,6 +1114,13 @@ export default function TripPlanner() {
                           <span style={{ fontSize: 12, color: "#a8a094", marginLeft: 6 }}>
                             {format(parseISO(meal.date), "EEE")} {meal.meal_type}
                             {meal.title ? ` · ${meal.title}` : ""}
+                            {/* Its day is no longer part of the trip, so the
+                                "Thu dinner" above points at a card that isn't
+                                on the page — say why before someone buys for
+                                a meal nobody is cooking. */}
+                            {outsideDate(meal.date) && (
+                              <span style={{ color: "#a8802a" }}> · outside trip dates</span>
+                            )}
                           </span>
                         )}
                       </span>
