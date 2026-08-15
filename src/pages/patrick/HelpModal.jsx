@@ -88,6 +88,13 @@ export default function HelpModal({ onClose }) {
             <span>Click the card’s title to rename it.</span>
           </div>
           <div className="pb-help-row">
+            <span className="pb-help-key">❐</span>
+            <span>
+              Copy the card’s open tasks as a prompt, numbered in board order, ready to paste
+              straight into Claude. Done tasks are left out.
+            </span>
+          </div>
+          <div className="pb-help-row">
             <span className="pb-help-key">⋯</span>
             <span>
               Edit the name and note, pick a color, move the card earlier or later on the wall,

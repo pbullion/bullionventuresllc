@@ -46,6 +46,55 @@ export const doneTasks = (project) => (project.tasks || []).filter((t) => t.done
 
 export const isInbox = (project) => String(project.name || "").trim().toLowerCase() === "inbox";
 
+/* A card as a prompt to paste into Claude.
+ *
+ * Numbered rather than bulleted, and stated as being in priority order, because
+ * board order IS the priority on this page — a bullet list throws that away, and
+ * the order is the only ranking signal the card has to give.
+ *
+ * Open tasks only: the done pile is what has already been dealt with, and
+ * pasting it invites the work to be done twice. */
+export function promptText(project) {
+  const open = openTasks(project);
+  const sub = String(project.subtitle || "").trim();
+  const head = `Work on the "${project.name}" project${sub ? ` (${sub})` : ""}.`;
+  return [
+    `${head} Open tasks, highest priority first:`,
+    "",
+    ...open.map((t, i) => `${i + 1}. ${t.title}`),
+  ].join("\n");
+}
+
+/* navigator.clipboard is the whole story on https, which is where this page
+ * lives — the execCommand path is for a plain-http localhost dev server, where
+ * the async API is missing entirely and a copy button that silently does nothing
+ * looks like a bug in the prompt rather than in the context it ran from. */
+export async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall through — a denied permission gets the same fallback as no API.
+  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  let ok;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
 /* Display order for the wall: busiest board first.
  *
  * Two rules, and they are Patrick's (2026-08-14):
@@ -201,6 +250,13 @@ export const PB_CSS = `
   line-height: 1; padding: 2px 4px; border-radius: 6px;
 }
 .pb-menu-btn:hover { background: #f1f3f6; color: var(--pb-ink); }
+/* The copy button is the same chrome as ⋯ and only changes color while it is
+   reporting — a permanently green glyph would read as a status, not a button.
+   The :hover selectors are not redundant: the cursor is by definition still on
+   the button at the moment it reports, and .pb-menu-btn:hover would otherwise
+   outrank a plain class and repaint the ✓ back to ink. */
+.pb-menu-btn.pb-copy-ok, .pb-menu-btn.pb-copy-ok:hover { color: #15803d; }
+.pb-menu-btn.pb-copy-err, .pb-menu-btn.pb-copy-err:hover { color: #b91c1c; }
 
 /* ── Tasks ───────────────────────────────────────────────────────────────── */
 .pb-tasks { list-style: none; margin: 0; padding: 0 0 2px; }

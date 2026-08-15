@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CARD_COLORS, colorFor, doneTasks, openTasks } from "./ui.js";
+import { CARD_COLORS, colorFor, copyText, doneTasks, openTasks, promptText } from "./ui.js";
 
 /* One project = one card on the wall.
  *
@@ -198,6 +198,18 @@ export default function ProjectCard({
   const [menuAnchor, setMenuAnchor] = useState(null);
   // { task, anchor } while a row's "move to another board" list is open.
   const [moving, setMoving] = useState(null);
+  // null | "ok" | "err" — the copy button's own feedback, cleared on a timer.
+  const [copied, setCopied] = useState(null);
+  const copyTimer = useRef(null);
+
+  useEffect(() => () => window.clearTimeout(copyTimer.current), []);
+
+  const copyPrompt = async () => {
+    const ok = await copyText(promptText(project));
+    window.clearTimeout(copyTimer.current);
+    setCopied(ok ? "ok" : "err");
+    copyTimer.current = window.setTimeout(() => setCopied(null), 1600);
+  };
 
   const submitAdd = (e) => {
     e?.preventDefault();
@@ -239,6 +251,19 @@ export default function ProjectCard({
           )}
         </div>
         <span className="pb-card-count">{open.length ? `${open.length} open` : "clear"}</span>
+        {/* Hidden on a cleared card rather than disabled — the prompt it would
+            write has nothing in it to work on. */}
+        {open.length > 0 && (
+          <button
+            type="button"
+            className={`pb-menu-btn${copied ? ` pb-copy-${copied}` : ""}`}
+            onClick={copyPrompt}
+            title="Copy these tasks as a prompt"
+            aria-label={`Copy ${project.name} tasks as a prompt`}
+          >
+            {copied === "ok" ? "✓" : copied === "err" ? "!" : "❐"}
+          </button>
+        )}
         <button
           type="button"
           className="pb-menu-btn"
