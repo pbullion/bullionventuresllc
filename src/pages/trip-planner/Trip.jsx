@@ -728,6 +728,16 @@ export default function TripPlanner() {
   const outsideDate = (date) => date < trip.start_date || date > trip.end_date;
   const outsideMeals = trip.meals.filter((m) => outsideDate(m.date));
   const mealFor = (date, type) => trip.meals.find((m) => m.date === date && m.meal_type === type);
+  /* Clearing a slot can leave an empty tp_meals row behind: the server keeps the
+   * row when it still counts ingredients, and the client removes those a moment
+   * later. That husk is not a planned meal, so it must not be what decides a
+   * toggled-off slot stays on screen — otherwise breakfast comes back as "—". */
+  const mealHasContent = (m) =>
+    !!m &&
+    ((m.title || "").trim() !== "" ||
+      (m.details || "").trim() !== "" ||
+      (m.assigned_to || "").trim() !== "" ||
+      trip.items.some((i) => i.meal_id === m.id));
   const mealById = Object.fromEntries(trip.meals.map((m) => [m.id, m]));
   const bringItems = trip.items.filter((i) => i.category === "Bringing");
   const listItems = trip.items.filter(
@@ -975,7 +985,10 @@ export default function TripPlanner() {
             const needed = trip.day_meals?.[date] || MEAL_TYPES.map((t) => t.key);
             // A slot with a meal already planned always stays visible, even if
             // it's been toggled off for this day — nothing disappears silently.
-            const visible = MEAL_TYPES.filter(({ key }) => needed.includes(key) || mealFor(date, key));
+            // An emptied-out slot has nothing to lose, so it just goes away.
+            const visible = MEAL_TYPES.filter(
+              ({ key }) => needed.includes(key) || mealHasContent(mealFor(date, key))
+            );
             return (
               <div key={date} className="tp-daycard">
                 <div style={{ background: "#26303a", color: "#fff", padding: "9px 14px", fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
