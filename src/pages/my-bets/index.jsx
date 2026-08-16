@@ -2114,19 +2114,37 @@ export default function MyBets() {
   const histCashed = hist.filter((h) => h.outcome === "cashed").length;
   const histPnl = hist.reduce((acc, h) => acc + (Number(h.pnl) || 0), 0);
 
-  // Portfolio = cash + the live mark of open positions. Kalshi's
-  // portfolio_value is that mark (the open positions only, not the account
-  // total — verified live 7/22), so we prefer it and fall back to our own
-  // summed value. (This mark is distinct from "In play" above, which is the
-  // cost staked, so Portfolio ≠ In play + Available by design.)
+  // Portfolio = cash + the live mark of open positions. (This mark is distinct
+  // from "In play" above, which is the cost staked, so Portfolio ≠ In play +
+  // Available by design.)
+  //
+  // We used to PREFER Kalshi's `portfolio_value` here and fall back to our own
+  // sum. That inverted on 2026-08-14: `/portfolio/balance` returns
+  // `portfolio_value: 0` while a position is open and marked at $21.30, so the
+  // `!= null` guard accepted the zero and Portfolio silently collapsed to the
+  // cash balance — the header showed Portfolio $187.81 and Available $187.81,
+  // the same number twice, against Kalshi's own $209.09.
+  //
+  // The open position at the time was an 8-market COMBO, which is the likely
+  // reason: combos are invisible to several Kalshi surfaces (their books quote
+  // empty, and the cash-out monitor cannot reach them through the public order
+  // book). Whether `portfolio_value` is combo-blind or simply dead, preferring
+  // our own sum is the right way round regardless — it comes from
+  // `display.current_value_dollars`, the same field the P&L on this page and
+  // the backend's equity snapshots already use, so all three now agree by
+  // construction instead of by coincidence.
+  //
+  // Kalshi's reported value is kept only as a fallback for the case where the
+  // positions request failed and we have nothing of our own to sum.
   const cashDollars =
     balance?.balance_dollars != null
       ? Number(balance.balance_dollars) || 0
       : (Number(balance?.balance) || 0) / 100;
-  const positionsMark =
+  const reportedMark =
     balance?.portfolio_value != null
       ? (Number(balance.portfolio_value) || 0) / 100
-      : positionsValue;
+      : 0;
+  const positionsMark = positionsValue || reportedMark;
   const available = usd(cashDollars);
   const portfolioValue = usd(cashDollars + positionsMark);
 
