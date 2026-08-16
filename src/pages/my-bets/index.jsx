@@ -1105,10 +1105,17 @@ const kalshiEventUrl = (eventTicker) =>
     ? `https://kalshi.com/events/${String(eventTicker).toLowerCase()}`
     : null;
 
-/* Color for a "% chance", taken from the probability itself: green when the
- * side held is favored, red when it isn't, amber across the 48–52% coin-flip
- * band. Same thresholds legAccent already applies to spreads and totals, so
- * the two never disagree about what a number means.
+/* Color for a "% chance", taken from the probability itself: green only once
+ * the held side is a strong favorite (>= 75%), yellow across the merely-ahead
+ * and coin-flip middle, red when the side isn't favored at all (< 48%).
+ *
+ * Green is deliberately expensive. At the old >52% cut a 54% leg was the same
+ * hue as a 95% one — only fainter — so a card of near-toss-ups read as a card
+ * of locks at a glance. 75% is the "I'd be surprised to lose this" line.
+ *
+ * legAccent keeps its own >=53/<=47 cut for the on-field lean, and that is not
+ * the two disagreeing: the ▲/▼ says "winning right now", this color says "how
+ * safe", so a 60% leg is legitimately a winning-but-not-safe yellow ▲.
  *
  * Every percentage gets a color, pre-game included. legAccent deliberately
  * withheld one whenever there was no game to judge — which left crypto legs
@@ -1119,17 +1126,19 @@ const kalshiEventUrl = (eventTicker) =>
  * The ▲/▼ arrow still comes from legAccent, so on-field winning/losing is
  * unchanged.
  *
- * Graded by confidence, so a 98% reads louder than a 53%: the hue is fixed per
- * side and saturation/lightness ramp with distance from a coin flip. The
- * 48–52% band stays flat amber — a genuine toss-up shouldn't be a faint green
- * or a faint red, it's its own state. At the extremes the ramp lands on the
- * palette's own colors (hsl(142,71%,45%) ≈ C.green, hsl(0,84%,60%) ≈ C.red),
- * so a settled leg matches every other green/red in the UI. */
+ * Graded by confidence, so a 98% reads louder than a 78%: the hue is fixed per
+ * side and saturation/lightness ramp with distance from the band edge. The
+ * 48–74% band stays flat yellow — "ahead, but not safe" is one state, not a
+ * gradient, and the same goes for a genuine toss-up. At the extremes the ramp
+ * lands on the palette's own colors (hsl(142,71%,45%) ≈ C.green,
+ * hsl(0,84%,60%) ≈ C.red), so a settled leg matches every green/red in the UI. */
+const GREEN_AT = 75; // strong favorite; below this is yellow, never green
+const RED_BELOW = 48; // not favored at all
 const chanceColor = (pct) => {
-  if (pct >= 48 && pct <= 52) return C.amber;
-  const up = pct > 52;
-  // 0 just outside the coin-flip band, 1 at a fully decided 100% / 0%.
-  const t = (up ? pct - 52 : 48 - pct) / 48;
+  if (pct >= RED_BELOW && pct < GREEN_AT) return C.amber;
+  const up = pct >= GREEN_AT;
+  // 0 at the band edge, 1 at a fully decided 100% / 0%.
+  const t = up ? (pct - GREEN_AT) / (100 - GREEN_AT) : (RED_BELOW - pct) / RED_BELOW;
   // Intensity is carried mostly by saturation, with only a narrow lightness
   // ramp: dimming by lightness alone put the low end under 3:1 against the
   // card (a 47% red measured 2.86, unreadable). These floors keep the faintest
