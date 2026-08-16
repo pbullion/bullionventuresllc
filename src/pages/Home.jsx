@@ -42,6 +42,14 @@ const apps = [
       "Async multiplayer Farkle on your phone. Challenge friends, take turns on your own time, and race to 10,000 points. Push notifications fire when it's your turn.",
   },
   {
+    icon: "/images/app-icons/southside.png",
+    name: "Southside Baptist Church",
+    path: "/southside",
+    tagline: "A church family, in one place",
+    description:
+      "The congregation app for Southside Baptist Church in Port Neches, Texas. Calendar and RSVPs, the weekly bulletin, a moderated photo feed, a prayer wall, ministry group chats, and sermon notes — plus a guest mode so visitors can look around before they ever walk in.",
+  },
+  {
     icon: "/images/app-icons/slumbr.png",
     name: "slumbr",
     path: "/slumbr",

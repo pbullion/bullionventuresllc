@@ -19,6 +19,9 @@ import DebrieflyTerms from "./pages/debriefly/Terms.jsx";
 import SlumbrHome from "./pages/slumbr/Home.jsx";
 import SlumbrPrivacy from "./pages/slumbr/Privacy.jsx";
 import SlumbrSupport from "./pages/slumbr/Support.jsx";
+import SouthsideHome from "./pages/southside/Home.jsx";
+import SouthsidePrivacy from "./pages/southside/Privacy.jsx";
+import SouthsideSupport from "./pages/southside/Support.jsx";
 import MancaveHome from "./pages/mancave-displays/Home.jsx";
 import MancavePrivacy from "./pages/mancave-displays/Privacy.jsx";
 import MancaveSupport from "./pages/mancave-displays/Support.jsx";
@@ -99,6 +102,13 @@ export default function App() {
           <Route path="/slumbr" element={<SlumbrHome />} />
           <Route path="/slumbr/privacy" element={<SlumbrPrivacy />} />
           <Route path="/slumbr/support" element={<SlumbrSupport />} />
+          <Route path="/southside" element={<SouthsideHome />} />
+          {/* App Store Connect's Marketing URL field was filled in as
+              /southside/marketing, so that path has to resolve to the landing
+              page too — the listing is live with it. */}
+          <Route path="/southside/marketing" element={<SouthsideHome />} />
+          <Route path="/southside/privacy" element={<SouthsidePrivacy />} />
+          <Route path="/southside/support" element={<SouthsideSupport />} />
           <Route path="/mancave-displays" element={<MancaveHome />} />
           <Route path="/mancave-displays/privacy" element={<MancavePrivacy />} />
           <Route path="/mancave-displays/support" element={<MancaveSupport />} />
