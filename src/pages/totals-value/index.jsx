@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import OpenBetsRail from "../../components/OpenBetsRail";
 import PnlChart from "../../components/PnlChart.jsx";
+import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
@@ -692,6 +693,15 @@ const SKIP_REASON_TEXT = {
   "low-balance": "not enough cash",
   "order-error": "order rejected",
   "db-error": "internal error",
+  // The gates added after this map was written. An unmapped reason renders as
+  // its raw slug, which is how "below-min-balance" — the thing that had the
+  // engine stopped all of 2026-08-17 — sat in the feed looking like jargon.
+  "below-min-balance": "balance under the account floor",
+  "calib-edge<min": "edge not calibrated — this cell hasn't earned trust",
+  "edge-too-good": "edge too big to be real (stale score)",
+  "cheap-book-off": "cheap book switched off",
+  "stake-cap": "stake over the per-bet bankroll cap",
+  "ladder-cap": "already at the limit on this game's ladder",
 };
 
 function AutoBetPanel({ games }) {
@@ -1023,7 +1033,12 @@ function AutoBetPanel({ games }) {
   };
 
   return (
-    <div
+    <>
+      {/* OUTSIDE the collapsible on purpose: the panel remembers being closed,
+          and a reason the engine is stopped is worth exactly nothing behind a
+          disclosure triangle. */}
+      <EngineBlockedBanner blocked={status.blocked} engine="Sports" />
+      <div
       style={{
         background: C.panel,
         border: `1px solid ${C.border}`,
@@ -1445,7 +1460,8 @@ function AutoBetPanel({ games }) {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

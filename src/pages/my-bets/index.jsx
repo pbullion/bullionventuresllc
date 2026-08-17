@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import PnlChart from "../../components/PnlChart.jsx";
+import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
+// Second engine, second mount point — the crypto router is a sibling of
+// /kalshi, not a path under it.
+const CRYPTO_API_BASE =
+  "https://sheline-art-website-api.herokuapp.com/kalshi-crypto";
 
 // Kalshi's own portfolio page, linked from the Portfolio figure in the header.
 const KALSHI_PORTFOLIO_URL = "https://kalshi.com/portfolio";
@@ -1776,6 +1781,8 @@ export default function MyBets() {
   // History tab (a cashed-out position leaves the positions list and shows up
   // in the settlements feed as revenue $0 at best, so this is its real record).
   const [cashouts, setCashouts] = useState(null);
+  // { sports, crypto } — each null when that engine has nothing wrong.
+  const [engineBlocks, setEngineBlocks] = useState({ sports: null, crypto: null });
   const [histLoading, setHistLoading] = useState(false);
   const [histExpanded, setHistExpanded] = useState(() => new Set());
   const toggleHist = (id) =>
@@ -1896,6 +1903,30 @@ export default function MyBets() {
     }
   };
 
+  /* Why the engines aren't betting, if they aren't. This page is where a day
+     with no new bets is actually NOTICED — it's the portfolio view — but it
+     only ever asked Kalshi for money, so it could show an empty day with no
+     way to tell "nothing worth betting" from "stopped since yesterday
+     evening". Both statuses carry `blocked` (null when all is well).
+     Best-effort like loadCashouts: a failure just means no banner. */
+  const loadEngineBlocks = async () => {
+    const read = async (url) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const body = await res.json();
+        return body && body.blocked ? body.blocked : null;
+      } catch {
+        return null;
+      }
+    };
+    const [sports, crypto] = await Promise.all([
+      read(`${API_BASE}/auto-bets/status`),
+      read(`${CRYPTO_API_BASE}/auto-bets/status`),
+    ]);
+    setEngineBlocks({ sports, crypto });
+  };
+
   // Best-effort — the page works fine without it (older backend deploys don't
   // have the endpoint), so failures stay silent. Without it the History tab
   // falls back to what Kalshi alone reports, which books a sold position as a
@@ -1916,9 +1947,19 @@ export default function MyBets() {
       await load();
     })();
     loadCashouts();
+    (async () => {
+      await loadEngineBlocks();
+    })();
     // Auto-refresh every 15s so live scores/situations stay current.
     const id = setInterval(() => load({ background: true }), 15000);
-    return () => clearInterval(id);
+    /* The engines' state is a much slower-moving thing than the scores, and
+       two more requests every 15s is load on the same Kalshi-backed endpoints
+       for no gain. 60s is still well inside "noticed it myself". */
+    const blockId = setInterval(loadEngineBlocks, 60000);
+    return () => {
+      clearInterval(id);
+      clearInterval(blockId);
+    };
   }, []);
 
   // Opening the History tab. The lazy first fetch lives here rather than in an
@@ -2235,6 +2276,13 @@ export default function MyBets() {
 
       <div className="mb-inner" style={S.inner}>
         {error ? <div style={S.error}>{error}</div> : null}
+
+        {/* Directly under the portfolio numbers, because this is the page where
+            a day with no new bets gets noticed, and "no bets" and "stopped
+            betting" look identical from here otherwise. Both render null when
+            the engine in question is fine, so a normal day shows nothing. */}
+        <EngineBlockedBanner blocked={engineBlocks.sports} engine="Sports" />
+        <EngineBlockedBanner blocked={engineBlocks.crypto} engine="Crypto" />
 
         {/* Mobile-only compact summary (the big hero + the desktop top-bar
             strip are both hidden on the other breakpoint via CSS). */}

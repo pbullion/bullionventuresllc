@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import OpenBetsRail from "../../components/OpenBetsRail";
 import PnlChart from "../../components/PnlChart.jsx";
+import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
 
 /* Crypto Value — live view of the Kalshi crypto engine (backend:
  * sheline-art-website-api routes/kalshiCrypto.js, spec in
@@ -593,6 +594,11 @@ export default function CryptoValue() {
               </a>
             </span>
           </div>
+
+          {/* Above the Panel, not inside it: Panel remembers being collapsed
+              per browser, and a halted engine must not be something you have to
+              expand a section to discover. */}
+          <EngineBlockedBanner blocked={status && status.blocked} engine="Crypto" />
 
           {/* ── Auto-bet panel ── */}
           <Panel
