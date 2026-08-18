@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import OpenBetsRail from "../../components/OpenBetsRail";
 import PnlChart from "../../components/PnlChart.jsx";
 import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
+import EngineTuning from "../../components/EngineTuning.jsx";
 
 /* Crypto Value — live view of the Kalshi crypto engine (backend:
  * sheline-art-website-api routes/kalshiCrypto.js, spec in
@@ -1101,6 +1102,17 @@ export default function CryptoValue() {
               </div>
             )}
           </Panel>
+
+          {/* Follows the Auto-Bet panel: that one reports what the engine DID,
+              this one is what it is ALLOWED to do. Own collapse state, closed
+              by default — every row in it moves real money. */}
+          <EngineTuning
+            apiBase={API_BASE}
+            post={postWithPin}
+            busy={busy}
+            C={C}
+            storageKey="bv_tuning_open_crypto"
+          />
 
           {/* ── P&L over time (crypto ledger only) ── */}
           <PnlChart

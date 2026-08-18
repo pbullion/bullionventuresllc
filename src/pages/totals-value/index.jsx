@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import OpenBetsRail from "../../components/OpenBetsRail";
 import PnlChart from "../../components/PnlChart.jsx";
 import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
+import EngineTuning from "../../components/EngineTuning.jsx";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 
@@ -1461,6 +1462,13 @@ function AutoBetPanel({ games }) {
         </div>
       )}
       </div>
+      <EngineTuning
+        apiBase={API_BASE}
+        post={postWithPin}
+        busy={busy}
+        C={C}
+        storageKey="bv_tuning_open_sports"
+      />
     </>
   );
 }
