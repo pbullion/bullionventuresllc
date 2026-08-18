@@ -22,6 +22,7 @@ import SlumbrSupport from "./pages/slumbr/Support.jsx";
 import SouthsideHome from "./pages/southside/Home.jsx";
 import SouthsidePrivacy from "./pages/southside/Privacy.jsx";
 import SouthsideSupport from "./pages/southside/Support.jsx";
+import SouthsideWalkthrough from "./pages/southside/Walkthrough.jsx";
 import MancaveHome from "./pages/mancave-displays/Home.jsx";
 import MancavePrivacy from "./pages/mancave-displays/Privacy.jsx";
 import MancaveSupport from "./pages/mancave-displays/Support.jsx";
@@ -109,6 +110,9 @@ export default function App() {
           <Route path="/southside/marketing" element={<SouthsideHome />} />
           <Route path="/southside/privacy" element={<SouthsidePrivacy />} />
           <Route path="/southside/support" element={<SouthsideSupport />} />
+          <Route path="/southside/walkthrough" element={<SouthsideWalkthrough />} />
+          {/* "tour" is the word people guess for this — same page. */}
+          <Route path="/southside/tour" element={<SouthsideWalkthrough />} />
           <Route path="/mancave-displays" element={<MancaveHome />} />
           <Route path="/mancave-displays/privacy" element={<MancavePrivacy />} />
           <Route path="/mancave-displays/support" element={<MancaveSupport />} />

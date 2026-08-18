@@ -168,11 +168,14 @@ export default function SouthsideHome() {
         </div>
 
         <div style={styles.links}>
+          <Link to="/southside/walkthrough" style={{ ...styles.linkBtn, ...styles.linkBtnPrimary }}>
+            See how it works
+          </Link>
           <a
             href="https://www.southsideportneches.org/"
             target="_blank"
             rel="noreferrer"
-            style={{ ...styles.linkBtn, ...styles.linkBtnPrimary }}
+            style={styles.linkBtn}
           >
             Church website
           </a>

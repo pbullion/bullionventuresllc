@@ -1,0 +1,497 @@
+import { Link } from 'react-router-dom';
+import { c, shell as s, SANS } from './theme.js';
+
+// The visual walkthrough that southside-app/docs/APP-FLOW.md was always written
+// to become. That file is the source of truth and is updated in the same commit
+// as any feature change — if the app changes and this page isn't updated to
+// match, the flow log is where to look for what's actually true.
+//
+// Organised by the three parties who use the app, because "what can I do?"
+// depends entirely on which one you are, and a feature-by-feature tour would
+// make a visitor read about the admin queue.
+
+const styles = {
+  hero: {
+    padding: '72px 24px 56px',
+    textAlign: 'center',
+    background: `linear-gradient(165deg, ${c.green} 0%, ${c.greenDeep} 100%)`,
+    borderBottom: `3px solid ${c.gold}`,
+  },
+  icon: { width: 84, height: 84, borderRadius: 20, display: 'block', margin: '0 auto 20px', boxShadow: '0 10px 30px rgba(0,0,0,0.28)' },
+  heroTitle: { fontSize: 34, fontWeight: 700, margin: '0 0 10px', color: c.cream, letterSpacing: '-0.015em' },
+  heroLede: { fontSize: 17, color: 'rgba(255,248,235,0.86)', lineHeight: 1.68, maxWidth: 540, margin: '0 auto' },
+
+  nav: {
+    position: 'sticky',
+    top: 0,
+    zIndex: 10,
+    background: 'rgba(255,248,235,0.94)',
+    backdropFilter: 'blur(8px)',
+    borderBottom: `1px solid ${c.border}`,
+    display: 'flex',
+    gap: 8,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    padding: '12px 16px',
+  },
+  navLink: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: c.green,
+    textDecoration: 'none',
+    padding: '8px 16px',
+    borderRadius: 999,
+    border: `1px solid ${c.border}`,
+    background: c.card,
+    fontFamily: SANS,
+  },
+
+  wrap: { maxWidth: 940, margin: '0 auto', padding: '0 24px 80px' },
+
+  audience: { marginTop: 64, scrollMarginTop: 72 },
+  audienceHead: { display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 8 },
+  audienceEmoji: { fontSize: 38, lineHeight: 1 },
+  audienceTitle: { fontSize: 27, fontWeight: 700, color: c.green, margin: '0 0 6px' },
+  audienceLede: { fontSize: 16, color: c.subtext, lineHeight: 1.7, margin: 0 },
+
+  step: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gap: 20,
+    background: c.card,
+    border: `1px solid ${c.border}`,
+    borderRadius: 18,
+    padding: 24,
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  stepWithShot: { gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 0.85fr)' },
+  stepTitle: { fontSize: 19, fontWeight: 700, color: c.text, margin: '0 0 10px' },
+  stepBody: { fontSize: 15.5, color: c.subtext, lineHeight: 1.78, margin: '0 0 10px' },
+
+  phoneFrame: {
+    width: '100%',
+    maxWidth: 260,
+    margin: '0 auto',
+    borderRadius: 22,
+    overflow: 'hidden',
+    border: `1px solid ${c.border}`,
+    boxShadow: '0 8px 26px rgba(32,48,43,0.14)',
+    display: 'block',
+  },
+  tabFrame: {
+    width: '100%',
+    maxWidth: 420,
+    margin: '0 auto',
+    borderRadius: 14,
+    overflow: 'hidden',
+    border: `1px solid ${c.border}`,
+    boxShadow: '0 8px 26px rgba(32,48,43,0.14)',
+    display: 'block',
+  },
+
+  note: {
+    background: c.goldSoft,
+    borderLeft: `4px solid ${c.gold}`,
+    borderRadius: 10,
+    padding: '14px 18px',
+    margin: '14px 0 0',
+    fontSize: 14.5,
+    color: c.text,
+    lineHeight: 1.7,
+  },
+
+  tableWrap: { overflowX: 'auto', marginTop: 24, border: `1px solid ${c.border}`, borderRadius: 16, background: c.card },
+  table: { width: '100%', borderCollapse: 'collapse', minWidth: 560 },
+  th: {
+    textAlign: 'left',
+    fontSize: 13,
+    fontWeight: 800,
+    color: c.green,
+    padding: '14px 16px',
+    borderBottom: `1px solid ${c.border}`,
+    whiteSpace: 'nowrap',
+  },
+  td: { fontSize: 14.5, color: c.subtext, padding: '13px 16px', borderBottom: `1px solid ${c.border}`, lineHeight: 1.55 },
+  tdMark: { textAlign: 'center', fontSize: 15, padding: '13px 16px', borderBottom: `1px solid ${c.border}` },
+
+  ruleGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 14, marginTop: 22 },
+  rule: { background: c.card, border: `1px solid ${c.border}`, borderRadius: 14, padding: '18px 20px' },
+  ruleTitle: { fontSize: 15.5, fontWeight: 700, color: c.text, marginBottom: 6 },
+  ruleBody: { fontSize: 14, color: c.subtext, lineHeight: 1.68, margin: 0 },
+
+  links: { marginTop: 56, paddingTop: 30, borderTop: `1px solid ${c.border}`, display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' },
+  linkBtn: {
+    background: c.card,
+    border: `1px solid ${c.border}`,
+    color: c.green,
+    borderRadius: 12,
+    padding: '12px 22px',
+    fontWeight: 700,
+    fontSize: 14.5,
+    textDecoration: 'none',
+    fontFamily: SANS,
+  },
+};
+
+const IMG = '/images/southside/walkthrough';
+
+function Shot({ src, alt, tablet }) {
+  return <img src={src} alt={alt} style={tablet ? styles.tabFrame : styles.phoneFrame} loading="lazy" />;
+}
+
+function Step({ title, shot, alt, tablet, children }) {
+  return (
+    <div style={{ ...styles.step, ...(shot ? styles.stepWithShot : null) }}>
+      <div>
+        <h3 style={styles.stepTitle}>{title}</h3>
+        {children}
+      </div>
+      {shot ? <Shot src={shot} alt={alt} tablet={tablet} /> : null}
+    </div>
+  );
+}
+
+const ROLES = [
+  ['How you get in', 'Tap “Browse as a guest”', 'Sign up, staff approve you', 'A member staff promoted'],
+  ['Service times, calendar, bulletin, sermons, staff', true, true, true],
+  ['Plan a visit, ask for prayer', true, true, true],
+  ['The feed, prayer wall, group chats, RSVP, sermon notes', false, true, true],
+  ['Search, reading plan, care team, serving schedule', false, true, true],
+  ['Filter by ministry, choose your notifications', false, true, true],
+  ['Write sermons, start meal trains, set the serving rota', false, false, true],
+  ['Approve people and posts, publish, send notifications', false, false, true],
+];
+
+const RULES = [
+  ['Members only, by approval', 'Church staff approve every account by hand. Nothing a member posts is ever public.'],
+  ['No private messaging', 'Conversation happens in named ministry and class groups only. This is a deliberate safeguard for students, not an oversight.'],
+  ['Every post is reviewed', 'Member posts wait for staff review before the congregation sees them. Yours appears to you right away, marked pending.'],
+  ['Report and block, everywhere', 'Press and hold any post, comment, message or prayer request. Blocked people disappear from your feed, comments and groups.'],
+  ['Delete everything, yourself', 'More → your name → Delete My Account removes your account, posts, comments, messages and the actual photo files. No email required.'],
+  ['Children stay out of feeds', 'Kids’ ages and guest contact details appear only in staff screens — never in the feed, never on the calendar.'],
+  ['Giving links out', 'Give opens the church’s own secure giving page in your browser. The app never handles card or bank details.'],
+  ['Prayer requests expire', 'Requests shared with the congregation are deleted automatically after 7 days, with a countdown on each one.'],
+];
+
+export default function SouthsideWalkthrough() {
+  return (
+    <div style={s.page}>
+      <div style={styles.hero}>
+        <img src="/images/app-icons/southside.png" alt="Southside Baptist Church app icon" style={styles.icon} />
+        <h1 style={styles.heroTitle}>How the app works</h1>
+        <p style={styles.heroLede}>
+          A walk through the Southside Baptist Church app — what you see, and what you can do, depending on whether
+          you’re visiting, a member, or on staff.
+        </p>
+      </div>
+
+      <div style={styles.nav}>
+        <a href="#visitors" style={styles.navLink}>👋 Visiting</a>
+        <a href="#members" style={styles.navLink}>🙋 Members</a>
+        <a href="#staff" style={styles.navLink}>🔑 Church staff</a>
+        <a href="#safety" style={styles.navLink}>🔒 Safety</a>
+      </div>
+
+      <div style={styles.wrap}>
+        <div style={styles.tableWrap}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}> </th>
+                <th style={{ ...styles.th, textAlign: 'center' }}>Guest</th>
+                <th style={{ ...styles.th, textAlign: 'center' }}>Member</th>
+                <th style={{ ...styles.th, textAlign: 'center' }}>Staff</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ROLES.map((row) => (
+                <tr key={row[0]}>
+                  <td style={styles.td}>{row[0]}</td>
+                  {row.slice(1).map((v, i) => (
+                    <td key={i} style={typeof v === 'string' ? styles.td : styles.tdMark}>
+                      {typeof v === 'string' ? v : v ? '✅' : '—'}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── VISITORS ─────────────────────────────────────────────────────── */}
+        <section id="visitors" style={styles.audience}>
+          <div style={styles.audienceHead}>
+            <span style={styles.audienceEmoji}>👋</span>
+            <div>
+              <h2 style={styles.audienceTitle}>If you’re visiting</h2>
+              <p style={styles.audienceLede}>
+                You don’t need an account to look around. Nobody has to know you’re there until you want them to.
+              </p>
+            </div>
+          </div>
+
+          <Step title="Open it and look around" shot={`${IMG}/phone-01-welcome.jpg`} alt="The app's welcome screen">
+            <p style={styles.stepBody}>
+              The first screen is the church itself — their building, their words, and the service times laid out day by
+              day so you know when to turn up.
+            </p>
+            <p style={styles.stepBody}>
+              Three ways in: sign in, join the church family, or <strong style={s.strong}>browse as a guest</strong> —
+              no account, no email, nothing to fill in.
+            </p>
+          </Step>
+
+          <Step title="See what’s on before you come" shot={`${IMG}/phone-03-calendar.png`} alt="The church calendar">
+            <p style={styles.stepBody}>
+              Guests get the church calendar, the bulletin, sermon notes, the ministries, and the staff — everything the
+              church publishes on purpose. Tap any event for the details and where it is.
+            </p>
+          </Step>
+
+          <Step title="Plan a visit, or ask for prayer">
+            <p style={styles.stepBody}>
+              <strong style={s.strong}>“First time? Plan a visit”</strong> asks when you’re coming and whether you’re
+              bringing children, so somebody is expecting you and the nursery is ready. A “what to expect” card sits
+              above the form — service times, how people dress, what happens with kids — so you don’t have to ask.
+            </p>
+            <p style={styles.stepBody}>
+              <strong style={s.strong}>“Can we pray for you?”</strong> goes privately to pastoral staff. If you’d rather
+              the whole church prayed, there’s a toggle for that.
+            </p>
+            <p style={styles.note}>
+              What you write on either form is seen only by church staff. It never appears in the app’s feed, on the
+              calendar, or anywhere else.
+            </p>
+          </Step>
+        </section>
+
+        {/* ── MEMBERS ──────────────────────────────────────────────────────── */}
+        <section id="members" style={styles.audience}>
+          <div style={styles.audienceHead}>
+            <span style={styles.audienceEmoji}>🙋</span>
+            <div>
+              <h2 style={styles.audienceTitle}>If you’re a member</h2>
+              <p style={styles.audienceLede}>
+                Sign up, and church staff approve you by hand. Then the rest of the app opens up.
+              </p>
+            </div>
+          </div>
+
+          <Step title="Joining, and the wait">
+            <p style={styles.stepBody}>
+              Signing up takes a name, an email and a password. Then you’ll see a screen saying staff are reviewing —
+              it re-checks by itself, so there’s nothing to refresh and no need to close the app. The moment somebody
+              approves you, it unlocks.
+            </p>
+          </Step>
+
+          <Step title="The church family feed" shot={`${IMG}/phone-02-feed.png`} alt="The church feed">
+            <p style={styles.stepBody}>
+              Photos and news from the people you sit with on Sunday — up to four photos a post, with likes and
+              comments. Somebody’s birthday puts a banner at the top.
+            </p>
+            <p style={styles.stepBody}>
+              Church staff give member posts a quick look before they go out. Yours shows up for you immediately,
+              marked <strong style={s.strong}>pending</strong>, and you get a notification when it’s live.
+            </p>
+          </Step>
+
+          <Step title="RSVP, and sign-up sheets" shot={`${IMG}/phone-03-calendar.png`} alt="The calendar">
+            <p style={styles.stepBody}>
+              Tap <strong style={s.strong}>I’m going</strong> on any event, and use the +N stepper to say how many are
+              coming with you. Potlucks and workdays have sign-up sheets underneath — bring a dessert, take a volunteer
+              slot — and full slots are marked so two people don’t bring the same thing.
+            </p>
+            <p style={styles.stepBody}>
+              <strong style={s.strong}>Invite someone</strong> turns any event into an ordinary web page you can text
+              or post to Facebook, with an add-to-calendar file attached. They don’t need the app to open it.
+            </p>
+          </Step>
+
+          <Step title="Prayer that actually gets prayed" shot={`${IMG}/phone-04-prayer.png`} alt="The prayer wall">
+            <p style={styles.stepBody}>
+              Post a request by name or anonymously, and see who’s praying. Mark it answered and everyone who prayed
+              gets to celebrate with you.
+            </p>
+            <p style={styles.stepBody}>
+              Requests shared with the congregation are deleted automatically after seven days, and each one shows its
+              own countdown.
+            </p>
+          </Step>
+
+          <Step title="Your people" shot={`${IMG}/phone-05-groups.png`} alt="Ministry groups">
+            <p style={styles.stepBody}>
+              Sunday school classes, ministries and committees each get their own conversation. Join the ones you’re
+              part of and everyone else in the group hears from you.
+            </p>
+            <p style={styles.note}>
+              There is no one-on-one messaging in this app, and there won’t be. It’s a deliberate safeguard for our
+              students.
+            </p>
+          </Step>
+
+          <Step title="Follow along on Sunday" shot={`${IMG}/phone-07-sermon-notes.png`} alt="Sermon notes">
+            <p style={styles.stepBody}>
+              The preacher’s outline, with blanks to fill in, and a notes box that’s yours alone. It saves as you type —
+              you don’t have to remember to tap anything, and it survives a dropped signal in the building.
+            </p>
+            <p style={styles.stepBody}>
+              Every passage he mentions is a link. Tap it and read it right there without losing your place.
+            </p>
+          </Step>
+
+          <Step title="Read scripture in the app" shot={`${IMG}/tab-09-scripture.png`} alt="A Bible passage opened in the app" tablet>
+            <p style={styles.stepBody}>
+              Passages open in the World English Bible or the King James — both public domain, so they can be shown in
+              full. For the translation preached from the pulpit, there’s a link straight out to YouVersion.
+            </p>
+          </Step>
+
+          <Step title="Read through together" shot={`${IMG}/tab-10-reading-plan.png`} alt="The Bible reading plan" tablet>
+            <p style={styles.stepBody}>
+              When the church is reading through something together, the plan lives here with today’s reading marked
+              and a tick for each day you finish.
+            </p>
+          </Step>
+
+          <Step title="Show up for each other" shot={`${IMG}/tab-06-care-team.png`} alt="A meal train sign-up" tablet>
+            <p style={styles.stepBody}>
+              When a family has a baby, a surgery, or a loss, staff open a meal train and everyone takes one day. You
+              can see what’s already covered, what the family needs to know, and you get a reminder the afternoon
+              before your turn.
+            </p>
+          </Step>
+
+          <Step title="Know when you’re serving" shot={`${IMG}/tab-07-serving.png`} alt="The serving schedule" tablet>
+            <p style={styles.stepBody}>
+              Nursery, greeters, sound booth, ushers. You see your own turns and nothing else, confirm you’ll be there
+              or say you can’t, and get a reminder on Thursday — early enough that staff can find a swap.
+            </p>
+          </Step>
+
+          <Step title="Decide what reaches your phone" shot={`${IMG}/tab-05-notifications.png`} alt="Notification preferences" tablet>
+            <p style={styles.stepBody}>
+              Eight switches — announcements, events, prayer, group messages, your own posts, the care team, serving,
+              and birthdays — plus quiet hours to hold everything overnight.
+            </p>
+            <p style={styles.stepBody}>
+              You can also switch off the ministries that aren’t yours. A parent of a teenager keeps Youth and drops
+              Senior Adults. It only changes what buzzes your phone; everything stays on the calendar and in the
+              bulletin either way.
+            </p>
+            <p style={styles.note}>
+              Anything for the whole church always comes through. A funeral notice or a cancelled service shouldn’t
+              depend on which ministries somebody follows.
+            </p>
+          </Step>
+        </section>
+
+        {/* ── STAFF ────────────────────────────────────────────────────────── */}
+        <section id="staff" style={styles.audience}>
+          <div style={styles.audienceHead}>
+            <span style={styles.audienceEmoji}>🔑</span>
+            <div>
+              <h2 style={styles.audienceTitle}>If you’re church staff</h2>
+              <p style={styles.audienceLede}>
+                Everything below is in the app itself. None of it needs a developer, and none of it needs a computer.
+              </p>
+            </div>
+          </div>
+
+          <Step title="Approve people, and posts" shot={`${IMG}/phone-06-bulletin.png`} alt="The bulletin">
+            <p style={styles.stepBody}>
+              New signups wait in a queue and you get a notification. Member posts wait in another — you see the words
+              and the photos, then approve or remove. Approving pushes “Your post is live” to whoever wrote it.
+            </p>
+            <p style={styles.stepBody}>
+              Reported content lands in its own list, where you can remove the post and disable the account behind it.
+            </p>
+          </Step>
+
+          <Step title="Write Sunday’s message through the week" shot={`${IMG}/tab-08-sermon.png`} alt="A sermon with linked scripture" tablet>
+            <p style={styles.stepBody}>
+              Sermons have a series, a big idea, and a draft state. Draft through the week — nobody else can see it,
+              and it saves itself — then publish on Sunday. Publishing is the only thing that notifies anyone, and only
+              if you ask it to.
+            </p>
+            <p style={styles.stepBody}>
+              Type passages the way you always have — “James 2:17”, “1 Cor 13” — and they become links for the
+              congregation automatically. You never mark anything up.
+            </p>
+          </Step>
+
+          <Step title="Reach the right people">
+            <p style={styles.stepBody}>
+              File an event, announcement or sermon under a ministry — Kids, Youth, Adult Ministries, Prayer, Men’s,
+              Women’s, Senior Adults, or the whole church. A youth lock-in then notifies the families who follow Youth
+              instead of waking everybody at 7am.
+            </p>
+            <p style={styles.stepBody}>
+              It only affects notifications. Everything stays on the calendar and in the bulletin for anyone who looks.
+            </p>
+          </Step>
+
+          <Step title="Organise the practical things">
+            <p style={styles.stepBody}>
+              Start a meal train by picking a start date and a number of days — the sign-up grid builds itself. Put
+              people on the serving rota and they’re told. Open a poll for the bulletin when you need an answer from
+              the congregation.
+            </p>
+            <p style={styles.stepBody}>
+              <strong style={s.strong}>Send Notification</strong> pushes a message to every member, with a preview
+              before it goes. For cancellations, a death in the church family, an urgent need.
+            </p>
+          </Step>
+
+          <Step title="Change the church’s details yourself">
+            <p style={styles.stepBody}>
+              Service times, address, phone, email, website, Facebook, YouTube and the giving link all live in{' '}
+              <strong style={s.strong}>Church Info &amp; Links</strong>. Editing there updates the whole app and the
+              public event pages at once.
+            </p>
+          </Step>
+
+          <Step title="What runs on its own">
+            <p style={styles.stepBody}>
+              A reminder to everyone who RSVP’d, about a day before the event. A “this week at Southside” digest on
+              Saturday evening. A birthday shout-out at 8am. The Thursday nudge to whoever is serving on Sunday, and an
+              afternoon reminder to whoever has tomorrow’s meal. Shared prayer requests clear themselves after a week.
+            </p>
+          </Step>
+        </section>
+
+        {/* ── SAFETY ───────────────────────────────────────────────────────── */}
+        <section id="safety" style={styles.audience}>
+          <div style={styles.audienceHead}>
+            <span style={styles.audienceEmoji}>🔒</span>
+            <div>
+              <h2 style={styles.audienceTitle}>The rules built into it</h2>
+              <p style={styles.audienceLede}>
+                These aren’t settings somebody could switch off. They’re how the app is built.
+              </p>
+            </div>
+          </div>
+
+          <div style={styles.ruleGrid}>
+            {RULES.map(([title, body]) => (
+              <div key={title} style={styles.rule}>
+                <div style={styles.ruleTitle}>{title}</div>
+                <p style={styles.ruleBody}>{body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div style={styles.links}>
+          <Link to="/southside" style={styles.linkBtn}>About the app</Link>
+          <Link to="/southside/support" style={styles.linkBtn}>Support</Link>
+          <Link to="/southside/privacy" style={styles.linkBtn}>Privacy Policy</Link>
+          <a href="https://www.southsideportneches.org/" target="_blank" rel="noreferrer" style={styles.linkBtn}>
+            Church website
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
