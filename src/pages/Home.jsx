@@ -105,6 +105,14 @@ const apps = [
  * on the public home page. */
 const tools = [
   {
+    emoji: "🤧",
+    name: "Pollen & Sick Days",
+    path: "/pollen",
+    tagline: "Search any US zip code",
+    description:
+      "A five-day pollen forecast for your zip code, plant by plant, plus the hour of the day when the air is calmest enough to go outside. It also splits the two things a scratchy throat could be — an allergy load score built from what's actually blooming and the real weather, and a separate \u201Cbug weather\u201D score from how dry the air is and where the respiratory-virus season sits. Log how you felt each day and it will tell you which of the two your bad days actually follow.",
+  },
+  {
     emoji: "🍽️",
     name: "Houston Restaurant Weeks",
     path: "/hrw",

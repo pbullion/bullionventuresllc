@@ -60,6 +60,7 @@ import DaycareMemoryVaultSupport from "./pages/daycare-memory-vault/Support.jsx"
 import Ashley from "./pages/ashley/index.jsx";
 import Prospects from "./pages/prospects/index.jsx";
 import PatrickBoard from "./pages/patrick/index.jsx";
+import Pollen from "./pages/pollen/index.jsx";
 import Hrw from "./pages/hrw/index.jsx";
 import HrwRestaurant from "./pages/hrw/Restaurant.jsx";
 
@@ -88,7 +89,12 @@ export default function App() {
   // still finishing. Full-screen because the whole point is seeing every board
   // at once; unlisted and unauthenticated like /prospects.
   const isPatrickBoard = location.pathname.startsWith("/patrick");
-  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isTotalsValue || isCryptoValue || isMorningReview || isEliteEdge || isGulfHurricane || isTripPlanner || isAshley || isProspects || isPatrickBoard;
+  // Full-screen: it's a phone tool people check in the morning, and the site
+  // chrome would push the one answer they came for below the fold.
+  // /allergies is an alias for the same page, so it has to hide the chrome too.
+  const isPollen =
+    location.pathname.startsWith("/pollen") || location.pathname.startsWith("/allergies");
+  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isTotalsValue || isCryptoValue || isMorningReview || isEliteEdge || isGulfHurricane || isTripPlanner || isAshley || isProspects || isPatrickBoard || isPollen;
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <ScrollToTop />
@@ -140,6 +146,13 @@ export default function App() {
           <Route path="/prospects/:slug" element={<Prospects />} />
           {/* Cardless and unlisted on purpose — reached by typing the URL. */}
           <Route path="/patrick" element={<PatrickBoard />} />
+          {/* Both render the same component — a zip in the path makes a
+              forecast shareable, and /pollen alone falls back to the last zip
+              used, or 77018. */}
+          <Route path="/pollen" element={<Pollen />} />
+          <Route path="/pollen/:zip" element={<Pollen />} />
+          {/* "allergies" is what people guess for this — same page. */}
+          <Route path="/allergies" element={<Pollen />} />
           <Route path="/hrw" element={<Hrw />} />
           <Route path="/hrw/:slug" element={<HrwRestaurant />} />
           <Route path="/wnba-value" element={<Navigate to="/totals-value" replace />} />
