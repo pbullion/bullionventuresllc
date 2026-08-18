@@ -12,19 +12,22 @@ import { c, shell as s, SANS } from './theme.js';
 
 const styles = {
   hero: {
-    padding: '72px 24px 56px',
     textAlign: 'center',
     background: `linear-gradient(165deg, ${c.green} 0%, ${c.greenDeep} 100%)`,
     borderBottom: `3px solid ${c.gold}`,
   },
   icon: { width: 84, height: 84, borderRadius: 20, display: 'block', margin: '0 auto 20px', boxShadow: '0 10px 30px rgba(0,0,0,0.28)' },
-  heroTitle: { fontSize: 34, fontWeight: 700, margin: '0 0 10px', color: c.cream, letterSpacing: '-0.015em' },
-  heroLede: { fontSize: 17, color: 'rgba(255,248,235,0.86)', lineHeight: 1.68, maxWidth: 540, margin: '0 auto' },
+  heroTitle: { fontWeight: 700, margin: '0 0 10px', color: c.cream, letterSpacing: '-0.015em' },
+  heroLede: { color: 'rgba(255,248,235,0.86)', lineHeight: 1.68, maxWidth: 540, margin: '0 auto' },
 
   nav: {
     position: 'sticky',
-    top: 0,
-    zIndex: 10,
+    // The site navbar is sticky at top:0 and 60px tall (components/Navbar.jsx),
+    // so this row has to start where that one ends. At top:0 it slid under the
+    // navbar and the first line of chips was unreachable on a phone, where the
+    // row wraps to two lines.
+    top: 60,
+    zIndex: 9,
     background: 'rgba(255,248,235,0.94)',
     backdropFilter: 'blur(8px)',
     borderBottom: `1px solid ${c.border}`,
@@ -32,31 +35,27 @@ const styles = {
     gap: 8,
     justifyContent: 'center',
     flexWrap: 'wrap',
-    padding: '12px 16px',
   },
   navLink: {
-    fontSize: 14,
     fontWeight: 700,
     color: c.green,
     textDecoration: 'none',
-    padding: '8px 16px',
     borderRadius: 999,
     border: `1px solid ${c.border}`,
     background: c.card,
     fontFamily: SANS,
   },
 
-  wrap: { maxWidth: 940, margin: '0 auto', padding: '0 24px 80px' },
+  wrap: { maxWidth: 940, margin: '0 auto' },
 
-  audience: { marginTop: 64, scrollMarginTop: 72 },
+  audience: { marginTop: 64 },
   audienceHead: { display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 8 },
   audienceEmoji: { fontSize: 38, lineHeight: 1 },
-  audienceTitle: { fontSize: 27, fontWeight: 700, color: c.green, margin: '0 0 6px' },
+  audienceTitle: { fontWeight: 700, color: c.green, margin: '0 0 6px' },
   audienceLede: { fontSize: 16, color: c.subtext, lineHeight: 1.7, margin: 0 },
 
   step: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr)',
     gap: 20,
     background: c.card,
     border: `1px solid ${c.border}`,
@@ -65,13 +64,11 @@ const styles = {
     marginTop: 20,
     alignItems: 'center',
   },
-  stepWithShot: { gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 0.85fr)' },
   stepTitle: { fontSize: 19, fontWeight: 700, color: c.text, margin: '0 0 10px' },
   stepBody: { fontSize: 15.5, color: c.subtext, lineHeight: 1.78, margin: '0 0 10px' },
 
   phoneFrame: {
     width: '100%',
-    maxWidth: 260,
     margin: '0 auto',
     borderRadius: 22,
     overflow: 'hidden',
@@ -81,7 +78,6 @@ const styles = {
   },
   tabFrame: {
     width: '100%',
-    maxWidth: 420,
     margin: '0 auto',
     borderRadius: 14,
     overflow: 'hidden',
@@ -101,19 +97,7 @@ const styles = {
     lineHeight: 1.7,
   },
 
-  tableWrap: { overflowX: 'auto', marginTop: 24, border: `1px solid ${c.border}`, borderRadius: 16, background: c.card },
-  table: { width: '100%', borderCollapse: 'collapse', minWidth: 560 },
-  th: {
-    textAlign: 'left',
-    fontSize: 13,
-    fontWeight: 800,
-    color: c.green,
-    padding: '14px 16px',
-    borderBottom: `1px solid ${c.border}`,
-    whiteSpace: 'nowrap',
-  },
-  td: { fontSize: 14.5, color: c.subtext, padding: '13px 16px', borderBottom: `1px solid ${c.border}`, lineHeight: 1.55 },
-  tdMark: { textAlign: 'center', fontSize: 15, padding: '13px 16px', borderBottom: `1px solid ${c.border}` },
+  tableWrap: { marginTop: 24, border: `1px solid ${c.border}`, borderRadius: 16, background: c.card },
 
   ruleGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 14, marginTop: 22 },
   rule: { background: c.card, border: `1px solid ${c.border}`, borderRadius: 14, padding: '18px 20px' },
@@ -134,15 +118,110 @@ const styles = {
   },
 };
 
+// Anything that has to CHANGE at a breakpoint lives here rather than in the
+// inline `styles` object above — inline styles can't hold a media query, and an
+// inline value silently wins over a class, so a property belongs in exactly one
+// of the two places. Same split Home.jsx uses.
+const SW_CSS = `
+.sw-hero { padding: 72px 24px 56px; }
+.sw-hero-title { font-size: 34px; }
+.sw-hero-lede { font-size: 17px; }
+.sw-nav { padding: 12px 16px; }
+.sw-nav a { font-size: 14px; padding: 8px 16px; }
+.sw-wrap { padding: 0 24px 80px; }
+
+/* Two sticky rows sit above the content — the 60px site navbar and this page's
+   own nav — so an anchored section has to clear both of them. */
+.sw-audience { scroll-margin-top: 126px; }
+.sw-audience-title { font-size: 27px; }
+
+.sw-step { grid-template-columns: minmax(0, 1fr); }
+.sw-step-shot { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); }
+.sw-shot { max-width: 260px; }
+.sw-shot-tab { max-width: 420px; }
+
+.sw-tablewrap { overflow-x: auto; }
+.sw-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.sw-table th {
+  text-align: left;
+  font-size: 13px;
+  font-weight: 800;
+  color: ${c.green};
+  padding: 14px 16px;
+  border-bottom: 1px solid ${c.border};
+  white-space: nowrap;
+}
+.sw-table td {
+  font-size: 14.5px;
+  color: ${c.subtext};
+  padding: 13px 16px;
+  border-bottom: 1px solid ${c.border};
+  line-height: 1.55;
+}
+.sw-table th.sw-col, .sw-table td.sw-mark { text-align: center; }
+.sw-table td.sw-mark { font-size: 15px; }
+
+@media (max-width: 720px) {
+  .sw-hero { padding: 48px 20px 40px; }
+  .sw-hero-title { font-size: 27px; }
+  .sw-hero-lede { font-size: 15.5px; }
+  .sw-nav { padding: 10px 12px; gap: 6px; }
+  .sw-nav a { font-size: 13px; padding: 7px 12px; }
+  .sw-wrap { padding: 0 16px 56px; }
+  .sw-audience { scroll-margin-top: 172px; }
+  .sw-audience-title { font-size: 23px; }
+
+  /* A phone gets one column: the screenshot under the words it illustrates,
+     not beside them. Side by side at 390px left the copy five words wide and
+     the screenshot too small to read. */
+  .sw-step-shot { grid-template-columns: minmax(0, 1fr); }
+  .sw-shot { max-width: 300px; }
+
+  /* The comparison table stops being a table and becomes one block per row.
+     It is 560px wide at its narrowest, so on a phone the Member and Staff
+     columns were simply off the side of the screen with nothing to say so. */
+  .sw-tablewrap { overflow-x: visible; }
+  .sw-table { min-width: 0; }
+  .sw-table thead { display: none; }
+  .sw-table tbody, .sw-table tr, .sw-table td { display: block; }
+  .sw-table tr { padding: 12px 16px; border-bottom: 1px solid ${c.border}; }
+  .sw-table tr:last-child { border-bottom: none; }
+  .sw-table td { padding: 3px 0; border-bottom: none; }
+  .sw-table td.sw-rowhead { font-size: 15px; font-weight: 700; color: ${c.text}; padding-bottom: 7px; }
+  .sw-table td.sw-cell, .sw-table td.sw-mark {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    text-align: left;
+  }
+  /* The column heading each value belonged to, carried down onto the value. */
+  .sw-table td.sw-cell::before, .sw-table td.sw-mark::before {
+    content: attr(data-role);
+    font-size: 13px;
+    font-weight: 800;
+    color: ${c.green};
+  }
+}
+`;
+
 const IMG = '/images/southside/walkthrough';
 
 function Shot({ src, alt, tablet }) {
-  return <img src={src} alt={alt} style={tablet ? styles.tabFrame : styles.phoneFrame} loading="lazy" />;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={tablet ? 'sw-shot-tab' : 'sw-shot'}
+      style={tablet ? styles.tabFrame : styles.phoneFrame}
+      loading="lazy"
+    />
+  );
 }
 
 function Step({ title, shot, alt, tablet, children }) {
   return (
-    <div style={{ ...styles.step, ...(shot ? styles.stepWithShot : null) }}>
+    <div className={shot ? 'sw-step sw-step-shot' : 'sw-step'} style={styles.step}>
       <div>
         <h3 style={styles.stepTitle}>{title}</h3>
         {children}
@@ -151,6 +230,8 @@ function Step({ title, shot, alt, tablet, children }) {
     </div>
   );
 }
+
+const COLUMNS = ['Guest', 'Member', 'Staff'];
 
 const ROLES = [
   ['How you get in', 'Tap “Browse as a guest”', 'Sign up, staff approve you', 'A member staff promoted'],
@@ -177,39 +258,44 @@ const RULES = [
 export default function SouthsideWalkthrough() {
   return (
     <div style={s.page}>
-      <div style={styles.hero}>
+      <style>{SW_CSS}</style>
+
+      <div className="sw-hero" style={styles.hero}>
         <img src="/images/app-icons/southside.png" alt="Southside Baptist Church app icon" style={styles.icon} />
-        <h1 style={styles.heroTitle}>How the app works</h1>
-        <p style={styles.heroLede}>
+        <h1 className="sw-hero-title" style={styles.heroTitle}>How the app works</h1>
+        <p className="sw-hero-lede" style={styles.heroLede}>
           A walk through the Southside Baptist Church app — what you see, and what you can do, depending on whether
           you’re visiting, a member, or on staff.
         </p>
       </div>
 
-      <div style={styles.nav}>
+      <div className="sw-nav" style={styles.nav}>
         <a href="#visitors" style={styles.navLink}>👋 Visiting</a>
         <a href="#members" style={styles.navLink}>🙋 Members</a>
         <a href="#staff" style={styles.navLink}>🔑 Church staff</a>
         <a href="#safety" style={styles.navLink}>🔒 Safety</a>
       </div>
 
-      <div style={styles.wrap}>
-        <div style={styles.tableWrap}>
-          <table style={styles.table}>
+      <div className="sw-wrap" style={styles.wrap}>
+        <div className="sw-tablewrap" style={styles.tableWrap}>
+          <table className="sw-table">
             <thead>
               <tr>
-                <th style={styles.th}> </th>
-                <th style={{ ...styles.th, textAlign: 'center' }}>Guest</th>
-                <th style={{ ...styles.th, textAlign: 'center' }}>Member</th>
-                <th style={{ ...styles.th, textAlign: 'center' }}>Staff</th>
+                <th> </th>
+                {COLUMNS.map((col) => (
+                  <th key={col} className="sw-col">{col}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {ROLES.map((row) => (
                 <tr key={row[0]}>
-                  <td style={styles.td}>{row[0]}</td>
+                  <td className="sw-rowhead">{row[0]}</td>
                   {row.slice(1).map((v, i) => (
-                    <td key={i} style={typeof v === 'string' ? styles.td : styles.tdMark}>
+                    /* data-role is what the stacked phone layout prints in
+                       front of each value — without the header row there is
+                       otherwise nothing saying which column a ✅ belonged to. */
+                    <td key={COLUMNS[i]} data-role={COLUMNS[i]} className={typeof v === 'string' ? 'sw-cell' : 'sw-mark'}>
                       {typeof v === 'string' ? v : v ? '✅' : '—'}
                     </td>
                   ))}
@@ -220,11 +306,11 @@ export default function SouthsideWalkthrough() {
         </div>
 
         {/* ── VISITORS ─────────────────────────────────────────────────────── */}
-        <section id="visitors" style={styles.audience}>
+        <section id="visitors" className="sw-audience" style={styles.audience}>
           <div style={styles.audienceHead}>
             <span style={styles.audienceEmoji}>👋</span>
             <div>
-              <h2 style={styles.audienceTitle}>If you’re visiting</h2>
+              <h2 className="sw-audience-title" style={styles.audienceTitle}>If you’re visiting</h2>
               <p style={styles.audienceLede}>
                 You don’t need an account to look around. Nobody has to know you’re there until you want them to.
               </p>
@@ -267,11 +353,11 @@ export default function SouthsideWalkthrough() {
         </section>
 
         {/* ── MEMBERS ──────────────────────────────────────────────────────── */}
-        <section id="members" style={styles.audience}>
+        <section id="members" className="sw-audience" style={styles.audience}>
           <div style={styles.audienceHead}>
             <span style={styles.audienceEmoji}>🙋</span>
             <div>
-              <h2 style={styles.audienceTitle}>If you’re a member</h2>
+              <h2 className="sw-audience-title" style={styles.audienceTitle}>If you’re a member</h2>
               <p style={styles.audienceLede}>
                 Sign up, and church staff approve you by hand. Then the rest of the app opens up.
               </p>
@@ -388,11 +474,11 @@ export default function SouthsideWalkthrough() {
         </section>
 
         {/* ── STAFF ────────────────────────────────────────────────────────── */}
-        <section id="staff" style={styles.audience}>
+        <section id="staff" className="sw-audience" style={styles.audience}>
           <div style={styles.audienceHead}>
             <span style={styles.audienceEmoji}>🔑</span>
             <div>
-              <h2 style={styles.audienceTitle}>If you’re church staff</h2>
+              <h2 className="sw-audience-title" style={styles.audienceTitle}>If you’re church staff</h2>
               <p style={styles.audienceLede}>
                 Everything below is in the app itself. None of it needs a developer, and none of it needs a computer.
               </p>
@@ -462,11 +548,11 @@ export default function SouthsideWalkthrough() {
         </section>
 
         {/* ── SAFETY ───────────────────────────────────────────────────────── */}
-        <section id="safety" style={styles.audience}>
+        <section id="safety" className="sw-audience" style={styles.audience}>
           <div style={styles.audienceHead}>
             <span style={styles.audienceEmoji}>🔒</span>
             <div>
-              <h2 style={styles.audienceTitle}>The rules built into it</h2>
+              <h2 className="sw-audience-title" style={styles.audienceTitle}>The rules built into it</h2>
               <p style={styles.audienceLede}>
                 These aren’t settings somebody could switch off. They’re how the app is built.
               </p>
