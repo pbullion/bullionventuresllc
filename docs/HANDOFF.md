@@ -43,6 +43,14 @@ What works today:
   searchable down to the ingredient, filterable, with a Leaflet map view. The
   only page in the repo whose data is **baked at build time** rather than
   fetched from the backend — see below.
+- **Pollen & Sick Days** (`/pollen`, `/pollen/:zip`, `/allergies`) — added
+  2026-08-18. A five-day pollen forecast by US zip (default 77018), plant by
+  plant, with the calmest hour of the day to be outside, and **two** separate
+  scores — allergy load and "bug weather" — so the page can answer whether a
+  scratchy throat is the ragweed or the start of a cold. Plus a one-tap symptom
+  journal that reports which of the two a person's bad days actually follow.
+  **US pollen levels are modelled, not counted** (there is no free keyless US
+  count feed) and the page says so wherever a level is shown — see below.
 - **Farkle scorer, Mothers Day 2026 gift page** — static, done.
 
 Stubs/orphans: `src/pages/kentucky-derby/Tracker.jsx` was added 2026-05-02 and
@@ -92,6 +100,7 @@ silently at runtime.
 | `/gulf-hurricane` | `/nhc` | `GET /current-storms` (backend proxies NHC's CurrentStorms.json because that feed has no CORS; the graphics load straight from nhc.noaa.gov) |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` | `GET /patrick/tesla-dashboard-weather?lat&lon` (Apple WeatherKit proxy), `/patrick/all-data-2/mancavedisplaysllc@gmail.com` (hardcoded user), `/odds-screen/check-subscription/:email`, `/odds-screen/tracking/:user` |
 
+| `/pollen` | `/pollen` | `GET /forecast?zip=` (the whole payload: days, levels, two risk scores, hourly shape), `GET /meta`, `GET|PUT|DELETE /journal[/:day]`, `GET /journal/insight`. **Pollen levels for US zips are MODELLED by the backend, not measured** — the weather and air-quality figures on the same page ARE real. `source.pollen` in the payload says which, and every label on the page is rendered from that field, so setting `GOOGLE_POLLEN_API_KEY` on Heroku switches to a real feed with no frontend deploy |
 | `/hrw` | `/hrw` | `GET /reviews` (counts + averages for every place, one request for the whole list page), `GET /reviews/:place`, `POST /reviews`, `DELETE /reviews/:id`. Reader reviews **only** — all 385 restaurants and 9,127 dishes come from a static file, see the next section |
 
 Two corrections to what the **backend's** HANDOFF.md counterpart table says
@@ -247,6 +256,8 @@ keeps prediction logging and closing-line capture running.
 | Refresh Restaurant Weeks data from the sheet | `node scripts/build-hrw-data.mjs` ([script](../scripts/build-hrw-data.mjs)) — rewrites `public/data/hrw-2026.json`; commit the result |
 | Restaurant Weeks search/filters/cards | [src/pages/hrw/index.jsx](../src/pages/hrw/index.jsx); map in `MapView.jsx`, one restaurant in `Restaurant.jsx`, palette + injected CSS in `theme.js` |
 | A wrong pin on the Restaurant Weeks map | `scripts/hrw-geocache.json` — hand-editable, keyed by the sheet's address string; then re-run the build script |
+| Pollen levels, the risk split, the bloom calendar | backend repo: `services/pollenModel.js` and `docs/pollen-forecast.md`. **Read the doc first** — the levels-not-counts rule and which regressions the tests pin are not obvious from the JSX |
+| Pollen page layout, labels, level colours | [src/pages/pollen/index.jsx](../src/pages/pollen/index.jsx); labels/palette/formatters in `ui.js`, fetches in `api.js` |
 | Tesla dashboard widgets | [src/pages/tesla-dashboard/](../src/pages/tesla-dashboard/) — one file per widget, `OddsScreen.jsx` is the big one |
 | Any static app page (privacy/support) | `src/pages/<app>/Privacy.jsx` etc. |
 | Betting data model | backend repo `docs/betting-engine.md` / `auto-bet-spec.md` / `totals-value.md` |

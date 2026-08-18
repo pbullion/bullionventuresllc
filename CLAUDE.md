@@ -133,6 +133,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/ashley` | `/ashley` |
 | `/patrick` | `/patrick-board` (NOT `/patrick` — that prefix is the Tesla dashboard's feed) |
 | `/hrw` | `/hrw` (reviews only — restaurant data is the static `public/data/hrw-2026.json`, see above) |
+| `/pollen` | `/pollen` |
 
 - The site does **not** call `/bullion-ventures` (that backend route is
   push-notification plumbing, not a website API) and does **not** call
@@ -256,6 +257,61 @@ see or change a task does not belong on this page.
 - Local dev: `node scripts/patrick-board-local.js` in the backend repo (port
   3003) — `api.js` points at localhost automatically when served from localhost,
   so a UI experiment can't reorder the live board.
+
+## `/pollen` — pollen forecast and sick-day outlook
+
+`src/pages/pollen/` (`index.jsx`, `api.js`, `ui.js`). Search by US zip, default
+**77018**. Routes are `/pollen`, `/pollen/:zip` (both render the same component,
+so a forecast is shareable) and `/allergies` (what people guess). Full-screen —
+its path is in the `hideChrome` logic, **and so is `/allergies`**, which is easy
+to miss when adding an alias. Carded on the home page under `tools`. Built 2026-08-18.
+
+**Read `docs/pollen-forecast.md` in the backend repo before changing anything
+here.** The short version of why this page is shaped the way it is:
+
+- **US pollen levels are MODELLED, and the page has to keep saying so.** There is
+  no free keyless US pollen-count feed. Every modelled figure is labelled at the
+  point it is READ — on the level card, and on each count band as "at a counting
+  station" — not once in a footer someone scrolls past. The grains/m³ ranges are
+  the National Allergy Bureau band a level corresponds to, **never a count this
+  page produced**. If you add a place that shows a pollen number, label it there
+  too.
+- **Every label comes from `source.pollen` in the payload, nothing is hardcoded to
+  "model".** Setting `GOOGLE_POLLEN_API_KEY` on Heroku switches US days to a real
+  feed and this page relabels itself with no deploy. Don't break that by
+  hardcoding the modelled wording.
+- **The two scores stay two scores.** Allergy load and "bug weather" are shown
+  side by side and never merged into one gauge. The whole product is the
+  distinction — in August in Houston the question is whether the scratchy throat
+  is ragweed or a cold — and a combined number destroys it. `verdict` is allowed
+  to say "could be either", and the page renders that honestly rather than picking
+  a side.
+- **The order of the page is the order of the question**: is today bad and is it
+  pollen or a bug → when today should I go outside → what is in the air → the week
+  → how I actually felt. That is why the per-plant breakdown, the most detailed
+  thing here, sits below a single word. Don't promote detail above the answer.
+- **The journal is keyed on a random localStorage id** (`pollen_journal`, 160 bits
+  from `crypto.getRandomValues`), sent as `x-pollen-journal`. No account, no
+  email, and **no recovery** — clearing site data loses the log, and the UI says
+  so where the tap is. It is capability, not auth. Don't add a "sync" or "sign in"
+  affordance without reading the access note in `routes/pollen.js` first.
+- **Level colours are not a green-to-red ramp** (`LEVEL_COLOR` in `ui.js`). They
+  run green → yellow → amber → orange → magenta so the steps differ in lightness
+  as well as hue, and every level also carries its word. A level is the most
+  important thing on the page and roughly one man in twelve cannot split the
+  middle of a red/green ramp.
+- **No `pattern` attribute on the zip input, on purpose.** Native constraint
+  validation blocks the submit event, so the page's own error message became dead
+  code and users got a browser tooltip in a different place from every other
+  message here. Same reason it is `type="text"` with `inputMode="numeric"` rather
+  than `type="number"` — a zip is a 5-character label, not a quantity, and
+  `type=number` strips the leading zero from 07030.
+- Both fetches run **inside their effects behind an `alive` guard**, triggered by
+  a counter, so typing a new zip mid-flight can't let the slower response win.
+  The spinner is switched on by whoever starts the request, never in an effect
+  body.
+- Local dev: `node scripts/pollen-local.js` in the backend repo (port 3004);
+  `api.js` points at localhost automatically when served from localhost.
 
 ## Conventions
 
