@@ -453,6 +453,36 @@ export default function CryptoValue() {
   // Unit size for TODAY only — same guards as the cap (PIN, server clamp to
   // CRYPTOBET_UNIT_CEILING) and the same overnight lapse back to
   // CRYPTOBET_UNIT_DOLLARS, so a one-session resize can't stick around.
+  /* Arm / disarm the give-back guard (backend: POST /auto-bets/give-back).
+     Three states, not two: ARMED, OFF, and "follow the server config" — a
+     two-way toggle would leave no way to hand the decision back to the env
+     once you'd touched it. Persistent, unlike the cap and unit overrides:
+     a safety guard that re-arms itself overnight is one you have to re-check
+     every morning. */
+  const toggleGiveBack = async () => {
+    const g = (status && status.guards) || {};
+    const armed = g.give_back_enabled;
+    const overridden = g.give_back_override != null;
+    const choice = window.prompt(
+      `Give-back guard is ${armed ? "ARMED" : "OFF"}${
+        overridden ? " (set here)" : " (from server config)"
+      }.\n\n` +
+        `It halts the day once realized P&L retraces far enough from its own ` +
+        `intraday peak — the daily cap counts NET loss, so without it a day ` +
+        `that runs up and hands it all back registers as $0 lost.\n\n` +
+        `Type "off" to disarm, "on" to arm, or "auto" to follow server config.`
+    );
+    if (choice === null) return;
+    const want = choice.trim().toLowerCase();
+    const enabled =
+      want === "off" ? false : want === "on" ? true : want === "auto" ? null : undefined;
+    if (enabled === undefined) {
+      window.alert('Expected "off", "on" or "auto".');
+      return;
+    }
+    if (await postWithPin("/auto-bets/give-back", { enabled })) await loadAll();
+  };
+
   const changeUnit = async () => {
     const cfg = (status && status.config) || {};
     const raw = window.prompt(
@@ -615,6 +645,33 @@ export default function CryptoValue() {
                 {status && status.cashout && status.cashout.enabled && (
                   <span style={chip(C.greenSoft, C.green)}>
                     CASHOUT {Math.round(status.cashout.pct * 100)}%
+                  </span>
+                )}
+                {/* A disarmed money guard has to be visible without opening
+                    anything — this is the same lesson as the blocked banner
+                    above. Red when off, amber when the website toggle is what's
+                    holding it (either way, not the default), plain when armed
+                    from config. Click to change; PIN-gated server-side. */}
+                {status && status.guards && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleGiveBack();
+                    }}
+                    title="Give-back guard — click to arm, disarm, or follow server config"
+                    style={{
+                      ...chip(
+                        status.guards.give_back_enabled ? C.chipBg : C.redSoft,
+                        status.guards.give_back_enabled
+                          ? status.guards.give_back_override != null
+                            ? C.amber
+                            : C.muted
+                          : C.red
+                      ),
+                      cursor: "pointer",
+                    }}
+                  >
+                    GIVE-BACK {status.guards.give_back_enabled ? "ON" : "OFF"}
                   </span>
                 )}
                 {/* Same one-glance summary /totals-value keeps in its header.
