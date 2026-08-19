@@ -746,6 +746,7 @@ const S = {
   // the mark, which is a caveat about the number next to it rather than another
   // neutral stat. Muted would let it disappear into the row.
   rowCashOut: { color: C.amber, fontWeight: 600 },
+  rowCashOutLine: { marginTop: 2, fontSize: 13 },
   // Parlay-only: the leg's game/matchup under the pick, and the ticket totals.
   rowSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
   /* A total bet's remaining-to-the-line + pace figures. Sits inside a position
@@ -1697,6 +1698,36 @@ function GameHeader({ grp, onHide }) {
   );
 }
 
+/* Live temp line for a weather-engine position — the weather card's version of
+ * the score strip on a sports card. Data rides display.weather (latest scan
+ * snapshot, <=10 min old): the station's current reading, today's running max
+ * (the number the market literally settles on, so far), and the forecast high.
+ * Renders nothing for every other market. */
+function WeatherNow({ d }) {
+  const w = d && d.weather;
+  if (!w || (w.current_temp == null && w.obs_max == null)) return null;
+  const deg = (v) => (v == null ? "—" : `${Math.round(Number(v))}°`);
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 10,
+        alignItems: "baseline",
+        marginTop: 4,
+        fontSize: 12.5,
+        color: "#8a93a6",
+        fontWeight: 600,
+        flexWrap: "wrap",
+      }}
+    >
+      <span>🌡 {w.city}</span>
+      <span style={{ color: "#e8eaed" }}>now {deg(w.current_temp)}</span>
+      <span>high so far {deg(w.obs_max)}</span>
+      <span>forecast {deg(w.forecast_high)}</span>
+    </div>
+  );
+}
+
 /* A single-market position row: pick + chance on top, cost + payout below.
  * Clicking the row opens the game's ESPN page, or the Kalshi event page when
  * there's no game behind it (crypto), so every row is clickable. */
@@ -1722,6 +1753,7 @@ function SingleRow({ b }) {
         <Chance leg={leg} />
       </div>
       <TotalPace leg={leg} />
+      <WeatherNow d={d} />
       <div style={S.rowLine2}>
         <span>{usd(d.cost_dollars)} cost</span>
         <span style={S.rowProfit}>+{usd(profitOf(d))} profit</span>
@@ -1729,10 +1761,16 @@ function SingleRow({ b }) {
           Pays out {usd0(d.max_payout_dollars)}
           {link ? <span style={S.linkArrow}> ↗</span> : null}
         </span>
-        {cashOutGap(d) != null && (
-          <span style={S.rowCashOut}>cash out {usd(cashOutGap(d))}</span>
-        )}
       </div>
+      {/* Its own line ALWAYS, never the fourth item on the stats row. As a
+          flex-wrap sibling it wrapped only on narrow cards, so half the cards
+          showed it inline and half underneath — Patrick, 2026-08-19: "it
+          should all be uniform". */}
+      {cashOutGap(d) != null && (
+        <div style={S.rowCashOutLine}>
+          <span style={S.rowCashOut}>cash out {usd(cashOutGap(d))}</span>
+        </div>
+      )}
     </Row>
   );
 }
