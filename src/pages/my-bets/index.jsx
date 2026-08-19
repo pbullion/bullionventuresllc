@@ -1785,8 +1785,10 @@ function WeatherNow({ d, noCity = false }) {
         gap: 18,
         alignItems: "flex-end",
         flexWrap: "wrap",
-        // Inline in a city section header when noCity; its own line otherwise.
-        marginTop: noCity ? 0 : 6,
+        // Sits under the city heading in a section (noCity), or on its own
+        // line under the pick on an ungrouped card.
+        marginTop: 8,
+        marginBottom: noCity ? 4 : 0,
       }}
     >
       {!noCity && (
@@ -2636,20 +2638,20 @@ export default function MyBets() {
                         }
                         return cities.map((sec) => (
                           <div key={sec.city}>
+                            {/* City on its own line, temps beneath it. Inline,
+                                the unlabelled city hung level with the stat
+                                VALUES while their labels floated above it, which
+                                read as a fourth nameless figure (Patrick,
+                                2026-08-19). Stacking gives the section a plain
+                                heading and the temps a clean row. */}
                             <div
                               style={{
-                                display: "flex",
-                                alignItems: "flex-end",
-                                gap: 18,
-                                flexWrap: "wrap",
-                                marginTop: 14,
-                                paddingTop: 10,
+                                marginTop: 16,
+                                paddingTop: 12,
                                 borderTop: `1px solid ${C.rowBorder}`,
                               }}
                             >
-                              {/* The city IS the heading of its section, so it
-                                  outranks the temps beside it. */}
-                              <span
+                              <div
                                 style={{
                                   fontWeight: 800,
                                   fontSize: 16,
@@ -2658,7 +2660,7 @@ export default function MyBets() {
                                 }}
                               >
                                 🌡 {sec.city}
-                              </span>
+                              </div>
                               <WeatherNow d={sec.first.display} noCity />
                             </div>
                             {sec.rows.map((b) => (
