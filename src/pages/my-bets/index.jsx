@@ -1102,6 +1102,47 @@ const marketLabel = (leg) => {
 // every market on the same game) when we matched one, else the game portion of
 // the matchup ("Tampa Bay vs Toronto: Total Runs" -> "Tampa Bay vs Toronto"),
 // else the market ticker so an unmatched position still stands alone.
+/* Weather positions (KXHIGH*) group by DAY, then by city inside the card —
+ * eight separate city-day cards scattered through the grid was unreadable
+ * (Patrick, 2026-08-19: "combine them by DAYS and then city level"). */
+const WEATHER_TICKER_RE = /^KXHIGH/;
+const weatherDayChunk = (ticker) => {
+  const m = /-(\d{2}[A-Z]{3}\d{2})/.exec(String(ticker || ""));
+  return m ? m[1] : null;
+};
+const WEATHER_MONTHS = {
+  JAN: 0,
+  FEB: 1,
+  MAR: 2,
+  APR: 3,
+  MAY: 4,
+  JUN: 5,
+  JUL: 6,
+  AUG: 7,
+  SEP: 8,
+  OCT: 9,
+  NOV: 10,
+  DEC: 11,
+};
+const weatherDayLabel = (chunk) => {
+  const m = /^(\d{2})([A-Z]{3})(\d{2})$/.exec(String(chunk || ""));
+  if (!m || WEATHER_MONTHS[m[2]] == null) return chunk || "—";
+  const d = new Date(2000 + Number(m[1]), WEATHER_MONTHS[m[2]], Number(m[3]));
+  const label = d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  const today = new Date();
+  const tomorrow = new Date(today.getTime() + 86400000);
+  const same = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  if (same(d, today)) return `Today · ${label}`;
+  if (same(d, tomorrow)) return `Tomorrow · ${label}`;
+  return label;
+};
+
 const gameKeyOf = (leg) => {
   const link = leg.game && leg.game.link;
   if (link) return `g:${link}`;
@@ -1703,7 +1744,7 @@ function GameHeader({ grp, onHide }) {
  * snapshot, <=10 min old): the station's current reading, today's running max
  * (the number the market literally settles on, so far), and the forecast high.
  * Renders nothing for every other market. */
-function WeatherNow({ d }) {
+function WeatherNow({ d, noCity = false }) {
   const w = d && d.weather;
   if (!w || (w.current_temp == null && w.obs_max == null)) return null;
   const deg = (v) => (v == null ? "—" : `${Math.round(Number(v))}°`);
@@ -1720,7 +1761,7 @@ function WeatherNow({ d }) {
         flexWrap: "wrap",
       }}
     >
-      <span>🌡 {w.city}</span>
+      {!noCity && <span>🌡 {w.city}</span>}
       <span style={{ color: "#e8eaed" }}>now {deg(w.current_temp)}</span>
       <span>high so far {deg(w.obs_max)}</span>
       <span>forecast {deg(w.forecast_high)}</span>
@@ -1731,7 +1772,7 @@ function WeatherNow({ d }) {
 /* A single-market position row: pick + chance on top, cost + payout below.
  * Clicking the row opens the game's ESPN page, or the Kalshi event page when
  * there's no game behind it (crypto), so every row is clickable. */
-function SingleRow({ b }) {
+function SingleRow({ b, showWeather = true }) {
   const d = b.display || {};
   const leg = (d.legs || [])[0] || {};
   const link =
@@ -1753,7 +1794,7 @@ function SingleRow({ b }) {
         <Chance leg={leg} />
       </div>
       <TotalPace leg={leg} />
-      <WeatherNow d={d} />
+      {showWeather && <WeatherNow d={d} />}
       <div style={S.rowLine2}>
         <span>{usd(d.cost_dollars)} cost</span>
         <span style={S.rowProfit}>+{usd(profitOf(d))} profit</span>
@@ -2487,12 +2528,19 @@ export default function MyBets() {
                   const legs = Array.isArray(d.legs) ? d.legs : [];
                   const isCombo = legs.length > 1 || (d.leg_count || 0) > 1;
                   const leg0 = legs[0] || {};
-                  const key = isCombo ? `parlay:${b.ticker}` : gameKeyOf(leg0);
+                  const isWeather = WEATHER_TICKER_RE.test(b.ticker || "");
+                  const wxDay = isWeather ? weatherDayChunk(b.ticker) : null;
+                  const key = isWeather
+                    ? `weather:${wxDay}`
+                    : isCombo
+                      ? `parlay:${b.ticker}`
+                      : gameKeyOf(leg0);
                   if (!byKey.has(key)) {
                     byKey.set(key, groups.length);
                     groups.push({
                       key,
-                      isCombo,
+                      isCombo: isWeather ? false : isCombo,
+                      isWeather,
                       game: isCombo ? null : leg0.game,
                       // Normalised, because the backend's league differs by horizon:
                       // "Crypto" for a 15m market but the bare asset ("XRP") for an
@@ -2501,9 +2549,11 @@ export default function MyBets() {
                       // — it's the category, matching how a sports card reads
                       // ("Pro Baseball", not the team), and the asset is already in
                       // the title on both ("XRP 15 min · …" / "XRP price at 5pm").
-                      league: isCryptoTicker(leg0.market_ticker)
-                        ? "Crypto"
-                        : leg0.league || "",
+                      league: isWeather
+                        ? "High Temperature"
+                        : isCryptoTicker(leg0.market_ticker)
+                          ? "Crypto"
+                          : leg0.league || "",
                       // Crypto windows are 15m/1h, so a countdown to settlement is
                       // the useful clock. The TIME is read off the position's own
                       // market rather than parsed out of the ticker (verified they
@@ -2516,9 +2566,11 @@ export default function MyBets() {
                         isCryptoTicker(leg0.market_ticker) && b.market
                           ? b.market.close_time || null
                           : null,
-                      title: isCombo
-                        ? `${legs.length || d.leg_count}-Leg Parlay`
-                        : gameTitleOf(leg0, d.title),
+                      title: isWeather
+                        ? `🌡 High temps — ${weatherDayLabel(wxDay)}`
+                        : isCombo
+                          ? `${legs.length || d.leg_count}-Leg Parlay`
+                          : gameTitleOf(leg0, d.title),
                       positions: [],
                     });
                   }
@@ -2533,7 +2585,49 @@ export default function MyBets() {
                         hideBets(grp.positions.map((p) => p.ticker))
                       }
                     />
-                    {grp.isCombo ? (
+                    {grp.isWeather ? (
+                      /* City sections: one temps strip per city, then that
+                         city's rows without their own (identical) strip. */
+                      (() => {
+                        const cities = [];
+                        const cityIx = new Map();
+                        for (const b of grp.positions) {
+                          const w = (b.display || {}).weather || {};
+                          const c = w.city || String(b.ticker).split("-")[0];
+                          if (!cityIx.has(c)) {
+                            cityIx.set(c, cities.length);
+                            cities.push({ city: c, first: b, rows: [] });
+                          }
+                          cities[cityIx.get(c)].rows.push(b);
+                        }
+                        return cities.map((sec) => (
+                          <div key={sec.city}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "baseline",
+                                gap: 10,
+                                marginTop: 10,
+                                paddingTop: 8,
+                                borderTop: `1px solid ${C.rowBorder}`,
+                              }}
+                            >
+                              <span style={{ fontWeight: 800, fontSize: 14 }}>
+                                {sec.city}
+                              </span>
+                              <WeatherNow d={sec.first.display} noCity />
+                            </div>
+                            {sec.rows.map((b) => (
+                              <SingleRow
+                                b={b}
+                                key={b.ticker}
+                                showWeather={false}
+                              />
+                            ))}
+                          </div>
+                        ));
+                      })()
+                    ) : grp.isCombo ? (
                       <ParlayRows b={grp.positions[0]} />
                     ) : (
                       grp.positions.map((b) => (
