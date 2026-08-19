@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
 import EngineTuning from "../../components/EngineTuning.jsx";
+import OpenBetsRail from "../../components/OpenBetsRail";
 
 /* Weather Value — live view of the Kalshi weather engine (backend:
  * sheline-art-website-api routes/kalshiWeather.js). Daily city-high markets,
@@ -257,228 +258,236 @@ export default function WeatherValue() {
         padding: 16,
       }}
     >
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-            marginBottom: 12,
-          }}
-        >
-          <h1 style={{ margin: 0, fontSize: 20 }}>🌡 Weather Value</h1>
-          {pill()}
-          {err && <span style={{ fontSize: 11, color: C.red }}>{err}</span>}
-          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            <a href="/totals-value" style={navLink}>
-              📈 sports →
-            </a>
-            <a href="/crypto-value" style={navLink}>
-              🪙 crypto →
-            </a>
-            <a href="/my-bets" style={navLink}>
-              🎯 my bets →
-            </a>
-          </span>
-        </div>
-
-        <EngineBlockedBanner
-          blocked={status && status.blocked}
-          engine="Weather"
-        />
-
-        {/* Header strip: sizing + per-city running max, the model's live input. */}
-        <div
-          style={{
-            background: C.panel,
-            border: `1px solid ${C.border}`,
-            borderRadius: 12,
-            padding: 14,
-            marginBottom: 12,
-          }}
-        >
+      {/* Same shell as /totals-value and /crypto-value: content + a sticky
+          right-hand rail of THIS page's open positions on desktop. */}
+      <div className="bv-shell" style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div className="bv-main">
           <div
             style={{
               display: "flex",
+              alignItems: "center",
               gap: 10,
               flexWrap: "wrap",
-              alignItems: "center",
+              marginBottom: 12,
             }}
           >
-            <span style={{ fontWeight: 800, fontSize: 15 }}>🤖 Auto-Bet</span>
-            {cfg && (
-              <span style={{ color: C.muted, fontSize: 12, flex: 1 }}>
-                ${cfg.unit_dollars}/u +1u per 3¢ edge · ${cfg.max_bet_dollars}{" "}
-                max/bet · ${cfg.max_daily_dollars}/day loss cap · $
-                {cfg.max_event_dollars}/city-day · needs{" "}
-                {Math.round(cfg.min_edge * 100)}¢+ edge · scan{" "}
-                {clockTime(lastScan && lastScan.at)}
-              </span>
-            )}
-            {status && status.killed ? (
-              <button
-                onClick={enable}
-                disabled={busy}
-                style={{
-                  background: C.greenSoft,
-                  color: C.green,
-                  border: `1px solid ${C.greenBorder}`,
-                  borderRadius: 8,
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Enable (PIN)
-              </button>
-            ) : (
-              <button
-                onClick={kill}
-                disabled={busy}
-                style={{
-                  background: C.redSoft,
-                  color: C.red,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 8,
-                  padding: "5px 12px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Kill
-              </button>
-            )}
+            <h1 style={{ margin: 0, fontSize: 20 }}>🌡 Weather Value</h1>
+            {pill()}
+            {err && <span style={{ fontSize: 11, color: C.red }}>{err}</span>}
+            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              <a href="/totals-value" style={navLink}>
+                📈 sports →
+              </a>
+              <a href="/crypto-value" style={navLink}>
+                🪙 crypto →
+              </a>
+              <a href="/my-bets" style={navLink}>
+                🎯 my bets →
+              </a>
+            </span>
           </div>
-          {lastScan && lastScan.cities && (
+
+          <EngineBlockedBanner
+            blocked={status && status.blocked}
+            engine="Weather"
+          />
+
+          {/* Header strip: sizing + per-city running max, the model's live input. */}
+          <div
+            style={{
+              background: C.panel,
+              border: `1px solid ${C.border}`,
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 12,
+            }}
+          >
             <div
               style={{
                 display: "flex",
-                gap: 8,
+                gap: 10,
                 flexWrap: "wrap",
-                marginTop: 10,
+                alignItems: "center",
               }}
             >
-              {Object.entries(lastScan.cities).map(([k, v]) => (
-                <span
-                  key={k}
+              <span style={{ fontWeight: 800, fontSize: 15 }}>🤖 Auto-Bet</span>
+              {cfg && (
+                <span style={{ color: C.muted, fontSize: 12, flex: 1 }}>
+                  ${cfg.unit_dollars}/u +1u per 3¢ edge · ${cfg.max_bet_dollars}{" "}
+                  max/bet · ${cfg.max_daily_dollars}/day loss cap · $
+                  {cfg.max_event_dollars}/city-day · needs{" "}
+                  {Math.round(cfg.min_edge * 100)}¢+ edge · scan{" "}
+                  {clockTime(lastScan && lastScan.at)}
+                </span>
+              )}
+              {status && status.killed ? (
+                <button
+                  onClick={enable}
+                  disabled={busy}
                   style={{
-                    ...chip(C.chipBg, v.error ? C.red : C.text),
-                    fontWeight: 600,
+                    background: C.greenSoft,
+                    color: C.green,
+                    border: `1px solid ${C.greenBorder}`,
+                    borderRadius: 8,
+                    padding: "5px 12px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
                   }}
                 >
-                  {k.toUpperCase()}{" "}
-                  {v.error
-                    ? "ERR"
-                    : v.obs_max != null
-                      ? `${Math.round(v.obs_max)}°`
-                      : "—"}
-                  {v && v.new_paper_bets ? (
-                    <span style={{ color: C.amber }}> +{v.new_paper_bets}</span>
-                  ) : null}
-                </span>
-              ))}
+                  Enable (PIN)
+                </button>
+              ) : (
+                <button
+                  onClick={kill}
+                  disabled={busy}
+                  style={{
+                    background: C.redSoft,
+                    color: C.red,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "5px 12px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Kill
+                </button>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* The two ledgers, numbers first. */}
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            flexWrap: "wrap",
-            marginBottom: 12,
-          }}
-        >
-          {[
-            [
-              "REAL",
-              live &&
-                `${live.filled || 0} filled · ${money(live.staked)} staked`,
-              live && live.pnl,
-            ],
-            [
-              "PAPER (the model's judge)",
-              pp &&
-                `${pp.settled || 0}/${pp.n || 0} settled · ${pp.won || 0} won`,
-              pp && pp.pnl,
-            ],
-          ].map(([label, sub, pnl]) => (
-            <div
-              key={label}
-              style={{
-                flex: "1 1 240px",
-                background: C.panel,
-                border: `1px solid ${C.border}`,
-                borderRadius: 12,
-                padding: 14,
-              }}
-            >
-              <div style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>
-                {label}
-              </div>
+            {lastScan && lastScan.cities && (
               <div
                 style={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  color: pnl > 0 ? C.green : pnl < 0 ? C.red : C.text,
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  marginTop: 10,
                 }}
               >
-                {money(pnl)}
+                {Object.entries(lastScan.cities).map(([k, v]) => (
+                  <span
+                    key={k}
+                    style={{
+                      ...chip(C.chipBg, v.error ? C.red : C.text),
+                      fontWeight: 600,
+                    }}
+                  >
+                    {k.toUpperCase()}{" "}
+                    {v.error
+                      ? "ERR"
+                      : v.obs_max != null
+                        ? `${Math.round(v.obs_max)}°`
+                        : "—"}
+                    {v && v.new_paper_bets ? (
+                      <span style={{ color: C.amber }}>
+                        {" "}
+                        +{v.new_paper_bets}
+                      </span>
+                    ) : null}
+                  </span>
+                ))}
               </div>
-              <div style={{ color: C.muted, fontSize: 12 }}>{sub || "—"}</div>
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
 
-        <div
-          style={{
-            background: C.panel,
-            border: `1px solid ${C.border}`,
-            borderRadius: 12,
-            padding: 14,
-            marginBottom: 12,
-          }}
-        >
+          {/* The two ledgers, numbers first. */}
           <div
             style={{
               display: "flex",
-              gap: 10,
-              alignItems: "center",
-              marginBottom: 8,
+              gap: 12,
+              flexWrap: "wrap",
+              marginBottom: 12,
             }}
           >
-            <span style={{ fontWeight: 800, fontSize: 14 }}>
-              {showPaper ? "📝 Paper ledger" : "💵 Real ledger"}
-            </span>
-            <button
-              onClick={() => setShowPaper((v) => !v)}
+            {[
+              [
+                "REAL",
+                live &&
+                  `${live.filled || 0} filled · ${money(live.staked)} staked`,
+                live && live.pnl,
+              ],
+              [
+                "PAPER (the model's judge)",
+                pp &&
+                  `${pp.settled || 0}/${pp.n || 0} settled · ${pp.won || 0} won`,
+                pp && pp.pnl,
+              ],
+            ].map(([label, sub, pnl]) => (
+              <div
+                key={label}
+                style={{
+                  flex: "1 1 240px",
+                  background: C.panel,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  padding: 14,
+                }}
+              >
+                <div style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>
+                  {label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                    color: pnl > 0 ? C.green : pnl < 0 ? C.red : C.text,
+                  }}
+                >
+                  {money(pnl)}
+                </div>
+                <div style={{ color: C.muted, fontSize: 12 }}>{sub || "—"}</div>
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              background: C.panel,
+              border: `1px solid ${C.border}`,
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 12,
+            }}
+          >
+            <div
               style={{
-                background: C.chipBg,
-                color: C.text,
-                border: `1px solid ${C.border}`,
-                borderRadius: 8,
-                padding: "4px 10px",
-                fontSize: 12,
-                cursor: "pointer",
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                marginBottom: 8,
               }}
             >
-              show {showPaper ? "real" : "paper"}
-            </button>
+              <span style={{ fontWeight: 800, fontSize: 14 }}>
+                {showPaper ? "📝 Paper ledger" : "💵 Real ledger"}
+              </span>
+              <button
+                onClick={() => setShowPaper((v) => !v)}
+                style={{
+                  background: C.chipBg,
+                  color: C.text,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                show {showPaper ? "real" : "paper"}
+              </button>
+            </div>
+            {showPaper ? table(paper, true) : table(bets, false)}
           </div>
-          {showPaper ? table(paper, true) : table(bets, false)}
-        </div>
 
-        <EngineTuning
-          apiBase={API_BASE}
-          post={postWithPin}
-          busy={busy}
-          C={C}
-          storageKey="bv_tuning_open_weather"
-        />
+          <EngineTuning
+            apiBase={API_BASE}
+            post={postWithPin}
+            busy={busy}
+            C={C}
+            storageKey="bv_tuning_open_weather"
+          />
+        </div>
+        <OpenBetsRail domain="weather" />
       </div>
     </div>
   );

@@ -18,6 +18,11 @@ const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
  * from the rail. Everything that isn't crypto is treated as sports, so a new
  * league shows up on /totals-value without a code change. */
 const CRYPTO_TICKER = /^KX(BTC|ETH|XRP|SOL|DOGE)[A-Z0-9]*-/;
+/* Weather engine series all share the KXHIGH prefix (KXHIGHNY, KXHIGHCHI, …).
+ * Before this existed, "everything that isn't crypto is sports" put weather
+ * positions on the /totals-value rail — Patrick, 2026-08-19. */
+const WEATHER_TICKER = /^KXHIGH/;
+const DOMAIN_LABEL = { crypto: "crypto", weather: "weather", sports: "sports" };
 
 /* Same permanent hide as the Open tab on /my-bets — a dead futures market that
  * won't SETTLE for months and would otherwise sit in the rail forever. Keep in
@@ -40,8 +45,7 @@ const C = {
   greenDim: "#479463",
 };
 
-const usd = (v) =>
-  `${v < 0 ? "-" : ""}$${Math.abs(Number(v) || 0).toFixed(2)}`;
+const usd = (v) => `${v < 0 ? "-" : ""}$${Math.abs(Number(v) || 0).toFixed(2)}`;
 const pnlColor = (v) => (v > 0 ? C.green : v < 0 ? C.red : C.muted);
 const pnlStr = (v) => `${v > 0 ? "+" : ""}${usd(v)}`;
 /* What the position clears if it wins: gross payout less what it cost, with the
@@ -98,21 +102,25 @@ export default function OpenBetsRail({ domain }) {
     .filter((p) => {
       if (ALWAYS_HIDDEN_TICKERS.has(p.ticker)) return false;
       const isCrypto = CRYPTO_TICKER.test(p.ticker || "");
-      return domain === "crypto" ? isCrypto : !isCrypto;
+      const isWeather = WEATHER_TICKER.test(p.ticker || "");
+      if (domain === "crypto") return isCrypto;
+      if (domain === "weather") return isWeather;
+      // sports = the remainder, so a new league still shows up with no change
+      return !isCrypto && !isWeather;
     })
     .sort(
       (a, b) =>
         (b.display?.current_value_dollars || 0) -
-        (a.display?.current_value_dollars || 0)
+        (a.display?.current_value_dollars || 0),
     );
 
   const totalValue = bets.reduce(
     (s, b) => s + (Number(b.display?.current_value_dollars) || 0),
-    0
+    0,
   );
   const totalPnl = bets.reduce(
     (s, b) => s + (Number(b.display?.total_pnl_dollars) || 0),
-    0
+    0,
   );
   const totalProfit = bets.reduce((s, b) => s + profitOf(b.display || {}), 0);
 
@@ -120,7 +128,7 @@ export default function OpenBetsRail({ domain }) {
     <aside className="bv-rail">
       <div style={S.head}>
         <span style={S.headTitle}>
-          Open {domain === "crypto" ? "crypto" : "sports"} bets
+          Open {DOMAIN_LABEL[domain] || "sports"} bets
         </span>
         <a href="/my-bets" style={S.headLink}>
           my bets →
@@ -143,7 +151,7 @@ export default function OpenBetsRail({ domain }) {
       {!err && positions == null && <div style={S.empty}>loading…</div>}
       {!err && positions != null && bets.length === 0 && (
         <div style={S.empty}>
-          No open {domain === "crypto" ? "crypto" : "sports"} positions.
+          No open {DOMAIN_LABEL[domain] || "sports"} positions.
         </div>
       )}
 

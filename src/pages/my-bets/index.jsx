@@ -746,7 +746,7 @@ const S = {
   // the mark, which is a caveat about the number next to it rather than another
   // neutral stat. Muted would let it disappear into the row.
   rowCashOut: { color: C.amber, fontWeight: 600 },
-  rowCashOutLine: { marginTop: 2, fontSize: 13 },
+  rowCashOutLine: { marginTop: 2, fontSize: 13, textAlign: "right" },
   // Parlay-only: the leg's game/matchup under the pick, and the ticket totals.
   rowSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
   /* A total bet's remaining-to-the-line + pace figures. Sits inside a position
@@ -1762,13 +1762,24 @@ function SingleRow({ b }) {
           {link ? <span style={S.linkArrow}> ↗</span> : null}
         </span>
       </div>
-      {/* Its own line ALWAYS, never the fourth item on the stats row. As a
-          flex-wrap sibling it wrapped only on narrow cards, so half the cards
-          showed it inline and half underneath — Patrick, 2026-08-19: "it
-          should all be uniform". */}
+      {/* Its own line ALWAYS (never the fourth flex-wrap item — that wrapped
+          only on narrow cards, so half the cards showed it inline and half
+          underneath). Right-aligned so it sits directly beneath "Pays out",
+          and it carries its own profit: what selling RIGHT NOW nets against
+          cost, which is a different number from the hold-to-win profit above
+          it — Patrick, 2026-08-19. */}
       {cashOutGap(d) != null && (
         <div style={S.rowCashOutLine}>
           <span style={S.rowCashOut}>cash out {usd(cashOutGap(d))}</span>
+          {(() => {
+            const delta = cashOutGap(d) - (Number(d.cost_dollars) || 0);
+            return (
+              <span style={{ color: pnlColor(delta), fontWeight: 600 }}>
+                {" "}
+                ({pnlStr(delta)})
+              </span>
+            );
+          })()}
         </div>
       )}
     </Row>
