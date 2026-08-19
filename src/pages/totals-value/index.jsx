@@ -288,7 +288,11 @@ function Ladder({ game }) {
               <tr
                 key={m.ticker}
                 style={{
-                  background: rec ? C.greenSoft : i % 2 ? C.rowAlt : "transparent",
+                  background: rec
+                    ? C.greenSoft
+                    : i % 2
+                      ? C.rowAlt
+                      : "transparent",
                   borderTop: `1px solid ${C.border}`,
                   outline: rec ? `1px solid ${C.greenBorder}` : "none",
                 }}
@@ -296,8 +300,12 @@ function Ladder({ game }) {
                 <td style={{ ...td, textAlign: "left", fontWeight: 700 }}>
                   {isMargin ? m.label : m.strike} {m.locked_over && "🔒"}
                   {rec && (
-                    <span style={{ color: C.green, marginLeft: 6, fontSize: 11 }}>
-                      {m.best.side === "over" ? `BUY ${yesLabel}` : `BUY ${noLabel}`}
+                    <span
+                      style={{ color: C.green, marginLeft: 6, fontSize: 11 }}
+                    >
+                      {m.best.side === "over"
+                        ? `BUY ${yesLabel}`
+                        : `BUY ${noLabel}`}
                     </span>
                   )}
                 </td>
@@ -358,27 +366,34 @@ function GameCard({ game }) {
               ? `${away.team} ${away.score} – ${home.score} ${home.team}`
               : game.title}
           </div>
-          <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {game.league_label && <Chip color={C.text}>{game.league_label}</Chip>}
+          <div
+            style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}
+          >
+            {game.league_label && (
+              <Chip color={C.text}>{game.league_label}</Chip>
+            )}
             {game.market_type && game.market_type !== "total" && (
               <Chip color={C.amber}>
                 {game.market_type === "spread" ? "Spread" : "Moneyline"}
               </Chip>
             )}
-            <StateChip
-              state={game.state}
-              detail={detailCT(g, game.state)}
-            />
-            {game.prior_source === "closing_line" && game.prior_total != null && (
-              <Chip color={C.text}>Line {Number(game.prior_total).toFixed(1)}</Chip>
-            )}
+            <StateChip state={game.state} detail={detailCT(g, game.state)} />
+            {game.prior_source === "closing_line" &&
+              game.prior_total != null && (
+                <Chip color={C.text}>
+                  Line {Number(game.prior_total).toFixed(1)}
+                </Chip>
+              )}
             {game.state === "pre" && away.probable && home.probable && (
-              <Chip>SP {away.probable} v {home.probable}</Chip>
+              <Chip>
+                SP {away.probable} v {home.probable}
+              </Chip>
             )}
             {live && g.pitcher && <Chip>P: {g.pitcher}</Chip>}
             {live && game.projected_total != null && (
               <Chip color={C.text}>
-                Proj total {game.projected_total.toFixed(1)} ± {game.sigma?.toFixed(1)}
+                Proj total {game.projected_total.toFixed(1)} ±{" "}
+                {game.sigma?.toFixed(1)}
               </Chip>
             )}
             {live && game.current_total != null && (
@@ -440,7 +455,9 @@ function Stat({ label, value, color = C.text }) {
         minWidth: 110,
       }}
     >
-      <div style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>{label}</div>
+      <div style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>
+        {label}
+      </div>
       <div style={{ fontWeight: 800, fontSize: 18, color, marginTop: 2 }}>
         {value}
       </div>
@@ -455,7 +472,9 @@ function PerformancePanel() {
 
   useEffect(() => {
     fetch(`${API_BASE}/totals-value/performance`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
+      )
       .then(setPerf)
       .catch((e) => setErr(e.message));
   }, []);
@@ -469,7 +488,7 @@ function PerformancePanel() {
   const profit =
     rec.profit_per_contract_dollars != null
       ? `${rec.profit_per_contract_dollars >= 0 ? "+" : "−"}$${Math.abs(
-          rec.profit_per_contract_dollars
+          rec.profit_per_contract_dollars,
         ).toFixed(2)}`
       : "—";
   const calBuckets = (perf.calibration || []).filter((b) => b.n > 0);
@@ -497,9 +516,16 @@ function PerformancePanel() {
       >
         <div style={{ fontWeight: 800, fontSize: 15, flex: 1 }}>
           📊 Model Performance
-          <span style={{ color: C.muted, fontWeight: 500, fontSize: 12, marginLeft: 8 }}>
-            {perf.settled_games} game{perf.settled_games === 1 ? "" : "s"} settled ·{" "}
-            {bets} alerted bet{bets === 1 ? "" : "s"}
+          <span
+            style={{
+              color: C.muted,
+              fontWeight: 500,
+              fontSize: 12,
+              marginLeft: 8,
+            }}
+          >
+            {perf.settled_games} game{perf.settled_games === 1 ? "" : "s"}{" "}
+            settled · {bets} alerted bet{bets === 1 ? "" : "s"}
           </span>
         </div>
         <div style={{ color: C.muted, fontSize: 18 }}>{open ? "▾" : "▸"}</div>
@@ -516,12 +542,16 @@ function PerformancePanel() {
             <Stat
               label="P/L PER $1"
               value={profit}
-              color={(rec.profit_per_contract_dollars || 0) >= 0 ? C.green : C.red}
+              color={
+                (rec.profit_per_contract_dollars || 0) >= 0 ? C.green : C.red
+              }
             />
             <Stat label="ROI" value={roiPct} />
             <Stat
               label="BRIER"
-              value={perf.brier_score != null ? perf.brier_score.toFixed(3) : "—"}
+              value={
+                perf.brier_score != null ? perf.brier_score.toFixed(3) : "—"
+              }
             />
             {perf.closing_line && perf.closing_line.events > 0 && (
               <Stat
@@ -533,13 +563,13 @@ function PerformancePanel() {
               label="LEARNED σ×"
               value={(() => {
                 const learned = Object.entries(perf.model_state || {}).filter(
-                  ([, s]) => Number(s.sample_n) > 0
+                  ([, s]) => Number(s.sample_n) > 0,
                 );
                 if (!learned.length) return "not yet";
                 return learned
                   .map(
                     ([lg, s]) =>
-                      `${lg.toUpperCase()} ${Number(s.sigma_mult).toFixed(2)}`
+                      `${lg.toUpperCase()} ${Number(s.sigma_mult).toFixed(2)}`,
                   )
                   .join(" · ");
               })()}
@@ -548,16 +578,30 @@ function PerformancePanel() {
 
           {calBuckets.length > 0 && (
             <div style={{ marginTop: 18 }}>
-              <div style={{ color: C.muted, fontSize: 11, fontWeight: 700, marginBottom: 8 }}>
+              <div
+                style={{
+                  color: C.muted,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                }}
+              >
                 CALIBRATION — WHEN THE MODEL SAID X%, HOW OFTEN DID IT GO OVER?
               </div>
               <div style={{ display: "grid", gap: 4 }}>
                 {calBuckets.map((b) => (
                   <div
                     key={b.bucket}
-                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      fontSize: 12,
+                    }}
                   >
-                    <span style={{ width: 62, color: C.muted }}>{b.bucket}</span>
+                    <span style={{ width: 62, color: C.muted }}>
+                      {b.bucket}
+                    </span>
                     <div
                       style={{
                         flex: 1,
@@ -590,21 +634,31 @@ function PerformancePanel() {
                         }}
                       />
                     </div>
-                    <span style={{ width: 90, textAlign: "right", color: C.muted }}>
+                    <span
+                      style={{ width: 90, textAlign: "right", color: C.muted }}
+                    >
                       {Math.round((b.realized || 0) * 100)}% ({b.n})
                     </span>
                   </div>
                 ))}
               </div>
               <div style={{ color: C.muted, fontSize: 11, marginTop: 6 }}>
-                Green bar = realized over-rate · white tick = model's average prediction
+                Green bar = realized over-rate · white tick = model's average
+                prediction
               </div>
             </div>
           )}
 
           {history.length > 0 && (
             <div style={{ marginTop: 18 }}>
-              <div style={{ color: C.muted, fontSize: 11, fontWeight: 700, marginBottom: 8 }}>
+              <div
+                style={{
+                  color: C.muted,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                }}
+              >
                 ALERTED BET HISTORY
               </div>
               <div style={{ display: "grid", gap: 6 }}>
@@ -628,14 +682,21 @@ function PerformancePanel() {
                       {b.market_type === "spread"
                         ? `${b.side === "over" ? "" : "Not "}${b.pick_abbr} by ${b.strike}+`
                         : b.market_type === "moneyline"
-                        ? `${b.pick_abbr} ML ${b.side === "over" ? "✓" : "✗"}`
-                        : `${b.side === "over" ? "Over" : "Under"} ${b.strike}`}
+                          ? `${b.pick_abbr} ML ${b.side === "over" ? "✓" : "✗"}`
+                          : `${b.side === "over" ? "Over" : "Under"} ${b.strike}`}
                     </span>
-                    <span style={{ color: C.muted, flex: 1, minWidth: 120 }}>{b.title}</span>
+                    <span style={{ color: C.muted, flex: 1, minWidth: 120 }}>
+                      {b.title}
+                    </span>
                     <span>{cents(b.buy_price_dollars)}</span>
-                    <span style={{ color: b.won ? C.green : C.red, fontWeight: 800 }}>
-                      {b.won ? "WON" : "LOST"}{" "}
-                      {b.pnl_dollars >= 0 ? "+" : "−"}${Math.abs(b.pnl_dollars).toFixed(2)}
+                    <span
+                      style={{
+                        color: b.won ? C.green : C.red,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {b.won ? "WON" : "LOST"} {b.pnl_dollars >= 0 ? "+" : "−"}$
+                      {Math.abs(b.pnl_dollars).toFixed(2)}
                     </span>
                   </div>
                 ))}
@@ -662,7 +723,10 @@ function PerformancePanel() {
 
 const timeAgo = (iso) => {
   if (!iso) return "—";
-  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  const s = Math.max(
+    0,
+    Math.round((Date.now() - new Date(iso).getTime()) / 1000),
+  );
   if (s < 90) return `${s}s ago`;
   if (s < 5400) return `${Math.round(s / 60)}m ago`;
   return `${Math.round(s / 3600)}h ago`;
@@ -721,17 +785,19 @@ function AutoBetPanel({ games }) {
     try {
       const [s, b, a, sc, rv] = await Promise.all([
         fetch(`${API_BASE}/auto-bets/status`).then((r) =>
-          r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))
+          r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)),
         ),
-        fetch(`${API_BASE}/auto-bets`).then((r) => (r.ok ? r.json() : { bets: [] })),
+        fetch(`${API_BASE}/auto-bets`).then((r) =>
+          r.ok ? r.json() : { bets: [] },
+        ),
         fetch(`${API_BASE}/auto-bets/activity?limit=40`).then((r) =>
-          r.ok ? r.json() : { activity: [] }
+          r.ok ? r.json() : { activity: [] },
         ),
         fetch(`${API_BASE}/auto-bets/scenarios`).then((r) =>
-          r.ok ? r.json() : { games: [] }
+          r.ok ? r.json() : { games: [] },
         ),
         fetch(`${API_BASE}/auto-bets/review`).then((r) =>
-          r.ok ? r.json() : null
+          r.ok ? r.json() : null,
         ),
       ]);
       setStatus(s);
@@ -760,10 +826,15 @@ function AutoBetPanel({ games }) {
   const mode = status.mode; // 'live' | 'paper' | 'off'
   const pill =
     mode === "live"
-      ? { text: "● LIVE", color: C.green, bg: C.greenSoft, border: C.greenBorder }
+      ? {
+          text: "● LIVE",
+          color: C.green,
+          bg: C.greenSoft,
+          border: C.greenBorder,
+        }
       : mode === "paper"
-      ? { text: "PAPER", color: C.amber, bg: "#2b2410", border: "#7a651f" }
-      : { text: "OFF", color: C.muted, bg: C.chipBg, border: C.border };
+        ? { text: "PAPER", color: C.amber, bg: "#2b2410", border: "#7a651f" }
+        : { text: "OFF", color: C.muted, bg: C.chipBg, border: C.border };
   const t = status.today || {};
   const cfg = status.config || {};
   // The daily cap counts NET money lost (2026-08-03) — winnings offset losses,
@@ -771,7 +842,8 @@ function AutoBetPanel({ games }) {
   // older backend still renders something sane. The number is printed with its
   // sign meaning intact; only the bar is floored at 0, since a negative width
   // renders as a broken element rather than as "up on the day".
-  const capUsed = Number(t.daily_lost != null ? t.daily_lost : t.daily_stake) || 0;
+  const capUsed =
+    Number(t.daily_lost != null ? t.daily_lost : t.daily_stake) || 0;
   const stakePct = t.daily_cap
     ? Math.max(0, Math.min(100, Math.round((capUsed / t.daily_cap) * 100)))
     : 0;
@@ -838,7 +910,7 @@ function AutoBetPanel({ games }) {
       ? `, ceiling $${t.daily_cap_ceiling}`
       : "";
     const raw = window.prompt(
-      `New daily cap in dollars (currently ${cur}${ceilNote}).\nLeave blank to reset to the default.`
+      `New daily cap in dollars (currently ${cur}${ceilNote}).\nLeave blank to reset to the default.`,
     );
     if (raw === null) return;
     const asked = raw.trim() === "" ? null : Number(raw);
@@ -852,7 +924,7 @@ function AutoBetPanel({ games }) {
     if (asked != null && saved != null && asked > saved) {
       window.alert(
         `Saved at $${Math.round(saved)} — that's the ceiling. ` +
-          `Raise it with the CEIL button first.`
+          `Raise it with the CEIL button first.`,
       );
     }
   };
@@ -867,7 +939,7 @@ function AutoBetPanel({ games }) {
           ? `$${t.daily_cap_ceiling}`
           : "none — cap edits are unbounded"
       }).\nStanding until changed (does NOT reset overnight).\n` +
-        `Leave blank to remove the ceiling.`
+        `Leave blank to remove the ceiling.`,
     );
     if (raw === null) return;
     const asked = raw.trim() === "" ? null : Number(raw);
@@ -892,7 +964,7 @@ function AutoBetPanel({ games }) {
       `New bet unit in dollars (currently ${cur}${ceilNote}).\n` +
         `Sizing bets up to ${cfg.max_units}u, so this sets a $${cfg.unit_dollars}–` +
         `$${cfg.unit_dollars * cfg.max_units} range.\n` +
-        `Applies to TODAY only — resets overnight. Leave blank to reset now.`
+        `Applies to TODAY only — resets overnight. Leave blank to reset now.`,
     );
     if (raw === null) return;
     const asked = raw.trim() === "" ? null : Number(raw);
@@ -903,7 +975,7 @@ function AutoBetPanel({ games }) {
     if (asked != null && saved != null && asked > saved) {
       window.alert(
         `Saved at $${saved} — that's the hard ceiling. ` +
-          `Raising it takes a server config change (AUTOBET_UNIT_CEILING).`
+          `Raising it takes a server config change (AUTOBET_UNIT_CEILING).`,
       );
     }
   };
@@ -913,8 +985,8 @@ function AutoBetPanel({ games }) {
     const msg = killing
       ? "Trip the auto-bet kill switch? No orders will be placed until re-enabled."
       : status.enabled_env
-      ? "Re-enable auto-betting? Real orders will be placed while games are live."
-      : "Clear the kill switch? (AUTOBET_ENABLED is still off on the server, so it stays in PAPER mode.)";
+        ? "Re-enable auto-betting? Real orders will be placed while games are live."
+        : "Clear the kill switch? (AUTOBET_ENABLED is still off on the server, so it stays in PAPER mode.)";
     if (!window.confirm(msg)) return;
     const next = await postWithPin(`/auto-bets/${killing ? "kill" : "enable"}`);
     if (next) setStatus(next);
@@ -930,7 +1002,7 @@ function AutoBetPanel({ games }) {
     // Current game state from the page's own scan (same event ticker), so an
     // open bet shows the live score/clock instead of the score at bet time.
     const scanGame = (games || []).find(
-      (g) => g.event_ticker === b.event_ticker
+      (g) => g.event_ticker === b.event_ticker,
     );
     const gg = scanGame && scanGame.game;
     const liveLine =
@@ -943,8 +1015,8 @@ function AutoBetPanel({ games }) {
               : ""
           }`
         : b.score_at
-        ? `${b.score_at} at bet`
-        : null;
+          ? `${b.score_at} at bet`
+          : null;
     return (
       <div
         key={b.id}
@@ -968,13 +1040,15 @@ function AutoBetPanel({ games }) {
           {liveLine || b.title}
         </span>
         <span>
-          Risk ${(b.filled_contracts != null && b.fill_price != null
+          Risk $
+          {(b.filled_contracts != null && b.fill_price != null
             ? b.filled_contracts * b.fill_price
             : Number(b.stake_dollars)
           ).toFixed(2)}{" "}
           <span style={{ color: C.muted }}>
             to win $
-            {((b.filled_contracts != null ? b.filled_contracts : b.contracts) -
+            {(
+              (b.filled_contracts != null ? b.filled_contracts : b.contracts) -
               (b.filled_contracts != null && b.fill_price != null
                 ? b.filled_contracts * b.fill_price
                 : Number(b.stake_dollars))
@@ -1006,18 +1080,22 @@ function AutoBetPanel({ games }) {
     }`;
     const deco =
       a.decision === "placed"
-        ? { icon: "🤖", color: C.green, text: `bet placed (${edgeCents(a.edge)} edge)` }
-        : a.decision === "would-place"
         ? {
-            icon: "📝",
-            color: C.amber,
-            text: `would bet — paper mode (${edgeCents(a.edge)} edge)`,
+            icon: "🤖",
+            color: C.green,
+            text: `bet placed (${edgeCents(a.edge)} edge)`,
           }
-        : {
-            icon: "·",
-            color: C.muted,
-            text: `passed — ${SKIP_REASON_TEXT[a.skip_reason] || a.skip_reason}`,
-          };
+        : a.decision === "would-place"
+          ? {
+              icon: "📝",
+              color: C.amber,
+              text: `would bet — paper mode (${edgeCents(a.edge)} edge)`,
+            }
+          : {
+              icon: "·",
+              color: C.muted,
+              text: `passed — ${SKIP_REASON_TEXT[a.skip_reason] || a.skip_reason}`,
+            };
     return (
       <div
         key={a.id}
@@ -1027,7 +1105,9 @@ function AutoBetPanel({ games }) {
         <span style={{ flexShrink: 0 }}>{deco.icon}</span>
         <span style={{ flex: 1, minWidth: 0 }}>
           {what} —{" "}
-          <span style={{ color: deco.color, fontWeight: 600 }}>{deco.text}</span>
+          <span style={{ color: deco.color, fontWeight: 600 }}>
+            {deco.text}
+          </span>
         </span>
       </div>
     );
@@ -1040,313 +1120,294 @@ function AutoBetPanel({ games }) {
           disclosure triangle. */}
       <EngineBlockedBanner blocked={status.blocked} engine="Sports" />
       <div
-      style={{
-        background: C.panel,
-        border: `1px solid ${C.border}`,
-        borderRadius: 14,
-        marginBottom: 12,
-        overflow: "hidden",
-      }}
-    >
-      <div
-        onClick={() => setOpen((o) => !o)}
         style={{
-          padding: "14px 16px",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flexWrap: "wrap",
+          background: C.panel,
+          border: `1px solid ${C.border}`,
+          borderRadius: 14,
+          marginBottom: 12,
+          overflow: "hidden",
         }}
       >
-        <div style={{ fontWeight: 800, fontSize: 15 }}>🤖 Auto-Bet</div>
-        <Chip color={pill.color} bg={pill.bg} border={pill.border}>
-          {pill.text}
-        </Chip>
-        <span style={{ color: C.muted, fontSize: 12, flex: 1 }}>
-          {t.placed || 0} bet{(t.placed || 0) === 1 ? "" : "s"} today ·{" "}
-          {capUp ? "up $" : "lost $"}
-          {capAmt.toFixed(0)}
-          {capUp ? ` · $${t.daily_cap} cap` : ` / $${t.daily_cap}`} ·{" "}
-          {status.loop_running ? "loop live" : "idle"} · run{" "}
-          {timeAgo(status.last_run_at)}
-        </span>
-        <div style={{ color: C.muted, fontSize: 18 }}>{open ? "▾" : "▸"}</div>
-      </div>
+        <div
+          onClick={() => setOpen((o) => !o)}
+          style={{
+            padding: "14px 16px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: 15 }}>🤖 Auto-Bet</div>
+          <Chip color={pill.color} bg={pill.bg} border={pill.border}>
+            {pill.text}
+          </Chip>
+          <span style={{ color: C.muted, fontSize: 12, flex: 1 }}>
+            {t.placed || 0} bet{(t.placed || 0) === 1 ? "" : "s"} today ·{" "}
+            {capUp ? "up $" : "lost $"}
+            {capAmt.toFixed(0)}
+            {capUp ? ` · $${t.daily_cap} cap` : ` / $${t.daily_cap}`} ·{" "}
+            {status.loop_running ? "loop live" : "idle"} · run{" "}
+            {timeAgo(status.last_run_at)}
+          </span>
+          <div style={{ color: C.muted, fontSize: 18 }}>{open ? "▾" : "▸"}</div>
+        </div>
 
-      {open && (
-        <div style={{ borderTop: `1px solid ${C.border}`, padding: 16 }}>
-          {/* Tier 1: config + stake meter + toggle */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 12,
-              alignItems: "center",
-            }}
-          >
-            <span style={{ color: C.muted, fontSize: 12 }}>
-              Bets ${cfg.unit_dollars}–${cfg.unit_dollars * cfg.max_units}{" "}
-              (bigger edge = bigger bet) · max ${cfg.max_daily_dollars}/day, $
-              {cfg.max_event_dollars}/game · needs a{" "}
-              {Math.round((cfg.min_edge || 0) * 100)}¢+ edge and a liquid book
-              {cfg.min_price
-                ? ` · no long shots (<${Math.round(cfg.min_price * 100)}¢)`
-                : ""}
-              {cfg.cheap_price_max != null
-                ? ` · <${Math.round(cfg.cheap_price_max * 100)}¢ ${
-                    cfg.cheap_units > 0 ? `@ ${cfg.cheap_units}u` : "off"
-                  }`
-                : ""}{" "}
-              · {(cfg.leagues || []).join(" + ").toUpperCase()} · checks every{" "}
-              {cfg.interval_secs}s
-            </span>
-            {/* Amber when an override is in force today, so a resize you
+        {open && (
+          <div style={{ borderTop: `1px solid ${C.border}`, padding: 16 }}>
+            {/* Tier 1: config + stake meter + toggle */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <span style={{ color: C.muted, fontSize: 12 }}>
+                Bets ${cfg.unit_dollars}–${cfg.unit_dollars * cfg.max_units}{" "}
+                (bigger edge = bigger bet) · max ${cfg.max_daily_dollars}/day, $
+                {cfg.max_event_dollars}/game · needs a{" "}
+                {Math.round((cfg.min_edge || 0) * 100)}¢+ edge and a liquid book
+                {cfg.min_price
+                  ? ` · no long shots (<${Math.round(cfg.min_price * 100)}¢)`
+                  : ""}
+                {cfg.cheap_price_max != null
+                  ? ` · <${Math.round(cfg.cheap_price_max * 100)}¢ ${
+                      cfg.cheap_units > 0 ? `@ ${cfg.cheap_units}u` : "off"
+                    }`
+                  : ""}{" "}
+                · {(cfg.leagues || []).join(" + ").toUpperCase()} · checks every{" "}
+                {cfg.interval_secs}s
+              </span>
+              {/* Amber when an override is in force today, so a resize you
                 forgot about is visible at a glance rather than only in the
                 bet sizes. */}
-            <button
-              onClick={changeUnit}
-              disabled={busy}
-              style={{
-                marginLeft: "auto",
-                padding: "6px 14px",
-                borderRadius: 8,
-                fontWeight: 800,
-                fontSize: 12,
-                cursor: "pointer",
-                color: t.unit_override != null ? C.amber : C.text,
-                background: C.chipBg,
-                border: `1px solid ${t.unit_override != null ? C.amber : C.border}`,
-                opacity: busy ? 0.5 : 1,
-              }}
-            >
-              UNIT ${cfg.unit_dollars != null ? cfg.unit_dollars : "—"} ✎
-            </button>
-            <button
-              onClick={changeCap}
-              disabled={busy}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 8,
-                fontWeight: 800,
-                fontSize: 12,
-                cursor: "pointer",
-                color: C.text,
-                background: C.chipBg,
-                border: `1px solid ${C.border}`,
-                opacity: busy ? 0.5 : 1,
-              }}
-            >
-              CAP ${t.daily_cap != null ? Math.round(t.daily_cap) : "—"} ✎
-            </button>
-            {/* Amber while UNSET — no bound at all is the state worth
-                noticing, the opposite polarity from the unit button. */}
-            <button
-              onClick={changeCeiling}
-              disabled={busy}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 8,
-                fontWeight: 800,
-                fontSize: 12,
-                cursor: "pointer",
-                color: t.daily_cap_ceiling == null ? C.amber : C.text,
-                background: C.chipBg,
-                border: `1px solid ${
-                  t.daily_cap_ceiling == null ? C.amber : C.border
-                }`,
-                opacity: busy ? 0.5 : 1,
-              }}
-            >
-              CEIL{" "}
-              {t.daily_cap_ceiling != null
-                ? `$${Math.round(t.daily_cap_ceiling)}`
-                : "∞"}{" "}
-              ✎
-            </button>
-            <button
-              onClick={toggle}
-              disabled={busy}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 8,
-                fontWeight: 800,
-                fontSize: 12,
-                cursor: "pointer",
-                color: status.killed ? C.bg : "#fff",
-                background: status.killed ? C.green : C.red,
-                border: "none",
-                opacity: busy ? 0.5 : 1,
-              }}
-            >
-              {status.killed ? "ENABLE" : "KILL"}
-            </button>
-          </div>
-          {(status.paused_segments || []).length > 0 && (
-            <div style={{ color: C.amber, fontSize: 12, marginTop: 8 }}>
-              ⏸ Paused by nightly review:{" "}
-              {status.paused_segments.map((seg, i) => (
-                <span key={seg}>
-                  {i > 0 ? ", " : ""}
-                  <span
-                    onClick={async () => {
-                      if (!window.confirm(`Resume betting on ${seg}?`)) return;
-                      let pin =
-                        window.localStorage.getItem("bv_autobet_pin") ||
-                        window.prompt("Auto-bet PIN:") ||
-                        "";
-                      if (!pin) return;
-                      const r = await fetch(`${API_BASE}/auto-bets/segments`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ segment: seg, action: "resume", pin }),
-                      });
-                      if (r.status === 401) {
-                        window.localStorage.removeItem("bv_autobet_pin");
-                        window.alert("Wrong PIN.");
-                      } else if (r.ok) {
-                        window.localStorage.setItem("bv_autobet_pin", pin);
-                        setStatus(await r.json());
-                      }
-                    }}
-                    style={{ cursor: "pointer", textDecoration: "underline" }}
-                  >
-                    {seg} (resume)
-                  </span>
-                </span>
-              ))}
-            </div>
-          )}
-          <div style={{ marginTop: 12 }}>
-            <div
-              style={{
-                height: 10,
-                background: C.rowAlt,
-                borderRadius: 5,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${stakePct}%`,
-                  height: "100%",
-                  background: stakePct >= 90 ? C.red : stakePct >= 60 ? C.amber : C.green,
-                }}
-              />
-            </div>
-            <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
-              <b style={{ color: capUp ? C.green : C.text }}>
-                ${capAmt.toFixed(2)}
-              </b>
-              {capUp ? " up on the day, against a $" : " lost of $"}
-              {t.daily_cap} daily net-loss cap
-              <span style={{ color: C.muted }}>
-                {" "}
-                · ${Number(t.daily_stake || 0).toFixed(2)} staked
-              </span>
-              {t.daily_cap_override != null && (
-                <span style={{ color: C.amber }}> (override)</span>
-              )}
-              {mode === "paper" && (
-                <span style={{ color: C.amber }}>
-                  {" "}
-                  · PAPER — evaluating only, would-place logged, no orders
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Yesterday's review: the nightly engine's narrative — what
-              happened, what hurt, and the plan. */}
-          {review && review.report && review.report.narrative && (
-            <div
-              style={{
-                marginTop: 16,
-                padding: "12px 14px",
-                background: C.rowAlt,
-                border: `1px solid ${C.border}`,
-                borderRadius: 10,
-              }}
-            >
-              <div
-                style={{ color: C.muted, fontSize: 11, fontWeight: 700, marginBottom: 6 }}
-              >
-                📋 NIGHTLY REVIEW — {review.review_date ? String(review.review_date).slice(0, 10) : "yesterday"}
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
-                {review.report.narrative.headline}
-              </div>
-              {(review.report.narrative.went_well || []).length > 0 && (
-                <div style={{ fontSize: 12, marginBottom: 6 }}>
-                  {review.report.narrative.went_well.map((l, i) => (
-                    <div key={i} style={{ padding: "1px 0" }}>
-                      <span style={{ color: C.green }}>✓</span> {l}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {(review.report.narrative.went_wrong || []).length > 0 && (
-                <div style={{ fontSize: 12, marginBottom: 6 }}>
-                  {review.report.narrative.went_wrong.map((l, i) => (
-                    <div key={i} style={{ padding: "1px 0" }}>
-                      <span style={{ color: C.red }}>✗</span> {l}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {(review.report.narrative.plan || []).length > 0 && (
-                <div style={{ fontSize: 12, color: C.muted }}>
-                  {review.report.narrative.plan.map((l, i) => (
-                    <div key={i} style={{ padding: "1px 0" }}>
-                      ▶ {l}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tier 2: today's bets */}
-          <div style={{ marginTop: 16 }}>
-            <div
-              style={{ color: C.muted, fontSize: 11, fontWeight: 700, marginBottom: 8 }}
-            >
-              TODAY'S BETS
-            </div>
-            {shownBets.length ? (
-              <div style={{ display: "grid", gap: 6 }}>
-                {shownBets.map(betRow)}
-              </div>
-            ) : (
-              <div style={{ color: C.muted, fontSize: 13 }}>
-                {bets.length
-                  ? `No filled bets today (${unfilledCount} unfilled).`
-                  : "No bets placed today."}
-              </div>
-            )}
-            {/* Unfilled IOC orders hold no position and risk nothing — hidden
-                by default, still reachable. */}
-            {unfilledCount > 0 && (
               <button
-                onClick={() => setShowUnfilled((v) => !v)}
+                onClick={changeUnit}
+                disabled={busy}
                 style={{
-                  marginTop: 6,
-                  background: "transparent",
-                  border: "none",
-                  color: C.muted,
-                  fontSize: 11.5,
+                  marginLeft: "auto",
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  fontWeight: 800,
+                  fontSize: 12,
                   cursor: "pointer",
-                  padding: 0,
+                  color: t.unit_override != null ? C.amber : C.text,
+                  background: C.chipBg,
+                  border: `1px solid ${t.unit_override != null ? C.amber : C.border}`,
+                  opacity: busy ? 0.5 : 1,
                 }}
               >
-                {showUnfilled ? "▾ hide" : "▸ show"} {unfilledCount}{" "}
-                unfilled
+                UNIT ${cfg.unit_dollars != null ? cfg.unit_dollars : "—"} ✎
               </button>
+              <button
+                onClick={changeCap}
+                disabled={busy}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  color: C.text,
+                  background: C.chipBg,
+                  border: `1px solid ${C.border}`,
+                  opacity: busy ? 0.5 : 1,
+                }}
+              >
+                CAP ${t.daily_cap != null ? Math.round(t.daily_cap) : "—"} ✎
+              </button>
+              {/* Amber while UNSET — no bound at all is the state worth
+                noticing, the opposite polarity from the unit button. */}
+              <button
+                onClick={changeCeiling}
+                disabled={busy}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  color: t.daily_cap_ceiling == null ? C.amber : C.text,
+                  background: C.chipBg,
+                  border: `1px solid ${
+                    t.daily_cap_ceiling == null ? C.amber : C.border
+                  }`,
+                  opacity: busy ? 0.5 : 1,
+                }}
+              >
+                CEIL{" "}
+                {t.daily_cap_ceiling != null
+                  ? `$${Math.round(t.daily_cap_ceiling)}`
+                  : "∞"}{" "}
+                ✎
+              </button>
+              <button
+                onClick={toggle}
+                disabled={busy}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  color: status.killed ? C.bg : "#fff",
+                  background: status.killed ? C.green : C.red,
+                  border: "none",
+                  opacity: busy ? 0.5 : 1,
+                }}
+              >
+                {status.killed ? "ENABLE" : "KILL"}
+              </button>
+            </div>
+            {(status.paused_segments || []).length > 0 && (
+              <div style={{ color: C.amber, fontSize: 12, marginTop: 8 }}>
+                ⏸ Paused by nightly review:{" "}
+                {status.paused_segments.map((seg, i) => (
+                  <span key={seg}>
+                    {i > 0 ? ", " : ""}
+                    <span
+                      onClick={async () => {
+                        if (!window.confirm(`Resume betting on ${seg}?`))
+                          return;
+                        let pin =
+                          window.localStorage.getItem("bv_autobet_pin") ||
+                          window.prompt("Auto-bet PIN:") ||
+                          "";
+                        if (!pin) return;
+                        const r = await fetch(
+                          `${API_BASE}/auto-bets/segments`,
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              segment: seg,
+                              action: "resume",
+                              pin,
+                            }),
+                          },
+                        );
+                        if (r.status === 401) {
+                          window.localStorage.removeItem("bv_autobet_pin");
+                          window.alert("Wrong PIN.");
+                        } else if (r.ok) {
+                          window.localStorage.setItem("bv_autobet_pin", pin);
+                          setStatus(await r.json());
+                        }
+                      }}
+                      style={{ cursor: "pointer", textDecoration: "underline" }}
+                    >
+                      {seg} (resume)
+                    </span>
+                  </span>
+                ))}
+              </div>
             )}
-          </div>
+            <div style={{ marginTop: 12 }}>
+              <div
+                style={{
+                  height: 10,
+                  background: C.rowAlt,
+                  borderRadius: 5,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${stakePct}%`,
+                    height: "100%",
+                    background:
+                      stakePct >= 90
+                        ? C.red
+                        : stakePct >= 60
+                          ? C.amber
+                          : C.green,
+                  }}
+                />
+              </div>
+              <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
+                <b style={{ color: capUp ? C.green : C.text }}>
+                  ${capAmt.toFixed(2)}
+                </b>
+                {capUp ? " up on the day, against a $" : " lost of $"}
+                {t.daily_cap} daily net-loss cap
+                <span style={{ color: C.muted }}>
+                  {" "}
+                  · ${Number(t.daily_stake || 0).toFixed(2)} staked
+                </span>
+                {t.daily_cap_override != null && (
+                  <span style={{ color: C.amber }}> (override)</span>
+                )}
+                {mode === "paper" && (
+                  <span style={{ color: C.amber }}>
+                    {" "}
+                    · PAPER — evaluating only, would-place logged, no orders
+                  </span>
+                )}
+              </div>
+            </div>
 
-          {/* Rooting guide: what each final result pays, per game with 2+ bets */}
-          {scenarios.length > 0 && (
+            {/* Yesterday's review: the nightly engine's narrative — what
+              happened, what hurt, and the plan. */}
+            {review && review.report && review.report.narrative && (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: "12px 14px",
+                  background: C.rowAlt,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 10,
+                }}
+              >
+                <div
+                  style={{
+                    color: C.muted,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    marginBottom: 6,
+                  }}
+                >
+                  📋 NIGHTLY REVIEW —{" "}
+                  {review.review_date
+                    ? String(review.review_date).slice(0, 10)
+                    : "yesterday"}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+                  {review.report.narrative.headline}
+                </div>
+                {(review.report.narrative.went_well || []).length > 0 && (
+                  <div style={{ fontSize: 12, marginBottom: 6 }}>
+                    {review.report.narrative.went_well.map((l, i) => (
+                      <div key={i} style={{ padding: "1px 0" }}>
+                        <span style={{ color: C.green }}>✓</span> {l}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(review.report.narrative.went_wrong || []).length > 0 && (
+                  <div style={{ fontSize: 12, marginBottom: 6 }}>
+                    {review.report.narrative.went_wrong.map((l, i) => (
+                      <div key={i} style={{ padding: "1px 0" }}>
+                        <span style={{ color: C.red }}>✗</span> {l}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(review.report.narrative.plan || []).length > 0 && (
+                  <div style={{ fontSize: 12, color: C.muted }}>
+                    {review.report.narrative.plan.map((l, i) => (
+                      <div key={i} style={{ padding: "1px 0" }}>
+                        ▶ {l}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tier 2: today's bets */}
             <div style={{ marginTop: 16 }}>
               <div
                 style={{
@@ -1356,111 +1417,162 @@ function AutoBetPanel({ games }) {
                   marginBottom: 8,
                 }}
               >
-                ROOTING GUIDE — WHAT EACH FINAL RESULT PAYS
+                TODAY'S BETS
               </div>
-              {scenarios.map((g) => (
-                <div key={g.key} style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 700 }}>{g.title}</span>
-                    <span style={{ color: C.muted }}>
-                      {" "}
-                      · root for{" "}
-                      <span style={{ color: C.green, fontWeight: 700 }}>
-                        {g.best.label}
+              {shownBets.length ? (
+                <div style={{ display: "grid", gap: 6 }}>
+                  {shownBets.map(betRow)}
+                </div>
+              ) : (
+                <div style={{ color: C.muted, fontSize: 13 }}>
+                  {bets.length
+                    ? `No filled bets today (${unfilledCount} unfilled).`
+                    : "No bets placed today."}
+                </div>
+              )}
+              {/* Unfilled IOC orders hold no position and risk nothing — hidden
+                by default, still reachable. */}
+              {unfilledCount > 0 && (
+                <button
+                  onClick={() => setShowUnfilled((v) => !v)}
+                  style={{
+                    marginTop: 6,
+                    background: "transparent",
+                    border: "none",
+                    color: C.muted,
+                    fontSize: 11.5,
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
+                  {showUnfilled ? "▾ hide" : "▸ show"} {unfilledCount} unfilled
+                </button>
+              )}
+            </div>
+
+            {/* Rooting guide: what each final result pays, per game with 2+ bets */}
+            {scenarios.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div
+                  style={{
+                    color: C.muted,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    marginBottom: 8,
+                  }}
+                >
+                  ROOTING GUIDE — WHAT EACH FINAL RESULT PAYS
+                </div>
+                {scenarios.map((g) => (
+                  <div key={g.key} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700 }}>{g.title}</span>
+                      <span style={{ color: C.muted }}>
+                        {" "}
+                        · root for{" "}
+                        <span style={{ color: C.green, fontWeight: 700 }}>
+                          {g.best.label}
+                        </span>
                       </span>
-                    </span>
-                  </div>
-                  {g.axes.map((ax, i) => {
-                    const maxNet = Math.max(...ax.rows.map((r) => r.net));
-                    const minNet = Math.min(...ax.rows.map((r) => r.net));
-                    return (
-                      <div key={i} style={{ display: "grid", gap: 2 }}>
-                        {ax.rows.map((r, j) => (
-                          <div
-                            key={j}
-                            style={{
-                              display: "flex",
-                              gap: 8,
-                              alignItems: "center",
-                              fontSize: 12,
-                              padding: "4px 8px",
-                              borderRadius: 6,
-                              background:
-                                r.net === maxNet
-                                  ? C.greenSoft
-                                  : r.net === minNet
-                                  ? C.redSoft
-                                  : "transparent",
-                            }}
-                          >
-                            <span style={{ flex: 1 }}>
-                              {r.net === maxNet ? "▲ " : r.net === minNet ? "▼ " : ""}
-                              {r.label}
-                            </span>
-                            <span style={{ color: C.muted }}>
-                              {r.winners.length}/{r.of} bets win
-                            </span>
-                            <span
+                    </div>
+                    {g.axes.map((ax, i) => {
+                      const maxNet = Math.max(...ax.rows.map((r) => r.net));
+                      const minNet = Math.min(...ax.rows.map((r) => r.net));
+                      return (
+                        <div key={i} style={{ display: "grid", gap: 2 }}>
+                          {ax.rows.map((r, j) => (
+                            <div
+                              key={j}
                               style={{
-                                color: r.net >= 0 ? C.green : C.red,
-                                fontWeight: 800,
-                                width: 76,
-                                textAlign: "right",
+                                display: "flex",
+                                gap: 8,
+                                alignItems: "center",
+                                fontSize: 12,
+                                padding: "4px 8px",
+                                borderRadius: 6,
+                                background:
+                                  r.net === maxNet
+                                    ? C.greenSoft
+                                    : r.net === minNet
+                                      ? C.redSoft
+                                      : "transparent",
                               }}
                             >
-                              {r.net >= 0 ? "+" : "−"}${Math.abs(r.net).toFixed(2)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Tier 3: activity feed */}
-          <div
-            style={{
-              marginTop: 16,
-              borderTop: `1px solid ${C.border}`,
-              paddingTop: 12,
-            }}
-          >
-            <div
-              onClick={() => setFeedOpen((o) => !o)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                cursor: "pointer",
-              }}
-            >
-              <span style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>
-                ACTIVITY
-              </span>
-              <span style={{ color: C.muted, fontSize: 11, flex: 1 }}>
-                {t.skipped || 0} skips · {t.would_place || 0} would-place today
-              </span>
-              <span style={{ color: C.muted, fontSize: 14 }}>
-                {feedOpen ? "▾" : "▸"}
-              </span>
-            </div>
-            {feedOpen && (
-              <div style={{ marginTop: 8 }}>
-                {activity.length ? (
-                  activity.map(evalLine)
-                ) : (
-                  <div style={{ color: C.muted, fontSize: 13 }}>
-                    Nothing evaluated yet — the feed fills in while games are live.
+                              <span style={{ flex: 1 }}>
+                                {r.net === maxNet
+                                  ? "▲ "
+                                  : r.net === minNet
+                                    ? "▼ "
+                                    : ""}
+                                {r.label}
+                              </span>
+                              <span style={{ color: C.muted }}>
+                                {r.winners.length}/{r.of} bets win
+                              </span>
+                              <span
+                                style={{
+                                  color: r.net >= 0 ? C.green : C.red,
+                                  fontWeight: 800,
+                                  width: 76,
+                                  textAlign: "right",
+                                }}
+                              >
+                                {r.net >= 0 ? "+" : "−"}$
+                                {Math.abs(r.net).toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
+                ))}
               </div>
             )}
+
+            {/* Tier 3: activity feed */}
+            <div
+              style={{
+                marginTop: 16,
+                borderTop: `1px solid ${C.border}`,
+                paddingTop: 12,
+              }}
+            >
+              <div
+                onClick={() => setFeedOpen((o) => !o)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>
+                  ACTIVITY
+                </span>
+                <span style={{ color: C.muted, fontSize: 11, flex: 1 }}>
+                  {t.skipped || 0} skips · {t.would_place || 0} would-place
+                  today
+                </span>
+                <span style={{ color: C.muted, fontSize: 14 }}>
+                  {feedOpen ? "▾" : "▸"}
+                </span>
+              </div>
+              {feedOpen && (
+                <div style={{ marginTop: 8 }}>
+                  {activity.length ? (
+                    activity.map(evalLine)
+                  ) : (
+                    <div style={{ color: C.muted, fontSize: 13 }}>
+                      Nothing evaluated yet — the feed fills in while games are
+                      live.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
       <EngineTuning
         apiBase={API_BASE}
@@ -1509,7 +1621,7 @@ export default function TotalsValue() {
       if (cancelled) return;
       timerRef.current = setTimeout(
         tick,
-        liveCountRef.current > 0 ? 60000 : 5000
+        liveCountRef.current > 0 ? 60000 : 5000,
       );
     };
     tick();
@@ -1521,7 +1633,7 @@ export default function TotalsValue() {
 
   const games = (data && data.games) || [];
   const valueBets = games.flatMap((g) =>
-    g.value_bets.map((bet) => ({ game: g, bet }))
+    g.value_bets.map((bet) => ({ game: g, bet })),
   );
   valueBets.sort((a, b) => b.bet.best.edge - a.bet.best.edge);
 
@@ -1578,6 +1690,9 @@ export default function TotalsValue() {
                 separately, the long subtitle pushed "my bets" onto its own
                 line while "crypto" stayed up top. */}
             <span style={navGroup}>
+              <a href="/weather-value" style={navLink}>
+                🌡 weather →
+              </a>
               <a href="/crypto-value" style={navLink}>
                 🪙 crypto →
               </a>
@@ -1649,7 +1764,11 @@ export default function TotalsValue() {
                 VALUE BETS
               </div>
               {valueBets.map(({ game, bet }) => (
-                <ValueBetCard key={`${bet.ticker}-${bet.best.side}`} game={game} bet={bet} />
+                <ValueBetCard
+                  key={`${bet.ticker}-${bet.best.side}`}
+                  game={game}
+                  bet={bet}
+                />
               ))}
             </div>
           )}
@@ -1667,7 +1786,6 @@ export default function TotalsValue() {
               <GameCard key={g.event_ticker} game={g} />
             ))}
           </div>
-
         </div>
         <OpenBetsRail domain="sports" />
       </div>

@@ -7,6 +7,8 @@ const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 // /kalshi, not a path under it.
 const CRYPTO_API_BASE =
   "https://sheline-art-website-api.herokuapp.com/kalshi-crypto";
+const WEATHER_API_BASE =
+  "https://sheline-art-website-api.herokuapp.com/kalshi-weather";
 
 // Kalshi's own portfolio page, linked from the Portfolio figure in the header.
 const KALSHI_PORTFOLIO_URL = "https://kalshi.com/portfolio";
@@ -267,8 +269,19 @@ const S = {
   // Desktop: compact portfolio numbers inline in the top bar. `display` is
   // controlled by the .mb-topstats CSS class (per-breakpoint), so it's omitted
   // here — an inline display would override the media query and always show.
-  topStats: { alignItems: "center", gap: 22, flex: 1, justifyContent: "flex-end", marginRight: 20 },
-  topStat: { display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.2 },
+  topStats: {
+    alignItems: "center",
+    gap: 22,
+    flex: 1,
+    justifyContent: "flex-end",
+    marginRight: 20,
+  },
+  topStat: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    lineHeight: 1.2,
+  },
   topStatLabel: {
     fontSize: 10,
     color: C.muted,
@@ -526,7 +539,13 @@ const S = {
   },
   sitMeta: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 },
   sitCount: { fontSize: 13, fontWeight: 800, color: C.text },
-  sitOuts: { fontSize: 12, fontWeight: 700, color: C.muted, display: "flex", alignItems: "center" },
+  sitOuts: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: C.muted,
+    display: "flex",
+    alignItems: "center",
+  },
   // Inning label (e.g. "Top 9th") shown where the "N out" words used to be.
   sitInning: {
     fontSize: 12,
@@ -535,7 +554,12 @@ const S = {
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  outDots: { display: "inline-flex", gap: 4, marginLeft: 6, verticalAlign: "middle" },
+  outDots: {
+    display: "inline-flex",
+    gap: 4,
+    marginLeft: 6,
+    verticalAlign: "middle",
+  },
   outDot: (filled) => ({
     width: 7,
     height: 7,
@@ -591,7 +615,12 @@ const S = {
     justifyContent: "space-between",
     gap: 12,
   },
-  gameTitle: { fontSize: 20, fontWeight: 800, letterSpacing: -0.4, lineHeight: 1.2 },
+  gameTitle: {
+    fontSize: 20,
+    fontWeight: 800,
+    letterSpacing: -0.4,
+    lineHeight: 1.2,
+  },
   gameLeague: { fontSize: 13, color: C.muted, fontWeight: 600 },
   // League label and (for crypto) the window countdown share a line under the
   // title. Wraps rather than squeezing on a narrow card.
@@ -995,7 +1024,10 @@ const legAccent = (leg) => {
     if (leading !== null) return leading ? C.green : C.red;
     // No usable score. For a final, fall back to ESPN's winner flag (flipped for
     // a NO team bet — you win when the pick team did not win).
-    if (g.state === "post" && (g.pick_is_winner === true || g.opp_is_winner === true)) {
+    if (
+      g.state === "post" &&
+      (g.pick_is_winner === true || g.opp_is_winner === true)
+    ) {
       const pickWon = g.pick_is_winner === true;
       const sideWon = g.side === "no" ? !pickWon : pickWon;
       return sideWon ? C.green : C.red;
@@ -1072,13 +1104,19 @@ const marketLabel = (leg) => {
 const gameKeyOf = (leg) => {
   const link = leg.game && leg.game.link;
   if (link) return `g:${link}`;
-  const game = String(leg.matchup || "").split(":")[0].trim();
+  const game = String(leg.matchup || "")
+    .split(":")[0]
+    .trim();
   return game ? `m:${game}` : `t:${leg.market_ticker || Math.random()}`;
 };
 
 // The game-card title: the two-team game name without the market suffix.
 const gameTitleOf = (leg, fallback) =>
-  String(leg.matchup || "").split(":")[0].trim() || fallback || "Market";
+  String(leg.matchup || "")
+    .split(":")[0]
+    .trim() ||
+  fallback ||
+  "Market";
 
 /* Where a row links when there's no ESPN game behind it — which is every crypto
  * market, since those carry no `game` at all and so were the only positions on
@@ -1143,7 +1181,9 @@ const chanceColor = (pct) => {
   if (pct >= RED_BELOW && pct < GREEN_AT) return C.amber;
   const up = pct >= GREEN_AT;
   // 0 at the band edge, 1 at a fully decided 100% / 0%.
-  const t = up ? (pct - GREEN_AT) / (100 - GREEN_AT) : (RED_BELOW - pct) / RED_BELOW;
+  const t = up
+    ? (pct - GREEN_AT) / (100 - GREEN_AT)
+    : (RED_BELOW - pct) / RED_BELOW;
   // Intensity is carried mostly by saturation, with only a narrow lightness
   // ramp: dimming by lightness alone put the low end under 3:1 against the
   // card (a 47% red measured 2.86, unreadable). These floors keep the faintest
@@ -1341,7 +1381,9 @@ function HistoryCard({ item, isOpen, onToggle }) {
     item.title ||
     (isCombo
       ? `${legs.length || item.legCount}-Leg Parlay`
-      : legs[0]?.matchup || parseTitleLegs(item.rawTitle)[0]?.label || item.rawTitle);
+      : legs[0]?.matchup ||
+        parseTitleLegs(item.rawTitle)[0]?.label ||
+        item.rawTitle);
   // What the sale looked like: how much went out the door, and — for a position
   // that was gone before the market resolved — whether holding would have paid.
   const soldNote = item.sold
@@ -1372,7 +1414,9 @@ function HistoryCard({ item, isOpen, onToggle }) {
             <span style={S.chevron(isOpen)}>▶</span>
             <span style={S.betTitle}>{title}</span>
           </div>
-          <div style={cashed ? S.cashedPill : S.resultPill(item.outcome === "won")}>
+          <div
+            style={cashed ? S.cashedPill : S.resultPill(item.outcome === "won")}
+          >
             {cashed ? "💰 Cashed out" : item.outcome === "won" ? "Won" : "Lost"}
           </div>
         </div>
@@ -1386,9 +1430,7 @@ function HistoryCard({ item, isOpen, onToggle }) {
         <div style={S.histLegs}>
           {legs.map((leg, i) => (
             <div style={S.histLeg} key={leg.market_ticker || i}>
-              <span
-                style={S.check(leg.state === "won" ? C.green : C.red)}
-              >
+              <span style={S.check(leg.state === "won" ? C.green : C.red)}>
                 {leg.state === "won" ? "✓" : "✕"}
               </span>
               <span style={S.histLegPick}>{leg.pick}</span>
@@ -1557,9 +1599,7 @@ function CloseCountdown({ closeTime }) {
   // that rather than counting into negative numbers.
   if (left <= 0) {
     return (
-      <span style={{ ...S.countdown, ...S.countdownDone }}>
-        ⏱ settling…
-      </span>
+      <span style={{ ...S.countdown, ...S.countdownDone }}>⏱ settling…</span>
     );
   }
   const h = Math.floor(left / 3600);
@@ -1618,7 +1658,9 @@ function GameHeader({ grp, onHide }) {
             {/* Crypto only. Sports positions carry a close_time too, but it's
                 often days out and the live score/inning already says where the
                 game is — a settlement countdown there would be noise. */}
-            {grp.closeTime ? <CloseCountdown closeTime={grp.closeTime} /> : null}
+            {grp.closeTime ? (
+              <CloseCountdown closeTime={grp.closeTime} />
+            ) : null}
           </div>
         </div>
         <button
@@ -1723,7 +1765,8 @@ function ParlayRows({ b }) {
         // when there's no game behind it — a crypto leg inside a parlay only
         // knows its own market ticker, so the event ticker is derived from that.
         const link =
-          (g && g.link) || kalshiEventUrl(eventTickerOf(null, leg.market_ticker));
+          (g && g.link) ||
+          kalshiEventUrl(eventTickerOf(null, leg.market_ticker));
         const Row = link ? "a" : "div";
         const rowProps = link
           ? {
@@ -1754,11 +1797,15 @@ function ParlayRows({ b }) {
       })}
       <div style={S.parlayFoot}>
         <span style={S.parlayFootItem}>Cost {usd(d.cost_dollars)}</span>
-        <span style={S.parlayFootItem}>Value {usd(d.current_value_dollars)}</span>
+        <span style={S.parlayFootItem}>
+          Value {usd(d.current_value_dollars)}
+        </span>
         {cashOutGap(d) != null && (
           <span style={S.rowCashOut}>Cash out {usd(cashOutGap(d))}</span>
         )}
-        <span style={S.parlayFootItem}>Pays out {usd0(d.max_payout_dollars)}</span>
+        <span style={S.parlayFootItem}>
+          Pays out {usd0(d.max_payout_dollars)}
+        </span>
         <span style={{ ...S.parlayFootItem, color: C.greenDim }}>
           Profit +{usd(profitOf(d))}
         </span>
@@ -1782,7 +1829,11 @@ export default function MyBets() {
   // in the settlements feed as revenue $0 at best, so this is its real record).
   const [cashouts, setCashouts] = useState(null);
   // { sports, crypto } — each null when that engine has nothing wrong.
-  const [engineBlocks, setEngineBlocks] = useState({ sports: null, crypto: null });
+  const [engineBlocks, setEngineBlocks] = useState({
+    sports: null,
+    crypto: null,
+    weather: null,
+  });
   const [histLoading, setHistLoading] = useState(false);
   const [histExpanded, setHistExpanded] = useState(() => new Set());
   const toggleHist = (id) =>
@@ -1831,7 +1882,11 @@ export default function MyBets() {
   const [sort, setSort] = useState(() => {
     try {
       const raw = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) || "null");
-      if (raw && SORTS.some((s) => s.key === raw.key) && (raw.dir === 1 || raw.dir === -1)) {
+      if (
+        raw &&
+        SORTS.some((s) => s.key === raw.key) &&
+        (raw.dir === 1 || raw.dir === -1)
+      ) {
         return raw;
       }
     } catch {
@@ -1864,8 +1919,10 @@ export default function MyBets() {
         fetch(`${API_BASE}/balance`),
         fetch(`${API_BASE}/positions`),
       ]);
-      if (!balRes.ok) throw new Error(`Balance request failed (${balRes.status})`);
-      if (!posRes.ok) throw new Error(`Positions request failed (${posRes.status})`);
+      if (!balRes.ok)
+        throw new Error(`Balance request failed (${balRes.status})`);
+      if (!posRes.ok)
+        throw new Error(`Positions request failed (${posRes.status})`);
       setBalance(await balRes.json());
       const pos = await posRes.json();
       setPositions(pos);
@@ -1875,7 +1932,8 @@ export default function MyBets() {
     } catch (e) {
       // Don't blow away good data on a transient background failure; only
       // surface errors from an explicit/initial load.
-      if (!background) setError(e.message || "Something went wrong loading your bets.");
+      if (!background)
+        setError(e.message || "Something went wrong loading your bets.");
     } finally {
       if (!background) setLoading(false);
     }
@@ -1920,11 +1978,12 @@ export default function MyBets() {
         return null;
       }
     };
-    const [sports, crypto] = await Promise.all([
+    const [sports, crypto, weather] = await Promise.all([
       read(`${API_BASE}/auto-bets/status`),
       read(`${CRYPTO_API_BASE}/auto-bets/status`),
+      read(`${WEATHER_API_BASE}/auto-bets/status`),
     ]);
-    setEngineBlocks({ sports, crypto });
+    setEngineBlocks({ sports, crypto, weather });
   };
 
   // Best-effort — the page works fine without it (older backend deploys don't
@@ -2100,7 +2159,8 @@ export default function MyBets() {
       // resolved — "Lost" would be a lie about where the money went. When part
       // of it was held to settlement (revenue > 0) the win/loss still stands
       // and the sale is a footnote.
-      outcome: proceeds > 0 && revenue === 0 ? "cashed" : d.won ? "won" : "lost",
+      outcome:
+        proceeds > 0 && revenue === 0 ? "cashed" : d.won ? "won" : "lost",
       cost,
       payout,
       pnl: payout - cost,
@@ -2110,7 +2170,11 @@ export default function MyBets() {
       // call, not whether we got paid.
       marketWon: !!d.won,
       sold: sale
-        ? { contracts: sale.contracts, proceeds: sale.proceeds, rows: sale.rows }
+        ? {
+            contracts: sale.contracts,
+            proceeds: sale.proceeds,
+            rows: sale.rows,
+          }
         : null,
       partial: proceeds > 0 && revenue > 0,
     };
@@ -2140,7 +2204,11 @@ export default function MyBets() {
       payout: sale.proceeds,
       pnl: sale.costKnown ? sale.proceeds - sale.cost : null,
       marketWon: null,
-      sold: { contracts: sale.contracts, proceeds: sale.proceeds, rows: sale.rows },
+      sold: {
+        contracts: sale.contracts,
+        proceeds: sale.proceeds,
+        rows: sale.rows,
+      },
       partial: false,
       pending: true,
     });
@@ -2204,6 +2272,9 @@ export default function MyBets() {
         <div className="mb-nav">
           <a href="/crypto-value" style={S.navLink}>
             🪙 crypto →
+          </a>
+          <a href="/weather-value" style={S.navLink}>
+            🌡 weather →
           </a>
           <a href="/totals-value" style={S.navLink}>
             📈 sports →
@@ -2283,6 +2354,7 @@ export default function MyBets() {
             the engine in question is fine, so a normal day shows nothing. */}
         <EngineBlockedBanner blocked={engineBlocks.sports} engine="Sports" />
         <EngineBlockedBanner blocked={engineBlocks.crypto} engine="Crypto" />
+        <EngineBlockedBanner blocked={engineBlocks.weather} engine="Weather" />
 
         {/* Mobile-only compact summary (the big hero + the desktop top-bar
             strip are both hidden on the other breakpoint via CSS). */}
@@ -2293,20 +2365,20 @@ export default function MyBets() {
             href={KALSHI_PORTFOLIO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ ...S.heroMobilePV, textDecoration: "none", color: "inherit" }}
+            style={{
+              ...S.heroMobilePV,
+              textDecoration: "none",
+              color: "inherit",
+            }}
           >
             {portfolioValue}
             <span style={S.linkArrow}> ↗</span>
           </a>
-          <span style={S.heroMobileStat}>
-            {usd(totalCost)} in play
-          </span>
+          <span style={S.heroMobileStat}>{usd(totalCost)} in play</span>
           <span style={{ ...S.heroMobileStat, color: C.green }}>
             {usd(maxPayoutTotal)} if all win
           </span>
-          <span style={S.heroMobileStat}>
-            {available} avail
-          </span>
+          <span style={S.heroMobileStat}>{available} avail</span>
           <span style={{ ...S.heroMobileStat, color: pnlColor(totalPnl) }}>
             {pnlStr(totalPnl)}
           </span>
@@ -2315,131 +2387,129 @@ export default function MyBets() {
 
         {/* Open / History tabs */}
         <div style={S.tabs}>
-          <button
-            style={S.tab(tab === "open")}
-            onClick={() => setTab("open")}
-          >
+          <button style={S.tab(tab === "open")} onClick={() => setTab("open")}>
             Open{bets.length ? ` (${bets.length})` : ""}
           </button>
-          <button
-            style={S.tab(tab === "history")}
-            onClick={openHistory}
-          >
+          <button style={S.tab(tab === "history")} onClick={openHistory}>
             History
           </button>
         </div>
 
         {tab === "open" ? (
-        <>
-        <div style={S.sortRow}>
-          <div style={S.sortBar}>
-            {SORTS.map((s) => (
-              <button
-                key={s.key}
-                style={S.sortBtn(sort.key === s.key)}
-                onClick={() => pickSort(s.key)}
-              >
-                {s.label}
-                {sort.key === s.key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}
-              </button>
-            ))}
-          </div>
-          {hiddenCount > 0 ? (
-            <button style={S.showHiddenBtn} onClick={unhideAll}>
-              {hiddenCount} hidden · Show all
-            </button>
-          ) : null}
-        </div>
-
-        {loading && !positions ? (
-          <div style={S.muted}>Loading your bets…</div>
-        ) : bets.length === 0 ? (
-          <div style={S.muted}>
-            {hiddenCount > 0
-              ? "All positions hidden. Use “Show all” to bring them back."
-              : "No open positions."}
-          </div>
-        ) : (
-          (() => {
-            // Group single-market positions by game — every Kalshi market on the
-            // same matchup shares one card, as in the app — while each parlay is
-            // its own card. Groups appear in the order their best position
-            // surfaces from the active sort, so live games still lead.
-            const groups = [];
-            const byKey = new Map();
-            for (const b of bets) {
-              const d = b.display || {};
-              const legs = Array.isArray(d.legs) ? d.legs : [];
-              const isCombo = legs.length > 1 || (d.leg_count || 0) > 1;
-              const leg0 = legs[0] || {};
-              const key = isCombo ? `parlay:${b.ticker}` : gameKeyOf(leg0);
-              if (!byKey.has(key)) {
-                byKey.set(key, groups.length);
-                groups.push({
-                  key,
-                  isCombo,
-                  game: isCombo ? null : leg0.game,
-                  // Normalised, because the backend's league differs by horizon:
-                  // "Crypto" for a 15m market but the bare asset ("XRP") for an
-                  // hourly one, so the grid showed two different subtitles for
-                  // the same kind of card. "Crypto" is the right one of the two
-                  // — it's the category, matching how a sports card reads
-                  // ("Pro Baseball", not the team), and the asset is already in
-                  // the title on both ("XRP 15 min · …" / "XRP price at 5pm").
-                  league: isCryptoTicker(leg0.market_ticker)
-                    ? "Crypto"
-                    : leg0.league || "",
-                  // Crypto windows are 15m/1h, so a countdown to settlement is
-                  // the useful clock. The TIME is read off the position's own
-                  // market rather than parsed out of the ticker (verified they
-                  // agree — KX…15M-26JUL311730-30 legs against a 21:30Z
-                  // close_time — and a field beats re-deriving an ET timestamp
-                  // from a string). Whether it IS crypto is judged from the
-                  // ticker, because leg.league says "Crypto" for 15m but the
-                  // bare asset for hourly; see isCryptoTicker.
-                  closeTime:
-                    isCryptoTicker(leg0.market_ticker) && b.market
-                      ? b.market.close_time || null
-                      : null,
-                  title: isCombo
-                    ? `${legs.length || d.leg_count}-Leg Parlay`
-                    : gameTitleOf(leg0, d.title),
-                  positions: [],
-                });
-              }
-              groups[byKey.get(key)].positions.push(b);
-            }
-
-            const card = (grp) => (
-              <div className="mb-game" style={S.gameCard} key={grp.key}>
-                <GameHeader
-                  grp={grp}
-                  onHide={() => hideBets(grp.positions.map((p) => p.ticker))}
-                />
-                {grp.isCombo ? (
-                  <ParlayRows b={grp.positions[0]} />
-                ) : (
-                  grp.positions.map((b) => <SingleRow b={b} key={b.ticker} />)
-                )}
+          <>
+            <div style={S.sortRow}>
+              <div style={S.sortBar}>
+                {SORTS.map((s) => (
+                  <button
+                    key={s.key}
+                    style={S.sortBtn(sort.key === s.key)}
+                    onClick={() => pickSort(s.key)}
+                  >
+                    {s.label}
+                    {sort.key === s.key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}
+                  </button>
+                ))}
               </div>
-            );
+              {hiddenCount > 0 ? (
+                <button style={S.showHiddenBtn} onClick={unhideAll}>
+                  {hiddenCount} hidden · Show all
+                </button>
+              ) : null}
+            </div>
 
-            // Straight sort order — no reshuffling by card type. Two earlier
-            // attempts to stop a tall parlay slip from stranding space did
-            // reshuffle (parlays in a fixed 380px right column, then all
-            // singles ahead of all parlays), and both traded one gap for
-            // another while pushing a 19% parlay below a 1% single. useMasonry
-            // fixes the packing directly, so the grid can just show what the
-            // sort asked for. Grouping is untouched — every single position on
-            // the same matchup still shares one card.
-            return (
-              <div className="mb-games" style={S.gameList} ref={gridRef}>
-                {groups.map(card)}
+            {loading && !positions ? (
+              <div style={S.muted}>Loading your bets…</div>
+            ) : bets.length === 0 ? (
+              <div style={S.muted}>
+                {hiddenCount > 0
+                  ? "All positions hidden. Use “Show all” to bring them back."
+                  : "No open positions."}
               </div>
-            );
-          })()
-        )}
-        </>
+            ) : (
+              (() => {
+                // Group single-market positions by game — every Kalshi market on the
+                // same matchup shares one card, as in the app — while each parlay is
+                // its own card. Groups appear in the order their best position
+                // surfaces from the active sort, so live games still lead.
+                const groups = [];
+                const byKey = new Map();
+                for (const b of bets) {
+                  const d = b.display || {};
+                  const legs = Array.isArray(d.legs) ? d.legs : [];
+                  const isCombo = legs.length > 1 || (d.leg_count || 0) > 1;
+                  const leg0 = legs[0] || {};
+                  const key = isCombo ? `parlay:${b.ticker}` : gameKeyOf(leg0);
+                  if (!byKey.has(key)) {
+                    byKey.set(key, groups.length);
+                    groups.push({
+                      key,
+                      isCombo,
+                      game: isCombo ? null : leg0.game,
+                      // Normalised, because the backend's league differs by horizon:
+                      // "Crypto" for a 15m market but the bare asset ("XRP") for an
+                      // hourly one, so the grid showed two different subtitles for
+                      // the same kind of card. "Crypto" is the right one of the two
+                      // — it's the category, matching how a sports card reads
+                      // ("Pro Baseball", not the team), and the asset is already in
+                      // the title on both ("XRP 15 min · …" / "XRP price at 5pm").
+                      league: isCryptoTicker(leg0.market_ticker)
+                        ? "Crypto"
+                        : leg0.league || "",
+                      // Crypto windows are 15m/1h, so a countdown to settlement is
+                      // the useful clock. The TIME is read off the position's own
+                      // market rather than parsed out of the ticker (verified they
+                      // agree — KX…15M-26JUL311730-30 legs against a 21:30Z
+                      // close_time — and a field beats re-deriving an ET timestamp
+                      // from a string). Whether it IS crypto is judged from the
+                      // ticker, because leg.league says "Crypto" for 15m but the
+                      // bare asset for hourly; see isCryptoTicker.
+                      closeTime:
+                        isCryptoTicker(leg0.market_ticker) && b.market
+                          ? b.market.close_time || null
+                          : null,
+                      title: isCombo
+                        ? `${legs.length || d.leg_count}-Leg Parlay`
+                        : gameTitleOf(leg0, d.title),
+                      positions: [],
+                    });
+                  }
+                  groups[byKey.get(key)].positions.push(b);
+                }
+
+                const card = (grp) => (
+                  <div className="mb-game" style={S.gameCard} key={grp.key}>
+                    <GameHeader
+                      grp={grp}
+                      onHide={() =>
+                        hideBets(grp.positions.map((p) => p.ticker))
+                      }
+                    />
+                    {grp.isCombo ? (
+                      <ParlayRows b={grp.positions[0]} />
+                    ) : (
+                      grp.positions.map((b) => (
+                        <SingleRow b={b} key={b.ticker} />
+                      ))
+                    )}
+                  </div>
+                );
+
+                // Straight sort order — no reshuffling by card type. Two earlier
+                // attempts to stop a tall parlay slip from stranding space did
+                // reshuffle (parlays in a fixed 380px right column, then all
+                // singles ahead of all parlays), and both traded one gap for
+                // another while pushing a 19% parlay below a 1% single. useMasonry
+                // fixes the packing directly, so the grid can just show what the
+                // sort asked for. Grouping is untouched — every single position on
+                // the same matchup still shares one card.
+                return (
+                  <div className="mb-games" style={S.gameList} ref={gridRef}>
+                    {groups.map(card)}
+                  </div>
+                );
+              })()
+            )}
+          </>
         ) : (
           /* ─── History tab ─── */
           <>

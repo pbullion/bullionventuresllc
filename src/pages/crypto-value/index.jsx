@@ -372,7 +372,7 @@ export default function CryptoValue() {
   const enable = async () => {
     if (
       !window.confirm(
-        "Re-enable crypto auto-betting? (Only takes effect if the server master switch is armed.)"
+        "Re-enable crypto auto-betting? (Only takes effect if the server master switch is armed.)",
       )
     ) {
       return;
@@ -387,7 +387,12 @@ export default function CryptoValue() {
    * assigning the response would blank config/today and empty the panel. */
   const resumeSegment = async (seg) => {
     if (!window.confirm(`Resume betting on ${seg}?`)) return;
-    if (await postWithPin("/auto-bets/segments", { segment: seg, action: "resume" })) {
+    if (
+      await postWithPin("/auto-bets/segments", {
+        segment: seg,
+        action: "resume",
+      })
+    ) {
       await loadAll();
     }
   };
@@ -403,7 +408,7 @@ export default function CryptoValue() {
     const raw = window.prompt(
       `New daily cap in dollars (currently ${cur}${
         ceiling ? `, ceiling $${ceiling}` : ""
-      }).\nLeave blank to reset to the default.`
+      }).\nLeave blank to reset to the default.`,
     );
     if (raw === null) return;
     const asked = raw.trim() === "" ? null : Number(raw);
@@ -422,7 +427,7 @@ export default function CryptoValue() {
     ) {
       window.alert(
         `Saved at $${Math.round(next.daily_cap_override)} — that's the ` +
-          `ceiling. Raise it with the CEIL button first.`
+          `ceiling. Raise it with the CEIL button first.`,
       );
     }
     await loadAll();
@@ -438,7 +443,7 @@ export default function CryptoValue() {
       `New daily-cap CEILING in dollars (currently ${
         ceiling ? `$${ceiling}` : "none — cap edits are unbounded"
       }).\nStanding until changed (does NOT reset overnight).\n` +
-        `Leave blank to remove the ceiling.`
+        `Leave blank to remove the ceiling.`,
     );
     if (raw === null) return;
     const asked = raw.trim() === "" ? null : Number(raw);
@@ -471,12 +476,18 @@ export default function CryptoValue() {
         `It halts the day once realized P&L retraces far enough from its own ` +
         `intraday peak — the daily cap counts NET loss, so without it a day ` +
         `that runs up and hands it all back registers as $0 lost.\n\n` +
-        `Type "off" to disarm, "on" to arm, or "auto" to follow server config.`
+        `Type "off" to disarm, "on" to arm, or "auto" to follow server config.`,
     );
     if (choice === null) return;
     const want = choice.trim().toLowerCase();
     const enabled =
-      want === "off" ? false : want === "on" ? true : want === "auto" ? null : undefined;
+      want === "off"
+        ? false
+        : want === "on"
+          ? true
+          : want === "auto"
+            ? null
+            : undefined;
     if (enabled === undefined) {
       window.alert('Expected "off", "on" or "auto".');
       return;
@@ -490,7 +501,7 @@ export default function CryptoValue() {
       `New bet unit in dollars (currently $${cfg.unit_dollars}${
         cfg.unit_ceiling ? `, ceiling $${cfg.unit_ceiling}` : ""
       }).\nSizing bets up to ${cfg.max_units}u.\n` +
-        `Applies to TODAY only — resets overnight. Leave blank to reset now.`
+        `Applies to TODAY only — resets overnight. Leave blank to reset now.`,
     );
     if (raw === null) return;
     const asked = raw.trim() === "" ? null : Number(raw);
@@ -500,10 +511,14 @@ export default function CryptoValue() {
     }
     const next = await postWithPin("/auto-bets/unit", { unit: asked });
     if (!next) return;
-    if (asked != null && next.unit_override != null && asked > next.unit_override) {
+    if (
+      asked != null &&
+      next.unit_override != null &&
+      asked > next.unit_override
+    ) {
       window.alert(
         `Saved at $${next.unit_override} — that's the hard ceiling. ` +
-          `Raising it takes a server config change (CRYPTOBET_UNIT_CEILING).`
+          `Raising it takes a server config change (CRYPTOBET_UNIT_CEILING).`,
       );
     }
     await loadAll();
@@ -599,9 +614,14 @@ export default function CryptoValue() {
                 25-min alarm threshold. */}
             {(() => {
               const age = status && status.loop && status.loop.eval_age_secs;
-              if (!status) return <span style={{ fontSize: 11, color: C.muted }}>loading…</span>;
+              if (!status)
+                return (
+                  <span style={{ fontSize: 11, color: C.muted }}>loading…</span>
+                );
               if (age == null)
-                return <span style={{ fontSize: 11, color: C.muted }}>engine —</span>;
+                return (
+                  <span style={{ fontSize: 11, color: C.muted }}>engine —</span>
+                );
               const mins = age / 60;
               const color = mins >= 25 ? C.red : mins >= 5 ? C.amber : C.muted;
               const label =
@@ -617,6 +637,9 @@ export default function CryptoValue() {
             {/* One group so the header's flex-wrap moves both chips together
                 rather than stranding one on its own line. */}
             <span style={navGroup}>
+              <a href="/weather-value" style={navLink}>
+                🌡 weather →
+              </a>
               <a href="/totals-value" style={navLink}>
                 📈 sports →
               </a>
@@ -629,7 +652,10 @@ export default function CryptoValue() {
           {/* Above the Panel, not inside it: Panel remembers being collapsed
               per browser, and a halted engine must not be something you have to
               expand a section to discover. */}
-          <EngineBlockedBanner blocked={status && status.blocked} engine="Crypto" />
+          <EngineBlockedBanner
+            blocked={status && status.blocked}
+            engine="Crypto"
+          />
 
           {/* ── Auto-bet panel ── */}
           <Panel
@@ -667,7 +693,7 @@ export default function CryptoValue() {
                           ? status.guards.give_back_override != null
                             ? C.amber
                             : C.muted
-                          : C.red
+                          : C.red,
                       ),
                       cursor: "pointer",
                     }}
@@ -685,9 +711,10 @@ export default function CryptoValue() {
                   <span
                     style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}
                   >
-                    {cap.placed != null ? `${cap.placed} bets · ` : ""}$
-                    {capAmt}
-                    {capUp ? ` up · $${cap.daily_cap} cap` : ` / $${cap.daily_cap} lost`}
+                    {cap.placed != null ? `${cap.placed} bets · ` : ""}${capAmt}
+                    {capUp
+                      ? ` up · $${cap.daily_cap} cap`
+                      : ` / $${cap.daily_cap} lost`}
                     {(status.paused_segments || []).length > 0 && (
                       <span style={{ color: C.amber }}>
                         {" "}
@@ -709,11 +736,15 @@ export default function CryptoValue() {
                   style={{
                     background: C.chipBg,
                     color:
-                      status && status.today && status.today.unit_override != null
+                      status &&
+                      status.today &&
+                      status.today.unit_override != null
                         ? C.amber
                         : C.text,
                     border: `1px solid ${
-                      status && status.today && status.today.unit_override != null
+                      status &&
+                      status.today &&
+                      status.today.unit_override != null
                         ? C.amber
                         : C.border
                     }`,
@@ -781,7 +812,9 @@ export default function CryptoValue() {
                   }}
                 >
                   CEIL{" "}
-                  {status && status.config && status.config.daily_ceiling != null
+                  {status &&
+                  status.config &&
+                  status.config.daily_ceiling != null
                     ? `$${Math.round(status.config.daily_ceiling)}`
                     : "∞"}{" "}
                   ✎
@@ -828,8 +861,7 @@ export default function CryptoValue() {
               <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
                 ${status.config.unit_dollars}/u · calib-edge-scaled ≤
                 {status.config.max_units}u · ${status.today.daily_cap} max daily
-                LOSS · raw ≥
-                {cents(status.config.min_edge)} · calib ≥
+                LOSS · raw ≥{cents(status.config.min_edge)} · calib ≥
                 {cents(status.config.min_calib_edge)} · spread ≤
                 {cents(status.config.max_spread)} · $
                 {status.config.max_window_dollars}/window
@@ -843,8 +875,7 @@ export default function CryptoValue() {
                       : "off"}
                   </>
                 )}{" "}
-                ·{" "}
-                {status.config.assets.join("+").toUpperCase()} ·{" "}
+                · {status.config.assets.join("+").toUpperCase()} ·{" "}
                 {status.config.horizons.join("+")}
                 {/* The money figures used to be crammed on the end of this line;
                     they now caption the progress bar below, where the same
@@ -1141,12 +1172,16 @@ export default function CryptoValue() {
                       {a.feed_ok ? "●" : "○"}
                     </span>
                     {a.vol_warmup && (
-                      <span style={{ fontSize: 10, color: C.amber }}> warmup</span>
+                      <span style={{ fontSize: 10, color: C.amber }}>
+                        {" "}
+                        warmup
+                      </span>
                     )}
                   </div>
                   <div style={{ fontSize: 12.5 }}>{fmtPrice(key, a.spot)}</div>
                   <div style={{ fontSize: 10, color: C.muted }}>
-                    σ1s {a.sigma_1s ? (a.sigma_1s * 1e4).toFixed(2) + "bp" : "—"} ·
+                    σ1s{" "}
+                    {a.sigma_1s ? (a.sigma_1s * 1e4).toFixed(2) + "bp" : "—"} ·
                     basis {a.basis != null ? Number(a.basis).toFixed(2) : "—"}
                   </div>
                 </div>
@@ -1175,7 +1210,10 @@ export default function CryptoValue() {
                 <tbody>
                   {assets.flatMap(([key, a], ai) =>
                     (a.windows || [])
-                      .filter((w) => w.horizon === "15m" || (w.best && w.best.edge > 0))
+                      .filter(
+                        (w) =>
+                          w.horizon === "15m" || (w.best && w.best.edge > 0),
+                      )
                       .slice(0, 6)
                       .map((w, i) => (
                         <tr
@@ -1215,8 +1253,11 @@ export default function CryptoValue() {
                             style={{
                               ...td,
                               color:
-                                w.best && w.best.edge >= 0.03 ? C.green : C.muted,
-                              fontWeight: w.best && w.best.edge >= 0.03 ? 700 : 400,
+                                w.best && w.best.edge >= 0.03
+                                  ? C.green
+                                  : C.muted,
+                              fontWeight:
+                                w.best && w.best.edge >= 0.03 ? 700 : 400,
                             }}
                           >
                             {w.best
@@ -1224,7 +1265,7 @@ export default function CryptoValue() {
                               : "—"}
                           </td>
                         </tr>
-                      ))
+                      )),
                   )}
                 </tbody>
               </table>
@@ -1271,9 +1312,11 @@ export default function CryptoValue() {
                   {combos.map((q, i) => {
                     const mid =
                       q.combo_yes_bid != null && q.combo_yes_ask != null
-                        ? (Number(q.combo_yes_bid) + Number(q.combo_yes_ask)) / 2
+                        ? (Number(q.combo_yes_bid) + Number(q.combo_yes_ask)) /
+                          2
                         : null;
-                    const gap = mid != null ? Number(q.joint_model_p) - mid : null;
+                    const gap =
+                      mid != null ? Number(q.joint_model_p) - mid : null;
                     const legs = Array.isArray(q.legs) ? q.legs : [];
                     return (
                       <tr
@@ -1347,8 +1390,8 @@ export default function CryptoValue() {
             {perf && (
               <div>
                 <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>
-                  Brier, 7d (lower is better — the model must beat the PRICE, not
-                  a coin):
+                  Brier, 7d (lower is better — the model must beat the PRICE,
+                  not a coin):
                 </div>
                 <div style={{ overflowX: "auto" }}>
                   <table
@@ -1371,7 +1414,9 @@ export default function CryptoValue() {
                         return (
                           <tr
                             key={`${r.asset}:${r.horizon}`}
-                            style={{ background: i % 2 ? C.rowAlt : "transparent" }}
+                            style={{
+                              background: i % 2 ? C.rowAlt : "transparent",
+                            }}
                           >
                             <td style={td} data-primary="">
                               <span>
@@ -1389,7 +1434,10 @@ export default function CryptoValue() {
                             </td>
                             <td
                               data-label="Verdict"
-                              style={{ ...td, color: better ? C.green : C.muted }}
+                              style={{
+                                ...td,
+                                color: better ? C.green : C.muted,
+                              }}
                             >
                               {better ? "model ahead" : "market ahead"}
                             </td>
@@ -1413,12 +1461,12 @@ export default function CryptoValue() {
                     margin: "10px 0 4px",
                   }}
                 >
-                  Trusted calibration cells (w &gt; 0 — the only places the engine
-                  may stake):
+                  Trusted calibration cells (w &gt; 0 — the only places the
+                  engine may stake):
                 </div>
                 <div style={{ fontSize: 12 }}>
                   {Object.entries(
-                    (perf.calibration && perf.calibration.cells) || {}
+                    (perf.calibration && perf.calibration.cells) || {},
                   )
                     .filter(([, c]) => c.w > 0)
                     .map(([k, c]) => (
@@ -1430,7 +1478,7 @@ export default function CryptoValue() {
                       </span>
                     ))}
                   {!Object.values(
-                    (perf.calibration && perf.calibration.cells) || {}
+                    (perf.calibration && perf.calibration.cells) || {},
                   ).some((c) => c.w > 0) && (
                     <span style={{ color: C.amber }}>
                       none yet — snapshots are accumulating; the fit refreshes
@@ -1443,8 +1491,8 @@ export default function CryptoValue() {
           </Panel>
 
           <div style={{ fontSize: 10.5, color: C.muted, textAlign: "center" }}>
-            Settlement = 60s CF Benchmarks RTI TWAP · fees included in every edge ·
-            paper mode logs would-place bets without ordering
+            Settlement = 60s CF Benchmarks RTI TWAP · fees included in every
+            edge · paper mode logs would-place bets without ordering
           </div>
         </div>
         <OpenBetsRail domain="crypto" />
