@@ -37,6 +37,12 @@ const PRIVATE_TOOLS = [
     tagline: "15-minute and hourly crypto windows",
   },
   {
+    emoji: "🌡",
+    name: "Weather Value",
+    path: "/weather-value",
+    tagline: "Daily city-high temperature markets",
+  },
+  {
     emoji: "☕",
     name: "Morning Review",
     path: "/morning-review",
@@ -157,7 +163,7 @@ export default function PrivateToolsModal({ open, onClose }) {
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -236,5 +242,10 @@ const S = {
     color: "#83839a",
     marginTop: 1,
   },
-  arrow: { marginLeft: "auto", color: "#83839a", fontSize: 14, fontWeight: 700 },
+  arrow: {
+    marginLeft: "auto",
+    color: "#83839a",
+    fontSize: 14,
+    fontWeight: 700,
+  },
 };

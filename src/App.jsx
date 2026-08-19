@@ -39,6 +39,7 @@ import FarkleTracker from "./pages/farkle/index.jsx";
 import MyBets from "./pages/my-bets/index.jsx";
 import TotalsValue from "./pages/totals-value/index.jsx";
 import CryptoValue from "./pages/crypto-value/index.jsx";
+import WeatherValue from "./pages/weather-value/index.jsx";
 import MorningReview from "./pages/morning-review/index.jsx";
 import GulfHurricane from "./pages/gulf-hurricane/index.jsx";
 import TripPlannerHome from "./pages/trip-planner/index.jsx";
@@ -73,6 +74,7 @@ export default function App() {
     location.pathname.startsWith("/totals-value") ||
     location.pathname.startsWith("/wnba-value");
   const isCryptoValue = location.pathname.startsWith("/crypto-value");
+  const isWeatherValue = location.pathname.startsWith("/weather-value");
   const isMorningReview = location.pathname.startsWith("/morning-review");
   const isEliteEdge = location.pathname.startsWith("/elite-edge-advisors");
   const isZargle = location.pathname.startsWith("/zargle");
@@ -88,9 +90,26 @@ export default function App() {
   // still finishing. Full-screen because the whole point is seeing every board
   // at once; unlisted and unauthenticated like /prospects.
   const isPatrickBoard = location.pathname.startsWith("/patrick");
-  const hideChrome = isTeslaDashboard || isMothersDay || isFarkle || isZargle || isMyBets || isTotalsValue || isCryptoValue || isMorningReview || isEliteEdge || isGulfHurricane || isTripPlanner || isAshley || isProspects || isPatrickBoard;
+  const hideChrome =
+    isTeslaDashboard ||
+    isMothersDay ||
+    isFarkle ||
+    isZargle ||
+    isMyBets ||
+    isTotalsValue ||
+    isCryptoValue ||
+    isWeatherValue ||
+    isMorningReview ||
+    isEliteEdge ||
+    isGulfHurricane ||
+    isTripPlanner ||
+    isAshley ||
+    isProspects ||
+    isPatrickBoard;
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <div
+      style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
+    >
       <ScrollToTop />
       {!hideChrome && <Navbar />}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -110,15 +129,30 @@ export default function App() {
           <Route path="/southside/marketing" element={<SouthsideHome />} />
           <Route path="/southside/privacy" element={<SouthsidePrivacy />} />
           <Route path="/southside/support" element={<SouthsideSupport />} />
-          <Route path="/southside/walkthrough" element={<SouthsideWalkthrough />} />
+          <Route
+            path="/southside/walkthrough"
+            element={<SouthsideWalkthrough />}
+          />
           {/* "tour" is the word people guess for this — same page. */}
           <Route path="/southside/tour" element={<SouthsideWalkthrough />} />
           <Route path="/mancave-displays" element={<MancaveHome />} />
-          <Route path="/mancave-displays/privacy" element={<MancavePrivacy />} />
-          <Route path="/mancave-displays/support" element={<MancaveSupport />} />
+          <Route
+            path="/mancave-displays/privacy"
+            element={<MancavePrivacy />}
+          />
+          <Route
+            path="/mancave-displays/support"
+            element={<MancaveSupport />}
+          />
           <Route path="/receipt-tax-tracker" element={<ReceiptHome />} />
-          <Route path="/receipt-tax-tracker/privacy" element={<ReceiptPrivacy />} />
-          <Route path="/receipt-tax-tracker/support" element={<ReceiptSupport />} />
+          <Route
+            path="/receipt-tax-tracker/privacy"
+            element={<ReceiptPrivacy />}
+          />
+          <Route
+            path="/receipt-tax-tracker/support"
+            element={<ReceiptSupport />}
+          />
           <Route path="/learn-and-play" element={<LearnHome />} />
           <Route path="/learn-and-play/privacy" element={<LearnPrivacy />} />
           <Route path="/learn-and-play/support" element={<LearnSupport />} />
@@ -129,6 +163,7 @@ export default function App() {
           <Route path="/my-bets" element={<MyBets />} />
           <Route path="/totals-value" element={<TotalsValue />} />
           <Route path="/crypto-value" element={<CryptoValue />} />
+          <Route path="/weather-value" element={<WeatherValue />} />
           <Route path="/morning-review" element={<MorningReview />} />
           <Route path="/gulf-hurricane" element={<GulfHurricane />} />
           <Route path="/tripplanner" element={<TripPlannerHome />} />
@@ -142,21 +177,45 @@ export default function App() {
           <Route path="/patrick" element={<PatrickBoard />} />
           <Route path="/hrw" element={<Hrw />} />
           <Route path="/hrw/:slug" element={<HrwRestaurant />} />
-          <Route path="/wnba-value" element={<Navigate to="/totals-value" replace />} />
+          <Route
+            path="/wnba-value"
+            element={<Navigate to="/totals-value" replace />}
+          />
           <Route path="/elite-edge-advisors" element={<EliteEdgeAdvisors />} />
           <Route path="/zargle" element={<ZargleHome />} />
           <Route path="/zargle/privacy" element={<ZarglePrivacy />} />
           <Route path="/zargle/support" element={<ZargleSupport />} />
           <Route path="/zargle/terms" element={<ZargleTerms />} />
           <Route path="/palladium-2026" element={<Palladium2026Home />} />
-          <Route path="/palladium-2026/privacy" element={<Palladium2026Privacy />} />
-          <Route path="/palladium-2026/support" element={<Palladium2026Support />} />
+          <Route
+            path="/palladium-2026/privacy"
+            element={<Palladium2026Privacy />}
+          />
+          <Route
+            path="/palladium-2026/support"
+            element={<Palladium2026Support />}
+          />
           <Route path="/wedding-photos" element={<WeddingPhotosHome />} />
-          <Route path="/wedding-photos/privacy" element={<WeddingPhotosPrivacy />} />
-          <Route path="/wedding-photos/support" element={<WeddingPhotosSupport />} />
-          <Route path="/daycare-memory-vault" element={<DaycareMemoryVaultHome />} />
-          <Route path="/daycare-memory-vault/privacy" element={<DaycareMemoryVaultPrivacy />} />
-          <Route path="/daycare-memory-vault/support" element={<DaycareMemoryVaultSupport />} />
+          <Route
+            path="/wedding-photos/privacy"
+            element={<WeddingPhotosPrivacy />}
+          />
+          <Route
+            path="/wedding-photos/support"
+            element={<WeddingPhotosSupport />}
+          />
+          <Route
+            path="/daycare-memory-vault"
+            element={<DaycareMemoryVaultHome />}
+          />
+          <Route
+            path="/daycare-memory-vault/privacy"
+            element={<DaycareMemoryVaultPrivacy />}
+          />
+          <Route
+            path="/daycare-memory-vault/support"
+            element={<DaycareMemoryVaultSupport />}
+          />
         </Routes>
       </div>
       {!hideChrome && <Footer />}
