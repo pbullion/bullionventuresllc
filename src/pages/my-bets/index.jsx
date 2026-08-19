@@ -1748,23 +1748,57 @@ function WeatherNow({ d, noCity = false }) {
   const w = d && d.weather;
   if (!w || (w.current_temp == null && w.obs_max == null)) return null;
   const deg = (v) => (v == null ? "—" : `${Math.round(Number(v))}°`);
+  /* Label above value, so three temperatures read as three labelled figures
+     instead of one run-on sentence ("Austin now 91° high so far 91° forecast
+     102°" — Patrick, 2026-08-19: "fix the spacing"). Same stacked-stat idiom
+     the portfolio strip and the game cards already use on this page. */
+  const Stat = ({ label, value, bright }) => (
+    <span style={{ display: "inline-flex", flexDirection: "column", gap: 1 }}>
+      <span
+        style={{
+          color: C.muted,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          color: bright ? C.text : C.muted,
+          fontSize: 14,
+          fontWeight: 800,
+          lineHeight: 1.1,
+        }}
+      >
+        {value}
+      </span>
+    </span>
+  );
   return (
     <div
       style={{
         display: "flex",
-        gap: 10,
-        alignItems: "baseline",
-        marginTop: 4,
-        fontSize: 12.5,
-        color: "#8a93a6",
-        fontWeight: 600,
+        gap: 18,
+        alignItems: "flex-end",
         flexWrap: "wrap",
+        // Inline in a city section header when noCity; its own line otherwise.
+        marginTop: noCity ? 0 : 6,
       }}
     >
-      {!noCity && <span>🌡 {w.city}</span>}
-      <span style={{ color: "#e8eaed" }}>now {deg(w.current_temp)}</span>
-      <span>high so far {deg(w.obs_max)}</span>
-      <span>forecast {deg(w.forecast_high)}</span>
+      {!noCity && (
+        <span style={{ color: C.text, fontSize: 14, fontWeight: 800 }}>
+          🌡 {w.city}
+        </span>
+      )}
+      {/* "Now" is the only live figure, so it's the bright one. */}
+      <Stat label="Now" value={deg(w.current_temp)} bright />
+      {/* The number the market literally settles on, as of this moment. */}
+      <Stat label="High so far" value={deg(w.obs_max)} />
+      <Stat label="Forecast" value={deg(w.forecast_high)} />
     </div>
   );
 }
@@ -2605,15 +2639,25 @@ export default function MyBets() {
                             <div
                               style={{
                                 display: "flex",
-                                alignItems: "baseline",
-                                gap: 10,
-                                marginTop: 10,
-                                paddingTop: 8,
+                                alignItems: "flex-end",
+                                gap: 18,
+                                flexWrap: "wrap",
+                                marginTop: 14,
+                                paddingTop: 10,
                                 borderTop: `1px solid ${C.rowBorder}`,
                               }}
                             >
-                              <span style={{ fontWeight: 800, fontSize: 14 }}>
-                                {sec.city}
+                              {/* The city IS the heading of its section, so it
+                                  outranks the temps beside it. */}
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  fontSize: 16,
+                                  color: C.text,
+                                  letterSpacing: 0.2,
+                                }}
+                              >
+                                🌡 {sec.city}
                               </span>
                               <WeatherNow d={sec.first.display} noCity />
                             </div>
