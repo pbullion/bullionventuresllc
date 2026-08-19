@@ -538,7 +538,18 @@ const S = {
     return { ...common, top: 11.5, left: 23 }; // first
   },
   sitMeta: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 },
-  sitCount: { fontSize: 13, fontWeight: 800, color: C.text },
+  // Balls-strikes. Muted rather than C.text, and word-labelled below, because
+  // an unlabelled bright "3-1" next to a diamond reads as a score.
+  sitCount: { fontSize: 13, fontWeight: 800, color: C.muted },
+  // The word "count" after the balls-strikes figure.
+  sitCountLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: C.muted,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    marginLeft: 4,
+  },
   sitOuts: {
     fontSize: 12,
     fontWeight: 700,
@@ -679,7 +690,9 @@ const S = {
     flexWrap: "wrap",
   },
   scoreTeam: { fontSize: 14, fontWeight: 700, color: C.muted },
-  scoreNum: { fontSize: 16, fontWeight: 800 },
+  // 20, not 16: the score has to out-shout the baseball count in the situation
+  // row a few pixels below it, which is the number it was being confused with.
+  scoreNum: { fontSize: 20, fontWeight: 800, letterSpacing: -0.3 },
   scoreDash: { fontSize: 14, color: C.muted },
   finalTag: {
     fontSize: 11,
@@ -749,6 +762,36 @@ const S = {
   rowCashOutLine: { marginTop: 2, fontSize: 13, textAlign: "right" },
   // Parlay-only: the leg's game/matchup under the pick, and the ticket totals.
   rowSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
+  // The live score inside that sub line. It used to be plain muted 12px text
+  // ("Arizona vs Boston · 5–5"), which lost the prominence contest to the 13px
+  // white count in the situation row right below it — so a 5–5 game read as a
+  // 3-1 game (Patrick, 2026-08-19: "I keep confusing the count with the
+  // score"). A bright bordered chip makes the score the loudest thing on the
+  // leg, and nothing else on the card wears this treatment.
+  rowScore: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: 15,
+    fontWeight: 800,
+    color: C.text,
+    letterSpacing: 0.2,
+    padding: "1px 7px",
+    borderRadius: 6,
+    backgroundColor: C.chipBg,
+    border: `1px solid ${C.border}`,
+    // The chip is taller than the 12px line it sits in; keep the text baselines
+    // aligned so the matchup words don't ride up.
+    verticalAlign: "middle",
+  },
+  // "SCORE" tag inside the chip. Tiny and muted — it's there to say which pair
+  // of numbers this is, not to compete with them.
+  rowScoreLabel: {
+    fontSize: 9,
+    fontWeight: 800,
+    color: C.muted,
+    letterSpacing: 0.6,
+  },
   /* A total bet's remaining-to-the-line + pace figures. Sits inside a position
      row, which already draws its own divider, so it carries no top border. */
   totalRow: { display: "flex", gap: 18, marginTop: 8, flexWrap: "wrap" },
@@ -1390,8 +1433,9 @@ function LiveSituation({ sit, inning, compact }) {
       </div>
       <div style={S.sitMeta}>
         {hasCount ? (
-          <span style={S.sitCount}>
+          <span style={S.sitCount} aria-label={`Count ${sit.balls}-${sit.strikes}`}>
             {sit.balls}-{sit.strikes}
+            <span style={S.sitCountLabel}>count</span>
           </span>
         ) : null}
         {/* Inning label (replaces the "N out" words) + the out dots. */}
@@ -1910,7 +1954,20 @@ function ParlayRows({ b }) {
             </div>
             <div style={S.rowSub}>
               {gameTitleOf(leg)}
-              {hasScore ? ` · ${g.away_score}–${g.home_score}` : ""}
+              {hasScore ? (
+                <>
+                  {" "}
+                  <span
+                    style={S.rowScore}
+                    aria-label={`Score ${g.away_score} to ${g.home_score}`}
+                  >
+                    <span style={S.rowScoreLabel}>SCORE</span>
+                    {g.away_score}–{g.home_score}
+                  </span>
+                </>
+              ) : (
+                ""
+              )}
               {!showSit && gameDetail(g) ? ` · ${gameDetail(g)}` : ""}
               {link ? <span style={S.linkArrow}> ↗</span> : null}
             </div>
