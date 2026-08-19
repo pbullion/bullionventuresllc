@@ -2173,8 +2173,18 @@ export default function MyBets() {
   // are in progress — that's what needs watching); within the live and
   // pre-game groups the user-picked sort applies. Positions missing the
   // chosen metric sink to the bottom of their group in either direction.
-  const isLive = (b) =>
-    (b.display?.legs || []).some((l) => l.game && l.game.state === "in");
+  const isLive = (b) => {
+    if ((b.display?.legs || []).some((l) => l.game && l.game.state === "in"))
+      return true;
+    /* Weather markets have no ESPN game, so the leg test can never fire — but
+     * TODAY's high temp is resolving as you watch it (the station's running max
+     * is climbing), which is exactly the "in progress" the sort is for.
+     * Tomorrow's is not. */
+    if (WEATHER_TICKER_RE.test(b.ticker || "")) {
+      return weatherDayLabel(weatherDayChunk(b.ticker)).startsWith("Today");
+    }
+    return false;
+  };
   const sortDef = SORTS.find((s) => s.key === sort.key) || SORTS[0];
   const metricOf = (b) => {
     const d = b.display || {};
@@ -2612,6 +2622,18 @@ export default function MyBets() {
                   }
                   groups[byKey.get(key)].positions.push(b);
                 }
+
+                /* A CARD leads if ANY of its positions is live. Position-level
+                 * live-first ordering wasn't enough: a group lands where its
+                 * FIRST position surfaced, so a parlay whose live leg is its
+                 * cheapest sank under a Cost sort while a settled card sat above
+                 * it (Patrick, 2026-08-19: "always put games in progress at the
+                 * top"). Stable sort keeps the chosen metric's order within each
+                 * band, so this only ever lifts live cards. */
+                const liveGroup = (g) => g.positions.some((p) => isLive(p));
+                groups.sort(
+                  (a, b) => Number(liveGroup(b)) - Number(liveGroup(a)),
+                );
 
                 const card = (grp) => (
                   <div className="mb-game" style={S.gameCard} key={grp.key}>
