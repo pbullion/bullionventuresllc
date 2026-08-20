@@ -170,6 +170,23 @@ export default function WeatherValue() {
   const cfg = status && status.config;
   const live = status && status.live_ledger;
   const pp = status && status.paper;
+  const byExit = (status && status.live_by_exit) || {};
+  const byLead = (status && status.live_by_lead) || {};
+
+  /* THE RECORD NEEDS ALL THREE COUNTS. The auto cash-out monitor sells at >=90%
+     of max payout, i.e. it sells winners shortly before they would settle as
+     wins, so a sold row's result is the literal 'cashed_out' and never 'yes' or
+     'no'. Reading wins alone printed "0 wins on 34 fills" on 2026-08-20 over a
+     ledger where 8 of 14 resolved positions had MADE money. Wins, losses and
+     sold-early are three separate counts that add up to resolved. */
+  const record = (l) => {
+    if (!l) return null;
+    const w = Number(l.won || 0),
+      ls = Number(l.lost || 0),
+      c = Number(l.cashed || 0);
+    if (!(w + ls + c)) return null;
+    return `${w}-${ls}${c ? ` · ${c} sold early` : ""}`;
+  };
 
   const betRow = (b, isPaper) => {
     const res =
@@ -408,7 +425,12 @@ export default function WeatherValue() {
               [
                 "REAL",
                 live &&
-                  `${live.filled || 0} filled · ${money(live.staked)} staked`,
+                  [
+                    `${live.filled || 0} open · ${money(live.staked)} staked`,
+                    record(live),
+                  ]
+                    .filter(Boolean)
+                    .join(" · "),
                 live && live.pnl,
               ],
               [
@@ -444,6 +466,105 @@ export default function WeatherValue() {
               </div>
             ))}
           </div>
+
+          {/* HOW THE MONEY ENDED, not just how much. On 2026-08-20 the headline
+              "-$22" hid the only thing worth knowing: every position that
+              reached settlement lost, and every one the cash-out monitor sold
+              made money. A single P&L number cannot say that, and the
+              same-day/next-day split beside it is what the 9pm lead-time gate
+              acts on — the two are confounded (a next-day position has had
+              longer to be sold), so they are shown together, not as a
+              conclusion. */}
+          {(byExit.held_to_settle ||
+            byExit.cashed_out ||
+            byLead.same_day ||
+            byLead.next_day) && (
+            <div
+              style={{
+                background: C.panel,
+                border: `1px solid ${C.border}`,
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 12,
+              }}
+            >
+              {[
+                [
+                  "HOW IT ENDED",
+                  [
+                    ["Held to settlement", byExit.held_to_settle],
+                    ["Sold early by the monitor", byExit.cashed_out],
+                  ],
+                ],
+                [
+                  "LEAD TIME (what the 9pm gate acts on)",
+                  [
+                    ["Same day", byLead.same_day],
+                    ["Next day", byLead.next_day],
+                  ],
+                ],
+              ].map(([heading, rows]) => (
+                <div key={heading} style={{ marginBottom: 10 }}>
+                  <div
+                    style={{
+                      color: C.muted,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      marginBottom: 6,
+                    }}
+                  >
+                    {heading}
+                  </div>
+                  {rows.map(([label, r]) => (
+                    <div
+                      key={label}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        fontSize: 13,
+                        padding: "3px 0",
+                      }}
+                    >
+                      <span style={{ color: C.text }}>{label}</span>
+                      <span style={{ color: C.muted, textAlign: "right" }}>
+                        {r ? (
+                          <>
+                            {r.resolved != null &&
+                            Number(r.resolved) !== Number(r.n)
+                              ? `${r.resolved} of ${r.n} resolved`
+                              : `${r.n} bet${Number(r.n) === 1 ? "" : "s"}`}
+                            {" · "}
+                            {money(r.staked)} staked{" · "}
+                            <b
+                              style={{
+                                color:
+                                  Number(r.pnl) > 0
+                                    ? C.green
+                                    : Number(r.pnl) < 0
+                                      ? C.red
+                                      : C.text,
+                              }}
+                            >
+                              {money(r.pnl)}
+                            </b>
+                          </>
+                        ) : (
+                          "none yet"
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <div style={{ color: C.muted, fontSize: 11, lineHeight: 1.5 }}>
+                The monitor sells at ≥90% of max payout, so it takes winners out
+                early — that is why the win column can read 0 on a ledger that
+                made money, and why "sold early" is counted apart from wins and
+                losses rather than folded into either.
+              </div>
+            </div>
+          )}
 
           <div
             style={{
