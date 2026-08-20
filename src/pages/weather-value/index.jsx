@@ -426,7 +426,11 @@ export default function WeatherValue() {
                 "REAL",
                 live &&
                   [
-                    `${live.filled || 0} open · ${money(live.staked)} staked`,
+                    /* open_positions, NOT `filled`: the settle pass stamps a
+                       row's result and P&L but leaves status='filled', so
+                       `filled` counts 6 already-decided losers here and reads
+                       as exposure that no longer exists. */
+                    `${live.open_positions ?? live.filled ?? 0} open · ${money(live.staked)} staked`,
                     record(live),
                   ]
                     .filter(Boolean)
