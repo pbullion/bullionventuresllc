@@ -52,7 +52,7 @@ export default function LearnAndPlayTerms() {
         <ul style={{ paddingLeft: 20, margin: '8px 0 16px' }}>
           <li style={{ fontSize: 15, color: '#a0a0b8', lineHeight: 1.75, marginBottom: 6 }}><strong style={{ color: '#f0f0f5' }}>Title:</strong> Premium</li>
           <li style={{ fontSize: 15, color: '#a0a0b8', lineHeight: 1.75, marginBottom: 6 }}><strong style={{ color: '#f0f0f5' }}>Length:</strong> Monthly (1 month)</li>
-          <li style={{ fontSize: 15, color: '#a0a0b8', lineHeight: 1.75, marginBottom: 6 }}><strong style={{ color: '#f0f0f5' }}>Price:</strong> $1.99 per month</li>
+          <li style={{ fontSize: 15, color: '#a0a0b8', lineHeight: 1.75, marginBottom: 6 }}><strong style={{ color: '#f0f0f5' }}>Price:</strong> $0.99 per month</li>
           <li style={{ fontSize: 15, color: '#a0a0b8', lineHeight: 1.75, marginBottom: 6 }}><strong style={{ color: '#f0f0f5' }}>Free Trial:</strong> 7-day free trial for new subscribers</li>
         </ul>
         <div style={s.subTitle}>Auto-Renewal</div>
