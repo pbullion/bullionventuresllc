@@ -377,7 +377,11 @@ export default function WeatherValue() {
                     {v.error
                       ? "ERR"
                       : v.obs_max != null
-                        ? `${Math.round(v.obs_max)}°`
+                        ? /* One decimal — the brackets are half-degree wide,
+                             so a whole-degree chip can't say which side of
+                             …-B90.5 the station is on. Matches /my-bets and
+                             both TV apps. Patrick, 2026-08-20. */
+                          `${Number(v.obs_max).toFixed(1)}°`
                         : "—"}
                     {v && v.new_paper_bets ? (
                       <span style={{ color: C.amber }}>

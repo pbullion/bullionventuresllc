@@ -1791,7 +1791,10 @@ function GameHeader({ grp, onHide }) {
 function WeatherNow({ d, noCity = false }) {
   const w = d && d.weather;
   if (!w || (w.current_temp == null && w.obs_max == null)) return null;
-  const deg = (v) => (v == null ? "—" : `${Math.round(Number(v))}°`);
+  /* One decimal, not a whole degree: the brackets are half-degree wide
+     (…-B90.5), so a rounded "91°" hides whether the station is at 90.6
+     or 91.4 — the whole question the bet turns on. Patrick, 2026-08-20. */
+  const deg = (v) => (v == null ? "—" : `${Number(v).toFixed(1)}°`);
   /* Label above value, so three temperatures read as three labelled figures
      instead of one run-on sentence ("Austin now 91° high so far 91° forecast
      102°" — Patrick, 2026-08-19: "fix the spacing"). Same stacked-stat idiom
