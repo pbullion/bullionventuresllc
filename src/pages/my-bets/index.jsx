@@ -1904,7 +1904,22 @@ function GameHeader({ grp, onHide }) {
  * Renders nothing for every other market. */
 function WeatherNow({ d, noCity = false }) {
   const w = d && d.weather;
-  if (!w || (w.current_temp == null && w.obs_max == null)) return null;
+  /* Bail only when there is NOTHING to say. The old guard checked the two
+     OBSERVED temps alone, so a snapshot whose observation fetch had failed —
+     roughly 1 in 13 weather rows come back with the obs stripped, see the
+     positions-enrichment note — hid the forecast high and the peak countdown
+     too, even though both were sitting right there. Miami and NYC were blank
+     for exactly this reason while Chicago and Denver rendered. `deg()` already
+     prints "—" per missing figure, which is the honest way to show a partial
+     row. */
+  if (
+    !w ||
+    (w.current_temp == null &&
+      w.obs_max == null &&
+      w.forecast_high == null &&
+      !w.peak_at)
+  )
+    return null;
   /* One decimal, not a whole degree: the brackets are half-degree wide
      (…-B90.5), so a rounded "91°" hides whether the station is at 90.6
      or 91.4 — the whole question the bet turns on. Patrick, 2026-08-20. */
