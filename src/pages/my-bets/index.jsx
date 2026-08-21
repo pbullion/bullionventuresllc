@@ -26,6 +26,28 @@ const KALSHI_PORTFOLIO_URL = "https://kalshi.com/portfolio";
  *   and waiting on a signing that isn't coming (Patrick, 2026-07-25). */
 const ALWAYS_HIDDEN_TICKERS = new Set(["KXNEXTTEAMNBA-26LJAM-MIA"]);
 
+/* A position the market prices at 1% is decided in all but name — nothing is
+ * moving and there is nothing left to do about it. Those cards are dropped for
+ * the same reason and in the same place as the list above ("just get rid of
+ * showing 1% ones anywhere" — Patrick, 2026-08-20), which means "Show all"
+ * doesn't bring them back either: this is a rule, not a dismissal.
+ *
+ * Rounded, not raw, so the test matches what the card WOULD have printed — a
+ * 1.4% position renders "1%", and suppressing one "1%" card while keeping
+ * another that also reads "1%" would look like a bug.
+ *
+ * The MONEY is not hidden. Every dollar figure in the header — value, cost,
+ * P&L, max payout — reduces over `allBets`, before this filter, so it still
+ * counts these positions; that money is genuinely still tied up on Kalshi.
+ *
+ * The open COUNT does drop, because it has always been `bets.length` (the
+ * cards on screen) rather than a count of positions — the same is true of a
+ * card you dismiss by hand. That is why the count is printed next to it. */
+const isDecidedBet = (b) => {
+  const prob = Number(b.display?.hit_probability);
+  return Number.isFinite(prob) && Math.round(prob) <= 1;
+};
+
 /* ─── Dark palette ─── */
 const C = {
   bg: "#0b0e14", // page
@@ -2267,8 +2289,13 @@ export default function MyBets() {
   // permanently-hidden dead markets. Totals below still count every position
   // (including both kinds of hidden) so the P&L/portfolio figures stay
   // accurate — that money is genuinely still tied up on Kalshi.
-  const hideable = allBets.filter((b) => !ALWAYS_HIDDEN_TICKERS.has(b.ticker));
+  const hideable = allBets.filter(
+    (b) => !ALWAYS_HIDDEN_TICKERS.has(b.ticker) && !isDecidedBet(b),
+  );
   const bets = hideable.filter((b) => !hidden.has(b.ticker));
+  // Reported, not silent. Suppressing nine cards with no trace of them is how
+  // a filter turns into a bug report, so the count sits beside the sort row.
+  const decidedCount = allBets.filter(isDecidedBet).length;
   /* Re-pack the open grid whenever the card set or their order changes. The
      ResizeObserver inside catches height changes on its own (live scores), so
      these deps only cover cards appearing, disappearing or moving. Declared
@@ -2606,6 +2633,9 @@ export default function MyBets() {
                   </button>
                 ))}
               </div>
+              {decidedCount > 0 ? (
+                <span style={S.muted}>{decidedCount} decided (1%) not shown</span>
+              ) : null}
               {hiddenCount > 0 ? (
                 <button style={S.showHiddenBtn} onClick={unhideAll}>
                   {hiddenCount} hidden · Show all
@@ -2619,7 +2649,9 @@ export default function MyBets() {
               <div style={S.muted}>
                 {hiddenCount > 0
                   ? "All positions hidden. Use “Show all” to bring them back."
-                  : "No open positions."}
+                  : decidedCount > 0
+                    ? `No open positions left to watch — all ${decidedCount} are decided at 1%.`
+                    : "No open positions."}
               </div>
             ) : (
               (() => {
