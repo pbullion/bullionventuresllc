@@ -347,6 +347,14 @@ const S = {
     flexWrap: "wrap",
     margin: "22px 0 16px",
   },
+  // Hairline between the sort keys and the weather layout toggle.
+  sortDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    minHeight: 18,
+    backgroundColor: C.border,
+    margin: "0 2px",
+  },
   sortBtn: (active) => ({
     background: active ? C.greenSoft : C.chipBg,
     border: `1px solid ${active ? C.greenBorder : C.border}`,
@@ -1006,6 +1014,11 @@ const SORTS = [
  * landed. Reading a fresh key resets everyone to the new default once. */
 const SORT_STORAGE_KEY = "mb_sort_v2";
 
+/* Weather grouping preference: "day" (the default — one card per day with the
+ * cities as sections inside it) or "city" (a card per city-day). Persisted
+ * alongside the sort so a chosen layout survives a refresh. */
+const WX_GROUP_STORAGE_KEY = "mb_wx_group";
+
 /* Is the held side currently ahead? During a live game ESPN only sets `winner`
  * at the final whistle, so use the live score lead. For a NO team bet you're
  * winning when the pick team is behind, so flip the lead by side. Returns null
@@ -1206,6 +1219,80 @@ const weatherDayLabel = (chunk) => {
   if (same(d, today)) return `Today · ${label}`;
   if (same(d, tomorrow)) return `Tomorrow · ${label}`;
   return label;
+};
+/* City for a weather position. The scan snapshot names it; when the snapshot
+ * came back stripped (see the positions-enrichment note) fall back to the
+ * ticker's own city segment with the family prefix removed, so the worst case
+ * reads "DEN" rather than "KXHIGHDEN". Single helper because the grouping key,
+ * the card title and the section heading must all agree — two of them
+ * disagreeing would split one city into two groups. */
+const weatherCityOf = (b) => {
+  const w = (b.display || {}).weather || {};
+  if (w.city) return w.city;
+  const seg = String(b.ticker || "")
+    .split("-")[0]
+    .replace(/^KXHIGH/, "");
+  return seg || "—";
+};
+/* City names by weather series, mirroring WEATHER_CITY in the backend's
+ * routes/kalshi.js. Needed because one weather card reaches this page with no
+ * snapshot behind it to name it: a cash-out whose market hasn't settled yet.
+ * /kalshi/cashouts derives its `label` from the crypto and sports ledgers only,
+ * so every weather sale arrives label-less and the card printed the bare ticker
+ * (Patrick, 2026-08-21: "idk what these are"). */
+const WEATHER_SERIES_CITY = {
+  KXHIGHNY: "NYC",
+  KXHIGHCHI: "Chicago",
+  KXHIGHAUS: "Austin",
+  KXHIGHDEN: "Denver",
+  KXHIGHLAX: "LA",
+  KXHIGHMIA: "Miami",
+  KXHIGHPHIL: "Philly",
+};
+/* "KXHIGHLAX-26AUG21-B80.5" -> "🌡 LA high 80–81°". Returns null for anything
+ * that isn't a known weather series, so the caller can fall back.
+ *
+ * The strike suffix IS the bracket, and both forms are exact rather than
+ * guessed: B{x}.5 is Kalshi's degree-wide between market (floor x, cap x+1 —
+ * the weather engine stores that same market as "80..81"), and T{x} is the
+ * above-x threshold, which in whole degrees settles at x+1 and up (the engine
+ * stores "86..Infinity" for T85). The market day is deliberately left out —
+ * the card's own sub-line already carries the sale timestamp. */
+const weatherTickerTitle = (ticker, side) => {
+  const parts = String(ticker || "").split("-");
+  const city = WEATHER_SERIES_CITY[parts[0]];
+  if (!city) return null;
+  const m = /^([BT])(\d+(?:\.\d+)?)$/.exec(String(parts[2] || ""));
+  const range = m
+    ? m[1] === "B"
+      ? `${Math.floor(Number(m[2]))}–${Math.floor(Number(m[2])) + 1}°`
+      : `${Math.floor(Number(m[2])) + 1}°+`
+    : null;
+  const sideTxt = side === "no" ? "No" : side === "yes" ? "Yes" : null;
+  // The bracket reads as part of the name ("LA high 80–81°"); only the side is
+  // a separate fact, so only it gets a separator.
+  const name = `🌡 ${city} high${range ? ` ${range}` : ""}`;
+  return sideTxt ? `${name} · ${sideTxt}` : name;
+};
+/* Which of a city's positions to read the temps strip off. Not simply the first
+ * one: ~1 in 13 weather rows comes back with the snapshot stripped, and if that
+ * row happens to lead the city the whole strip renders blank even though a
+ * sibling row on the same market is carrying the temps. Falls back to the first
+ * row so a city with nothing at all still hits WeatherNow's own null guard. */
+const weatherStripDisplay = (rows) => {
+  for (const b of rows) {
+    const w = (b.display || {}).weather;
+    if (
+      w &&
+      (w.current_temp != null ||
+        w.obs_max != null ||
+        w.forecast_high != null ||
+        w.peak_at)
+    ) {
+      return b.display;
+    }
+  }
+  return (rows[0] || {}).display;
 };
 
 const gameKeyOf = (leg) => {
@@ -2224,6 +2311,29 @@ export default function MyBets() {
       return next;
     });
 
+  /* Weather layout: false = one card per day, cities as sections inside it
+   * (the default); true = a separate card per city. Eight city-day cards was
+   * the original layout and was unreadable when every city had a position, but
+   * with only two or three cities in play the per-day card gets tall and the
+   * cities are easier to compare side by side — so it's a choice, not a rule. */
+  const [wxByCity, setWxByCity] = useState(() => {
+    try {
+      return localStorage.getItem(WX_GROUP_STORAGE_KEY) === "city";
+    } catch {
+      return false;
+    }
+  });
+  const toggleWxByCity = () =>
+    setWxByCity((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(WX_GROUP_STORAGE_KEY, next ? "city" : "day");
+      } catch {
+        /* layout still switches this session */
+      }
+      return next;
+    });
+
   /* Fetch positions + balance. Deliberately does NOT raise the `loading` flag on
    * the way in: `loading` starts true (so mount already reads as loading) and
    * the only other caller that wants the Refresh button to say "Loading…" is a
@@ -2412,10 +2522,18 @@ export default function MyBets() {
      here rather than at the top of the component because `bets` is derived
      above — the call is still unconditional, which is all hook order needs. */
   const gridRef = useRef(null);
-  useMasonry(gridRef, [bets.length, tab, sort.key, sort.dir]);
+  /* wxByCity is in the deps because switching it changes how many cards the
+     grid holds (one per day vs one per city-day), which the ResizeObserver
+     alone wouldn't see as a repack trigger. */
+  useMasonry(gridRef, [bets.length, tab, sort.key, sort.dir, wxByCity]);
   // Counts only the user's own dismissals: "Show all" must not resurrect a
   // permanently-hidden card, so those aren't part of this count either.
   const hiddenCount = hideable.length - bets.length;
+  // Gates the weather layout toggle: nothing to group on a day with no
+  // temperature positions, so the chip stays off the sort row entirely.
+  const hasWeatherBets = bets.some((b) =>
+    WEATHER_TICKER_RE.test(b.ticker || ""),
+  );
   const totalPnl = allBets.reduce(
     (acc, b) => acc + (Number(b.display?.total_pnl_dollars) || 0),
     0,
@@ -2517,7 +2635,9 @@ export default function MyBets() {
   // window) have no card above, so they carry their own.
   soldByTicker.forEach((sale, ticker) => {
     if (sale.matched) return;
-    const label = sale.rows.find((r) => r.label)?.label;
+    const label =
+      sale.rows.find((r) => r.label)?.label ||
+      weatherTickerTitle(ticker, sale.rows[0]?.side);
     hist.push({
       key: `sale:${ticker}`,
       at: sale.rows.reduce(
@@ -2742,6 +2862,25 @@ export default function MyBets() {
                     {sort.key === s.key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}
                   </button>
                 ))}
+                {/* Layout, not a sort key — hence the divider, so it doesn't
+                    read as a sixth thing to sort by. */}
+                {hasWeatherBets ? (
+                  <>
+                    <span style={S.sortDivider} aria-hidden="true" />
+                    <button
+                      style={S.sortBtn(wxByCity)}
+                      onClick={toggleWxByCity}
+                      title={
+                        wxByCity
+                          ? "Weather: one card per city — click to group the day's cities on one card"
+                          : "Weather: cities grouped by day — click to split them into a card per city"
+                      }
+                      aria-pressed={wxByCity}
+                    >
+                      🌡 By city{wxByCity ? " ✓" : ""}
+                    </button>
+                  </>
+                ) : null}
               </div>
               {decidedCount > 0 ? (
                 <span style={S.muted}>
@@ -2780,8 +2919,14 @@ export default function MyBets() {
                   const leg0 = legs[0] || {};
                   const isWeather = WEATHER_TICKER_RE.test(b.ticker || "");
                   const wxDay = isWeather ? weatherDayChunk(b.ticker) : null;
+                  // Only set when the by-city layout is on, so the render below
+                  // can branch on the group itself.
+                  const wxCity =
+                    isWeather && wxByCity ? weatherCityOf(b) : null;
                   const key = isWeather
-                    ? `weather:${wxDay}`
+                    ? wxCity
+                      ? `weather:${wxDay}:${wxCity}`
+                      : `weather:${wxDay}`
                     : isCombo
                       ? `parlay:${b.ticker}`
                       : gameKeyOf(leg0);
@@ -2791,6 +2936,7 @@ export default function MyBets() {
                       key,
                       isCombo: isWeather ? false : isCombo,
                       isWeather,
+                      wxCity,
                       game: isCombo ? null : leg0.game,
                       // Normalised, because the backend's league differs by horizon:
                       // "Crypto" for a 15m market but the bare asset ("XRP") for an
@@ -2817,7 +2963,9 @@ export default function MyBets() {
                           ? b.market.close_time || null
                           : null,
                       title: isWeather
-                        ? `🌡 High temps — ${weatherDayLabel(wxDay)}`
+                        ? wxCity
+                          ? `🌡 ${wxCity} — ${weatherDayLabel(wxDay)}`
+                          : `🌡 High temps — ${weatherDayLabel(wxDay)}`
                         : isCombo
                           ? `${legs.length || d.leg_count}-Leg Parlay`
                           : gameTitleOf(leg0, d.title),
@@ -2847,18 +2995,30 @@ export default function MyBets() {
                         hideBets(grp.positions.map((p) => p.ticker))
                       }
                     />
-                    {grp.isWeather ? (
+                    {grp.isWeather && grp.wxCity ? (
+                      /* By-city layout: the card IS one city, so the city name
+                         is already in the header — just the temps strip once,
+                         then the rows. */
+                      <>
+                        <WeatherNow
+                          d={weatherStripDisplay(grp.positions)}
+                          noCity
+                        />
+                        {grp.positions.map((b) => (
+                          <SingleRow b={b} key={b.ticker} showWeather={false} />
+                        ))}
+                      </>
+                    ) : grp.isWeather ? (
                       /* City sections: one temps strip per city, then that
                          city's rows without their own (identical) strip. */
                       (() => {
                         const cities = [];
                         const cityIx = new Map();
                         for (const b of grp.positions) {
-                          const w = (b.display || {}).weather || {};
-                          const c = w.city || String(b.ticker).split("-")[0];
+                          const c = weatherCityOf(b);
                           if (!cityIx.has(c)) {
                             cityIx.set(c, cities.length);
-                            cities.push({ city: c, first: b, rows: [] });
+                            cities.push({ city: c, rows: [] });
                           }
                           cities[cityIx.get(c)].rows.push(b);
                         }
@@ -2887,7 +3047,10 @@ export default function MyBets() {
                               >
                                 🌡 {sec.city}
                               </div>
-                              <WeatherNow d={sec.first.display} noCity />
+                              <WeatherNow
+                                d={weatherStripDisplay(sec.rows)}
+                                noCity
+                              />
                             </div>
                             {sec.rows.map((b) => (
                               <SingleRow
