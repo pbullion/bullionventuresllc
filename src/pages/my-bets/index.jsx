@@ -1455,7 +1455,10 @@ function LiveSituation({ sit, inning, compact }) {
       </div>
       <div style={S.sitMeta}>
         {hasCount ? (
-          <span style={S.sitCount} aria-label={`Count ${sit.balls}-${sit.strikes}`}>
+          <span
+            style={S.sitCount}
+            aria-label={`Count ${sit.balls}-${sit.strikes}`}
+          >
             {sit.balls}-{sit.strikes}
             <span style={S.sitCountLabel}>count</span>
           </span>
@@ -1728,6 +1731,95 @@ function CloseCountdown({ closeTime }) {
   );
 }
 
+/* HOW MUCH CLIMBING IS LEFT — the time until the day's high can no longer rise.
+ *
+ * Patrick, 2026-08-20: "a time remaining countdown to 'about' when the high
+ * would be". `at` is the end of the warmest stretch of the city's own hourly
+ * forecast (services/weatherModel.js forecastPeak), not a climatological "highs
+ * are usually around 4pm" — LAX peaks early behind a sea breeze and a front can
+ * put the high at 10am, and those are exactly the days a 1-degree bracket turns
+ * on.
+ *
+ * A STACKED STAT, not a chip, because it belongs to the Now / High so far /
+ * Forecast row it sits in — it is the fourth figure in that reading, not a badge
+ * about the market. Markup is duplicated from WeatherNow's local `Stat` rather
+ * than shared: `Stat` is defined during WeatherNow's render, and this file
+ * already carries eslint errors for that pattern, so passing a component across
+ * the boundary would add another.
+ *
+ * THE CLOCK TIME IS DELIBERATELY ONLY IN THE TOOLTIP, and only in Central. The
+ * peak is a moment in the CITY's local time, but this page guarantees Central
+ * everywhere (see gameDetail — there is a regex catching Eastern strings that
+ * slip through), and quietly introducing a third convention on a card headed
+ * "Denver" would be worse than omitting it. The countdown needs no timezone at
+ * all, which is why it is the part on screen.
+ *
+ * Minutes, on a 30s tick: an hours-away peak has no use for a second hand, and
+ * this renders once per city section on a list that already re-renders every
+ * 15s. Recomputed from Date.now() each tick, like CloseCountdown, so a
+ * throttled background tab resumes correct instead of however far behind it
+ * fell. */
+function PeakCountdown({ at }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const id = setInterval(tick, 30000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, []);
+  const end = new Date(at).getTime();
+  if (!Number.isFinite(end)) return null;
+  const mins = Math.round((end - now) / 60000);
+  /* Past the peak the market is decided in all but name: the temperature can
+     still be read, but it can no longer beat what it already did. Say that
+     rather than counting into negative numbers. */
+  const passed = mins <= 0;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const value = passed ? "passed" : h ? `${h}h ${m}m` : `${m}m`;
+  const clock = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Chicago",
+  }).format(new Date(end));
+  return (
+    <span
+      style={{ display: "inline-flex", flexDirection: "column", gap: 1 }}
+      title={
+        passed
+          ? `The forecast high was reached by ${clock} CT — it can't climb further`
+          : `Forecast high locked in by about ${clock} CT`
+      }
+    >
+      <span
+        style={{
+          color: C.muted,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {passed ? "Peak" : "High in"}
+      </span>
+      <span
+        style={{
+          color: passed ? C.muted : C.text,
+          fontSize: 14,
+          fontWeight: 800,
+          lineHeight: 1.1,
+        }}
+      >
+        {value}
+      </span>
+    </span>
+  );
+}
+
 function GameHeader({ grp, onHide }) {
   const g = grp.game;
   const live = !grp.isCombo && g && g.state === "in";
@@ -1870,6 +1962,9 @@ function WeatherNow({ d, noCity = false }) {
       {/* The number the market literally settles on, as of this moment. */}
       <Stat label="High so far" value={deg(w.obs_max)} />
       <Stat label="Forecast" value={deg(w.forecast_high)} />
+      {/* Renders nothing when the scan had no forecast peak to record, or when
+          the peak_at column has not been applied yet. */}
+      {w.peak_at && <PeakCountdown at={w.peak_at} />}
     </div>
   );
 }
@@ -2634,7 +2729,9 @@ export default function MyBets() {
                 ))}
               </div>
               {decidedCount > 0 ? (
-                <span style={S.muted}>{decidedCount} decided (1%) not shown</span>
+                <span style={S.muted}>
+                  {decidedCount} decided (1%) not shown
+                </span>
               ) : null}
               {hiddenCount > 0 ? (
                 <button style={S.showHiddenBtn} onClick={unhideAll}>
