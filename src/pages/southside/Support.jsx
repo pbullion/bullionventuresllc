@@ -59,7 +59,7 @@ const GROUPS = [
       },
       {
         q: 'I forgot my password.',
-        a: 'Email us at the address above and we will get you back in.',
+        a: 'On the Sign In screen, tap "Forgot your password?". Enter the email you signed up with and we\u2019ll send you a 6-digit code — type it into the app along with a new password and you\u2019re back in. The code lasts 15 minutes. If nothing arrives, check your junk folder; the email comes from Southside Baptist Church. Still stuck? Call the church office.',
       },
     ],
   },

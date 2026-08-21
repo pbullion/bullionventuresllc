@@ -1,0 +1,307 @@
+# Agent notes for bullionventuresllc
+
+Vite + React marketing/tools site for Bullion Ventures LLC. Single SPA; each
+project/tool is a page under `src/pages/`, wired up in `src/App.jsx`.
+
+See `docs/HANDOFF.md` for architecture rationale, the full backend-coupling
+table, known issues, and roadmap.
+
+## Commands
+
+```bash
+npm install
+npm run dev        # Vite dev server
+npm run lint       # eslint . — the only check; keep it at zero errors
+npm run build      # vite build → dist/
+```
+
+No tests, no CI. Local dev hits the **production** backend (URLs are
+hardcoded); there are no env vars anywhere in this repo.
+
+## Git
+
+**Always `git pull` before `git push`.** Commits reach these repos from other
+machines and from other Codex sessions, so pushing without pulling first either
+gets rejected or silently interleaves your work with someone else's.
+
+```bash
+git pull --rebase && git push
+```
+
+`--rebase` keeps history linear (these are single-author repos — no merge commits
+for your own work). On a conflict, resolve it and `git rebase --continue`; never
+force-push to get around a rejected push.
+
+## Deploy
+
+- **Hosted on AWS Amplify.** It auto-deploys on push to the `master` branch —
+  there is no manual deploy step. Push to `origin/master` and Amplify builds and
+  ships it. (No `vercel.json`/`netlify.toml` in the repo for this reason.)
+- Every push to master is therefore a **production deploy**. There is no
+  staging. Roll back by reverting and pushing.
+
+## Adding a new page/tool — ALWAYS also add it to the homepage
+
+When you add a new tool/page, do **all** of these, not just the route:
+
+1. Create the page under `src/pages/<name>/index.jsx` (or `Home.jsx`).
+2. Import it and add a `<Route>` in `src/App.jsx`.
+3. If it's a full-screen tool that should hide the site nav/footer, add its path
+   to the `hideChrome` logic in `src/App.jsx` (see `isMyBets`, `isTotalsValue`,
+   `isGulfHurricane`, etc.).
+4. **Add a card to the homepage.** Append an entry to either the `apps` or the
+   `tools` array in `src/pages/Home.jsx` (`icon` or `emoji`, `name`, `path`,
+   `tagline`, `description`) so the new tool is discoverable from the landing
+   page. `apps` are products with their own landing/support/privacy pages;
+   `tools` are single-page utilities that run in the browser here. This step is
+   easy to forget — do not skip it. (Wedding-photos and mothers-day-2026 are
+   cardless on purpose — private pages.)
+   - **`/ashley` is cardless AND unlisted, on purpose.** Ashley's client
+     transition tracker (`src/pages/ashley/`) is on neither the home page nor
+     `PRIVATE_TOOLS` — it isn't a tool for site visitors, it's one person's book
+     of commercial-banking client relationships, and it's reached by typing the
+     URL. Unlike every other page here, it is **genuinely protected**: real
+     email/password login, JWT in `localStorage["ash_token"]`, and
+     `routes/ashley.js` requires a bearer token on every endpoint including the
+     reads. Needs `ASHLEY_JWT_SECRET` and `ASHLEY_SIGNUP_CODE` set on Heroku.
+   - **`/patrick` is cardless AND unlisted too.** Patrick's own project board
+     (`src/pages/patrick/`) — one mini todo board per app he is still finishing.
+     Not on the home page, not in `PRIVATE_TOOLS`, no login, reached by typing
+     the URL. See its own section below.
+   - **Betting screens go somewhere else.** The five Kalshi/betting pages are
+     kept off the public home page (Patrick, 2026-07-30) and live in
+     `PRIVATE_TOOLS` in `src/components/PrivateTools.jsx`, reached by
+     long-pressing the navbar wordmark. Add a betting page there instead — and
+     note that hiding it is obscurity only: the route stays public and
+     unauthenticated.
+
+## The one page with build-time data (`/hrw`)
+
+Houston Restaurant Weeks gets all of its restaurant data without a backend.
+`scripts/build-hrw-data.mjs` reads a public Google Sheet, geocodes the addresses,
+and writes the committed static asset `public/data/hrw-2026.json` (385
+restaurants, 9,127 dishes); the page fetches that file and filters in the
+browser. **Reader reviews are the one exception** — they can't be static, so they
+call `/hrw` on the Sheline backend; see the Backend section and
+`src/pages/hrw/reviews.js`.
+
+```bash
+node scripts/build-hrw-data.mjs   # re-read the sheet, then commit the JSON
+```
+
+- **Read the header comment in that script before changing it.** Two
+  non-obvious things are load-bearing: tabs are addressed by numeric **gid**
+  (the gviz `?sheet=<name>` endpoint returns 200 while silently dropping rows),
+  and rows join on **Source URL**, not restaurant name (two McCormick &
+  Schmick's locations share a name).
+- Geocoding pins 367 of 385. `scripts/hrw-geocache.json` is committed and
+  hand-editable — fix a bad or missing pin there, not in the parser. Misses are
+  cached as `null` on purpose; delete an entry to force a retry.
+- Rationale, trade-offs and the full trap list: `docs/HANDOFF.md`.
+- `leaflet` is a dependency of this page only, lazy-loaded in `MapView.jsx` and
+  `MiniMap.jsx` so it stays out of the main bundle. Map tiles come from CARTO
+  (free, keyless, attributed).
+- **Reviews attach to a PLACE, not to a row.** The sheet has 20 Saltgrass rows
+  and 6 Fadi's; `src/pages/hrw/places.js` groups the 385 rows into 285 places
+  (41 of them multi-location) so a review written at one location is read at all
+  of them. The grouping is derived from the names — it strips neighbourhood
+  suffixes using the dataset's own neighborhood column — and it is deliberately
+  conservative: a shortened name is only adopted when another row collides with
+  it, which is what keeps "Fielding's Local" and "Fielding's Steak" apart.
+  **Fix a wrong grouping in that file's `OVERRIDES` map, keyed by slug — don't
+  tune the regexes.** Changing how a key is computed orphans the reviews already
+  stored under the old key.
+
+## Backend
+
+Data-driven tools call the shared Sheline backend at
+`https://sheline-art-website-api.herokuapp.com` (e.g. `/kalshi` for My Bets &
+Totals Value, `/nhc/current-storms` for the Gulf Hurricane screen). That backend
+lives in the `shelineArtWebsiteAPI` repo and deploys separately via
+`git push heroku main`.
+
+Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
+
+| Page | Backend routes |
+| --- | --- |
+| `/my-bets`, `/totals-value` | `/kalshi` |
+| `/crypto-value` | `/kalshi-crypto` |
+| `/elite-edge-advisors` | `/elite-edge-advisors`, `/odds`, `/parlays` |
+| `/gulf-hurricane` | `/nhc` |
+| `/tesla-dashboard` | `/patrick`, `/odds-screen` |
+| `/prospects` | `/prospects` |
+| `/ashley` | `/ashley` |
+| `/patrick` | `/patrick-board` (NOT `/patrick` — that prefix is the Tesla dashboard's feed) |
+| `/hrw` | `/hrw` (reviews only — restaurant data is the static `public/data/hrw-2026.json`, see above) |
+
+- The site does **not** call `/bullion-ventures` (that backend route is
+  push-notification plumbing, not a website API) and does **not** call
+  `/weather` (dashboard weather comes via `/patrick/tesla-dashboard-weather`).
+- For the betting UI's data model, read the backend repo's
+  `docs/betting-engine.md`, `docs/auto-bet-spec.md`, and `docs/totals-value.md`
+  — do not re-derive it from the JSX. The crypto page's data model is
+  `docs/crypto-engine-spec.md` in the same repo.
+- There is no shared schema contract — couplings are hardcoded URL strings.
+  Grep this repo for the endpoint path before reshaping any backend response.
+- Backend platform constraints (30s timeout, `{}` error bodies, deploys) are
+  in `sheline-art-website-api/docs/HANDOFF.md`.
+
+## `/prospects` — the Houston C&I prospect book
+
+A second tool for the same person as `/ashley`, sharing no code with it on
+purpose. `/ashley` works the book she already owns; `/prospects`
+(`src/pages/prospects/`) works the market — greater-Houston C&I operating
+companies over roughly $50M of revenue — and answers "who do I call next, and
+what do I know before I dial". Routes are `/prospects` and `/prospects/:slug`,
+both rendering `index.jsx`, so one company is bookmarkable.
+
+- **Cardless AND unlisted, like `/ashley`** — not on the home page, not in
+  `PRIVATE_TOOLS`. Reached by typing the URL.
+- **Unlike `/ashley`, there is NO LOGIN** (Patrick, 2026-08-13). Anyone who
+  reaches the URL can read, edit and delete the whole book. The seeded catalog is
+  public information; the overlay of statuses, notes and contacts is not. Setting
+  `PROSPECTS_ACCESS_CODE` on Heroku turns on a shared-code gate (sent as
+  `X-Prospects-Code`, cached in `localStorage["pros_code"]`) with **no frontend
+  change** — `GET /prospects/meta` reports whether it is on.
+- **The catalog lives in the BACKEND repo**, not here — seeded on boot from
+  `data/prospects-houston-seed.json`, keyed on slug with `ON CONFLICT DO
+  NOTHING`. A redeploy inserts what is new to that file and never overwrites a
+  row she has edited.
+- **Revenue is a band with a basis attached**, never a bare number: `filing` for
+  a public reporter, `estimate` for an outside guess at a private company,
+  `not_reported` for a US arm that doesn't break itself out. Keep that
+  distinction in any new UI — it is the difference between a figure she can quote
+  and one she has to confirm.
+- **The target band is $50–100M** (`TARGET_BAND` in `ui.js`), and it is the
+  default filter on a first visit. **The seeded catalog does not cover it well
+  and cannot be made to** — only ~22 of the 184 records overlap $50–100M and none
+  sit wholly inside it, because revenue is publicly knowable only once a company
+  is big enough to file or to be written about. Don't "fix" this by inventing
+  figures for small private firms; a list that looks right and is wrong is worse
+  than a short one. Real coverage comes from the importer.
+- **Archive and delete are different, and both exist.** Archive is a PATCH of
+  `archived` and loses nothing; the list fetches with `?archived=true` and hides
+  them client-side so "Show archived" in Filters can bring one back. Delete is
+  real, including for seeded rows — and it **tombstones the slug** in
+  `pros_deleted_slugs`, because the seeder inserts any slug it can't find and the
+  delete would otherwise undo itself on the next deploy. The ⋯ menu lists
+  tombstoned companies with a "Put back" that restores the catalog record only
+  (its notes and contacts are gone) — so don't present restore as a full undo.
+- **No invented contact data, deliberately.** The seed ships no direct emails and
+  no cell numbers, and the officer names it does carry are flagged `unverified`
+  (a name from an August filing is wrong by October). Each company instead gets
+  one-tap research links built from its own fields — `researchLinks` in `ui.js`:
+  Google News, a LinkedIn people search for the CFO/treasurer/controller, EDGAR
+  for public filers, the TX entity lookup. **Don't "improve" this by hardcoding
+  people** — a stale name on a cold call is worse than a search that works.
+- Search and filters run in the browser over one `GET /companies` (~190 KB for
+  184 companies), so the list keeps working on a bad connection. Revisit only if
+  it passes a few thousand rows.
+- Phone-first: every number, email, address and website is a real
+  `tel:`/`mailto:`/maps/`https` link, inputs are 16px so iOS doesn't zoom, and
+  modals are bottom sheets (`Sheet.jsx`).
+
+## `/patrick` — Patrick's project board
+
+A wall of mini todo boards, one card per app he is still finishing
+(`src/pages/patrick/`). Built 2026-08-13. The premise is that **everything is on
+one screen**: no project route, no task detail view, no navigation at all. Every
+write happens in place on the card. Anything that would need a second screen to
+see or change a task does not belong on this page.
+
+- **Backend is `/patrick-board`, not `/patrick`.** The `/patrick` prefix on the
+  Sheline backend is 6,000+ lines of Tesla dashboard and sports scraping with its
+  own crons; the board is a separate router (`routes/patrickBoard.js`) sharing
+  nothing with it. Only the frontend path is `/patrick`.
+- **A task is OPEN or DONE and nothing else** (Patrick, 2026-08-13, asked
+  directly and against a doing/blocked middle state). Rank is expressed by ORDER
+  instead — hence the `↑` on every open row, which is a `PATCH {top:true}` the
+  backend resolves to `min(position) - 1` itself. Don't add a status field; add
+  a way to order things.
+- **The "Next up" strip reads the top open task of each card.** It is not a
+  cross-project priority list — there is no ranking to build one from, and
+  inventing one would be a number he'd have to maintain.
+- **No login, no access code.** Same call as `/prospects`: anyone reaching the
+  URL can read and edit. What's exposed is a list of his own side projects. If
+  that changes, copy the `PROSPECTS_ACCESS_CODE` switch out of
+  `routes/prospects.js` — a dozen lines, no frontend deploy.
+- **Deletes are soft, so Undo is a real restore**, not a re-create with new ids.
+  Deleting a project keeps its tasks and `POST /projects/:id/restore` brings the
+  card back intact. Nothing purges the dead rows.
+- **Every write is optimistic and a failure REFETCHES `/state`** rather than
+  rolling back by hand. The whole board is one small request, so a refetch is
+  both simpler and more truthful — it also picks up edits made on another device.
+- The add box handles Enter itself instead of relying on implicit form
+  submission. Typing a task and pressing Enter is the single most common action
+  on the page; it doesn't get to depend on a browser corner case.
+- **Capture is `POST /patrick-board/capture`** — a Siri Shortcut named "Codex"
+  dictates a sentence and posts it. Routing is a leading project name
+  (`"cellr fix the parser"` → the cellr board), everything else lands in an
+  **Inbox** board created on first use and pinned to the front of the wall.
+  Matching is done on WORDS, not whitespace tokens, because dictation supplies
+  neither punctuation nor hyphens — `"southside app ..."`, `"southside-app ..."`
+  and `"Southside App: ..."` all have to hit the same board. Longest name wins,
+  which is what keeps `daycare-memory-vault` out of `daycare`.
+  - It is the **one endpoint with a key** (`PATRICK_BOARD_CAPTURE_KEY`, sent as
+    `X-Capture-Key`), and the key is required — unset returns 503. The rest of
+    this API is open because using it means already having the unlisted URL; a
+    capture URL lives in a Shortcut and writes on every call.
+  - The response carries a `spoken` string ("Added to cellr.") for the Shortcut
+    to read back. Naming the board IS the confirmation — it's how you learn the
+    prefix was heard the way you meant it.
+- **A task can be moved between boards** (`PATCH /tasks/:id {project_id}`, the
+  `→` on a task row). This exists *for* capture — an Inbox that can't be filed
+  is a dead end — and it appends to the destination rather than carrying its old
+  position into a list it has never been ranked against.
+- Local dev: `node scripts/patrick-board-local.js` in the backend repo (port
+  3003) — `api.js` points at localhost automatically when served from localhost,
+  so a UI experiment can't reorder the live board.
+
+## Conventions
+
+- One folder per tool under `src/pages/`; pages are self-contained single
+  files with inline style objects (no CSS-in-JS lib in new code).
+- New code uses `fetch` and `date-fns`. `axios`, `moment`, and MUI appear only
+  in older pages (tesla-dashboard, elite-edge, zargle) — don't spread them.
+- API base URLs are `const API_BASE = "..."` at the top of the page file.
+- **The logo geometry is duplicated on purpose** — `public/favicon.svg` (the
+  tab) and `src/components/Logo.jsx` (inline, so the sticky navbar never flashes
+  a late-loading image). Edit one, edit the other. `public/apple-touch-icon.png`
+  and `public/images/logo-512.png` are generated from it with `rsvg-convert`;
+  see `docs/logo-brief.md` for the command and the brand rationale.
+
+## Hard rules and gotchas
+
+- **Never remove the `/wnba-value` → `/totals-value` redirect** in
+  `src/App.jsx` — the old URL is still in the wild.
+- **Every auto-bet control is PIN-gated** on `/totals-value` AND
+  `/crypto-value` — kill, enable and daily-cap alike. The PIN lives in
+  `localStorage["bv_autobet_pin"]` and is verified server-side; both pages go
+  through their own `postWithPin` helper, which caches on success and reprompts
+  once on 401. Changed 2026-07-27 at Patrick's request; before that kill was
+  open and only loosening prompted. Note the tradeoff this accepted: the
+  emergency stop now needs the PIN on a browser that has never used it.
+- **Do not re-enable the recurring push crons** in the backend's
+  `routes/bullion_ventures.js` — hard-disabled 2026-07-22 (commented out, not
+  env-gated) because the auto-bettor's per-bet pushes made them redundant
+  spam. The code comments there say why; manual `/push/test` still works.
+- **Trip Planner has TWO different PINs, and they are not interchangeable.**
+  The *access* PIN is per trip, chosen when the trip is created, cached in
+  `localStorage["bv_trip_access_<slug>"]` and sent as `x-trip-access-pin` on
+  every request — it's what the families type to open a trip. The *admin* PIN
+  is one shared value (`TRIP_PLANNER_PIN`, header `x-trip-pin`) and only guards
+  deletes and the recycle bin. Sharing a trip must never hand anyone the second
+  one. **Every backend call in `Trip.jsx` must go through `tripFetch()`** from
+  `tripPin.js`; a raw `fetch` 401s on a locked trip and looks to the user like a
+  save that silently did nothing. Trips created before 2026-08-13 have no access
+  PIN and stay open — that's grandfathering, not a supported mode.
+- Betting pages poll (15s my-bets, 30s totals-value panel). Keep any new
+  polling interval ≥ that order — every tab multiplies Kalshi API load.
+- ESPN (`site.api.espn.com`) is called directly from the browser with no key —
+  when a sports widget breaks for no visible reason, suspect ESPN first.
+- MyBookie↔ESPN team-name mismatches are fixed by adding to `nameAliases` in
+  `src/pages/elite-edge-advisors/InputBets.jsx` (normalized form), not by
+  changing `normalizeName`.
+- `src/pages/kentucky-derby/Tracker.jsx` is orphaned (no route) — slated for
+  deletion; don't build on it. Same for the unused HEIC originals in
+  `src/pages/mothers-day-2026/pics/` (the page serves `public/` JPGs).
