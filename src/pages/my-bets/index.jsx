@@ -1202,14 +1202,24 @@ const WEATHER_MONTHS = {
   NOV: 10,
   DEC: 11,
 };
+/* The market day as a bare date ("Aug 20"), for places where "Today" would be
+ * wrong: a history card can be read weeks later, and a weather market settles
+ * the MORNING AFTER the day it measured — so "Today" on a settled card would
+ * name the wrong day outright. Returns null on an unparseable chunk. */
+const weatherDayDate = (chunk) => {
+  const m = /^(\d{2})([A-Z]{3})(\d{2})$/.exec(String(chunk || ""));
+  if (!m || WEATHER_MONTHS[m[2]] == null) return null;
+  return new Date(
+    2000 + Number(m[1]),
+    WEATHER_MONTHS[m[2]],
+    Number(m[3]),
+  ).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
 const weatherDayLabel = (chunk) => {
   const m = /^(\d{2})([A-Z]{3})(\d{2})$/.exec(String(chunk || ""));
   if (!m || WEATHER_MONTHS[m[2]] == null) return chunk || "—";
   const d = new Date(2000 + Number(m[1]), WEATHER_MONTHS[m[2]], Number(m[3]));
-  const label = d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  const label = weatherDayDate(chunk);
   const today = new Date();
   const tomorrow = new Date(today.getTime() + 86400000);
   const same = (a, b) =>
@@ -1235,11 +1245,16 @@ const weatherCityOf = (b) => {
   return seg || "—";
 };
 /* City names by weather series, mirroring WEATHER_CITY in the backend's
- * routes/kalshi.js. Needed because one weather card reaches this page with no
- * snapshot behind it to name it: a cash-out whose market hasn't settled yet.
- * /kalshi/cashouts derives its `label` from the crypto and sports ledgers only,
- * so every weather sale arrives label-less and the card printed the bare ticker
- * (Patrick, 2026-08-21: "idk what these are"). */
+ * routes/kalshi.js. Needed because the History tab names a weather bet from
+ * NOTHING BUT its ticker — neither kind of card there has a city to read:
+ *   - a cash-out whose market hasn't settled yet has no position behind it, and
+ *     /kalshi/cashouts derives its `label` from the crypto and sports ledgers
+ *     only, so every weather sale arrives label-less;
+ *   - a settled bet carries Kalshi's own title, which names the degrees and the
+ *     date but NOT the city ("Will the maximum temperature be 83-84° on Aug 20,
+ *     2026?"), so two cities' cards read identically.
+ * Both printed something meaningless (Patrick, 2026-08-21: "idk what these
+ * are"). */
 const WEATHER_SERIES_CITY = {
   KXHIGHNY: "NYC",
   KXHIGHCHI: "Chicago",
@@ -1258,21 +1273,70 @@ const WEATHER_SERIES_CITY = {
  * above-x threshold, which in whole degrees settles at x+1 and up (the engine
  * stores "86..Infinity" for T85). The market day is deliberately left out —
  * the card's own sub-line already carries the sale timestamp. */
-const weatherTickerTitle = (ticker, side) => {
+const weatherTickerTitle = (ticker, side, bracket) => {
   const parts = String(ticker || "").split("-");
-  const city = WEATHER_SERIES_CITY[parts[0]];
+  if (!/^KXHIGH/.test(parts[0] || "")) return null;
+  /* An unnamed series still names itself off the ticker rather than falling
+     back to the raw string — a new city (this map has needed a hand-edit for
+     each of the seven) would otherwise put the ticker back on the card, which
+     is the bug this function exists to fix. */
+  const city = WEATHER_SERIES_CITY[parts[0]] || parts[0].replace(/^KXHIGH/, "");
   if (!city) return null;
-  const m = /^([BT])(\d+(?:\.\d+)?)$/.exec(String(parts[2] || ""));
-  const range = m
-    ? m[1] === "B"
-      ? `${Math.floor(Number(m[2]))}–${Math.floor(Number(m[2])) + 1}°`
-      : `${Math.floor(Number(m[2])) + 1}°+`
-    : null;
   const sideTxt = side === "no" ? "No" : side === "yes" ? "Yes" : null;
-  // The bracket reads as part of the name ("LA high 80–81°"); only the side is
-  // a separate fact, so only it gets a separator.
+  // The bracket reads as part of the name ("LA high 80–81°"); the day and the
+  // side are separate facts, so they get separators.
+  const range = bracket || weatherBracketFromTicker(parts[2]);
   const name = `🌡 ${city} high${range ? ` ${range}` : ""}`;
-  return sideTxt ? `${name} · ${sideTxt}` : name;
+  return [name, weatherDayDate(weatherDayChunk(ticker)), sideTxt]
+    .filter(Boolean)
+    .join(" · ");
+};
+
+/* The bracket a weather ticker's strike suffix names, or null when the ticker
+ * cannot say.
+ *
+ * B{x}.5 is Kalshi's degree-wide between market and is unambiguous: the live
+ * markets confirm it ("…-B94.5" carries the sub-title "94° to 95°", and the
+ * engine stores that same market as "94..95").
+ *
+ * A T suffix is NOT readable, and that is the whole point of this function
+ * returning null: Kalshi uses T for BOTH thresholds, so KXHIGHCHI-26AUG20-T77
+ * is "<77°" while KXHIGHPHIL-26AUG20-T87 is ">87°". Guessing one direction
+ * prints the wrong bracket on half of them, which is worse than printing none —
+ * so a T card shows "🌡 NYC high · Aug 21 · No" unless a caller passes the real
+ * bracket from an authority (the market's own title, or the engine's ledger). */
+const weatherBracketFromTicker = (strike) => {
+  const m = /^B(\d+)(?:\.\d+)?$/.exec(String(strike || ""));
+  return m ? `${Number(m[1])}–${Number(m[1]) + 1}°` : null;
+};
+
+/* Bracket phrase out of the weather engine's own stored bracket ("94..95",
+ * "86..Infinity", "-Infinity..76") — the authority for a cash-out card, whose
+ * market has not settled and which carries no market title. Rides the
+ * /kalshi/cashouts row as wx_bracket. */
+const weatherBracketPhrase = (raw) => {
+  const parts = String(raw || "").split("..");
+  if (parts.length !== 2) return null;
+  const [lo, hi] = parts;
+  if (hi === "Infinity") return lo && lo !== "-Infinity" ? `${lo}°+` : null;
+  if (lo === "-Infinity") return hi ? `≤${hi}°` : null;
+  return `${lo}–${hi}°`;
+};
+
+/* Bracket phrase out of Kalshi's own market title — the authority for a settled
+ * card ("Will the maximum temperature be 83-84° on Aug 20, 2026?", "…be <77°
+ * on…", "…be >87° on…"). Thresholds are converted to the whole-degree form the
+ * engine uses and these markets settle on (">87°" -> "88°+", "<77°" -> "≤76°",
+ * matching the ledger's own "88..Infinity" / "-Infinity..76"). */
+const weatherBracketFromTitle = (title) => {
+  const t = String(title || "");
+  const between = /be\s*(\d+)\s*-\s*(\d+)\s*°/.exec(t);
+  if (between) return `${between[1]}–${between[2]}°`;
+  const above = /be\s*>\s*(\d+)\s*°/.exec(t);
+  if (above) return `${Number(above[1]) + 1}°+`;
+  const below = /be\s*<\s*(\d+)\s*°/.exec(t);
+  if (below) return `≤${Number(below[1]) - 1}°`;
+  return null;
 };
 /* Which of a city's positions to read the temps strip off. Not simply the first
  * one: ~1 in 13 weather rows comes back with the snapshot stripped, and if that
@@ -2602,7 +2666,16 @@ export default function MyBets() {
     return {
       key: `bet:${s.ticker}`,
       at: d.settled_time || s.settled_time,
-      title: null, // HistoryCard derives it from the legs / market title
+      /* Weather is titled from its ticker; everything else is left null for
+         HistoryCard to derive from the legs / market title. Kalshi's own
+         weather title omits the city, and a settled weather bet arrives with
+         no legs (leg_count 0), so the card had nothing on it that said which
+         city — four cards on the same day read as near-duplicates. */
+      title: weatherTickerTitle(
+        s.ticker,
+        d.side,
+        weatherBracketFromTitle(d.title),
+      ),
       legs: Array.isArray(d.legs) ? d.legs : [],
       legCount: d.leg_count || 0,
       rawTitle: d.title,
@@ -2637,7 +2710,11 @@ export default function MyBets() {
     if (sale.matched) return;
     const label =
       sale.rows.find((r) => r.label)?.label ||
-      weatherTickerTitle(ticker, sale.rows[0]?.side);
+      weatherTickerTitle(
+        ticker,
+        sale.rows[0]?.side,
+        weatherBracketPhrase(sale.rows.find((r) => r.wx_bracket)?.wx_bracket),
+      );
     hist.push({
       key: `sale:${ticker}`,
       at: sale.rows.reduce(
