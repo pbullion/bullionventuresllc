@@ -5,8 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
  *   GET /ffdraft/board — consensus board (ESPN proj/ADP + FantasyPros ECR +
  *     FFCalculator ADP + Boris Chen tiers), league meta, pick order.
  *   GET /ffdraft/live  — ESPN mDraftDetail picks, polled during the draft.
- * Players can also be marked off manually (localStorage) as a fallback if
- * ESPN's feed lags — live data always wins on conflict. */
+ * Players can also be marked off manually as a fallback if ESPN's feed lags —
+ * marks live in Postgres (ffdraft_manual_marks) and ride along on the /live
+ * poll, so every device sees the same board. Live data wins on conflict. */
 
 const API = "https://sheline-art-website-api.herokuapp.com/ffdraft";
 const MY_TEAM_ID = 5; // Touchdown My Pants
@@ -41,8 +42,6 @@ const POS_COLOR = {
   K: "#8a93a6",
 };
 
-const MANUAL_KEY = "ffdraft-manual-v1";
-
 // standard normal CDF (Abramowitz & Stegun erf approximation)
 function normCdf(z) {
   const t = 1 / (1 + 0.2316419 * Math.abs(z));
@@ -69,24 +68,19 @@ function myPickNumbers(pickOrder) {
   return picks;
 }
 
-function loadManual() {
-  try {
-    return JSON.parse(localStorage.getItem(MANUAL_KEY)) || {};
-  } catch {
-    return {};
-  }
-}
-
 export default function FFDraft() {
   const [board, setBoard] = useState(null);
   const [boardErr, setBoardErr] = useState(null);
   const [live, setLive] = useState(null);
   const [liveErr, setLiveErr] = useState(null);
-  const [manual, setManual] = useState(loadManual); // {playerId: "other"|"mine"}
+  const [manual, setManual] = useState({}); // {playerId: "other"|"mine"} — server-backed
   const [posFilter, setPosFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [showDrafted, setShowDrafted] = useState(false);
   const liveRef = useRef(null);
+  // marks written but not yet confirmed by the server, so an in-flight poll
+  // response can't momentarily undo an optimistic click
+  const pendingRef = useRef(new Map()); // playerId -> "other"|"mine"|null
 
   useEffect(() => {
     let dead = false;
@@ -108,6 +102,12 @@ export default function FFDraft() {
         setLive(d);
         setLiveErr(null);
         liveRef.current = d;
+        const merged = { ...(d.marks || {}) };
+        for (const [id, mark] of pendingRef.current) {
+          if (mark) merged[id] = mark;
+          else delete merged[id];
+        }
+        setManual(merged);
       } catch (e) {
         if (!dead) setLiveErr(String(e));
       }
@@ -124,13 +124,23 @@ export default function FFDraft() {
   }, []);
 
   const setManualMark = (playerId, mark) => {
+    pendingRef.current.set(String(playerId), mark);
     setManual((prev) => {
       const next = { ...prev };
       if (mark) next[playerId] = mark;
       else delete next[playerId];
-      localStorage.setItem(MANUAL_KEY, JSON.stringify(next));
       return next;
     });
+    const req = mark
+      ? fetch(`${API}/marks/${playerId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mark }),
+        })
+      : fetch(`${API}/marks/${playerId}`, { method: "DELETE" });
+    // once the server answers (either way), the next poll is the truth — a
+    // failed write simply reverts on the following tick
+    req.finally(() => pendingRef.current.delete(String(playerId)));
   };
 
   const model = useMemo(() => {
@@ -358,6 +368,22 @@ export default function FFDraft() {
         >
           ● {status.label}
         </span>
+        {board.stale && (
+          <span
+            style={{
+              padding: "3px 10px",
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 700,
+              background: C.chipBg,
+              color: C.amber,
+              border: `1px solid ${C.border}`,
+            }}
+            title="A ranking source was unreachable — this board is the last good snapshot from the database. Live pick sync is unaffected."
+          >
+            ⚠ SNAPSHOT BOARD
+          </span>
+        )}
         <div style={{ flex: 1 }} />
         <label style={{ fontSize: 12, color: C.muted, cursor: "pointer" }}>
           <input
@@ -368,6 +394,28 @@ export default function FFDraft() {
           />
           show drafted
         </label>
+        {showDrafted && Object.keys(manual).length > 0 && (
+          <button
+            onClick={() => {
+              if (!window.confirm("Clear ALL manual marks for every device?"))
+                return;
+              pendingRef.current.clear();
+              setManual({});
+              fetch(`${API}/marks`, { method: "DELETE" });
+            }}
+            style={{
+              background: "transparent",
+              border: `1px solid ${C.border}`,
+              color: C.red,
+              borderRadius: 6,
+              padding: "2px 8px",
+              fontSize: 11,
+              cursor: "pointer",
+            }}
+          >
+            reset manual marks
+          </button>
+        )}
       </div>
 
       {/* on-the-clock banner */}
