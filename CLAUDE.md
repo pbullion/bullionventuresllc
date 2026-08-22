@@ -64,6 +64,10 @@ When you add a new tool/page, do **all** of these, not just the route:
      email/password login, JWT in `localStorage["ash_token"]`, and
      `routes/ashley.js` requires a bearer token on every endpoint including the
      reads. Needs `ASHLEY_JWT_SECRET` and `ASHLEY_SIGNUP_CODE` set on Heroku.
+   - **`/ffdraft` is cardless AND unlisted too** (Patrick, 2026-08-21).
+     Fantasy football draft war room (`src/pages/ffdraft/`) synced to his
+     private ESPN league via sheline `/ffdraft`. Personal tool, reached by
+     typing the URL — do not add a home page card.
    - **`/patrick` is cardless AND unlisted too.** Patrick's own project board
      (`src/pages/patrick/`) — one mini todo board per app he is still finishing.
      Not on the home page, not in `PRIVATE_TOOLS`, no login, reached by typing
