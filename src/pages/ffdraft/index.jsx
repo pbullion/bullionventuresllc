@@ -68,6 +68,49 @@ function myPickNumbers(pickOrder) {
   return picks;
 }
 
+// which team owns overall pick n in the snake
+function teamAtPick(pickOrder, n) {
+  const r = Math.ceil(n / TEAMS);
+  const within = n - (r - 1) * TEAMS;
+  return pickOrder[r % 2 === 1 ? within - 1 : TEAMS - within];
+}
+
+// P(player still available at overall pick n), from mock-draft ADP spread
+function availAt(p, n) {
+  if (p.ffcAdp == null) return 1;
+  const sd = p.ffcStdev && p.ffcStdev > 0 ? p.ffcStdev : 6;
+  return 1 - normCdf((n - p.ffcAdp) / sd);
+}
+
+// practice-mode bot: drafts by market ADP with noise, respecting the roster
+// shapes real drafters follow in this league (no kickers, late DST, <=2 QB/TE)
+function botSelect(avail, filled, round) {
+  const cands = avail.filter((p) => {
+    if (p.pos === "K") return false;
+    if (p.pos === "DST") return round >= 12 && (filled.DST || 0) < 1;
+    if (p.pos === "QB" && (filled.QB || 0) >= 2) return false;
+    if (p.pos === "TE" && (filled.TE || 0) >= 2) return false;
+    return true;
+  });
+  if (!cands.length) return avail[0];
+  if (round >= 12) {
+    const missing = ["QB", "TE", "DST"].filter((pos) => (filled[pos] || 0) < 1);
+    if (missing.length && Math.random() < 0.6) {
+      const pool = cands
+        .filter((p) => missing.includes(p.pos))
+        .sort((a, b) => (a.consensusRank ?? 999) - (b.consensusRank ?? 999));
+      if (pool.length) return pool[0];
+    }
+  }
+  let best = null;
+  for (const p of cands) {
+    const adp = p.ffcAdp ?? p.espnAdp ?? p.consensusRank ?? 400;
+    const s = adp * (1 + (Math.random() - 0.5) * 0.2);
+    if (!best || s < best.s) best = { p, s };
+  }
+  return best.p;
+}
+
 export default function FFDraft() {
   const [board, setBoard] = useState(null);
   const [boardErr, setBoardErr] = useState(null);
@@ -77,6 +120,7 @@ export default function FFDraft() {
   const [posFilter, setPosFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [showDrafted, setShowDrafted] = useState(false);
+  const [sim, setSim] = useState(null); // null | {picks: [{pick,teamId,playerId}]}
   const liveRef = useRef(null);
   // marks written but not yet confirmed by the server, so an in-flight poll
   // response can't momentarily undo an optimistic click
@@ -143,6 +187,43 @@ export default function FFDraft() {
     req.finally(() => pendingRef.current.delete(String(playerId)));
   };
 
+  // bots pick from `picks` until it's my turn (or the draft ends); returns
+  // the extended pick list. Practice mode only — never touches the server.
+  const advanceBots = (picks) => {
+    const players = board?.players || [];
+    const byId = new Map(players.map((p) => [p.espnId, p]));
+    const order = board?.league?.pickOrder || [];
+    const taken = new Set(picks.map((x) => x.playerId));
+    let n = picks.length + 1;
+    while (n <= TEAMS * ROUNDS && teamAtPick(order, n) !== MY_TEAM_ID) {
+      const tid = teamAtPick(order, n);
+      const filled = {};
+      for (const pk of picks)
+        if (pk.teamId === tid) {
+          const pos = byId.get(pk.playerId)?.pos;
+          if (pos) filled[pos] = (filled[pos] || 0) + 1;
+        }
+      const avail = players.filter((p) => !taken.has(p.espnId));
+      const choice = botSelect(avail, filled, Math.ceil(n / TEAMS));
+      if (!choice) break;
+      picks.push({ pick: n, teamId: tid, playerId: choice.espnId });
+      taken.add(choice.espnId);
+      n++;
+    }
+    return picks;
+  };
+
+  const startSim = () => setSim({ picks: advanceBots([]) });
+  const exitSim = () => setSim(null);
+  const simDraft = (playerId) => {
+    setSim((prev) => {
+      if (!prev) return prev;
+      const picks = [...prev.picks];
+      picks.push({ pick: picks.length + 1, teamId: MY_TEAM_ID, playerId });
+      return { picks: advanceBots(picks) };
+    });
+  };
+
   const model = useMemo(() => {
     if (!board) return null;
     const players = board.players || [];
@@ -151,7 +232,8 @@ export default function FFDraft() {
       (board.league?.teams || []).map((t) => [t.id, t.name])
     );
 
-    const livePicks = live?.picks || [];
+    // practice mode swaps in simulated picks and ignores manual marks
+    const livePicks = sim ? sim.picks : live?.picks || [];
     const liveById = new Map(livePicks.map((p) => [p.playerId, p]));
 
     // drafted = live feed ∪ manual marks (live wins)
@@ -163,11 +245,12 @@ export default function FFDraft() {
         pick: pk.pick,
         mine: pk.teamId === MY_TEAM_ID,
       });
-    for (const [idStr, mark] of Object.entries(manual)) {
-      const id = Number(idStr);
-      if (!liveById.has(id))
-        drafted.set(id, { by: "manual", mine: mark === "mine" });
-    }
+    if (!sim)
+      for (const [idStr, mark] of Object.entries(manual)) {
+        const id = Number(idStr);
+        if (!liveById.has(id))
+          drafted.set(id, { by: "manual", mine: mark === "mine" });
+      }
 
     const totalDrafted = drafted.size;
     const currentPick = totalDrafted + 1;
@@ -243,6 +326,8 @@ export default function FFDraft() {
       // bye stacking: a 3rd starter on the same bye turns one bad week into a loss
       const byeClash = p.bye ? myByeCounts[p.bye] || 0 : 0;
       if (byeClash >= 2) score -= 8 * (byeClash - 1);
+      // late rounds: bench spots are lottery tickets — chase ceiling, not floor
+      if (round >= 11 && (p.disagreement ?? 0) >= 20) score += 8;
       // Until it's actually my pick, a target only matters if they can reach
       // me — weight by the chance they're still on the board at my next pick.
       const onClock = myNext != null && myNext === currentPick;
@@ -309,23 +394,18 @@ export default function FFDraft() {
     // predicts what disappears better than raw ADP does. Live picks only;
     // meaningless in round 1 when everyone needs everything.
     const pickOrder = board.league?.pickOrder || [];
-    const teamAtPick = (n) => {
-      const r = Math.ceil(n / TEAMS);
-      const within = n - (r - 1) * TEAMS;
-      return pickOrder[r % 2 === 1 ? within - 1 : TEAMS - within];
-    };
+    const filledByTeam = {};
+    for (const pk of livePicks) {
+      const pos = byId.get(pk.playerId)?.pos;
+      if (!pos) continue;
+      (filledByTeam[pk.teamId] = filledByTeam[pk.teamId] || {})[pos] =
+        (filledByTeam[pk.teamId][pos] || 0) + 1;
+    }
     let demand = null;
     if (totalDrafted >= TEAMS && myNext != null && myNext > currentPick) {
-      const filledByTeam = {};
-      for (const pk of livePicks) {
-        const pos = byId.get(pk.playerId)?.pos;
-        if (!pos) continue;
-        (filledByTeam[pk.teamId] = filledByTeam[pk.teamId] || {})[pos] =
-          (filledByTeam[pk.teamId][pos] || 0) + 1;
-      }
       demand = {};
       for (let n = currentPick; n < myNext; n++) {
-        const tid = teamAtPick(n);
+        const tid = teamAtPick(pickOrder, n);
         if (tid === MY_TEAM_ID || tid == null) continue;
         const filled = filledByTeam[tid] || {};
         for (const pos of Object.keys(STARTERS)) {
@@ -334,6 +414,47 @@ export default function FFDraft() {
             demand[pos] = (demand[pos] || 0) + 1;
         }
       }
+    }
+
+    // league roster grid: positional counts per team, in draft order
+    const teamRosters =
+      livePicks.length > 0
+        ? pickOrder.map((tid) => ({
+            id: tid,
+            name: teamName.get(tid) || `Team ${tid}`,
+            mine: tid === MY_TEAM_ID,
+            counts: filledByTeam[tid] || {},
+          }))
+        : null;
+
+    // cost of waiting: best at each position NOW vs the best likely to
+    // survive to my FOLLOWING pick. Big number = take that position now.
+    const onClock = picksUntilMine === 0;
+    let waitCost = null;
+    const nowPick = onClock ? currentPick : myNext;
+    const laterPick = nowPick != null ? mine.find((n) => n > nowPick) : null;
+    if (nowPick != null && laterPick != null) {
+      waitCost = ["RB", "WR", "TE", "QB"]
+        .map((pos) => {
+          const atPos = enriched
+            .filter((p) => p.pos === pos && p.vorp != null)
+            .sort((a, b) => b.vorp - a.vorp);
+          const bestNow = atPos.find(
+            (p) => onClock || availAt(p, nowPick) >= 0.5
+          );
+          if (!bestNow) return null;
+          const bestLater = atPos.find(
+            (p) => p !== bestNow && availAt(p, laterPick) >= 0.55
+          );
+          return {
+            pos,
+            cost: Math.round((bestNow.vorp - (bestLater?.vorp ?? 0)) * 10) / 10,
+            now: bestNow.name,
+            later: bestLater?.name || "nobody startable",
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.cost - a.cost);
     }
 
     // draft plan: for each of my next picks, who is likely (>=50%) to be
@@ -366,6 +487,8 @@ export default function FFDraft() {
       run,
       demand,
       plan,
+      waitCost,
+      teamRosters,
       currentPick,
       round,
       totalDrafted,
@@ -377,7 +500,7 @@ export default function FFDraft() {
       teamName,
       byId,
     };
-  }, [board, live, manual]);
+  }, [board, live, manual, sim]);
 
   if (boardErr)
     return (
@@ -388,7 +511,15 @@ export default function FFDraft() {
     );
   if (!board || !model) return <Center>Loading consensus board…</Center>;
 
-  const status = live?.drafted
+  const status = sim
+    ? {
+        label:
+          sim.picks.length >= TEAMS * ROUNDS
+            ? "PRACTICE COMPLETE"
+            : "PRACTICE MODE",
+        color: C.purple,
+      }
+    : live?.drafted
     ? { label: "DRAFT COMPLETE", color: C.muted }
     : live?.inProgress
     ? { label: "LIVE — SYNCED", color: C.green }
@@ -478,6 +609,43 @@ export default function FFDraft() {
           </span>
         )}
         <div style={{ flex: 1 }} />
+        {sim ? (
+          <button
+            onClick={exitSim}
+            style={{
+              background: "transparent",
+              border: `1px solid ${C.purple}`,
+              color: C.purple,
+              borderRadius: 999,
+              padding: "3px 12px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            exit practice
+          </button>
+        ) : (
+          (live?.picks?.length ?? 0) === 0 &&
+          !live?.inProgress && (
+            <button
+              onClick={startSim}
+              style={{
+                background: "transparent",
+                border: `1px solid ${C.purple}`,
+                color: C.purple,
+                borderRadius: 999,
+                padding: "3px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+              title="Rehearse the draft against ADP-realistic bots. Nothing is saved — exit any time."
+            >
+              🎮 practice draft
+            </button>
+          )
+        )}
         <label style={{ fontSize: 12, color: C.muted, cursor: "pointer" }}>
           <input
             type="checkbox"
@@ -564,6 +732,48 @@ export default function FFDraft() {
           </span>
         )}
       </div>
+
+      {/* cost of waiting — the take-now-vs-wait decision, quantified */}
+      {model.waitCost && model.waitCost.length > 0 && (
+        <div
+          style={{
+            background: C.panel2,
+            border: `1px solid ${C.border}`,
+            borderRadius: 10,
+            padding: "8px 14px",
+            marginBottom: 12,
+            fontSize: 13,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 16,
+            alignItems: "baseline",
+          }}
+        >
+          <span style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>
+            COST OF WAITING (this pick → your next)
+          </span>
+          {model.waitCost.map((w) => (
+            <span
+              key={w.pos}
+              title={`${w.now} now vs ${w.later} at your following pick`}
+            >
+              <PosBadge pos={w.pos} />{" "}
+              <span
+                style={{
+                  fontWeight: 700,
+                  color:
+                    w.cost >= 40 ? C.red : w.cost >= 20 ? C.amber : C.muted,
+                }}
+              >
+                −{w.cost}
+              </span>
+            </span>
+          ))}
+          <span style={{ color: C.muted, fontSize: 11 }}>
+            pts lost at each position if you wait — red means take it now
+          </span>
+        </div>
+      )}
 
       {/* suggestions */}
       <div
@@ -842,7 +1052,16 @@ export default function FFDraft() {
                       <td
                         style={{ padding: "6px 8px", whiteSpace: "nowrap" }}
                       >
-                        {gone ? (
+                        {sim ? (
+                          !gone &&
+                          sim.picks.length < TEAMS * ROUNDS && (
+                            <MiniBtn
+                              label="draft"
+                              color={C.purple}
+                              onClick={() => simDraft(p.espnId)}
+                            />
+                          )
+                        ) : gone ? (
                           gone.by === "manual" && (
                             <MiniBtn
                               label="undo"
@@ -936,6 +1155,40 @@ export default function FFDraft() {
               your need. Updates live.
             </div>
           </Panel>
+
+          {model.teamRosters && (
+            <Panel title="League rosters">
+              {model.teamRosters.map((t) => (
+                <div
+                  key={t.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    padding: "2px 0",
+                    fontSize: 11,
+                    color: t.mine ? C.green : C.text,
+                    fontWeight: t.mine ? 700 : 400,
+                  }}
+                >
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      maxWidth: 140,
+                    }}
+                  >
+                    {t.name}
+                  </span>
+                  <span style={{ color: C.muted, whiteSpace: "nowrap" }}>
+                    {["QB", "RB", "WR", "TE", "DST"]
+                      .map((pos) => `${t.counts[pos] || 0}${pos[0]}`)
+                      .join(" ")}
+                  </span>
+                </div>
+              ))}
+            </Panel>
+          )}
 
           <Panel title="Recent picks">
             {model.recent.length === 0 && (
