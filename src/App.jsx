@@ -38,6 +38,7 @@ import MothersDayGiftCard from "./pages/mothers-day-2026/index.jsx";
 import FarkleTracker from "./pages/farkle/index.jsx";
 import MyBets from "./pages/my-bets/index.jsx";
 import FFDraft from "./pages/ffdraft/index.jsx";
+import FFDraftGuide from "./pages/ffdraft/Guide.jsx";
 import TotalsValue from "./pages/totals-value/index.jsx";
 import CryptoValue from "./pages/crypto-value/index.jsx";
 import WeatherValue from "./pages/weather-value/index.jsx";
@@ -165,6 +166,7 @@ export default function App() {
           <Route path="/farkle" element={<FarkleTracker />} />
           <Route path="/my-bets" element={<MyBets />} />
           <Route path="/ffdraft" element={<FFDraft />} />
+          <Route path="/ffdraft/guide" element={<FFDraftGuide />} />
           <Route path="/totals-value" element={<TotalsValue />} />
           <Route path="/crypto-value" element={<CryptoValue />} />
           <Route path="/weather-value" element={<WeatherValue />} />

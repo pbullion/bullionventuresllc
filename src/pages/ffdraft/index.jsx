@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 /* FF Draft War Room — live draft assistant for Patrick's ESPN league
  * ("The League", id 1429051163, 2026). Backend: sheline /ffdraft.
@@ -608,6 +609,20 @@ export default function FFDraft() {
             ⚠ SNAPSHOT BOARD
           </span>
         )}
+        <Link
+          to="/ffdraft/guide"
+          style={{
+            color: C.blue,
+            fontSize: 12,
+            fontWeight: 600,
+            textDecoration: "none",
+            border: `1px solid ${C.border}`,
+            borderRadius: 999,
+            padding: "3px 12px",
+          }}
+        >
+          📖 how to use
+        </Link>
         <div style={{ flex: 1 }} />
         {sim ? (
           <button
