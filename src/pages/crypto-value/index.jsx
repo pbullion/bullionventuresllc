@@ -380,7 +380,9 @@ export default function CryptoValue() {
     if (await postWithPin("/auto-bets/enable")) await loadAll();
   };
 
-  /* Un-pause one asset:horizon segment the nightly review stood down. Goes
+  /* Un-pause one asset:horizon segment. Since 2026-08-21 the nightly review
+   * only ADVISES a pause (it reports would_pause and stops nothing), so
+   * anything in this list was stood down by hand via POST /segments. Goes
    * through postWithPin like every other control, then reloads — deliberately
    * NOT the /totals-value shape, which does setStatus(await r.json()). The
    * crypto endpoint answers {ok, paused_segments}, not a full status object, so
@@ -433,8 +435,8 @@ export default function CryptoValue() {
     await loadAll();
   };
 
-  // The STANDING ceiling the cap override clamps to — unlike the cap and
-  // unit this does NOT lapse overnight. Server keeps the tighter of this and
+  // The STANDING ceiling the cap override clamps to. Nothing here lapses
+  // overnight any more; this is the bound a cap edit is clamped to. Server keeps the tighter of this and
   // CRYPTOBET_DAILY_CEILING, so it can't loosen an env-level bound.
   const changeCeiling = async () => {
     const ceiling =
@@ -456,15 +458,17 @@ export default function CryptoValue() {
     }
   };
 
-  // Unit size for TODAY only — same guards as the cap (PIN, server clamp to
-  // CRYPTOBET_UNIT_CEILING) and the same overnight lapse back to
-  // CRYPTOBET_UNIT_DOLLARS, so a one-session resize can't stick around.
+  // Unit size — same guards as the cap (PIN, server clamp to
+  // CRYPTOBET_UNIT_CEILING). Since 2026-08-21 it STANDS until changed rather
+  // than lapsing overnight (Patrick: don't reset the units on anything), so
+  // only clearing it returns to CRYPTOBET_UNIT_DOLLARS.
   /* Arm / disarm the give-back guard (backend: POST /auto-bets/give-back).
      Three states, not two: ARMED, OFF, and "follow the server config" — a
      two-way toggle would leave no way to hand the decision back to the env
-     once you'd touched it. Persistent, unlike the cap and unit overrides:
-     a safety guard that re-arms itself overnight is one you have to re-check
-     every morning. */
+     once you'd touched it. Persistent — as, since 2026-08-21, are the cap and
+     unit overrides: a safety guard that re-arms itself overnight is one you
+     have to re-check every morning, and the same goes for a stake that
+     shrinks itself back. */
   const toggleGiveBack = async () => {
     const g = (status && status.guards) || {};
     const armed = g.give_back_enabled;
@@ -501,7 +505,8 @@ export default function CryptoValue() {
       `New bet unit in dollars (currently $${cfg.unit_dollars}${
         cfg.unit_ceiling ? `, ceiling $${cfg.unit_ceiling}` : ""
       }).\nSizing bets up to ${cfg.max_units}u.\n` +
-        `Applies to TODAY only — resets overnight. Leave blank to reset now.`,
+        `Stands until you change it — it does NOT reset overnight. ` +
+        `Leave blank to go back to the configured default.`,
     );
     if (raw === null) return;
     const asked = raw.trim() === "" ? null : Number(raw);
@@ -896,13 +901,15 @@ export default function CryptoValue() {
                   )}
               </div>
             )}
-            {/* Segments the nightly review stood down. The engine silently skips
-                these (skip reason "segment-paused"), so without the notice a
-                paused asset:horizon looks like one that simply isn't finding
-                edges. Pausing is open server-side but resuming is PIN'd. */}
+            {/* Stood-down segments. The engine silently skips these (skip
+                reason "segment-paused"), so without the notice a paused
+                asset:horizon looks like one that simply isn't finding edges.
+                Pausing is open server-side but resuming is PIN'd. Since
+                2026-08-21 the nightly review no longer adds to this list —
+                every entry here was set by hand. */}
             {status && (status.paused_segments || []).length > 0 && (
               <div style={{ color: C.amber, fontSize: 12, marginBottom: 8 }}>
-                ⏸ Paused by nightly review:{" "}
+                ⏸ Paused (set by hand):{" "}
                 {status.paused_segments.map((seg, i) => (
                   <span key={seg}>
                     {i > 0 ? ", " : ""}

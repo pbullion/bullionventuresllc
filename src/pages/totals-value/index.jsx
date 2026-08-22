@@ -750,7 +750,11 @@ const SKIP_REASON_TEXT = {
   "bad-price": "bad price",
   "price-too-low": "long shot — model can't price these",
   "opposite-direction": "already bet the other way on this total",
-  "segment-paused": "paused by nightly review",
+  "segment-paused": "segment paused by hand",
+  // The standing segment gate (added 2026-08-21, replaced the nightly
+  // auto-pause). Says "for now" on purpose: unlike a pause it lifts itself
+  // when the segment's realized ROI climbs back over the bar.
+  "segment-roi": "segment losing money — off for now",
   "already-bet-today": "already bet this",
   "moneyline-mirror": "same bet, other side",
   "daily-cap": "daily limit reached",
@@ -930,7 +934,8 @@ function AutoBetPanel({ games }) {
   };
 
   // The STANDING ceiling the cap override clamps to — unlike the cap and
-  // unit this does NOT lapse overnight. Server keeps the tighter of this and
+  // unit this has never lapsed overnight — and as of 2026-08-21 neither do
+  // they. Server keeps the tighter of this and
   // AUTOBET_MAX_DAILY_CEILING, so it can't loosen an env-level bound.
   const changeCeiling = async () => {
     const raw = window.prompt(
@@ -953,10 +958,10 @@ function AutoBetPanel({ games }) {
     if (next) setStatus(next);
   };
 
-  // Change the dollar size of one betting unit, for today only. Same shape as
-  // the cap: PIN-gated, server-clamped, and it lapses at midnight CT back to
-  // AUTOBET_UNIT_DOLLARS — a resize for one heavy slate can't quietly become
-  // the permanent stake.
+  // Change the dollar size of one betting unit. Same shape as the cap:
+  // PIN-gated and server-clamped. Since 2026-08-21 it STANDS until changed
+  // instead of lapsing at midnight CT (Patrick: don't reset the units on
+  // anything); clearing it is what returns to AUTOBET_UNIT_DOLLARS.
   const changeUnit = async () => {
     const cur = cfg.unit_dollars != null ? `$${cfg.unit_dollars}` : "";
     const ceilNote = t.unit_ceiling ? `, ceiling $${t.unit_ceiling}` : "";
@@ -964,7 +969,8 @@ function AutoBetPanel({ games }) {
       `New bet unit in dollars (currently ${cur}${ceilNote}).\n` +
         `Sizing bets up to ${cfg.max_units}u, so this sets a $${cfg.unit_dollars}–` +
         `$${cfg.unit_dollars * cfg.max_units} range.\n` +
-        `Applies to TODAY only — resets overnight. Leave blank to reset now.`,
+        `Stands until you change it — it does NOT reset overnight. ` +
+        `Leave blank to go back to the configured default.`,
     );
     if (raw === null) return;
     const asked = raw.trim() === "" ? null : Number(raw);
@@ -1264,7 +1270,7 @@ function AutoBetPanel({ games }) {
             </div>
             {(status.paused_segments || []).length > 0 && (
               <div style={{ color: C.amber, fontSize: 12, marginTop: 8 }}>
-                ⏸ Paused by nightly review:{" "}
+                ⏸ Paused (set by hand):{" "}
                 {status.paused_segments.map((seg, i) => (
                   <span key={seg}>
                     {i > 0 ? ", " : ""}
@@ -1303,6 +1309,20 @@ function AutoBetPanel({ games }) {
                     </span>
                   </span>
                 ))}
+              </div>
+            )}
+            {/* Segments the STANDING gate is refusing (status.segments_blocked,
+                2026-08-21). Not a pause and not clickable: it lifts itself when
+                the ROI recovers, so there is nothing to resume. Shown because
+                otherwise a held segment looks exactly like one that simply
+                isn't finding edges — the confusion the old amber "paused" line
+                at least avoided. */}
+            {(status.segments_blocked || []).length > 0 && (
+              <div style={{ color: C.amber, fontSize: 12, marginTop: 8 }}>
+                ↓ Losing segments, off until the ROI recovers:{" "}
+                {status.segments_blocked
+                  .map((x) => `${x.segment} (${x.roi}% over ${x.n})`)
+                  .join(", ")}
               </div>
             )}
             <div style={{ marginTop: 12 }}>
