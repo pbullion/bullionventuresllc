@@ -26,11 +26,19 @@ const KALSHI_PORTFOLIO_URL = "https://kalshi.com/portfolio";
  *   and waiting on a signing that isn't coming (Patrick, 2026-07-25). */
 const ALWAYS_HIDDEN_TICKERS = new Set(["KXNEXTTEAMNBA-26LJAM-MIA"]);
 
-/* A position the market prices at 1% is decided in all but name — nothing is
- * moving and there is nothing left to do about it. Those cards are dropped for
- * the same reason and in the same place as the list above ("just get rid of
- * showing 1% ones anywhere" — Patrick, 2026-08-20), which means "Show all"
- * doesn't bring them back either: this is a rule, not a dismissal.
+const WEATHER_TICKER_RE = /^KXHIGH/;
+
+/* A HIGH-TEMP position the market prices at 1% is decided in all but name —
+ * the band is out of reach, nothing is moving, and there is nothing left to do
+ * about it. Those cards are dropped for the same reason and in the same place
+ * as the list above, which means "Show all" doesn't bring them back either:
+ * this is a rule, not a dismissal.
+ *
+ * NARROWED TO WEATHER ONLY (Patrick, 2026-08-21). It used to apply to every
+ * position, and that was wrong for the rest of the book: a 1% sports leg is a
+ * long shot someone deliberately bought and it can still come in, where a 1%
+ * temperature band needs the weather to change its mind. Hiding the former was
+ * hiding a live bet.
  *
  * Rounded, not raw, so the test matches what the card WOULD have printed — a
  * 1.4% position renders "1%", and suppressing one "1%" card while keeping
@@ -44,6 +52,7 @@ const ALWAYS_HIDDEN_TICKERS = new Set(["KXNEXTTEAMNBA-26LJAM-MIA"]);
  * cards on screen) rather than a count of positions — the same is true of a
  * card you dismiss by hand. That is why the count is printed next to it. */
 const isDecidedBet = (b) => {
+  if (!WEATHER_TICKER_RE.test(b.ticker || "")) return false;
   const prob = Number(b.display?.hit_probability);
   return Number.isFinite(prob) && Math.round(prob) <= 1;
 };
@@ -1182,8 +1191,9 @@ const marketLabel = (leg) => {
 // else the market ticker so an unmatched position still stands alone.
 /* Weather positions (KXHIGH*) group by DAY, then by city inside the card —
  * eight separate city-day cards scattered through the grid was unreadable
- * (Patrick, 2026-08-19: "combine them by DAYS and then city level"). */
-const WEATHER_TICKER_RE = /^KXHIGH/;
+ * (Patrick, 2026-08-19: "combine them by DAYS and then city level").
+ * WEATHER_TICKER_RE itself is defined at the top of the file, because the 1%
+ * rule up there needs it too. */
 const weatherDayChunk = (ticker) => {
   const m = /-(\d{2}[A-Z]{3}\d{2})/.exec(String(ticker || ""));
   return m ? m[1] : null;
@@ -2961,7 +2971,10 @@ export default function MyBets() {
               </div>
               {decidedCount > 0 ? (
                 <span style={S.muted}>
-                  {decidedCount} decided (1%) not shown
+                  {/* Names the kind of bet now that the rule only covers
+                      high-temp ones. "3 decided (1%) not shown" beside a
+                      visible 1% sports leg reads as a broken filter. */}
+                  {decidedCount} high temp decided (1%) not shown
                 </span>
               ) : null}
               {hiddenCount > 0 ? (
@@ -2978,7 +2991,7 @@ export default function MyBets() {
                 {hiddenCount > 0
                   ? "All positions hidden. Use “Show all” to bring them back."
                   : decidedCount > 0
-                    ? `No open positions left to watch — all ${decidedCount} are decided at 1%.`
+                    ? `No open positions left to watch — all ${decidedCount} are high-temp bands decided at 1%.`
                     : "No open positions."}
               </div>
             ) : (
