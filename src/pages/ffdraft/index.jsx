@@ -1,0 +1,841 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+
+/* FF Draft War Room — live draft assistant for Patrick's ESPN league
+ * ("The League", id 1429051163, 2026). Backend: sheline /ffdraft.
+ *   GET /ffdraft/board — consensus board (ESPN proj/ADP + FantasyPros ECR +
+ *     FFCalculator ADP + Boris Chen tiers), league meta, pick order.
+ *   GET /ffdraft/live  — ESPN mDraftDetail picks, polled during the draft.
+ * Players can also be marked off manually (localStorage) as a fallback if
+ * ESPN's feed lags — live data always wins on conflict. */
+
+const API = "https://sheline-art-website-api.herokuapp.com/ffdraft";
+const MY_TEAM_ID = 5; // Touchdown My Pants
+const TEAMS = 10;
+const ROUNDS = 16;
+// starters: 1QB / 2RB / 2WR / 1TE / 2FLEX / 1DST — no kicker in this league
+const STARTERS = { QB: 1, RB: 2, WR: 2, TE: 1, DST: 1 };
+const FLEX_SLOTS = 2;
+const FLEX_ELIGIBLE = new Set(["RB", "WR", "TE"]);
+
+const C = {
+  bg: "#0b0e14",
+  panel: "#151a24",
+  panel2: "#101520",
+  border: "#252c3a",
+  text: "#e8eaed",
+  muted: "#8a93a6",
+  green: "#22c55e",
+  amber: "#eab308",
+  red: "#ef4444",
+  blue: "#3b82f6",
+  purple: "#a78bfa",
+  chipBg: "#1c2430",
+};
+
+const POS_COLOR = {
+  QB: "#ef6aa4",
+  RB: "#22c55e",
+  WR: "#3b82f6",
+  TE: "#eab308",
+  DST: "#a78bfa",
+  K: "#8a93a6",
+};
+
+const MANUAL_KEY = "ffdraft-manual-v1";
+
+// standard normal CDF (Abramowitz & Stegun erf approximation)
+function normCdf(z) {
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989423 * Math.exp((-z * z) / 2);
+  let p =
+    d *
+    t *
+    (0.3193815 +
+      t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  if (z > 0) p = 1 - p;
+  return p;
+}
+
+// my overall pick numbers in the snake, from the league's pick order
+function myPickNumbers(pickOrder) {
+  const idx = pickOrder.indexOf(MY_TEAM_ID);
+  if (idx === -1) return [];
+  const slot = idx + 1;
+  const picks = [];
+  for (let r = 1; r <= ROUNDS; r++) {
+    const within = r % 2 === 1 ? slot : TEAMS + 1 - slot;
+    picks.push((r - 1) * TEAMS + within);
+  }
+  return picks;
+}
+
+function loadManual() {
+  try {
+    return JSON.parse(localStorage.getItem(MANUAL_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+export default function FFDraft() {
+  const [board, setBoard] = useState(null);
+  const [boardErr, setBoardErr] = useState(null);
+  const [live, setLive] = useState(null);
+  const [liveErr, setLiveErr] = useState(null);
+  const [manual, setManual] = useState(loadManual); // {playerId: "other"|"mine"}
+  const [posFilter, setPosFilter] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [showDrafted, setShowDrafted] = useState(false);
+  const liveRef = useRef(null);
+
+  useEffect(() => {
+    let dead = false;
+    fetch(`${API}/board`)
+      .then((r) => r.json())
+      .then((d) => !dead && setBoard(d))
+      .catch((e) => !dead && setBoardErr(String(e)));
+    return () => (dead = true);
+  }, []);
+
+  // poll the live draft feed — fast while in progress, slower otherwise
+  useEffect(() => {
+    let dead = false;
+    let timer;
+    const tick = async () => {
+      try {
+        const d = await fetch(`${API}/live`).then((r) => r.json());
+        if (dead) return;
+        setLive(d);
+        setLiveErr(null);
+        liveRef.current = d;
+      } catch (e) {
+        if (!dead) setLiveErr(String(e));
+      }
+      if (dead) return;
+      const cur = liveRef.current;
+      const ms = cur?.drafted ? 60000 : cur?.inProgress ? 5000 : 15000;
+      timer = setTimeout(tick, ms);
+    };
+    tick();
+    return () => {
+      dead = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const setManualMark = (playerId, mark) => {
+    setManual((prev) => {
+      const next = { ...prev };
+      if (mark) next[playerId] = mark;
+      else delete next[playerId];
+      localStorage.setItem(MANUAL_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const model = useMemo(() => {
+    if (!board) return null;
+    const players = board.players || [];
+    const byId = new Map(players.map((p) => [p.espnId, p]));
+    const teamName = new Map(
+      (board.league?.teams || []).map((t) => [t.id, t.name])
+    );
+
+    const livePicks = live?.picks || [];
+    const liveById = new Map(livePicks.map((p) => [p.playerId, p]));
+
+    // drafted = live feed ∪ manual marks (live wins)
+    const drafted = new Map(); // playerId -> {by: "live"|"manual", teamId?, mine}
+    for (const pk of livePicks)
+      drafted.set(pk.playerId, {
+        by: "live",
+        teamId: pk.teamId,
+        pick: pk.pick,
+        mine: pk.teamId === MY_TEAM_ID,
+      });
+    for (const [idStr, mark] of Object.entries(manual)) {
+      const id = Number(idStr);
+      if (!liveById.has(id))
+        drafted.set(id, { by: "manual", mine: mark === "mine" });
+    }
+
+    const totalDrafted = drafted.size;
+    const currentPick = totalDrafted + 1;
+    const round = Math.min(ROUNDS, Math.ceil(currentPick / TEAMS));
+    const mine = myPickNumbers(board.league?.pickOrder || []);
+    const myNext = mine.find((n) => n >= currentPick) ?? null;
+    const myNextNext = mine.filter((n) => n >= currentPick)[1] ?? null;
+    const picksUntilMine = myNext != null ? myNext - currentPick : null;
+
+    const myPlayers = players.filter((p) => drafted.get(p.espnId)?.mine);
+
+    // fill my roster slots greedily: starter slot -> flex -> bench
+    const slotsFilled = { QB: 0, RB: 0, WR: 0, TE: 0, DST: 0 };
+    let flexFilled = 0;
+    const roster = { starters: [], flex: [], bench: [] };
+    for (const p of myPlayers) {
+      if (slotsFilled[p.pos] < (STARTERS[p.pos] || 0)) {
+        slotsFilled[p.pos]++;
+        roster.starters.push(p);
+      } else if (FLEX_ELIGIBLE.has(p.pos) && flexFilled < FLEX_SLOTS) {
+        flexFilled++;
+        roster.flex.push(p);
+      } else {
+        roster.bench.push(p);
+      }
+    }
+
+    // need multiplier per position for suggestion scoring
+    const needMult = (pos) => {
+      if (pos === "K") return 0;
+      if (pos === "DST")
+        return slotsFilled.DST < 1 ? (round >= 12 ? 1 : 0.15) : 0.05;
+      const open = (STARTERS[pos] || 0) - slotsFilled[pos];
+      if (open > 0) return 1;
+      if (FLEX_ELIGIBLE.has(pos) && flexFilled < FLEX_SLOTS)
+        return pos === "TE" ? 0.7 : 0.9;
+      const posCount = myPlayers.filter((x) => x.pos === pos).length;
+      const surplus = posCount - (STARTERS[pos] || 0);
+      return Math.max(0.15, 0.6 ** Math.max(1, surplus - 1));
+    };
+
+    const avail = players.filter((p) => !drafted.has(p.espnId));
+
+    // tier scarcity: remaining players in each pos+FP-tier
+    const tierLeft = new Map();
+    for (const p of avail) {
+      if (p.fpTier == null) continue;
+      const k = `${p.pos}:${p.fpTier}`;
+      tierLeft.set(k, (tierLeft.get(k) || 0) + 1);
+    }
+
+    const enrich = (p) => {
+      // chance the player is still on the board at my NEXT pick
+      let availPct = null;
+      if (myNext != null && p.ffcAdp != null) {
+        const sd = p.ffcStdev && p.ffcStdev > 0 ? p.ffcStdev : 6;
+        availPct = Math.round((1 - normCdf((myNext - p.ffcAdp) / sd)) * 100);
+      }
+      const left = p.fpTier != null ? tierLeft.get(`${p.pos}:${p.fpTier}`) : null;
+      const mult = needMult(p.pos);
+      let score = (p.vorp ?? 0) * mult + (left != null && left <= 2 ? 12 : 0);
+      // Until it's actually my pick, a target only matters if they can reach
+      // me — weight by the chance they're still on the board at my next pick.
+      const onClock = myNext != null && myNext === currentPick;
+      if (!onClock && availPct != null)
+        score *= Math.max(0.05, availPct / 100);
+      return { ...p, availPct, tierLeftCount: left, needMult: mult, score };
+    };
+
+    const enriched = avail.map(enrich);
+    const suggestions = [...enriched]
+      .filter((p) => p.vorp != null && p.vorp > -20)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map((p) => {
+        const reasons = [];
+        const open = (STARTERS[p.pos] || 0) - slotsFilled[p.pos];
+        if (open > 0 && p.pos !== "DST") reasons.push(`starting ${p.pos} open`);
+        else if (p.needMult >= 0.7 && FLEX_ELIGIBLE.has(p.pos))
+          reasons.push("flex value");
+        if (p.tierLeftCount != null && p.tierLeftCount <= 2)
+          reasons.push(`only ${p.tierLeftCount} left in tier ${p.fpTier}`);
+        if (p.availPct != null && p.availPct < 40)
+          reasons.push(`only ${p.availPct}% chance they reach you`);
+        if (p.disagreement != null && p.disagreement >= 25)
+          reasons.push("sources split — upside play");
+        if (!reasons.length) reasons.push("best value on board");
+        return { ...p, reasons };
+      });
+
+    const recent = [...livePicks]
+      .sort((a, b) => b.pick - a.pick)
+      .slice(0, 8)
+      .map((pk) => ({
+        ...pk,
+        player: byId.get(pk.playerId),
+        teamName: teamName.get(pk.teamId) || `Team ${pk.teamId}`,
+      }));
+
+    return {
+      drafted,
+      enriched,
+      suggestions,
+      roster,
+      myPlayers,
+      currentPick,
+      round,
+      totalDrafted,
+      myNext,
+      myNextNext,
+      picksUntilMine,
+      onTheClock: picksUntilMine === 0,
+      recent,
+      teamName,
+      byId,
+    };
+  }, [board, live, manual]);
+
+  if (boardErr)
+    return (
+      <Center>
+        Failed to load the board: {boardErr}. Refresh, or check the sheline
+        backend.
+      </Center>
+    );
+  if (!board || !model) return <Center>Loading consensus board…</Center>;
+
+  const status = live?.drafted
+    ? { label: "DRAFT COMPLETE", color: C.muted }
+    : live?.inProgress
+    ? { label: "LIVE — SYNCED", color: C.green }
+    : liveErr
+    ? { label: "SYNC ERROR — MANUAL MODE", color: C.red }
+    : { label: "PRE-DRAFT", color: C.amber };
+
+  const rows = model.enriched
+    .concat(
+      showDrafted
+        ? board.players
+            .filter((p) => model.drafted.has(p.espnId))
+            .map((p) => ({ ...p, isDrafted: true }))
+        : []
+    )
+    .filter((p) => {
+      if (posFilter === "FLEX") {
+        if (!FLEX_ELIGIBLE.has(p.pos)) return false;
+      } else if (posFilter !== "ALL" && p.pos !== posFilter) return false;
+      if (
+        search &&
+        !p.name.toLowerCase().includes(search.toLowerCase()) &&
+        !p.team.toLowerCase().includes(search.toLowerCase())
+      )
+        return false;
+      return true;
+    })
+    .sort(
+      (a, b) => (a.consensusRank ?? 9999) - (b.consensusRank ?? 9999)
+    )
+    .slice(0, 250);
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: C.bg,
+        color: C.text,
+        fontFamily:
+          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        padding: "14px 16px 60px",
+      }}
+    >
+      {/* header */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ fontSize: 22, fontWeight: 800 }}>
+          🏈 Draft War Room{" "}
+          <span style={{ color: C.muted, fontWeight: 400, fontSize: 14 }}>
+            {board.league?.name} · 10-team PPR snake · you pick 7th
+          </span>
+        </div>
+        <span
+          style={{
+            padding: "3px 10px",
+            borderRadius: 999,
+            fontSize: 12,
+            fontWeight: 700,
+            background: C.chipBg,
+            color: status.color,
+            border: `1px solid ${C.border}`,
+          }}
+        >
+          ● {status.label}
+        </span>
+        <div style={{ flex: 1 }} />
+        <label style={{ fontSize: 12, color: C.muted, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={showDrafted}
+            onChange={(e) => setShowDrafted(e.target.checked)}
+            style={{ marginRight: 5 }}
+          />
+          show drafted
+        </label>
+      </div>
+
+      {/* on-the-clock banner */}
+      <div
+        style={{
+          background: model.onTheClock ? "#14351f" : C.panel,
+          border: `1px solid ${model.onTheClock ? C.green : C.border}`,
+          borderRadius: 10,
+          padding: "10px 14px",
+          marginBottom: 12,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 18,
+          alignItems: "baseline",
+        }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 700 }}>
+          {model.onTheClock
+            ? "🚨 YOU'RE ON THE CLOCK"
+            : `Pick ${model.currentPick} · Round ${model.round}`}
+        </span>
+        {!model.onTheClock && model.picksUntilMine != null && (
+          <span style={{ color: C.amber, fontWeight: 600 }}>
+            your turn in {model.picksUntilMine} pick
+            {model.picksUntilMine === 1 ? "" : "s"} (#{model.myNext})
+          </span>
+        )}
+        {model.myNextNext && (
+          <span style={{ color: C.muted, fontSize: 13 }}>
+            then #{model.myNextNext}
+          </span>
+        )}
+        <span style={{ color: C.muted, fontSize: 13 }}>
+          {model.totalDrafted}/160 picked
+        </span>
+        {live?.fetchedAt && (
+          <span style={{ color: C.muted, fontSize: 12 }}>
+            synced {new Date(live.fetchedAt).toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
+      {/* suggestions */}
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          flexWrap: "wrap",
+          marginBottom: 14,
+        }}
+      >
+        {model.suggestions.map((p, i) => (
+          <div
+            key={p.espnId}
+            style={{
+              background: i === 0 ? "#1a2b1f" : C.panel,
+              border: `1px solid ${i === 0 ? C.green : C.border}`,
+              borderRadius: 10,
+              padding: "8px 12px",
+              minWidth: 190,
+              flex: "1 1 190px",
+              maxWidth: 260,
+            }}
+          >
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>
+              {i === 0 ? "⭐ TOP SUGGESTION" : `#${i + 1} suggestion`}
+            </div>
+            <div style={{ fontWeight: 700 }}>
+              <PosBadge pos={p.pos} /> {p.name}{" "}
+              <span style={{ color: C.muted, fontWeight: 400, fontSize: 12 }}>
+                {p.team}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
+              {p.reasons.join(" · ")}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+        {/* main board */}
+        <div style={{ flex: "1 1 640px", minWidth: 0 }}>
+          {/* filters */}
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              flexWrap: "wrap",
+              marginBottom: 10,
+              alignItems: "center",
+            }}
+          >
+            {["ALL", "QB", "RB", "WR", "TE", "FLEX", "DST"].map((f) => (
+              <button
+                key={f}
+                onClick={() => setPosFilter(f)}
+                style={{
+                  background: posFilter === f ? C.blue : C.chipBg,
+                  color: posFilter === f ? "#fff" : C.text,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 999,
+                  padding: "4px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {f}
+              </button>
+            ))}
+            <input
+              placeholder="search player / team…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                background: C.panel2,
+                border: `1px solid ${C.border}`,
+                borderRadius: 8,
+                color: C.text,
+                padding: "5px 10px",
+                fontSize: 13,
+                marginLeft: "auto",
+                width: 180,
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              background: C.panel,
+              border: `1px solid ${C.border}`,
+              borderRadius: 10,
+              overflowX: "auto",
+            }}
+          >
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 13,
+                minWidth: 760,
+              }}
+            >
+              <thead>
+                <tr style={{ color: C.muted, fontSize: 11, textAlign: "left" }}>
+                  {[
+                    "RK",
+                    "PLAYER",
+                    "TIER",
+                    "CONS",
+                    "FPROS",
+                    "ADP",
+                    "ESPN",
+                    "PROJ",
+                    "VORP",
+                    "AVAIL@NEXT",
+                    "",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "8px 8px",
+                        borderBottom: `1px solid ${C.border}`,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((p) => {
+                  const gone = model.drafted.get(p.espnId);
+                  return (
+                    <tr
+                      key={p.espnId}
+                      style={{
+                        borderBottom: `1px solid ${C.border}`,
+                        opacity: gone ? 0.38 : 1,
+                        textDecoration: gone ? "line-through" : "none",
+                      }}
+                    >
+                      <td style={{ padding: "6px 8px", color: C.muted }}>
+                        {p.overallRank}
+                      </td>
+                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
+                        <PosBadge pos={p.pos} />{" "}
+                        <span style={{ fontWeight: 600 }}>{p.name}</span>{" "}
+                        <span style={{ color: C.muted, fontSize: 11 }}>
+                          {p.team} · bye {p.bye || "?"}
+                        </span>
+                        {p.injuryStatus && (
+                          <span
+                            style={{
+                              color: C.red,
+                              fontSize: 10,
+                              marginLeft: 5,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {p.injuryStatus}
+                          </span>
+                        )}
+                        {gone?.by === "live" && gone.teamId && (
+                          <span
+                            style={{
+                              color: C.muted,
+                              fontSize: 10,
+                              marginLeft: 6,
+                            }}
+                          >
+                            → {model.teamName.get(gone.teamId)}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "6px 8px" }}>
+                        {p.fpTier != null && (
+                          <span
+                            style={{
+                              background: C.chipBg,
+                              borderRadius: 5,
+                              padding: "1px 7px",
+                              fontSize: 11,
+                              color:
+                                p.tierLeftCount != null && p.tierLeftCount <= 2
+                                  ? C.amber
+                                  : C.text,
+                              fontWeight:
+                                p.tierLeftCount != null && p.tierLeftCount <= 2
+                                  ? 700
+                                  : 400,
+                            }}
+                            title={
+                              p.tierLeftCount != null
+                                ? `${p.tierLeftCount} left in this tier`
+                                : ""
+                            }
+                          >
+                            T{p.fpTier}
+                            {p.tierLeftCount != null &&
+                              p.tierLeftCount <= 2 &&
+                              " ⚠"}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "6px 8px", fontWeight: 700 }}>
+                        {p.consensusRank ?? "—"}
+                      </td>
+                      <td style={{ padding: "6px 8px" }}>{p.fpRank ?? "—"}</td>
+                      <td style={{ padding: "6px 8px" }}>{p.ffcAdp ?? "—"}</td>
+                      <td style={{ padding: "6px 8px" }}>{p.espnRank ?? "—"}</td>
+                      <td style={{ padding: "6px 8px" }}>
+                        {p.projection ?? "—"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "6px 8px",
+                          color:
+                            (p.vorp ?? 0) > 60
+                              ? C.green
+                              : (p.vorp ?? 0) > 20
+                              ? C.text
+                              : C.muted,
+                          fontWeight: (p.vorp ?? 0) > 60 ? 700 : 400,
+                        }}
+                      >
+                        {p.vorp ?? "—"}
+                      </td>
+                      <td style={{ padding: "6px 8px" }}>
+                        {!gone && p.availPct != null ? (
+                          <span
+                            style={{
+                              color:
+                                p.availPct < 35
+                                  ? C.red
+                                  : p.availPct < 70
+                                  ? C.amber
+                                  : C.green,
+                              fontWeight: 600,
+                              fontSize: 12,
+                            }}
+                          >
+                            {p.availPct}%
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td
+                        style={{ padding: "6px 8px", whiteSpace: "nowrap" }}
+                      >
+                        {gone ? (
+                          gone.by === "manual" && (
+                            <MiniBtn
+                              label="undo"
+                              onClick={() => setManualMark(p.espnId, null)}
+                            />
+                          )
+                        ) : (
+                          <>
+                            <MiniBtn
+                              label="gone"
+                              onClick={() => setManualMark(p.espnId, "other")}
+                            />
+                            <MiniBtn
+                              label="mine"
+                              color={C.green}
+                              onClick={() => setManualMark(p.espnId, "mine")}
+                            />
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ color: C.muted, fontSize: 11, marginTop: 8 }}>
+            Consensus of FantasyPros ECR · FFCalculator ADP (10-team PPR) ·
+            ESPN rank + ADP · Boris Chen tiers. PROJ/VORP use ESPN projections
+            in this league&apos;s exact scoring. AVAIL@NEXT = chance the player
+            is still there at your next pick (#{model.myNext ?? "—"}). Board
+            updated {new Date(board.updatedAt).toLocaleTimeString()}.
+          </div>
+        </div>
+
+        {/* right rail */}
+        <div
+          style={{
+            flex: "0 0 270px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          <Panel title={`My Roster (${model.myPlayers.length}/16)`}>
+            {["starters", "flex", "bench"].map((grp) =>
+              model.roster[grp].map((p) => (
+                <div
+                  key={p.espnId}
+                  style={{ padding: "3px 0", fontSize: 13 }}
+                >
+                  <PosBadge pos={p.pos} />{" "}
+                  <span style={{ fontWeight: 600 }}>{p.name}</span>{" "}
+                  <span style={{ color: C.muted, fontSize: 11 }}>
+                    {grp === "flex" ? "FLX" : grp === "bench" ? "BE" : ""}{" "}
+                    bye {p.bye || "?"}
+                  </span>
+                </div>
+              ))
+            )}
+            {model.myPlayers.length === 0 && (
+              <div style={{ color: C.muted, fontSize: 12 }}>
+                No picks yet. Needs: 1 QB · 2 RB · 2 WR · 1 TE · 2 FLEX · 1
+                D/ST · 7 bench. No kickers in this league.
+              </div>
+            )}
+          </Panel>
+
+          <Panel title="Recent picks">
+            {model.recent.length === 0 && (
+              <div style={{ color: C.muted, fontSize: 12 }}>
+                Nothing yet — picks appear here live once the draft starts.
+              </div>
+            )}
+            {model.recent.map((pk) => (
+              <div key={pk.pick} style={{ padding: "3px 0", fontSize: 12 }}>
+                <span style={{ color: C.muted }}>#{pk.pick}</span>{" "}
+                {pk.player ? (
+                  <>
+                    <PosBadge pos={pk.player.pos} />{" "}
+                    <span style={{ fontWeight: 600 }}>{pk.player.name}</span>
+                  </>
+                ) : (
+                  `player ${pk.playerId}`
+                )}{" "}
+                <span style={{ color: C.muted }}>→ {pk.teamName}</span>
+              </div>
+            ))}
+          </Panel>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PosBadge({ pos }) {
+  return (
+    <span
+      style={{
+        background: (POS_COLOR[pos] || C.muted) + "26",
+        color: POS_COLOR[pos] || C.muted,
+        borderRadius: 4,
+        padding: "1px 5px",
+        fontSize: 10,
+        fontWeight: 800,
+      }}
+    >
+      {pos}
+    </span>
+  );
+}
+
+function MiniBtn({ label, onClick, color }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: "transparent",
+        border: `1px solid ${C.border}`,
+        color: color || C.muted,
+        borderRadius: 6,
+        padding: "2px 8px",
+        fontSize: 11,
+        cursor: "pointer",
+        marginRight: 4,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function Panel({ title, children }) {
+  return (
+    <div
+      style={{
+        background: C.panel,
+        border: `1px solid ${C.border}`,
+        borderRadius: 10,
+        padding: "10px 12px",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: C.muted,
+          letterSpacing: 0.5,
+          marginBottom: 6,
+        }}
+      >
+        {title.toUpperCase()}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Center({ children }) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: C.bg,
+        color: C.muted,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "-apple-system, sans-serif",
+        padding: 20,
+        textAlign: "center",
+      }}
+    >
+      {children}
+    </div>
+  );
+}

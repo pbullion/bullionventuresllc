@@ -105,6 +105,14 @@ const apps = [
  * on the public home page. */
 const tools = [
   {
+    emoji: "🏈",
+    name: "FF Draft War Room",
+    path: "/ffdraft",
+    tagline: "Live ESPN draft sync + consensus rankings",
+    description:
+      "A fantasy football draft assistant that syncs live with an ESPN draft — picks disappear off the board as they happen. Blends FantasyPros expert consensus, real mock-draft ADP, ESPN projections, and Boris Chen tiers into one board, with league-specific value math, tier alerts, and pick suggestions.",
+  },
+  {
     emoji: "🍽️",
     name: "Houston Restaurant Weeks",
     path: "/hrw",
