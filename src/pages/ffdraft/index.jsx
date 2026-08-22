@@ -219,6 +219,11 @@ export default function FFDraft() {
       tierLeft.set(k, (tierLeft.get(k) || 0) + 1);
     }
 
+    // bye-week exposure across my current roster
+    const myByeCounts = {};
+    for (const p of myPlayers)
+      if (p.bye) myByeCounts[p.bye] = (myByeCounts[p.bye] || 0) + 1;
+
     const enrich = (p) => {
       // chance the player is still on the board at my NEXT pick
       let availPct = null;
@@ -229,12 +234,29 @@ export default function FFDraft() {
       const left = p.fpTier != null ? tierLeft.get(`${p.pos}:${p.fpTier}`) : null;
       const mult = needMult(p.pos);
       let score = (p.vorp ?? 0) * mult + (left != null && left <= 2 ? 12 : 0);
+      // falling value: the market says this player should already be gone
+      const fallingBy =
+        p.ffcAdp != null && currentPick - p.ffcAdp >= 8
+          ? Math.round(currentPick - p.ffcAdp)
+          : 0;
+      if (fallingBy) score += Math.min(20, fallingBy * 0.8);
+      // bye stacking: a 3rd starter on the same bye turns one bad week into a loss
+      const byeClash = p.bye ? myByeCounts[p.bye] || 0 : 0;
+      if (byeClash >= 2) score -= 8 * (byeClash - 1);
       // Until it's actually my pick, a target only matters if they can reach
       // me — weight by the chance they're still on the board at my next pick.
       const onClock = myNext != null && myNext === currentPick;
       if (!onClock && availPct != null)
         score *= Math.max(0.05, availPct / 100);
-      return { ...p, availPct, tierLeftCount: left, needMult: mult, score };
+      return {
+        ...p,
+        availPct,
+        tierLeftCount: left,
+        needMult: mult,
+        score,
+        fallingBy,
+        byeClash,
+      };
     };
 
     const enriched = avail.map(enrich);
@@ -250,6 +272,9 @@ export default function FFDraft() {
           reasons.push("flex value");
         if (p.tierLeftCount != null && p.tierLeftCount <= 2)
           reasons.push(`only ${p.tierLeftCount} left in tier ${p.fpTier}`);
+        if (p.fallingBy) reasons.push(`falling — ${p.fallingBy} past ADP`);
+        if (p.byeClash >= 2)
+          reasons.push(`⚠ bye ${p.bye} stack (${p.byeClash} rostered)`);
         if (p.availPct != null && p.availPct < 40)
           reasons.push(`only ${p.availPct}% chance they reach you`);
         if (p.disagreement != null && p.disagreement >= 25)
@@ -267,12 +292,80 @@ export default function FFDraft() {
         teamName: teamName.get(pk.teamId) || `Team ${pk.teamId}`,
       }));
 
+    // position run: 4+ of the last 8 live picks at one position
+    const recentPos = [...livePicks]
+      .sort((a, b) => a.pick - b.pick)
+      .slice(-8)
+      .map((pk) => byId.get(pk.playerId)?.pos)
+      .filter((pos) => pos && pos !== "DST");
+    const runCounts = {};
+    for (const pos of recentPos) runCounts[pos] = (runCounts[pos] || 0) + 1;
+    const run =
+      recentPos.length >= 8
+        ? Object.entries(runCounts).find(([, c]) => c >= 4) || null
+        : null;
+
+    // what the teams picking between now and my next pick still need —
+    // predicts what disappears better than raw ADP does. Live picks only;
+    // meaningless in round 1 when everyone needs everything.
+    const pickOrder = board.league?.pickOrder || [];
+    const teamAtPick = (n) => {
+      const r = Math.ceil(n / TEAMS);
+      const within = n - (r - 1) * TEAMS;
+      return pickOrder[r % 2 === 1 ? within - 1 : TEAMS - within];
+    };
+    let demand = null;
+    if (totalDrafted >= TEAMS && myNext != null && myNext > currentPick) {
+      const filledByTeam = {};
+      for (const pk of livePicks) {
+        const pos = byId.get(pk.playerId)?.pos;
+        if (!pos) continue;
+        (filledByTeam[pk.teamId] = filledByTeam[pk.teamId] || {})[pos] =
+          (filledByTeam[pk.teamId][pos] || 0) + 1;
+      }
+      demand = {};
+      for (let n = currentPick; n < myNext; n++) {
+        const tid = teamAtPick(n);
+        if (tid === MY_TEAM_ID || tid == null) continue;
+        const filled = filledByTeam[tid] || {};
+        for (const pos of Object.keys(STARTERS)) {
+          if (pos === "DST" && round < 12) continue;
+          if ((filled[pos] || 0) < STARTERS[pos])
+            demand[pos] = (demand[pos] || 0) + 1;
+        }
+      }
+    }
+
+    // draft plan: for each of my next picks, who is likely (>=50%) to be
+    // there, ranked by value-x-need (availability already gates the list)
+    const plan = mine
+      .filter((n) => n >= currentPick)
+      .slice(0, 4)
+      .map((n) => ({
+        pick: n,
+        round: Math.ceil(n / TEAMS),
+        targets: enriched
+          .filter((p) => p.vorp != null && p.needMult > 0.1)
+          .map((p) => {
+            const sd = p.ffcStdev && p.ffcStdev > 0 ? p.ffcStdev : 6;
+            const availHere =
+              p.ffcAdp != null ? 1 - normCdf((n - p.ffcAdp) / sd) : 1;
+            return { ...p, availHere };
+          })
+          .filter((p) => p.availHere >= 0.5)
+          .sort((a, b) => b.vorp * b.needMult - a.vorp * a.needMult)
+          .slice(0, 3),
+      }));
+
     return {
       drafted,
       enriched,
       suggestions,
       roster,
       myPlayers,
+      run,
+      demand,
+      plan,
       currentPick,
       round,
       totalDrafted,
@@ -456,6 +549,20 @@ export default function FFDraft() {
             synced {new Date(live.fetchedAt).toLocaleTimeString()}
           </span>
         )}
+        {model.run && (
+          <span style={{ color: C.red, fontWeight: 700, fontSize: 13 }}>
+            🔥 {model.run[0]} run — {model.run[1]} of last 8 picks
+          </span>
+        )}
+        {model.demand && Object.keys(model.demand).length > 0 && (
+          <span style={{ color: C.muted, fontSize: 12, width: "100%" }}>
+            before your pick:{" "}
+            {Object.entries(model.demand)
+              .sort((a, b) => b[1] - a[1])
+              .map(([pos, n]) => `${n} team${n === 1 ? "" : "s"} need ${pos}`)
+              .join(" · ")}
+          </span>
+        )}
       </div>
 
       {/* suggestions */}
@@ -621,6 +728,32 @@ export default function FFDraft() {
                             {p.injuryStatus}
                           </span>
                         )}
+                        {!gone && p.fallingBy > 0 && (
+                          <span
+                            style={{
+                              color: C.green,
+                              fontSize: 10,
+                              marginLeft: 5,
+                              fontWeight: 700,
+                            }}
+                            title={`Still here ${p.fallingBy} picks past his ADP`}
+                          >
+                            ▼ VALUE
+                          </span>
+                        )}
+                        {!gone && p.byeClash >= 2 && (
+                          <span
+                            style={{
+                              color: C.amber,
+                              fontSize: 10,
+                              marginLeft: 5,
+                              fontWeight: 700,
+                            }}
+                            title={`You already roster ${p.byeClash} players on bye ${p.bye}`}
+                          >
+                            BYE⚠
+                          </span>
+                        )}
                         {gone?.by === "live" && gone.teamId && (
                           <span
                             style={{
@@ -776,6 +909,32 @@ export default function FFDraft() {
                 D/ST · 7 bench. No kickers in this league.
               </div>
             )}
+          </Panel>
+
+          <Panel title="Draft plan — likely there for you">
+            {model.plan.map((row) => (
+              <div key={row.pick} style={{ padding: "4px 0", fontSize: 12 }}>
+                <div style={{ color: C.muted, fontSize: 11 }}>
+                  Rd {row.round} · pick #{row.pick}
+                </div>
+                {row.targets.length === 0 && (
+                  <div style={{ color: C.muted }}>—</div>
+                )}
+                {row.targets.map((p) => (
+                  <div key={p.espnId} style={{ padding: "1px 0" }}>
+                    <PosBadge pos={p.pos} />{" "}
+                    <span style={{ fontWeight: 600 }}>{p.name}</span>{" "}
+                    <span style={{ color: C.muted, fontSize: 10 }}>
+                      {Math.round(p.availHere * 100)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+            <div style={{ color: C.muted, fontSize: 10, marginTop: 4 }}>
+              Players with ≥50% odds of reaching each pick, ranked by value ×
+              your need. Updates live.
+            </div>
           </Panel>
 
           <Panel title="Recent picks">
