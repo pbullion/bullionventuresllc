@@ -3,9 +3,11 @@ import { useCallback, useEffect, useState } from "react";
 /* Morning Review — the three nightly review desks in one page.
  *
  * Backend: GET/POST /kalshi/morning-report (table kalshi_morning_reports).
- * Three independent review agents write one section each — sports 2:07,
- * weather 2:22, crypto 2:37 CT — via the per-engine merge shape, so a section
- * arriving late never clobbers one that arrived early.
+ * Three independent review agents write one section each — sports 5:30,
+ * weather 5:45, crypto 6:00 CT — via the per-engine merge shape, so a section
+ * arriving late never clobbers one that arrived early. They run well after the
+ * engines' own deterministic reviews (2:00/2:20/2:30), so the data is settled
+ * by the time a desk reads it.
  *
  * Report shape: { headline, sections: [{ engine, title, body, actions[] }] }
  * where body is plain text with newlines and each action is a PROPOSAL:
@@ -187,8 +189,8 @@ export default function MorningReview() {
         {err && <span style={{ fontSize: 11, color: C.amber }}>{err}</span>}
       </div>
       <div style={{ fontSize: 12.5, color: C.muted, margin: "6px 0 14px" }}>
-        Three review desks, one per engine, written overnight — sports 2:07,
-        weather 2:22, crypto 2:37 CT.
+        Three review desks, one per engine, filed each morning — sports 5:30,
+        weather 5:45, crypto 6:00 CT.
       </div>
 
       {/* Live status strip — true regardless of which report you are reading. */}
@@ -417,7 +419,7 @@ export default function MorningReview() {
         <div style={{ ...card, color: C.muted, fontSize: 13.5 }}>
           {date
             ? "No report for that day."
-            : "No report yet — the desks file overnight, between 2:07 and 2:37 CT."}
+            : "No report yet — the desks file between 5:30 and 6:00 CT."}
         </div>
       )}
 
