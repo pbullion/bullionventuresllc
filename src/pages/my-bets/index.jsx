@@ -2058,6 +2058,43 @@ function GameHeader({ grp, onHide }) {
   );
 }
 
+/* Label above value, so three temperatures read as three labelled figures
+ * instead of one run-on sentence ("Austin now 91° high so far 91° forecast
+ * 102°" — Patrick, 2026-08-19: "fix the spacing"). Same stacked-stat idiom
+ * the portfolio strip and the game cards already use on this page.
+ *
+ * Module scope, not inside WeatherNow: a component declared during render is
+ * a brand-new type on every render, so React unmounts and remounts these
+ * spans each time instead of updating them. Harmless here (they hold no
+ * state) but it is wasted work, and it is the one thing eslint fails the
+ * build on. */
+const Stat = ({ label, value, bright }) => (
+  <span style={{ display: "inline-flex", flexDirection: "column", gap: 1 }}>
+    <span
+      style={{
+        color: C.muted,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.5,
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+    <span
+      style={{
+        color: bright ? C.text : C.muted,
+        fontSize: 14,
+        fontWeight: 800,
+        lineHeight: 1.1,
+      }}
+    >
+      {value}
+    </span>
+  </span>
+);
+
 /* Live temp line for a weather-engine position — the weather card's version of
  * the score strip on a sports card. Data rides display.weather (latest scan
  * snapshot, <=10 min old): the station's current reading, today's running max
@@ -2085,36 +2122,6 @@ function WeatherNow({ d, noCity = false }) {
      (…-B90.5), so a rounded "91°" hides whether the station is at 90.6
      or 91.4 — the whole question the bet turns on. Patrick, 2026-08-20. */
   const deg = (v) => (v == null ? "—" : `${Number(v).toFixed(1)}°`);
-  /* Label above value, so three temperatures read as three labelled figures
-     instead of one run-on sentence ("Austin now 91° high so far 91° forecast
-     102°" — Patrick, 2026-08-19: "fix the spacing"). Same stacked-stat idiom
-     the portfolio strip and the game cards already use on this page. */
-  const Stat = ({ label, value, bright }) => (
-    <span style={{ display: "inline-flex", flexDirection: "column", gap: 1 }}>
-      <span
-        style={{
-          color: C.muted,
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          color: bright ? C.text : C.muted,
-          fontSize: 14,
-          fontWeight: 800,
-          lineHeight: 1.1,
-        }}
-      >
-        {value}
-      </span>
-    </span>
-  );
   return (
     <div
       style={{
