@@ -252,6 +252,7 @@ const RULES = [
   ['Delete everything, yourself', 'More → your name → Delete My Account removes your account, posts, comments, messages and the actual photo files. No email required.'],
   ['Children stay out of feeds', 'Kids’ ages and guest contact details appear only in staff screens — never in the feed, never on the calendar.'],
   ['Giving links out', 'Give opens the church’s own secure giving page in your browser. The app never handles card or bank details.'],
+  ['We never confirm who’s a member', 'Ask to reset a password and the app answers the same way whether or not that address has an account. Confirming it would leak who belongs to the church.'],
   ['Prayer requests expire', 'Requests shared with the congregation are deleted automatically after 7 days, with a countdown on each one.'],
 ];
 
@@ -369,6 +370,23 @@ export default function SouthsideWalkthrough() {
               Signing up takes a name, an email and a password. Then you’ll see a screen saying staff are reviewing —
               it re-checks by itself, so there’s nothing to refresh and no need to close the app. The moment somebody
               approves you, it unlocks.
+            </p>
+          </Step>
+
+          <Step title="If you forget your password">
+            <p style={styles.stepBody}>
+              <strong style={s.strong}>Forgot your password?</strong> sits on the Sign In screen. Put in your email,
+              and a 6-digit code arrives — type it in along with a new password and you’re back in. The code lasts
+              fifteen minutes and works once.
+            </p>
+            <p style={styles.stepBody}>
+              It’s a code rather than a tap-through link because the email is usually opened on a different device
+              from the phone the app is on. And the app never tells anyone whether an address has an account — it
+              says the same thing either way, because confirming it would give away who belongs to the church.
+            </p>
+            <p style={styles.stepBody}>
+              Resetting also signs your other devices out. If a phone goes missing, changing your password is enough
+              to lock it out of the app.
             </p>
           </Step>
 
