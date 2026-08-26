@@ -503,6 +503,21 @@ export default function SouthsideWalkthrough() {
             </div>
           </div>
 
+          <Step title="One screen for everything waiting on you">
+            <p style={styles.stepBody}>
+              <strong style={s.strong}>Staff To-Do</strong> is the first thing under Admin, and the More tab carries a
+              number so you can see there’s something waiting without opening anything. Members to approve, posts to
+              review, reported content, visitors to follow up, prayer requests to pick up, serving spots and meal-train
+              days nobody has taken, and a sermon still in draft with Sunday coming. Where somebody is waiting on you,
+              the card tells you how long they’ve waited; where it’s a gap to fill, it tells you the date it falls due.
+            </p>
+            <p style={styles.stepBody}>
+              Anything already dealt with collapses into a ticked-off list, so the screen tells you you’re finished
+              rather than making you check six places to find that out. Underneath are one-tap shortcuts to send a
+              notification, or start an announcement, an event, a sermon, a poll, a meal train or the serving schedule.
+            </p>
+          </Step>
+
           <Step title="Approve people, and posts" shot={`${IMG}/phone-06-bulletin.png`} alt="The bulletin">
             <p style={styles.stepBody}>
               New signups wait in a queue and you get a notification. Member posts wait in another — you see the words
@@ -561,6 +576,13 @@ export default function SouthsideWalkthrough() {
               A reminder to everyone who RSVP’d, about a day before the event. A “this week at Southside” digest on
               Saturday evening. A birthday shout-out at 8am. The Thursday nudge to whoever is serving on Sunday, and an
               afternoon reminder to whoever has tomorrow’s meal. Shared prayer requests clear themselves after a week.
+            </p>
+            <p style={styles.stepBody}>
+              And at 9am, one message to staff listing anything still waiting — and if the oldest thing has been
+              sitting more than a couple of days, how long. Every queue already tells you the moment something
+              arrives — but a notification is one chance, and a
+              phone face-down through a service misses it. This is the reminder that keeps a request from being
+              forgotten. It only goes out when somebody is genuinely waiting on you, never for a quiet morning.
             </p>
           </Step>
         </section>
