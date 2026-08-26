@@ -14,8 +14,10 @@ import Settings from "./Settings.jsx";
 
 /* /ashley — a commercial banker's client transition tracker.
  *
- * Deliberately absent from the home page AND from PrivateTools: it isn't a tool
- * for site visitors, it's one person's working book of client relationships.
+ * Deliberately absent from the home page: it isn't a tool for site visitors,
+ * it's one person's working book of client relationships. It sits in the
+ * press-and-hold PrivateTools modal as of 2026-08-26 (Patrick wanted it reachable
+ * without typing the URL) — that modal is a shortcut list, not a gate.
  *
  * Whether that book is PROTECTED depends on the backend: routes/ashley.js
  * normally requires a bearer token on every endpoint including the reads, and

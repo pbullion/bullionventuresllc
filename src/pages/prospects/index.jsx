@@ -34,8 +34,9 @@ import Importer from "./Importer.jsx";
  * C&I operating company in greater Houston over roughly $50M of revenue, and
  * the question is "who do I call next, and what do I know before I dial".
  *
- * Unlisted like /ashley — no home page card, not in PrivateTools — but unlike
- * /ashley it has NO LOGIN (Patrick's call, 2026-08-13). Anyone who reaches the
+ * Unlisted like /ashley — no home page card, listed only in the press-and-hold
+ * PrivateTools modal (added 2026-08-26) — but unlike /ashley it has NO LOGIN
+ * (Patrick's call, 2026-08-13). Anyone who reaches the
  * URL can read and edit the book. The catalog itself is public information; what
  * is hers is the overlay of statuses, notes and contacts on top of it. Setting
  * PROSPECTS_ACCESS_CODE on the backend turns on a shared-code gate with no

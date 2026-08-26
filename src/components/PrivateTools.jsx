@@ -2,57 +2,102 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 
-/* The betting screens, deliberately kept off the public home page (Patrick,
- * 2026-07-30). They're reachable by long-pressing the wordmark in the navbar,
- * which opens the modal below.
+/* Everything on this site that is deliberately NOT on the public home page,
+ * reachable by pressing and holding either the navbar wordmark or the badge at
+ * the top of the home page hero (Patrick, 2026-07-30; extended past the betting
+ * screens to his own unlisted pages 2026-08-26).
  *
  * IMPORTANT — this is obscurity, not access control. Every path here is still an
- * open, unauthenticated route: anyone who knows or guesses the URL can load it,
- * and so can a crawler that finds it linked anywhere. Nothing here is a
- * permission check. If these genuinely need to be private, they need auth on the
- * routes (and the backend endpoints they read, which are public too).
+ * open route: anyone who knows or guesses the URL can load it, and so can a
+ * crawler that finds it linked anywhere. Nothing here is a permission check.
+ * /ashley is the one exception and it is the backend, not this list, that
+ * protects it — see routes/ashley.js. If the rest genuinely need to be private,
+ * they need auth on the routes (and on the backend endpoints they read, which
+ * are public too).
  *
- * When a page belongs here rather than on the home page, add it to this array
+ * When a page belongs here rather than on the home page, add it to a group below
  * INSTEAD of the `apps`/`tools` arrays in src/pages/Home.jsx — see CLAUDE.md,
  * which requires every new page to be discoverable from one of the two. */
 /* Not exported: only the modal below reads it, and exporting a constant beside a
  * component breaks Fast Refresh (react-refresh/only-export-components). */
-const PRIVATE_TOOLS = [
+const GROUPS = [
   {
-    emoji: "🎯",
-    name: "My Bets",
-    path: "/my-bets",
-    tagline: "Every open position, live",
+    label: "Patrick",
+    items: [
+      {
+        emoji: "✅",
+        name: "Project Board",
+        path: "/patrick",
+        tagline: "The todo wall — one board per app",
+      },
+      {
+        emoji: "🏈",
+        name: "FF Draft War Room",
+        path: "/ffdraft",
+        tagline: "Live ESPN draft assistant",
+      },
+    ],
   },
   {
-    emoji: "📈",
-    name: "Totals Value",
-    path: "/totals-value",
-    tagline: "Sports over/unders — model vs market",
+    label: "Betting",
+    items: [
+      {
+        emoji: "🎯",
+        name: "My Bets",
+        path: "/my-bets",
+        tagline: "Every open position, live",
+      },
+      {
+        emoji: "📈",
+        name: "Totals Value",
+        path: "/totals-value",
+        tagline: "Sports over/unders — model vs market",
+      },
+      {
+        emoji: "🪙",
+        name: "Crypto Value",
+        path: "/crypto-value",
+        tagline: "15-minute and hourly crypto windows",
+      },
+      {
+        emoji: "🌡",
+        name: "Weather Value",
+        path: "/weather-value",
+        tagline: "Daily city-high temperature markets",
+      },
+      {
+        emoji: "☕",
+        name: "Morning Review",
+        path: "/morning-review",
+        tagline: "The 7am engine report",
+      },
+      {
+        emoji: "🏆",
+        name: "Elite Edge Advisors",
+        path: "/elite-edge-advisors",
+        tagline: "The tracked bet board",
+      },
+    ],
   },
   {
-    emoji: "🪙",
-    name: "Crypto Value",
-    path: "/crypto-value",
-    tagline: "15-minute and hourly crypto windows",
-  },
-  {
-    emoji: "🌡",
-    name: "Weather Value",
-    path: "/weather-value",
-    tagline: "Daily city-high temperature markets",
-  },
-  {
-    emoji: "☕",
-    name: "Morning Review",
-    path: "/morning-review",
-    tagline: "The 7am engine report",
-  },
-  {
-    emoji: "🏆",
-    name: "Elite Edge Advisors",
-    path: "/elite-edge-advisors",
-    tagline: "The tracked bet board",
+    /* Ashley's two pages. They are hers, not tools for site visitors — they are
+     * here so Patrick can reach them without typing the URL, which is the only
+     * reason this group exists. */
+    label: "Banking",
+    items: [
+      {
+        emoji: "🏦",
+        name: "Client Tracker",
+        path: "/ashley",
+        tagline: "Ashley's transition book — real login",
+      },
+      {
+        emoji: "📇",
+        name: "Prospects",
+        path: "/prospects",
+        tagline: "Houston C&I calling list",
+      },
+    ],
   },
 ];
 
@@ -113,7 +158,7 @@ export default function PrivateToolsModal({ open, onClose }) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Private tools"
+      aria-label="Unlisted pages"
       onClick={onClose}
       style={S.backdrop}
     >
@@ -127,7 +172,7 @@ export default function PrivateToolsModal({ open, onClose }) {
         <div style={S.head}>
           <div>
             <div style={S.eyebrow}>Private</div>
-            <h2 style={S.title}>Betting tools</h2>
+            <h2 style={S.title}>Jump to</h2>
           </div>
           <button
             type="button"
@@ -139,28 +184,35 @@ export default function PrivateToolsModal({ open, onClose }) {
             ✕
           </button>
         </div>
-        <p style={S.note}>Unlisted — not shown on the home page.</p>
-        <div style={S.list}>
-          {PRIVATE_TOOLS.map((t) => (
-            <Link
-              key={t.path}
-              to={t.path}
-              onClick={onClose}
-              className="bv-modal-row"
-            >
-              <span style={S.tile}>
-                <span style={{ fontSize: 20, lineHeight: 1 }}>{t.emoji}</span>
-              </span>
-              <span style={{ minWidth: 0 }}>
-                <span style={S.name}>{t.name}</span>
-                <span style={S.tagline}>{t.tagline}</span>
-              </span>
-              <span style={S.arrow} aria-hidden="true">
-                →
-              </span>
-            </Link>
-          ))}
-        </div>
+        <p style={S.note}>Unlisted — none of these are on the home page.</p>
+        {GROUPS.map((group) => (
+          <div key={group.label} style={S.group}>
+            <div style={S.groupLabel}>{group.label}</div>
+            <div style={S.list}>
+              {group.items.map((t) => (
+                <Link
+                  key={t.path}
+                  to={t.path}
+                  onClick={onClose}
+                  className="bv-modal-row"
+                >
+                  <span style={S.tile}>
+                    <span style={{ fontSize: 20, lineHeight: 1 }}>
+                      {t.emoji}
+                    </span>
+                  </span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={S.name}>{t.name}</span>
+                    <span style={S.tagline}>{t.tagline}</span>
+                  </span>
+                  <span style={S.arrow} aria-hidden="true">
+                    →
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>,
     document.body,
@@ -218,6 +270,17 @@ const S = {
     lineHeight: 1,
   },
   note: { margin: "8px 0 14px", fontSize: 12.5, color: "#83839a" },
+  // The group heading sits inset by 12px so it lines up with the row text
+  // above/below it rather than with the card edge.
+  group: { marginBottom: 12 },
+  groupLabel: {
+    fontSize: 10.5,
+    fontWeight: 700,
+    letterSpacing: "0.13em",
+    textTransform: "uppercase",
+    color: "#5f5f74",
+    padding: "0 12px 6px",
+  },
   list: { display: "flex", flexDirection: "column", gap: 2 },
   tile: {
     width: 38,

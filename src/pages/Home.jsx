@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import PrivateToolsModal from "../components/PrivateTools";
+import useLongPress from "../components/useLongPress";
 
 /* Palette. "Bullion" is the brand, so the accent is gold rather than the stock
  * template indigo (#6c63ff) this page shipped with — that colour said nothing
@@ -99,10 +102,10 @@ const apps = [
   },
 ];
 
-/* The five betting screens are deliberately NOT here — they live in
- * src/components/PrivateTools.jsx and are reachable only by long-pressing the
- * navbar wordmark (Patrick, 2026-07-30). Adding one back to this array puts it
- * on the public home page. */
+/* The betting screens and Patrick's own unlisted pages are deliberately NOT here
+ * — they live in src/components/PrivateTools.jsx and are reachable only by
+ * pressing and holding the navbar wordmark or the hero badge below (Patrick,
+ * 2026-07-30). Adding one back to this array puts it on the public home page. */
 const tools = [
   {
     emoji: "🍽️",
@@ -270,6 +273,9 @@ function Section({ id, eyebrow, title, blurb, items }) {
 }
 
 export default function Home() {
+  const [showPrivate, setShowPrivate] = useState(false);
+  const heroPress = useLongPress(() => setShowPrivate(true));
+
   return (
     <div className="bv-home" style={S.page}>
       <style>{HOME_CSS}</style>
@@ -282,10 +288,24 @@ export default function Home() {
         <div style={S.heroGlow} aria-hidden="true" />
         <div style={S.heroGrid} aria-hidden="true" />
         <div style={S.heroInner}>
-          <div style={S.brandRow}>
+          {/* Press and hold for the unlisted-pages modal — the same gesture as
+              the navbar wordmark, put here too because the home page hides the
+              navbar behind a scroll on a phone and this badge is the first
+              thing under the thumb (Patrick, 2026-08-26).
+
+              Deliberately still a <span>, not a <button>: it must stay a
+              decorative badge to everyone else, with no pointer cursor, no tab
+              stop and no keyboard path advertising that the gesture exists.
+              That is the same obscurity the rest of PrivateTools relies on —
+              see the note at the top of that file. */}
+          <span
+            style={S.brandRow}
+            {...heroPress.handlers}
+            onClick={() => heroPress.consumeFired()}
+          >
             <span style={S.brandDot} />
             Bullion Ventures LLC
-          </div>
+          </span>
           <h1 className="bv-hero-title" style={S.heroTitle}>
             Apps and tools that make{" "}
             <span style={S.heroAccent}>everyday life</span> better.
@@ -329,6 +349,11 @@ export default function Home() {
           items={tools}
         />
       </main>
+
+      <PrivateToolsModal
+        open={showPrivate}
+        onClose={() => setShowPrivate(false)}
+      />
     </div>
   );
 }
@@ -379,6 +404,13 @@ const S = {
   },
   brandRow: {
     display: "inline-flex",
+    // Press-target hygiene, not decoration: without these a hold selects the
+    // text and iOS raises the share/copy callout on top of the modal. No
+    // `cursor: pointer` on purpose — the badge should not advertise itself.
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    WebkitTouchCallout: "none",
+    touchAction: "manipulation",
     alignItems: "center",
     gap: 8,
     fontSize: 12,

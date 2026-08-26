@@ -57,27 +57,53 @@ When you add a new tool/page, do **all** of these, not just the route:
    easy to forget — do not skip it. (Wedding-photos and mothers-day-2026 are
    cardless on purpose — private pages.)
    - **`/ashley` is cardless AND unlisted, on purpose.** Ashley's client
-     transition tracker (`src/pages/ashley/`) is on neither the home page nor
-     `PRIVATE_TOOLS` — it isn't a tool for site visitors, it's one person's book
-     of commercial-banking client relationships, and it's reached by typing the
-     URL. Unlike every other page here, it is **genuinely protected**: real
+     transition tracker (`src/pages/ashley/`) is not on the home page — it isn't
+     a tool for site visitors, it's one person's book of commercial-banking
+     client relationships. It is in `PRIVATE_TOOLS` (added 2026-08-26) so
+     Patrick can reach it without typing the URL. Unlike every other page here,
+     it is **genuinely protected**: real
      email/password login, JWT in `localStorage["ash_token"]`, and
      `routes/ashley.js` requires a bearer token on every endpoint including the
      reads. Needs `ASHLEY_JWT_SECRET` and `ASHLEY_SIGNUP_CODE` set on Heroku.
    - **`/ffdraft` is cardless AND unlisted too** (Patrick, 2026-08-21).
      Fantasy football draft war room (`src/pages/ffdraft/`) synced to his
-     private ESPN league via sheline `/ffdraft`. Personal tool, reached by
-     typing the URL — do not add a home page card.
+     private ESPN league via sheline `/ffdraft`. Personal tool — do not add a
+     home page card; it's in `PRIVATE_TOOLS` instead.
    - **`/patrick` is cardless AND unlisted too.** Patrick's own project board
      (`src/pages/patrick/`) — one mini todo board per app he is still finishing.
-     Not on the home page, not in `PRIVATE_TOOLS`, no login, reached by typing
-     the URL. See its own section below.
-   - **Betting screens go somewhere else.** The five Kalshi/betting pages are
-     kept off the public home page (Patrick, 2026-07-30) and live in
-     `PRIVATE_TOOLS` in `src/components/PrivateTools.jsx`, reached by
-     long-pressing the navbar wordmark. Add a betting page there instead — and
-     note that hiding it is obscurity only: the route stays public and
-     unauthenticated.
+     Not on the home page, no login. It's the first row of `PRIVATE_TOOLS`
+     (2026-08-26) so the todo wall is one press-and-hold away. See its own
+     section below.
+   - **Everything unlisted goes somewhere else.** The pages kept off the public
+     home page — the six Kalshi/betting screens (Patrick, 2026-07-30) plus
+     `/patrick`, `/ffdraft`, `/ashley` and `/prospects` (2026-08-26) — live in
+     `GROUPS` in `src/components/PrivateTools.jsx`. Add an unlisted page to the
+     right group there instead of to `apps`/`tools`, and note that hiding it is
+     obscurity only: every route but `/ashley` stays public and unauthenticated.
+
+### The press-and-hold menu (`PrivateTools`)
+
+`src/components/PrivateTools.jsx` renders one modal listing every unlisted page,
+grouped **Patrick / Betting / Banking**. It has **two** triggers, both a 550ms
+press-and-hold:
+
+- the navbar wordmark (`src/components/Navbar.jsx`), on every page with chrome;
+- the gold `Bullion Ventures LLC` badge in the home page hero
+  (`src/pages/Home.jsx`), because the navbar scrolls away on a phone.
+
+Both share `src/components/useLongPress.js` — put the gesture on a third trigger
+by calling that hook, never by re-implementing the timer. Two rules the hook
+encodes and a new trigger must respect:
+
+1. **Swallow the click after a completed hold.** `press.consumeFired()` in
+   `onClick` → `e.preventDefault()`. Without it the wordmark opens the modal and
+   then routes home behind it.
+2. **`onContextMenu` must be prevented and text selection disabled.** Holding on
+   iOS otherwise raises the share/copy callout on top of the modal.
+
+The hero badge is deliberately a `<span>`, not a `<button>`: no pointer cursor,
+no tab stop, no keyboard path. It stays a decorative badge for everyone who
+isn't looking for the gesture, which is the whole point.
 
 ## The one page with build-time data (`/hrw`)
 

@@ -18,10 +18,13 @@ import HelpModal from "./HelpModal.jsx";
  * top) is on every open row and why the "Next up" strip along the top can just
  * read the first open task of each card.
  *
- * Unlisted like /ashley and /prospects — no home page card, not in PrivateTools
- * — and, like /prospects, with NO LOGIN. Anyone who reaches the URL can read and
- * edit the board. See the header of routes/patrickBoard.js for what that does
- * and doesn't expose.
+ * Unlisted like /ashley and /prospects — no home page card — and, like
+ * /prospects, with NO LOGIN. Anyone who reaches the URL can read and edit the
+ * board. See the header of routes/patrickBoard.js for what that does and doesn't
+ * expose. It IS in PrivateTools as of 2026-08-26: Patrick asked for a way to
+ * reach his todo wall without typing the URL, so it's the first row of the
+ * press-and-hold modal. That's a shortcut for him, not a change in exposure —
+ * the route was already public and unauthenticated.
  *
  * Every write is optimistic: local state changes first, the request follows, and
  * a failure refetches /state and says so in a toast. On a sleeping Heroku dyno

@@ -1,45 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import PrivateToolsModal from './PrivateTools';
+import useLongPress from './useLongPress';
 import Logo from './Logo';
-
-/* Hold the wordmark this long to open the private-tools modal. Long enough not
- * to fire on a normal tap, short enough not to feel broken. */
-const LONG_PRESS_MS = 550;
 
 export default function Navbar() {
   const location = useLocation();
   const isHome = location.pathname === '/';
   const [showPrivate, setShowPrivate] = useState(false);
-  const timer = useRef(null);
-  // Set when a hold completes, so the click that follows the release doesn't
-  // also navigate home — without this, every long press would open the modal
-  // and then immediately route away behind it.
-  const fired = useRef(false);
+  // Hold the wordmark to open the unlisted-pages modal. The same gesture is on
+  // the hero badge in src/pages/Home.jsx; both share src/components/useLongPress.js.
+  const press = useLongPress(() => setShowPrivate(true));
 
-  const clear = () => {
-    if (timer.current) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-  };
-  useEffect(() => clear, []);
-
-  const startPress = () => {
-    fired.current = false;
-    clear();
-    timer.current = setTimeout(() => {
-      timer.current = null;
-      fired.current = true;
-      setShowPrivate(true);
-    }, LONG_PRESS_MS);
-  };
-
+  // Swallow the click that follows a completed hold, or the modal opens and the
+  // link immediately routes home behind it.
   const handleClick = (e) => {
-    if (fired.current) {
-      e.preventDefault();
-      fired.current = false;
-    }
+    if (press.consumeFired()) e.preventDefault();
   };
 
   return (
@@ -73,14 +49,8 @@ export default function Navbar() {
       }}>
         <Link
           to="/"
-          onPointerDown={startPress}
-          onPointerUp={clear}
-          onPointerLeave={clear}
-          onPointerCancel={clear}
+          {...press.handlers}
           onClick={handleClick}
-          // Long-pressing a link on iOS otherwise selects the text and raises
-          // the share/copy callout, which would sit on top of the modal.
-          onContextMenu={(e) => e.preventDefault()}
           style={{
             display: 'flex',
             alignItems: 'center',

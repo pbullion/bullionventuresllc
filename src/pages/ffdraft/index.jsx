@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 
 /* FF Draft War Room — live draft assistant for Patrick's ESPN league
  * ("The League", id 1429051163, 2026). Backend: sheline /ffdraft.
+ * Cardless and unlisted; reachable from the press-and-hold PrivateTools modal
+ * (added 2026-08-26) or by typing the URL.
  *   GET /ffdraft/board — consensus board (ESPN proj/ADP + FantasyPros ECR +
  *     FFCalculator ADP + Boris Chen tiers), league meta, pick order.
  *   GET /ffdraft/live  — ESPN mDraftDetail picks, polled during the draft.
