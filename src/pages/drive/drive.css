@@ -290,10 +290,14 @@
 
 /* --------------------------------------------------------------- forecast */
 
+/* Rows sit together at the top rather than being spread down the card.
+   space-around pushed six forecast rows apart to fill the height and left a
+   band of dead space between every one of them; the card is a list, and a list
+   with air injected between its items is harder to scan, not easier. */
 .dfc {
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
+  gap: calc(var(--u) * 0.1);
   flex: 1;
   min-height: 0;
 }
@@ -304,7 +308,9 @@
   grid-template-columns: calc(var(--u) * 3.9) calc(var(--u) * 1.9) 1fr auto;
   align-items: center;
   gap: calc(var(--u) * 0.55);
-  padding: calc(var(--u) * 0.22) 0;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
 }
 .dfc__day {
   font-size: calc(var(--u) * 0.95);
@@ -364,6 +370,23 @@
 .dradar .leaflet-control-attribution {
   display: none;
 }
+/* ...except the zoom buttons in the full-screen view, which is the one place
+   the map is meant to be driven. Restyled dark; Leaflet ships them white. */
+.dradar.is-full .leaflet-control-container {
+  display: block;
+}
+.dradar.is-full .leaflet-control-zoom a {
+  width: calc(var(--u) * 2.4);
+  height: calc(var(--u) * 2.4);
+  line-height: calc(var(--u) * 2.3);
+  border: 1px solid var(--line-hi);
+  background: rgba(8, 11, 18, 0.85);
+  color: var(--text);
+  font-size: calc(var(--u) * 1.3);
+}
+.dradar.is-full .leaflet-control-zoom a:first-child {
+  border-bottom: 0;
+}
 .dradar__pin {
   position: absolute;
   top: 50%;
@@ -410,20 +433,22 @@
 
 /* ------------------------------------------------------------------ teams */
 
+/* Same reasoning as .dfc — five rows, packed, not spread. */
 .dteams {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   flex: 1;
   min-height: 0;
-  gap: calc(var(--u) * 0.28);
+  gap: calc(var(--u) * 0.34);
 }
 .dteam {
   display: grid;
-  grid-template-columns: calc(var(--u) * 2) 1fr auto;
+  grid-template-columns: calc(var(--u) * 2.3) 1fr auto;
   align-items: center;
-  gap: calc(var(--u) * 0.55);
-  padding: calc(var(--u) * 0.4) calc(var(--u) * 0.5);
+  gap: calc(var(--u) * 0.6);
+  flex: 1;
+  min-height: 0;
+  padding: calc(var(--u) * 0.3) calc(var(--u) * 0.55);
   border: 1px solid transparent;
   border-radius: calc(var(--u) * 0.6);
   background: var(--card);
@@ -439,8 +464,8 @@
   background: rgba(255, 69, 58, 0.09);
 }
 .dteam__logo {
-  width: calc(var(--u) * 2);
-  height: calc(var(--u) * 2);
+  width: calc(var(--u) * 2.3);
+  height: calc(var(--u) * 2.3);
   object-fit: contain;
 }
 .dteam__matchup {
@@ -638,7 +663,7 @@
 .dk__list {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--u) * 0.3);
+  gap: calc(var(--u) * 0.34);
 }
 .dk__row {
   display: grid;
@@ -762,4 +787,621 @@
   .dnews {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* ============================================================== expandable */
+
+/* A card that opens. The affordance has to be visible without being loud —
+   a driver should be able to learn once that cards open, and never hunt. */
+.dcard.is-tappable,
+.dhero.is-tappable {
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dcard.is-tappable:active,
+.dhero.is-tappable:active {
+  border-color: var(--line-hi);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.03)),
+    rgba(8, 11, 18, 0.72);
+}
+.dcard__grow {
+  width: calc(var(--u) * 0.95);
+  height: calc(var(--u) * 0.95);
+  flex: 0 0 auto;
+  color: var(--faint);
+  opacity: 0.75;
+}
+
+/* ================================================================== detail */
+
+.ddetail {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background:
+    radial-gradient(80vw 60vh at 12% -10%, rgba(78, 163, 255, 0.12), transparent 70%),
+    radial-gradient(70vw 60vh at 105% 110%, rgba(139, 92, 246, 0.1), transparent 70%),
+    var(--bg);
+  animation: dfade 0.16s ease-out;
+}
+/* Opacity only — deliberately NOT a transform. Leaflet measures its container
+   on creation, and a scale() on an ancestor makes that measurement wrong while
+   the animation runs; a ResizeObserver cannot rescue it either, because a
+   transform does not change the border-box size it watches. The full-screen
+   radar came up with a half-tiled map until this dropped the scale. */
+@keyframes dfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ddetail__bar {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.9);
+  padding: calc(var(--u) * 0.75) calc(var(--u) * 1.1);
+  border-bottom: 1px solid var(--line);
+}
+
+/* Deliberately oversized. This is the one control on the page someone will
+   reach for while moving, so it is a wide target at the screen edge — the
+   easiest place on a touchscreen to hit without looking. */
+.dback {
+  appearance: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.3);
+  padding: calc(var(--u) * 0.55) calc(var(--u) * 1.15) calc(var(--u) * 0.55) calc(var(--u) * 0.75);
+  border: 1px solid var(--line-hi);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  font: inherit;
+  font-size: calc(var(--u) * 1.05);
+  font-weight: 650;
+}
+.dback:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+.dback__arrow {
+  width: calc(var(--u) * 1.25);
+  height: calc(var(--u) * 1.25);
+}
+
+.ddetail__title {
+  margin: 0;
+  font-size: calc(var(--u) * 1.45);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.dpill {
+  display: inline-flex;
+  align-items: center;
+  padding: calc(var(--u) * 0.45) calc(var(--u) * 0.95);
+  border: 1px solid var(--line-hi);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--dim);
+  text-decoration: none;
+  font-size: calc(var(--u) * 0.88);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dpill:active {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.ddetail__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.ddetail__body::-webkit-scrollbar {
+  display: none;
+}
+
+.dpanel {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.9);
+  padding: calc(var(--u) * 0.95) calc(var(--u) * 1.1) calc(var(--u) * 1.6);
+  min-height: 100%;
+}
+.dpanel__block {
+  border: 1px solid var(--line);
+  border-radius: calc(var(--u) * 1.15);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  padding: calc(var(--u) * 0.95) calc(var(--u) * 1.05);
+}
+.dpanel__h {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 0.6);
+  margin: 0 0 calc(var(--u) * 0.7);
+  font-size: calc(var(--u) * 0.86);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.dpanel__hnote {
+  font-size: calc(var(--u) * 0.78);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--faint);
+}
+
+.dmetrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 8), 1fr));
+  gap: calc(var(--u) * 0.55);
+}
+.dmetrics--wide {
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 9.5), 1fr));
+}
+.dmetric {
+  padding: calc(var(--u) * 0.55) calc(var(--u) * 0.7);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--u) * 0.65);
+  background: var(--card);
+}
+.dmetric__k {
+  font-size: calc(var(--u) * 0.76);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.dmetric__v {
+  font-size: calc(var(--u) * 1.5);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.dmetric__sub {
+  font-size: calc(var(--u) * 0.8);
+  color: var(--dim);
+  text-transform: capitalize;
+}
+
+/* ------------------------------------------------------ weather detail */
+
+.dwx__now {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.1);
+  margin-bottom: calc(var(--u) * 0.9);
+}
+.dwx__icon {
+  width: calc(var(--u) * 4.2);
+  height: calc(var(--u) * 4.2);
+  flex: 0 0 auto;
+}
+.dwx__temp {
+  font-size: calc(var(--u) * 4);
+  font-weight: 250;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+.dwx__cond {
+  font-size: calc(var(--u) * 1.2);
+  font-weight: 600;
+}
+.dwx__place {
+  font-size: calc(var(--u) * 0.85);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.dwx__days {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.22);
+}
+.dwx__day {
+  display: grid;
+  grid-template-columns:
+    calc(var(--u) * 3.6) calc(var(--u) * 2.8) calc(var(--u) * 1.9)
+    calc(var(--u) * 2.6) calc(var(--u) * 2.2) 1fr calc(var(--u) * 2.2) calc(var(--u) * 3.4);
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+  padding: calc(var(--u) * 0.3) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+}
+.dwx__day:last-child {
+  border-bottom: 0;
+}
+.dwx__dayname {
+  font-size: calc(var(--u) * 0.98);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dwx__daydate,
+.dwx__uv {
+  font-size: calc(var(--u) * 0.8);
+  color: var(--faint);
+}
+.dwx__uv {
+  text-align: right;
+}
+.dwx__dayicon {
+  width: calc(var(--u) * 1.7);
+  height: calc(var(--u) * 1.7);
+}
+.dwx__pop {
+  font-size: calc(var(--u) * 0.85);
+  font-weight: 600;
+  color: var(--accent);
+}
+.dwx__lo,
+.dwx__hi {
+  font-size: calc(var(--u) * 1.1);
+  font-weight: 600;
+}
+.dwx__lo {
+  color: var(--faint);
+  text-align: right;
+}
+/* One temperature axis shared by all ten rows, so the bars compare to each
+   other rather than each being scaled to its own day. */
+.dwx__bar {
+  position: relative;
+  height: calc(var(--u) * 0.38);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.dwx__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4ea3ff, #ffd166 65%, #ff7a4e);
+}
+
+/* -------------------------------------------------------- teams detail */
+
+.dgames {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 26), 1fr));
+  gap: calc(var(--u) * 0.8);
+}
+.dgm {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.6);
+  padding: calc(var(--u) * 0.9) calc(var(--u) * 1);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--u) * 1.05);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+}
+.dgm.is-live {
+  border-color: rgba(255, 69, 58, 0.4);
+}
+.dgm__head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+}
+.dgm__crest {
+  width: calc(var(--u) * 1.7);
+  height: calc(var(--u) * 1.7);
+  object-fit: contain;
+}
+.dgm__team {
+  font-size: calc(var(--u) * 0.86);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.dgm__status {
+  font-size: calc(var(--u) * 0.88);
+  font-weight: 600;
+  color: var(--text);
+}
+.dgm__sides {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.2);
+}
+.dgm__at {
+  font-size: calc(var(--u) * 0.74);
+  letter-spacing: 0.2em;
+  color: var(--faint);
+  padding-left: calc(var(--u) * 1.1);
+}
+.dgm__side {
+  display: grid;
+  grid-template-columns: calc(var(--u) * 2.2) 1fr auto;
+  min-height: calc(var(--u) * 2.6);
+  align-items: center;
+  gap: calc(var(--u) * 0.6);
+  padding: calc(var(--u) * 0.3) 0;
+  opacity: 0.72;
+}
+.dgm__side.is-winner {
+  opacity: 1;
+}
+.dgm__logo {
+  width: calc(var(--u) * 2.2);
+  height: calc(var(--u) * 2.2);
+  object-fit: contain;
+}
+.dgm__name {
+  font-size: calc(var(--u) * 1.15);
+  font-weight: 650;
+}
+.dgm__rec {
+  font-size: calc(var(--u) * 0.8);
+  color: var(--faint);
+}
+.dgm__score {
+  font-size: calc(var(--u) * 1.85);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.dgm__score.is-live {
+  color: var(--text);
+}
+
+.dgm__linewrap {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.dgm__linewrap::-webkit-scrollbar {
+  display: none;
+}
+.dgm__line {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(var(--u) * 0.85);
+}
+.dgm__line th,
+.dgm__line td {
+  padding: calc(var(--u) * 0.2) calc(var(--u) * 0.3);
+  text-align: center;
+  color: var(--dim);
+  font-weight: 500;
+}
+.dgm__line thead th {
+  font-size: calc(var(--u) * 0.74);
+  color: var(--faint);
+  font-weight: 700;
+}
+.dgm__line th[scope="row"] {
+  text-align: left;
+  color: var(--text);
+  font-weight: 700;
+}
+.dgm__line .dgm__total {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.dgm__leaders {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.18);
+}
+.dgm__leader {
+  display: flex;
+  gap: calc(var(--u) * 0.5);
+  font-size: calc(var(--u) * 0.85);
+}
+.dgm__lk {
+  min-width: calc(var(--u) * 6);
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: calc(var(--u) * 0.76);
+  padding-top: 2px;
+}
+.dgm__lv {
+  color: var(--dim);
+}
+.dgm__meta {
+  font-size: calc(var(--u) * 0.82);
+  color: var(--faint);
+  line-height: 1.5;
+}
+.dgm__link {
+  align-self: flex-start;
+}
+
+/* --------------------------------------------------------- news detail */
+
+.dtabs--big .dtab {
+  font-size: calc(var(--u) * 0.95);
+  padding: calc(var(--u) * 0.45) calc(var(--u) * 1.5);
+}
+.dtabs--big {
+  align-self: flex-start;
+}
+
+.dread {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 24), 1fr));
+  gap: calc(var(--u) * 0.6);
+}
+.dread__item {
+  display: flex;
+  gap: calc(var(--u) * 0.75);
+  padding: calc(var(--u) * 0.7) calc(var(--u) * 0.8);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--u) * 0.8);
+  background: var(--card);
+  text-decoration: none;
+  color: inherit;
+}
+.dread__item:active {
+  background: var(--card-hi);
+  border-color: var(--line-hi);
+}
+.dread__thumb {
+  width: calc(var(--u) * 5.4);
+  height: calc(var(--u) * 4);
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: calc(var(--u) * 0.45);
+  background: rgba(255, 255, 255, 0.05);
+}
+.dread__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.25);
+}
+.dread__title {
+  font-size: calc(var(--u) * 1.05);
+  font-weight: 650;
+  line-height: 1.3;
+}
+.dread__desc {
+  margin: 0;
+  font-size: calc(var(--u) * 0.88);
+  line-height: 1.4;
+  color: var(--dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dread__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 0.4);
+  font-size: calc(var(--u) * 0.78);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* ------------------------------------------------------- kalshi detail */
+
+.dtable {
+  display: flex;
+  flex-direction: column;
+}
+.dtable__row {
+  display: grid;
+  align-items: center;
+  gap: calc(var(--u) * 0.6);
+  padding: calc(var(--u) * 0.45) calc(var(--u) * 0.55);
+  border-radius: calc(var(--u) * 0.5);
+  font-size: calc(var(--u) * 0.95);
+}
+.dtable__row--pos {
+  grid-template-columns: 1fr calc(var(--u) * 4) calc(var(--u) * 4.6) calc(var(--u) * 4.6) calc(var(--u) * 5) calc(var(--u) * 5);
+}
+.dtable__row--grp {
+  grid-template-columns: 1fr calc(var(--u) * 5) calc(var(--u) * 4) calc(var(--u) * 5) calc(var(--u) * 5.4) calc(var(--u) * 4.4);
+}
+.dtable__row > span:not(.dtable__main) {
+  text-align: right;
+  white-space: nowrap;
+}
+.dtable__row:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.028);
+}
+.dtable__row.is-live {
+  background: rgba(255, 69, 58, 0.1);
+}
+.dtable__head {
+  font-size: calc(var(--u) * 0.74);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  background: none !important;
+}
+.dtable__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.dtable__pick {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dtable__sub {
+  font-size: calc(var(--u) * 0.78);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------- radar, full screen */
+
+.dradarfull {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+}
+.dradar.is-full {
+  border-radius: 0;
+  border: 0;
+}
+.dscrub {
+  display: flex;
+  gap: calc(var(--u) * 0.3);
+  padding: calc(var(--u) * 0.7) calc(var(--u) * 1.1);
+  border-top: 1px solid var(--line);
+}
+.dscrub__tick {
+  appearance: none;
+  cursor: pointer;
+  flex: 1;
+  height: calc(var(--u) * 1.5);
+  border: 0;
+  border-radius: calc(var(--u) * 0.35);
+  background: rgba(255, 255, 255, 0.09);
+  padding: 0;
+}
+.dscrub__tick.is-forecast {
+  background: rgba(78, 163, 255, 0.22);
+}
+.dscrub__tick.is-on {
+  background: var(--accent);
+}
+
+@media (max-width: 820px) {
+  .dtable__row--pos,
+  .dtable__row--grp {
+    grid-template-columns: 1fr auto auto;
+  }
+  .dtable__row--pos > span:nth-child(3),
+  .dtable__row--pos > span:nth-child(6),
+  .dtable__row--grp > span:nth-child(4) {
+    display: none;
+  }
+  .dwx__day {
+    grid-template-columns:
+      calc(var(--u) * 3.4) calc(var(--u) * 1.8) calc(var(--u) * 2.4)
+      calc(var(--u) * 2.2) 1fr calc(var(--u) * 2.2);
+  }
+  .dwx__daydate,
+  .dwx__uv {
+    display: none;
+  }
+}
+
+.dcap {
+  text-transform: capitalize;
 }

@@ -28,6 +28,7 @@ import Forecast from "./Forecast";
 import Teams from "./Teams";
 import News from "./News";
 import Kalshi from "./Kalshi";
+import Detail from "./Detail";
 import { RefreshIcon } from "./icons";
 import {
   FALLBACK_COORDS,
@@ -103,6 +104,7 @@ function Drive() {
   const [frames, setFrames] = useState(null);
   const [lastOk, setLastOk] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState(null);
   const bootedAt = useRef(0);
 
   /* Inter, if it loads. The Tesla browser is a Chromium build with a thin font
@@ -173,6 +175,26 @@ function Drive() {
   }, []);
 
   const markOk = useCallback(() => setLastOk(Date.now()), []);
+
+  /* Opening a section pushes a history entry so the BROWSER's back button
+   * closes it. That is the control a driver reaches for first — the Tesla
+   * browser puts it in the same chrome as every other page — and a back press
+   * that navigates away from the dashboard entirely, mid-drive, is the one
+   * failure this page cannot afford. The on-screen Back button and Escape both
+   * route through history.back() for the same reason: one way out, so the stack
+   * can never drift out of step with what is on screen. */
+  useEffect(() => {
+    const onPop = (e) => setExpanded(e.state?.driveSection ?? null);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const openSection = useCallback((section) => {
+    window.history.pushState({ driveSection: section }, "");
+    setExpanded(section);
+  }, []);
+
+  const closeSection = useCallback(() => window.history.back(), []);
 
   usePoll(
     async () => {
@@ -286,7 +308,7 @@ function Drive() {
 
   return (
     <div className={`drive${isNight ? " is-night" : ""}`}>
-      <div className="dstatus">
+      <div className="dstatus" hidden={Boolean(expanded)}>
         {ageMin != null && ageMin >= 3 && (
           <span className="dstatus__age">{ageMin}m old</span>
         )}
@@ -300,10 +322,10 @@ function Drive() {
         </button>
       </div>
 
-      <Hero now={now} weather={weather} place={place} />
+      <Hero now={now} weather={weather} place={place} onExpand={() => openSection("weather")} />
 
       <div className="drow drow--top">
-        <Forecast weather={weather} />
+        <Forecast weather={weather} onExpand={() => openSection("weather")} />
         <Suspense
           fallback={
             <section className="dcard">
@@ -314,15 +336,34 @@ function Drive() {
             </section>
           }
         >
-          <Radar coords={coords} frames={frames} />
+          <Radar coords={coords} frames={frames} onExpand={() => openSection("radar")} />
         </Suspense>
-        <Teams events={events} stale={ageMin != null && ageMin > 20} />
+        <Teams
+          events={events}
+          stale={ageMin != null && ageMin > 20}
+          onExpand={() => openSection("teams")}
+        />
       </div>
 
       <div className="drow drow--bottom">
-        <News ai={ai} sports={sports} />
-        <Kalshi data={kalshi} />
+        <News ai={ai} sports={sports} onExpand={() => openSection("news")} />
+        <Kalshi data={kalshi} onExpand={() => openSection("kalshi")} />
       </div>
+
+      {expanded && (
+        <Detail
+          section={expanded}
+          onClose={closeSection}
+          weather={weather}
+          place={place}
+          coords={coords}
+          frames={frames}
+          events={events}
+          ai={ai}
+          sports={sports}
+          kalshi={kalshi}
+        />
+      )}
     </div>
   );
 }

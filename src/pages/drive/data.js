@@ -152,9 +152,21 @@ function normalizeEvent(ev, cfg) {
     id: c.team?.id,
     abbr: c.team?.abbreviation || c.team?.shortDisplayName,
     name: c.team?.shortDisplayName || c.team?.name || c.team?.displayName,
+    fullName: c.team?.displayName || c.team?.name || null,
     logo: c.team?.logos?.[0]?.href || c.team?.logo || null,
+    color: c.team?.color ? `#${c.team.color}` : null,
     score: scoreOf(c),
     record: c.record?.[0]?.displayValue || c.records?.[0]?.summary || null,
+    /* The scoreboard splits a team's record three ways (overall/home/road);
+     * the single-team endpoint carries only the overall one. */
+    records: (c.records || []).map((r) => ({
+      label: r.name === "overall" ? "Overall" : r.name || r.type,
+      value: r.summary || r.displayValue,
+    })),
+    // Runs per inning / points per quarter. Absent on upcoming games.
+    linescores: (c.linescores || []).map((l) => l.displayValue ?? l.value),
+    hits: c.hits ?? null,
+    errors: c.errors ?? null,
     winner: c.winner === true,
     isUs: String(c.team?.id) === String(cfg.espnId),
   }));
@@ -171,6 +183,28 @@ function normalizeEvent(ev, cfg) {
       (ev.links || []).find((l) => String(l.href || "").startsWith("http"))?.href ||
       `https://www.espn.com/${cfg.league}/`,
     broadcast: comp.broadcasts?.[0]?.names?.[0] || comp.geoBroadcasts?.[0]?.media?.shortName || null,
+    // Every channel carrying it, national and both local feeds, deduped.
+    broadcasts: [
+      ...new Set((comp.broadcasts || []).flatMap((b) => b.names || [])),
+    ],
+    venue: comp.venue?.fullName || null,
+    venueCity: [comp.venue?.address?.city, comp.venue?.address?.state]
+      .filter(Boolean)
+      .join(", "),
+    note: comp.notes?.[0]?.headline || null,
+    odds: comp.odds?.[0]?.details || null,
+    overUnder: comp.odds?.[0]?.overUnder ?? null,
+    leaders: (comp.leaders || [])
+      .map((l) => {
+        const top = l.leaders?.[0];
+        if (!top) return null;
+        return {
+          category: l.shortDisplayName || l.displayName,
+          who: top.athlete?.shortName || top.athlete?.displayName,
+          stat: top.displayValue,
+        };
+      })
+      .filter(Boolean),
     us,
     them,
     atHome: us?.homeAway === "home",
@@ -298,9 +332,26 @@ export async function fetchAiNews() {
       source: hostOf(h.url) || "news.ycombinator.com",
       published: h.created_at,
       meta: `${h.points} pts`,
+      description: null,
+      author: h.author || null,
+      comments: h.num_comments ?? null,
+      discussion: `https://news.ycombinator.com/item?id=${h.objectID}`,
       image: null,
     }))
     .filter((h) => h.title);
+}
+
+/* True when two strings say the same thing modulo punctuation and case, or when
+ * one is just the other with a tail cut off. */
+function sameText(a, b) {
+  if (!a || !b) return false;
+  const norm = (t) =>
+    String(t)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const [x, y] = [norm(a), norm(b)];
+  return x === y || x.startsWith(y) || y.startsWith(x);
 }
 
 const NEWS_FEEDS = [
@@ -317,6 +368,10 @@ export async function fetchSportsNews() {
       return (data?.articles || []).map((a) => ({
         id: `espn-${a.id}`,
         title: a.headline,
+        /* ESPN very often sets description to the headline verbatim. Keeping it
+         * doubles the row height in the expanded reader to say nothing twice,
+         * so only a description that actually adds something survives. */
+        description: sameText(a.description, a.headline) ? null : a.description || null,
         url: a.links?.web?.href,
         source: "espn.com",
         published: a.published || a.lastModified,
@@ -362,6 +417,14 @@ export async function fetchKalshi() {
       pnl: Number(p.display.total_pnl_dollars) || 0,
       winPct: p.display.hit_probability ?? p.display.legs?.[0]?.win_pct ?? null,
       legs: p.display.leg_count || 1,
+      /* The weather engine's positions all read "HIGH TEMPERATURE" for league,
+       * which does not say WHICH city — and the full market title is just the
+       * pick restated as a question. The city is the missing fact. */
+      city: p.display.weather?.city || null,
+      avgPrice: Number(p.display.avg_price_dollars) || null,
+      curPrice: Number(p.display.current_price_dollars) || null,
+      maxPayout: Number(p.display.max_payout_dollars) || null,
+      count: Number(p.display.count) || null,
       closeTime: p.display.close_time || null,
       live: (p.display.legs || []).some((l) => l?.game?.state === "in"),
     }))
@@ -386,13 +449,38 @@ export async function fetchKalshi() {
     // Only the enrichment drop-outs, not positions that merely settled.
     hidden: raw.filter((p) => !p?.display).length,
     lifetime: summary?.overall || null,
+    /* Per league/market-type lifetime rows. Only the expanded view shows these —
+     * the card has room for one line, and that line is the overall record. */
+    byGroup: (summary?.by_group || [])
+      .map((r) => ({
+        league: r.league === "?" ? "Other" : r.league,
+        marketType: r.market_type === "?" ? "" : r.market_type,
+        settled: Number(r.settled) || 0,
+        wins: Number(r.wins) || 0,
+        losses: Number(r.losses) || 0,
+        open: Number(r.open) || 0,
+        staked: Number(r.staked) || 0,
+        pnl: Number(r.pnl) || 0,
+      }))
+      .filter((r) => r.settled > 0 || r.open > 0)
+      .sort((a, b) => a.pnl - b.pnl),
   };
 }
 
 /* ------------------------------------------------------------------ radar */
 
 /* RainViewer publishes an index of recent radar composites; the frames are
- * plain tile URLs, so the loop is animated client-side by swapping layers. */
+ * plain tile URLs, so the loop is animated client-side by swapping layers.
+ *
+ * TWO LIMITS, both found by probing rather than from the docs:
+ *   - Past zoom 7 the tile server stops returning radar and starts returning a
+ *     constant-size "Zoom Level Not Supported" image, with a 200. It does not
+ *     404, so Leaflet happily paints the error across the map — which is what
+ *     the full-screen view did at zoom 8. Radar layers are pinned with
+ *     maxNativeZoom (see Radar.jsx) so Leaflet upscales z7 instead.
+ *   - The /512/ endpoint is a RETINA tile, not a bigger-area one: same z/x/y as
+ *     /256/, twice the pixels. So it pairs with Leaflet's default 256 tileSize
+ *     and no zoomOffset, and it is what makes the upscaled frames legible. */
 export async function fetchRadarFrames() {
   const data = await get("https://api.rainviewer.com/public/weather-maps.json", 10000);
   if (!data?.host || !data?.radar?.past?.length) return null;
@@ -400,7 +488,7 @@ export async function fetchRadarFrames() {
   const nowcast = (data.radar.nowcast || []).slice(0, 3);
   return [...past, ...nowcast].map((f) => ({
     time: f.time,
-    url: `${data.host}${f.path}/256/{z}/{x}/{y}/4/1_1.png`,
+    url: `${data.host}${f.path}/512/{z}/{x}/{y}/4/1_1.png`,
     forecast: !past.includes(f),
   }));
 }

@@ -10,6 +10,8 @@
  * positions on screen. */
 
 
+import Card from "./Card";
+
 const money = (n, digits = 2) =>
   n == null || Number.isNaN(n) ? "—" : `$${Number(n).toFixed(digits)}`;
 
@@ -21,15 +23,12 @@ const signed = (n) => {
 
 const cls = (n) => (n == null ? "" : Number(n) >= 0 ? "dk__pos" : "dk__neg");
 
-function Kalshi({ data }) {
+function Kalshi({ data, onExpand }) {
   if (!data?.ok) {
     return (
-      <section className="dcard">
-        <div className="dcard__head">
-          <span className="dcard__title">Kalshi</span>
-        </div>
+      <Card title="Kalshi" onExpand={onExpand}>
         <div className="dempty">Portfolio unavailable</div>
-      </section>
+      </Card>
     );
   }
 
@@ -38,10 +37,10 @@ function Kalshi({ data }) {
   const roi = lifetime?.roi == null ? null : lifetime.roi * 100;
 
   return (
-    <section className="dcard">
-      <div className="dcard__head">
-        <span className="dcard__title">Kalshi</span>
-        <span className="dcard__spacer" />
+    <Card
+      title="Kalshi"
+      onExpand={onExpand}
+      actions={
         <a
           className="dcard__note"
           href="https://kalshi.com/portfolio"
@@ -51,9 +50,9 @@ function Kalshi({ data }) {
         >
           Portfolio ↗
         </a>
-      </div>
-
-      <div className="dcard__body">
+      }
+    >
+      <>
         <div className="dk__top">
           <div className="dk__tile">
             <div className="dk__k">Cash</div>
@@ -109,8 +108,8 @@ function Kalshi({ data }) {
             {hidden > 0 ? ` · ${hidden} unlisted` : ""}
           </span>
         </div>
-      </div>
-    </section>
+      </>
+    </Card>
   );
 }
 

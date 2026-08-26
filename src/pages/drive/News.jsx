@@ -10,6 +10,7 @@
  * trip after tapping something. */
 
 import { useState } from "react";
+import Card from "./Card";
 
 const TABS = [
   { key: "ai", label: "AI" },
@@ -26,15 +27,15 @@ function ago(iso) {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
-function News({ ai, sports }) {
+function News({ ai, sports, onExpand }) {
   const [tab, setTab] = useState("ai");
   const items = (tab === "ai" ? ai : sports) || [];
 
   return (
-    <section className="dcard">
-      <div className="dcard__head">
-        <span className="dcard__title">Headlines</span>
-        <span className="dcard__spacer" />
+    <Card
+      title="Headlines"
+      onExpand={onExpand}
+      actions={
         <div className="dtabs">
           {TABS.map((t) => (
             <button
@@ -47,8 +48,9 @@ function News({ ai, sports }) {
             </button>
           ))}
         </div>
-      </div>
-      <div className="dcard__body">
+      }
+    >
+      <>
         {items.length === 0 ?
           <div className="dempty">
             {(tab === "ai" ? ai : sports) === null ?
@@ -79,8 +81,8 @@ function News({ ai, sports }) {
             </div>
           </div>
         }
-      </div>
-    </section>
+      </>
+    </Card>
   );
 }
 

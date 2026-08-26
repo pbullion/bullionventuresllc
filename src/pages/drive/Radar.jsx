@@ -17,16 +17,23 @@
  * opens the full radar on Windy instead. */
 
 import { useEffect, useRef, useState } from "react";
+import Card from "./Card";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const FRAME_MS = 480;
+/* RainViewer serves radar up to zoom 7 and an error image above it. */
+const RADAR_MAX_NATIVE_ZOOM = 7;
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas";
 // Esri serves these {z}/{y}/{x} — the row before the column, unlike most schemes.
 const BASEMAP = `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
 const LABELS = `${ESRI}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`;
 
-function Radar({ coords, frames }) {
+/* `interactive` is off on the board and on in the expanded view. On the board a
+ * pannable map is a trap — a stray finger moves it off the car's position and
+ * nothing brings it back — but once the section is full screen, panning and
+ * zooming are the whole point. */
+function Radar({ coords, frames, interactive = false, onExpand }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
   const layersRef = useRef([]);
@@ -41,15 +48,16 @@ function Radar({ coords, frames }) {
       zoom: 7,
       zoomControl: false,
       attributionControl: false,
-      dragging: false,
-      touchZoom: false,
+      dragging: interactive,
+      touchZoom: interactive,
       scrollWheelZoom: false,
-      doubleClickZoom: false,
+      doubleClickZoom: interactive,
       boxZoom: false,
       keyboard: false,
-      tap: false,
+      tap: interactive,
       fadeAnimation: false,
     });
+    if (interactive) L.control.zoom({ position: "bottomright" }).addTo(map);
     L.tileLayer(BASEMAP, { maxZoom: 12 }).addTo(map);
     L.tileLayer(LABELS, { maxZoom: 12, opacity: 0.62, zIndex: 500 }).addTo(map);
     mapRef.current = map;
@@ -70,9 +78,12 @@ function Radar({ coords, frames }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* Recentre when the car moves — but never in the expanded view, where
+   * yanking the map back mid-pan would make it unusable. */
   useEffect(() => {
+    if (interactive) return;
     mapRef.current?.setView([coords.lat, coords.lon], 7, { animate: false });
-  }, [coords.lat, coords.lon]);
+  }, [coords.lat, coords.lon, interactive]);
 
   /* All frames are added up front at zero opacity and then cross-faded. Adding
    * and removing a tile layer per frame makes the loop stutter while each new
@@ -84,7 +95,13 @@ function Radar({ coords, frames }) {
 
     layersRef.current.forEach((l) => map.removeLayer(l));
     layersRef.current = frames.map((f) =>
-      L.tileLayer(f.url, { opacity: 0, maxZoom: 12, zIndex: 400 }).addTo(map),
+      // maxNativeZoom 7 — see the note on fetchRadarFrames in data.js.
+      L.tileLayer(f.url, {
+        opacity: 0,
+        maxZoom: 12,
+        maxNativeZoom: RADAR_MAX_NATIVE_ZOOM,
+        zIndex: 400,
+      }).addTo(map),
     );
     setFrameIdx(0);
 
@@ -110,35 +127,48 @@ function Radar({ coords, frames }) {
       new Date(frame.time * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
     : null;
 
-  return (
-    <section className="dcard">
-      <div className="dcard__head">
-        <span className="dcard__title">Radar</span>
-        <span className="dcard__spacer" />
-        <span className="dcard__note">Tap for Windy</span>
-      </div>
-      <div className="dcard__body">
-        <div
-          className="dradar"
-          onClick={() =>
-            window.open(
-              `https://www.windy.com/${coords.lat}/${coords.lon}?radar,${coords.lat},${coords.lon},8`,
-              "_blank",
-              "noopener",
-            )
-          }
-        >
-          <div ref={hostRef} className="dradar__map" />
-          <div className="dradar__pin" />
-          <div className="dradar__credit">Esri · RainViewer</div>
-          {stamp && (
-            <div className={`dradar__stamp${frame.forecast ? " is-forecast" : ""}`}>
-              {frame.forecast ? `+${stamp}` : stamp}
-            </div>
-          )}
+  const map = (
+    <div className={`dradar${interactive ? " is-full" : ""}`}>
+      <div ref={hostRef} className="dradar__map" />
+      <div className="dradar__pin" />
+      <div className="dradar__credit">Esri · RainViewer</div>
+      {stamp && (
+        <div className={`dradar__stamp${frame.forecast ? " is-forecast" : ""}`}>
+          {frame.forecast ? `+${stamp}` : stamp}
         </div>
+      )}
+    </div>
+  );
+
+  if (interactive) {
+    return (
+      <div className="dradarfull">
+        {map}
+        {/* Scrubber. Only worth the space full screen; on the board the loop
+            just runs and the timestamp says where it is. */}
+        {frames?.length > 1 && (
+          <div className="dscrub">
+            {frames.map((f, i) => (
+              <button
+                key={f.time}
+                type="button"
+                aria-label={new Date(f.time * 1000).toLocaleTimeString()}
+                className={`dscrub__tick${i === frameIdx ? " is-on" : ""}${
+                  f.forecast ? " is-forecast" : ""
+                }`}
+                onClick={() => setFrameIdx(i)}
+              />
+            ))}
+          </div>
+        )}
       </div>
-    </section>
+    );
+  }
+
+  return (
+    <Card title="Radar" note={stamp ? undefined : "loading"} onExpand={onExpand}>
+      {map}
+    </Card>
   );
 }
 

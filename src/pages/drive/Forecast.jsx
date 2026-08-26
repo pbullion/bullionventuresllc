@@ -1,6 +1,7 @@
 /* Six-day outlook. Rain chance is only printed when it is worth acting on —
  * a "4%" on every dry row is five pieces of noise around the one that matters. */
 
+import Card from "./Card";
 import { WeatherIcon } from "./icons";
 import { cToF } from "./data";
 
@@ -9,15 +10,12 @@ const dayLabel = (iso, index) => {
   return new Date(iso).toLocaleDateString([], { weekday: "short" });
 };
 
-function Forecast({ weather }) {
+function Forecast({ weather, onExpand }) {
   const days = (weather?.forecastDaily?.days || []).slice(0, 6);
 
   return (
-    <section className="dcard">
-      <div className="dcard__head">
-        <span className="dcard__title">Forecast</span>
-      </div>
-      <div className="dcard__body">
+    <Card title="Forecast" onExpand={onExpand}>
+      <>
         {days.length === 0 ?
           <div className="dempty">Waiting on forecast…</div>
         : <div className="dfc">
@@ -37,8 +35,8 @@ function Forecast({ weather }) {
             })}
           </div>
         }
-      </div>
-    </section>
+      </>
+    </Card>
   );
 }
 

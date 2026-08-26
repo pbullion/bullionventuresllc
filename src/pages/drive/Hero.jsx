@@ -24,7 +24,7 @@ const timeShort = (iso) =>
     ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(/\s/g, "")
     : "—";
 
-function Hero({ now, weather, place }) {
+function Hero({ now, weather, place, onExpand }) {
   const cur = weather?.currentWeather;
   const today = weather?.forecastDaily?.days?.[0];
   const { hm, ampm } = clockTime(now);
@@ -42,7 +42,10 @@ function Hero({ now, weather, place }) {
   const sunValue = timeShort(sunsetPassed ? weather?.forecastDaily?.days?.[1]?.sunrise : today?.sunset);
 
   return (
-    <header className="dhero">
+    <header
+      className={`dhero${onExpand ? " is-tappable" : ""}`}
+      onClick={onExpand}
+    >
       <div>
         <div className="dclock">
           <span>{hm}</span>

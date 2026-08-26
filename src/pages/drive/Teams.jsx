@@ -5,6 +5,7 @@
  * season — a missing row reads as "broken", a row saying "Nov 2" reads as
  * "nothing yet", and only one of those is true in August. */
 
+import Card from "./Card";
 import { TEAMS } from "./data";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -89,31 +90,29 @@ function TeamRow({ cfg, event }) {
   );
 }
 
-function Teams({ events, stale }) {
+function Teams({ events, stale, onExpand }) {
   const anyLive = TEAMS.some((c) => events?.[c.key]?.state === "in");
 
   return (
-    <section className="dcard">
-      <div className="dcard__head">
-        <span className="dcard__title">Scoreboard</span>
-        <span className="dcard__spacer" />
-        {anyLive ?
+    <Card
+      title="Scoreboard"
+      note={!anyLive && stale ? "offline" : null}
+      onExpand={onExpand}
+      actions={
+        anyLive ?
           <span className="dlive">
             <span className="dlive__dot" />
             LIVE
           </span>
-        : stale ?
-          <span className="dcard__note">offline</span>
-        : null}
+        : null
+      }
+    >
+      <div className="dteams">
+        {TEAMS.map((cfg) => (
+          <TeamRow key={cfg.key} cfg={cfg} event={events?.[cfg.key]} />
+        ))}
       </div>
-      <div className="dcard__body">
-        <div className="dteams">
-          {TEAMS.map((cfg) => (
-            <TeamRow key={cfg.key} cfg={cfg} event={events?.[cfg.key]} />
-          ))}
-        </div>
-      </div>
-    </section>
+    </Card>
   );
 }
 
