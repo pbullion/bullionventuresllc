@@ -84,8 +84,10 @@ export default function App() {
   const isZargle = location.pathname.startsWith("/zargle");
   const isGulfHurricane = location.pathname.startsWith("/gulf-hurricane");
   const isTripPlanner = location.pathname.startsWith("/tripplanner");
-  // Full-screen, and deliberately not linked from the home page or PrivateTools
-  // — it's one person's client book, gated behind its own login.
+  // Full-screen, and deliberately off the home page — it's one person's client
+  // book, gated behind its own login. It IS in PrivateTools as of 2026-08-26,
+  // so Patrick can reach it by press-and-hold instead of typing the URL; that
+  // modal is a shortcut list, not a gate.
   const isAshley = location.pathname.startsWith("/ashley");
   // Also full-screen and also unlisted — her Houston C&I calling list. Unlike
   // /ashley it has no login at all; see the header of src/pages/prospects/index.jsx.
