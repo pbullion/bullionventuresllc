@@ -9,7 +9,11 @@
  * light theme in a car is a mirror. */
 
 .drive {
-  --u: clamp(11px, 1.28vh, 17px);
+  /* Base unit for every dimension on the board. Raised from 1.28vh after
+     Patrick read it in the car: this is glanced at from arm's length, at an
+     angle, sometimes in direct sun, by someone who is driving. Desk-legible is
+     not the bar. Retune the board's density here, not per-rule. */
+  --u: clamp(13px, 1.5vh, 19px);
 
   --bg: #05070c;
   --card: rgba(255, 255, 255, 0.042);
@@ -17,9 +21,16 @@
   --line: rgba(255, 255, 255, 0.085);
   --line-hi: rgba(255, 255, 255, 0.16);
 
-  --text: #eef2f8;
-  --dim: #99a2b5;
-  --faint: #616b7f;
+  /* Contrast against the card surface (~#101319), measured:
+       --text 16.6:1, --dim 11.3:1, --faint 7.6:1.
+     --faint used to be #616b7f, which is 3.47:1 — under the 4.5:1 minimum for
+     small text on a desk, and 2.64:1 once the night filter below multiplied it.
+     That is what made the sub-labels unreadable at a glance. Hierarchy on this
+     page is carried by SIZE and WEIGHT, never by dimming something past
+     legibility: dimness costs reading distance, weight is free. */
+  --text: #f2f5fa;
+  --dim: #c2cad8;
+  --faint: #9ba6b8;
 
   --accent: #4ea3ff;
   --accent-2: #8b5cf6;
@@ -70,10 +81,12 @@
   background: radial-gradient(circle, rgba(139, 92, 246, 0.13), transparent 70%);
 }
 
-/* Sunset dims the whole board a notch. Headlights-on brightness is not
- * daylight brightness. */
+/* Sunset takes the board down a notch — headlights-on brightness is not
+ * daylight brightness — but only a notch. At 0.82 this filter was pushing the
+ * smallest text under 3:1 all by itself, which is how a palette that measures
+ * fine in daylight becomes unreadable after dark. */
 .drive.is-night {
-  filter: brightness(0.82) saturate(0.95);
+  filter: brightness(0.9);
 }
 
 .drive * {
@@ -109,7 +122,7 @@
 }
 
 .dcard__title {
-  font-size: calc(var(--u) * 0.82);
+  font-size: calc(var(--u) * 0.84);
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -121,7 +134,7 @@
 }
 
 .dcard__note {
-  font-size: calc(var(--u) * 0.78);
+  font-size: calc(var(--u) * 0.84);
   color: var(--faint);
   letter-spacing: 0.04em;
 }
@@ -249,7 +262,7 @@
   background: var(--card);
 }
 .dstat__k {
-  font-size: calc(var(--u) * 0.7);
+  font-size: calc(var(--u) * 0.79);
   font-weight: 700;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -284,11 +297,13 @@
   flex: 1;
   min-height: 0;
 }
+/* The day column has to hold "TODAY" at 0.95u bold with .1em tracking — the
+   widest string in it — or the icon rides up against the text. */
 .dfc__row {
   display: grid;
-  grid-template-columns: calc(var(--u) * 3.2) calc(var(--u) * 1.9) 1fr auto;
+  grid-template-columns: calc(var(--u) * 3.9) calc(var(--u) * 1.9) 1fr auto;
   align-items: center;
-  gap: calc(var(--u) * 0.5);
+  gap: calc(var(--u) * 0.55);
   padding: calc(var(--u) * 0.22) 0;
 }
 .dfc__day {
@@ -306,7 +321,7 @@
   height: calc(var(--u) * 1.7);
 }
 .dfc__pop {
-  font-size: calc(var(--u) * 0.82);
+  font-size: calc(var(--u) * 0.88);
   font-weight: 600;
   color: var(--accent);
   opacity: 0.9;
@@ -371,7 +386,7 @@
   border-radius: calc(var(--u) * 0.4);
   background: rgba(5, 7, 12, 0.78);
   border: 1px solid var(--line);
-  font-size: calc(var(--u) * 0.72);
+  font-size: calc(var(--u) * 0.79);
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--dim);
@@ -436,7 +451,7 @@
   text-overflow: ellipsis;
 }
 .dteam__sub {
-  font-size: calc(var(--u) * 0.76);
+  font-size: calc(var(--u) * 0.83);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--faint);
@@ -456,11 +471,13 @@
   letter-spacing: -0.02em;
   white-space: nowrap;
 }
+/* The one thing he is actually looking for on an upcoming row. It was --dim
+   at 0.86u, quieter than the matchup next to it; it should read first. */
 .dteam__when {
   text-align: right;
-  font-size: calc(var(--u) * 0.86);
-  font-weight: 600;
-  color: var(--dim);
+  font-size: calc(var(--u) * 1.05);
+  font-weight: 650;
+  color: var(--text);
   white-space: nowrap;
 }
 
@@ -472,7 +489,7 @@
   border-radius: 999px;
   background: rgba(255, 69, 58, 0.16);
   color: var(--live);
-  font-size: calc(var(--u) * 0.68);
+  font-size: calc(var(--u) * 0.75);
   font-weight: 800;
   letter-spacing: 0.14em;
 }
@@ -507,7 +524,7 @@
   background: transparent;
   color: var(--dim);
   font: inherit;
-  font-size: calc(var(--u) * 0.78);
+  font-size: calc(var(--u) * 0.82);
   font-weight: 700;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -559,7 +576,7 @@
   gap: calc(var(--u) * 0.2);
 }
 .dnews__title {
-  font-size: calc(var(--u) * 0.94);
+  font-size: calc(var(--u) * 0.97);
   font-weight: 600;
   line-height: 1.28;
   display: -webkit-box;
@@ -572,7 +589,7 @@
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 0.4);
-  font-size: calc(var(--u) * 0.72);
+  font-size: calc(var(--u) * 0.79);
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--faint);
@@ -600,7 +617,7 @@
   background: var(--card);
 }
 .dk__k {
-  font-size: calc(var(--u) * 0.68);
+  font-size: calc(var(--u) * 0.78);
   font-weight: 700;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -643,7 +660,7 @@
   text-overflow: ellipsis;
 }
 .dk__sub {
-  font-size: calc(var(--u) * 0.72);
+  font-size: calc(var(--u) * 0.79);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--faint);
@@ -658,7 +675,7 @@
   white-space: nowrap;
 }
 .dk__delta {
-  font-size: calc(var(--u) * 0.74);
+  font-size: calc(var(--u) * 0.81);
   font-weight: 600;
 }
 .dk__foot {
@@ -668,7 +685,7 @@
   border-top: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
-  font-size: calc(var(--u) * 0.78);
+  font-size: calc(var(--u) * 0.83);
   color: var(--faint);
   letter-spacing: 0.06em;
 }
@@ -685,7 +702,7 @@
   gap: calc(var(--u) * 0.45);
 }
 .dstatus__age {
-  font-size: calc(var(--u) * 0.72);
+  font-size: calc(var(--u) * 0.79);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
