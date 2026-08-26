@@ -525,6 +525,8 @@ export default function SouthsideWalkthrough() {
             </p>
             <p style={styles.stepBody}>
               Reported content lands in its own list, where you can remove the post and disable the account behind it.
+              Disabling is reversible and is the usual answer; deleting an account outright is also there, for a spam
+              signup or somebody who asks to be erased, and it takes their posts and photos with it.
             </p>
           </Step>
 
