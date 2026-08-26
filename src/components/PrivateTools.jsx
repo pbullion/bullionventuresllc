@@ -36,6 +36,12 @@ const GROUPS = [
         path: "/ffdraft",
         tagline: "Live ESPN draft assistant",
       },
+      {
+        emoji: "🚗",
+        name: "Drive",
+        path: "/drive",
+        tagline: "In-car dashboard for the Tesla browser",
+      },
     ],
   },
   {

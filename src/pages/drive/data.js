@@ -19,9 +19,7 @@
  * teams playing inside a two-day window — see activeLeagues() below.
  */
 
-import axios from "axios";
-
-export const API = "https://sheline-art-website-api.herokuapp.com";
+export const API_BASE = "https://sheline-art-website-api.herokuapp.com";
 
 /* Houston. Used until the browser hands over the car's real position, and as
  * the permanent fallback if it never does (geolocation denied, or the car has
@@ -94,12 +92,19 @@ const ESPN = "https://site.api.espn.com/apis/site/v2/sports";
  *     showing its last good value is better in a car than a card that empties.
  */
 async function get(url, timeout = 12000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout);
   try {
-    const { data } = await axios.get(url, { timeout });
-    return data;
+    const res = await fetch(url, { signal: ctrl.signal });
+    // fetch only rejects on a network error, so a 503 from an endpoint with no
+    // credentials configured has to be turned into one by hand.
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
   } catch (err) {
     console.warn("[drive] fetch failed:", url, err?.message);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -108,7 +113,7 @@ async function get(url, timeout = 12000) {
 export const cToF = (c) => (c == null ? null : Math.round((c * 9) / 5 + 32));
 
 export function fetchWeather(lat, lon) {
-  return get(`${API}/patrick/tesla-dashboard-weather?lat=${lat}&lon=${lon}`, 15000);
+  return get(`${API_BASE}/patrick/tesla-dashboard-weather?lat=${lat}&lon=${lon}`, 15000);
 }
 
 /* Reverse geocode for the "where am I" line under the clock. Nominatim is
@@ -335,9 +340,9 @@ export async function fetchSportsNews() {
  * returning 503 (credentials unset) must not also hide the lifetime record. */
 export async function fetchKalshi() {
   const [balance, positions, summary] = await Promise.all([
-    get(`${API}/kalshi/balance`, 15000),
-    get(`${API}/kalshi/positions`, 20000),
-    get(`${API}/kalshi/auto-bets/summary`, 20000),
+    get(`${API_BASE}/kalshi/balance`, 15000),
+    get(`${API_BASE}/kalshi/positions`, 20000),
+    get(`${API_BASE}/kalshi/auto-bets/summary`, 20000),
   ]);
 
   /* Roughly 3% of parlay legs and 8% of weather rows come back from the

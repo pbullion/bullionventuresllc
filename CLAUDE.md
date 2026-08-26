@@ -74,6 +74,12 @@ When you add a new tool/page, do **all** of these, not just the route:
      Not on the home page, no login. It's the first row of `PRIVATE_TOOLS`
      (2026-08-26) so the todo wall is one press-and-hold away. See its own
      section below.
+   - **`/drive` is cardless too** (Patrick, 2026-08-26). The in-car dashboard
+     (`src/pages/drive/`) is typed into the Tesla browser and left running; it
+     is in `PRIVATE_TOOLS` but not on the home page. It shows live Kalshi
+     balances on a public unauthenticated route, which was Patrick's explicit
+     call — it is read-only and has no controls that can move money. See its own
+     section below.
    - **Everything unlisted goes somewhere else.** The pages kept off the public
      home page — the six Kalshi/betting screens (Patrick, 2026-07-30) plus
      `/patrick`, `/ffdraft`, `/ashley` and `/prospects` (2026-08-26) — live in
@@ -286,6 +292,49 @@ see or change a task does not belong on this page.
 - Local dev: `node scripts/patrick-board-local.js` in the backend repo (port
   3003) — `api.js` points at localhost automatically when served from localhost,
   so a UI experiment can't reorder the live board.
+
+## `/drive` — the in-car dashboard
+
+`src/pages/drive/` renders a full-bleed board for the **Tesla browser**
+(~1180x919 on a Model 3/Y): clock, current conditions and a six-day forecast at
+the car's own position, an animated rain radar, live/next games for the Astros,
+Cowboys, Rockets and both Baylor teams, tappable AI and sports headlines, and
+the live Kalshi portfolio. Cardless; in `PRIVATE_TOOLS`; typed into the car by
+hand. `drive.css` derives every dimension from one `--u` viewport unit, so
+retuning it for a different car screen is one `clamp()`.
+
+**No new backend route, and every source is keyless** — WeatherKit and Kalshi via
+the Sheline backend, ESPN for teams and sports headlines, HN Algolia for AI,
+RainViewer for radar, Esri for the basemap. That is deliberate: this page is
+left running in a car and must not be one expired key away from a blank screen.
+
+Four things are load-bearing and easy to undo by accident:
+
+- **Every ESPN scoreboard call passes `?dates=`.** The bare `/scoreboard` was
+  still serving Aug 25 at 9:51am on Aug 26 — its idea of "today" rolls over
+  late — so without the explicit date the board reports last night's final as
+  the current game. The explicit date is also *cheaper* (~24 KB gzipped for a
+  full slate, 1 KB for an empty one).
+- **Scoreboards are only polled for leagues that have one of these teams playing
+  within two days** (`activeLeagues()` in `data.js`). The car is on LTE; polling
+  all five year-round is ~6 MB/hour for nothing.
+- **Every poller refires on `visibilitychange`, and a page older than 12 hours
+  reloads on wake.** The tab is suspended whenever the car sleeps, and a frozen
+  clock next to day-old scores looks exactly like live data. The mount fetch
+  ignores visibility on purpose — the car can restore the tab in the background.
+- **The basemap is Esri, not CARTO.** `cartocdn` now stamps "API KEY REQUIRED"
+  across its free tiles while still returning HTTP 200, so it fails by looking
+  broken rather than by erroring. Note Esri serves `{z}/{y}/{x}` — row before
+  column. `src/pages/hrw/` still uses CARTO and still shows the watermark.
+
+The Kalshi card is **read-only and has no controls of any kind**. It shows live
+balances on a public unauthenticated route, which was Patrick's explicit call
+(2026-08-26) — obscurity only, same as the other unlisted pages here.
+
+A **next-meeting card is deliberately absent.** `/calendar/events` on the
+backend 500s: the published Outlook ICS URL in `routes/calendar.js` redirects to
+Microsoft's `olkerror.html?httpCode=404`, i.e. the share link was revoked. That
+is upstream, not a code bug. Republish the calendar and the card can go in.
 
 ## Conventions
 
