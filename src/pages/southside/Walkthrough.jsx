@@ -247,7 +247,7 @@ const ROLES = [
 const RULES = [
   ['Members only, by approval', 'Church staff approve every account by hand. Nothing a member posts is ever public.'],
   ['No private messaging', 'Conversation happens in named ministry and class groups only. This is a deliberate safeguard for students, not an oversight.'],
-  ['Every post is reviewed', 'Member posts wait for staff review before the congregation sees them. Yours appears to you right away, marked pending.'],
+  ['One report takes it down', 'Posts go out to the congregation right away. If any member reports one it leaves the feed immediately — before staff have even read the report — and stays off until they put it back or delete it.'],
   ['Report and block, everywhere', 'Press and hold any post, comment, message or prayer request. Blocked people disappear from your feed, comments and groups.'],
   ['Delete everything, yourself', 'More → your name → Delete My Account removes your account, posts, comments, messages and the actual photo files. No email required.'],
   ['Children stay out of feeds', 'Kids’ ages and guest contact details appear only in staff screens — never in the feed, never on the calendar.'],
@@ -396,8 +396,9 @@ export default function SouthsideWalkthrough() {
               comments. Somebody’s birthday puts a banner at the top.
             </p>
             <p style={styles.stepBody}>
-              Church staff give member posts a quick look before they go out. Yours shows up for you immediately,
-              marked <strong style={s.strong}>pending</strong>, and you get a notification when it’s live.
+              What you post goes out to the congregation right away — nobody has to release it first. If anyone
+              reports a post, it comes off the feed <strong style={s.strong}>immediately</strong>, before staff have
+              read the report, and stays off until they’ve looked and either put it back or removed it.
             </p>
           </Step>
 
@@ -518,10 +519,12 @@ export default function SouthsideWalkthrough() {
             </p>
           </Step>
 
-          <Step title="Approve people, and posts" shot={`${IMG}/phone-06-bulletin.png`} alt="The bulletin">
+          <Step title="Approve people, and handle what gets reported" shot={`${IMG}/phone-06-bulletin.png`} alt="The bulletin">
             <p style={styles.stepBody}>
-              New signups wait in a queue and you get a notification. Member posts wait in another — you see the words
-              and the photos, then approve or remove. Approving pushes “Your post is live” to whoever wrote it.
+              New signups wait in a queue and you get a notification. Posts don’t — they go straight out. What lands in
+              front of you is anything a member <em>reported</em>: it has already left the feed automatically, and you
+              see the post, who objected and what they said, then put it back or delete it. Putting it back tells the
+              person who wrote it.
             </p>
             <p style={styles.stepBody}>
               Reported content lands in its own list, where you can remove the post and disable the account behind it.
