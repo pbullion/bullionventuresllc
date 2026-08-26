@@ -63,6 +63,7 @@ import DaycareMemoryVaultSupport from "./pages/daycare-memory-vault/Support.jsx"
 import Ashley from "./pages/ashley/index.jsx";
 import Prospects from "./pages/prospects/index.jsx";
 import PatrickBoard from "./pages/patrick/index.jsx";
+import Drive from "./pages/drive";
 import Hrw from "./pages/hrw/index.jsx";
 import HrwRestaurant from "./pages/hrw/Restaurant.jsx";
 
@@ -93,6 +94,8 @@ export default function App() {
   // still finishing. Full-screen because the whole point is seeing every board
   // at once; unlisted and unauthenticated like /prospects.
   const isPatrickBoard = location.pathname.startsWith("/patrick");
+  // In-car dashboard: full-bleed, no site nav or footer.
+  const isDrive = location.pathname.startsWith("/drive");
   const hideChrome =
     isTeslaDashboard ||
     isMothersDay ||
@@ -109,7 +112,8 @@ export default function App() {
     isTripPlanner ||
     isAshley ||
     isProspects ||
-    isPatrickBoard;
+    isPatrickBoard ||
+    isDrive;
   return (
     <div
       style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
@@ -181,6 +185,7 @@ export default function App() {
           <Route path="/prospects/:slug" element={<Prospects />} />
           {/* Cardless and unlisted on purpose — reached by typing the URL. */}
           <Route path="/patrick" element={<PatrickBoard />} />
+          <Route path="/drive" element={<Drive />} />
           <Route path="/hrw" element={<Hrw />} />
           <Route path="/hrw/:slug" element={<HrwRestaurant />} />
           <Route

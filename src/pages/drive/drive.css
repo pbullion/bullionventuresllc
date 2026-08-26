@@ -1,0 +1,748 @@
+/* /drive — in-car dashboard.
+ *
+ * Sized for the Tesla browser (~1180x919 on a Model 3/Y), but every dimension
+ * is derived from --u, a viewport-relative unit, so the same page fills a
+ * laptop or a phone without a second layout. Retuning the whole board for a
+ * different car screen is one clamp() away.
+ *
+ * Dark only, on purpose: this is read at night through a windscreen, and a
+ * light theme in a car is a mirror. */
+
+.drive {
+  --u: clamp(11px, 1.28vh, 17px);
+
+  --bg: #05070c;
+  --card: rgba(255, 255, 255, 0.042);
+  --card-hi: rgba(255, 255, 255, 0.072);
+  --line: rgba(255, 255, 255, 0.085);
+  --line-hi: rgba(255, 255, 255, 0.16);
+
+  --text: #eef2f8;
+  --dim: #99a2b5;
+  --faint: #616b7f;
+
+  --accent: #4ea3ff;
+  --accent-2: #8b5cf6;
+  --live: #ff453a;
+  --pos: #32d74b;
+  --neg: #ff5a4e;
+
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1.12fr);
+  gap: calc(var(--u) * 0.72);
+  padding: calc(var(--u) * 0.85);
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: var(--u);
+  line-height: 1.35;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  transition: filter 1.5s ease;
+}
+
+/* Two soft off-screen glows. They keep a full-black panel from looking like a
+ * dead screen, which on a car display is a real ambiguity. */
+.drive::before,
+.drive::after {
+  content: "";
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(90px);
+}
+.drive::before {
+  width: 46vw;
+  height: 46vw;
+  top: -22vw;
+  left: -14vw;
+  background: radial-gradient(circle, rgba(78, 163, 255, 0.17), transparent 70%);
+}
+.drive::after {
+  width: 42vw;
+  height: 42vw;
+  bottom: -24vw;
+  right: -12vw;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.13), transparent 70%);
+}
+
+/* Sunset dims the whole board a notch. Headlights-on brightness is not
+ * daylight brightness. */
+.drive.is-night {
+  filter: brightness(0.82) saturate(0.95);
+}
+
+.drive * {
+  box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------------ cards */
+
+.dcard {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: calc(var(--u) * 0.85) calc(var(--u) * 0.95);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--u) * 1.15);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+    rgba(8, 11, 18, 0.72);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 10px 30px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.dcard__head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.55);
+  margin-bottom: calc(var(--u) * 0.6);
+  flex: 0 0 auto;
+}
+
+.dcard__title {
+  font-size: calc(var(--u) * 0.82);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.dcard__spacer {
+  flex: 1;
+}
+
+.dcard__note {
+  font-size: calc(var(--u) * 0.78);
+  color: var(--faint);
+  letter-spacing: 0.04em;
+}
+
+.dcard__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scroll areas exist only for the parked case. Momentum on, bars hidden. */
+.dscroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.dscroll::-webkit-scrollbar {
+  display: none;
+}
+
+.dempty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--u);
+  color: var(--faint);
+  font-size: calc(var(--u) * 0.92);
+}
+
+/* ------------------------------------------------------------------- hero */
+
+.dhero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: center;
+  gap: calc(var(--u) * 1.1);
+  padding: calc(var(--u) * 0.8) calc(var(--u) * 1.3);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--u) * 1.15);
+  background:
+    linear-gradient(110deg, rgba(78, 163, 255, 0.1), rgba(139, 92, 246, 0.07) 55%, transparent),
+    rgba(8, 11, 18, 0.72);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 12px 34px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+}
+
+.dclock {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 0.4);
+  font-size: calc(var(--u) * 4.4);
+  font-weight: 250;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+}
+.dclock__ampm {
+  font-size: calc(var(--u) * 1.25);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  color: var(--dim);
+}
+.dclock__date {
+  margin-top: calc(var(--u) * 0.3);
+  font-size: calc(var(--u) * 0.95);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* Current conditions. The temperature is the second-biggest thing on the
+ * screen after the clock — it is the number he is actually glancing for. */
+.dnow {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.85);
+  justify-content: center;
+}
+.dnow__icon {
+  width: calc(var(--u) * 3.5);
+  height: calc(var(--u) * 3.5);
+  flex: 0 0 auto;
+}
+.dnow__temp {
+  font-size: calc(var(--u) * 4);
+  font-weight: 300;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+.dnow__cond {
+  font-size: calc(var(--u) * 1.05);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dnow__place {
+  font-size: calc(var(--u) * 0.85);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dstats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: calc(var(--u) * 0.5);
+}
+.dstat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: calc(var(--u) * 0.4) calc(var(--u) * 0.55);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--u) * 0.6);
+  background: var(--card);
+}
+.dstat__k {
+  font-size: calc(var(--u) * 0.7);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.dstat__v {
+  font-size: calc(var(--u) * 1.15);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------- row grid */
+
+.drow {
+  display: grid;
+  gap: calc(var(--u) * 0.72);
+  min-height: 0;
+}
+.drow--top {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.25fr);
+}
+.drow--bottom {
+  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+}
+
+/* --------------------------------------------------------------- forecast */
+
+.dfc {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+  min-height: 0;
+}
+.dfc__row {
+  display: grid;
+  grid-template-columns: calc(var(--u) * 3.2) calc(var(--u) * 1.9) 1fr auto;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+  padding: calc(var(--u) * 0.22) 0;
+}
+.dfc__day {
+  font-size: calc(var(--u) * 0.95);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.dfc__row--today .dfc__day {
+  color: var(--accent);
+}
+.dfc__icon {
+  width: calc(var(--u) * 1.7);
+  height: calc(var(--u) * 1.7);
+}
+.dfc__pop {
+  font-size: calc(var(--u) * 0.82);
+  font-weight: 600;
+  color: var(--accent);
+  opacity: 0.9;
+}
+.dfc__temps {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 0.45);
+  justify-self: end;
+  font-size: calc(var(--u) * 1.15);
+  font-weight: 600;
+}
+.dfc__lo {
+  color: var(--faint);
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ radar */
+
+.dradar {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: calc(var(--u) * 0.7);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.dradar__map {
+  position: absolute;
+  inset: 0;
+  background: #0a0e16;
+}
+/* Leaflet paints its own light chrome; none of it belongs here. */
+.dradar .leaflet-container {
+  background: #0a0e16;
+  outline: none;
+}
+.dradar .leaflet-control-container,
+.dradar .leaflet-control-attribution {
+  display: none;
+}
+.dradar__pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--u) * 0.75);
+  height: calc(var(--u) * 0.75);
+  margin: calc(var(--u) * -0.375) 0 0 calc(var(--u) * -0.375);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 calc(var(--u) * 0.22) rgba(78, 163, 255, 0.28);
+  z-index: 500;
+  pointer-events: none;
+}
+.dradar__stamp {
+  position: absolute;
+  left: calc(var(--u) * 0.5);
+  bottom: calc(var(--u) * 0.5);
+  z-index: 500;
+  padding: calc(var(--u) * 0.16) calc(var(--u) * 0.45);
+  border-radius: calc(var(--u) * 0.4);
+  background: rgba(5, 7, 12, 0.78);
+  border: 1px solid var(--line);
+  font-size: calc(var(--u) * 0.72);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  pointer-events: none;
+}
+.dradar__stamp.is-forecast {
+  color: var(--accent);
+}
+/* Tile attribution. Leaflet's own control is hidden above because it paints
+   light chrome over the card, so the credit is re-stated here instead. */
+.dradar__credit {
+  position: absolute;
+  right: calc(var(--u) * 0.5);
+  bottom: calc(var(--u) * 0.5);
+  z-index: 500;
+  font-size: calc(var(--u) * 0.62);
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ teams */
+
+.dteams {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  min-height: 0;
+  gap: calc(var(--u) * 0.28);
+}
+.dteam {
+  display: grid;
+  grid-template-columns: calc(var(--u) * 2) 1fr auto;
+  align-items: center;
+  gap: calc(var(--u) * 0.55);
+  padding: calc(var(--u) * 0.4) calc(var(--u) * 0.5);
+  border: 1px solid transparent;
+  border-radius: calc(var(--u) * 0.6);
+  background: var(--card);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dteam:active {
+  background: var(--card-hi);
+}
+.dteam.is-live {
+  border-color: rgba(255, 69, 58, 0.42);
+  background: rgba(255, 69, 58, 0.09);
+}
+.dteam__logo {
+  width: calc(var(--u) * 2);
+  height: calc(var(--u) * 2);
+  object-fit: contain;
+}
+.dteam__matchup {
+  font-size: calc(var(--u) * 1.02);
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dteam__sub {
+  font-size: calc(var(--u) * 0.76);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dteam__right {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.45);
+  justify-self: end;
+}
+.dteam__score {
+  font-size: calc(var(--u) * 1.35);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.dteam__when {
+  text-align: right;
+  font-size: calc(var(--u) * 0.86);
+  font-weight: 600;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.dlive {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.3);
+  padding: calc(var(--u) * 0.12) calc(var(--u) * 0.42);
+  border-radius: 999px;
+  background: rgba(255, 69, 58, 0.16);
+  color: var(--live);
+  font-size: calc(var(--u) * 0.68);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.dlive__dot {
+  width: calc(var(--u) * 0.38);
+  height: calc(var(--u) * 0.38);
+  border-radius: 50%;
+  background: var(--live);
+  animation: dpulse 1.6s ease-in-out infinite;
+}
+@keyframes dpulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.72); }
+}
+
+/* ------------------------------------------------------------------- news */
+
+.dtabs {
+  display: flex;
+  gap: calc(var(--u) * 0.3);
+  padding: calc(var(--u) * 0.16);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+}
+.dtab {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: calc(var(--u) * 0.3) calc(var(--u) * 0.95);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: calc(var(--u) * 0.78);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  transition: background 0.15s, color 0.15s;
+}
+.dtab.is-on {
+  background: var(--accent);
+  color: #04070d;
+}
+
+.dnews {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(var(--u) * 0.42);
+  align-content: start;
+  padding-right: calc(var(--u) * 0.2);
+}
+/* Deliberately tall rows. A 44px tap target is a phone minimum; a moving car
+ * needs more, and there is room for it here. */
+.dnews__item {
+  display: flex;
+  gap: calc(var(--u) * 0.6);
+  min-height: calc(var(--u) * 3.6);
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 0.6);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--u) * 0.65);
+  background: var(--card);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.dnews__item:active {
+  background: var(--card-hi);
+  border-color: var(--line-hi);
+  transform: scale(0.99);
+}
+.dnews__thumb {
+  width: calc(var(--u) * 3.4);
+  height: calc(var(--u) * 2.6);
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: calc(var(--u) * 0.4);
+  background: rgba(255, 255, 255, 0.05);
+}
+.dnews__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.2);
+}
+.dnews__title {
+  font-size: calc(var(--u) * 0.94);
+  font-weight: 600;
+  line-height: 1.28;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dnews__meta {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.4);
+  font-size: calc(var(--u) * 0.72);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.dnews__tag {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ----------------------------------------------------------------- kalshi */
+
+.dk__top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(var(--u) * 0.42);
+  margin-bottom: calc(var(--u) * 0.55);
+  flex: 0 0 auto;
+}
+.dk__tile {
+  padding: calc(var(--u) * 0.45) calc(var(--u) * 0.6);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--u) * 0.6);
+  background: var(--card);
+}
+.dk__k {
+  font-size: calc(var(--u) * 0.68);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.dk__v {
+  font-size: calc(var(--u) * 1.5);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.dk__pos {
+  color: var(--pos);
+}
+.dk__neg {
+  color: var(--neg);
+}
+
+.dk__list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.3);
+}
+.dk__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+  padding: calc(var(--u) * 0.36) calc(var(--u) * 0.5);
+  border-radius: calc(var(--u) * 0.5);
+  background: rgba(255, 255, 255, 0.028);
+}
+.dk__row.is-live {
+  background: rgba(255, 69, 58, 0.1);
+}
+.dk__pick {
+  font-size: calc(var(--u) * 0.9);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dk__sub {
+  font-size: calc(var(--u) * 0.72);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dk__val {
+  text-align: right;
+  font-size: calc(var(--u) * 0.95);
+  font-weight: 650;
+  white-space: nowrap;
+}
+.dk__delta {
+  font-size: calc(var(--u) * 0.74);
+  font-weight: 600;
+}
+.dk__foot {
+  flex: 0 0 auto;
+  margin-top: calc(var(--u) * 0.45);
+  padding-top: calc(var(--u) * 0.45);
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  font-size: calc(var(--u) * 0.78);
+  color: var(--faint);
+  letter-spacing: 0.06em;
+}
+
+/* ---------------------------------------------------------------- status */
+
+.dstatus {
+  position: fixed;
+  right: calc(var(--u) * 1.1);
+  top: calc(var(--u) * 1.1);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.45);
+}
+.dstatus__age {
+  font-size: calc(var(--u) * 0.72);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.dbtn {
+  appearance: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 2.1);
+  height: calc(var(--u) * 2.1);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--dim);
+  padding: 0;
+}
+.dbtn:active {
+  background: var(--card-hi);
+  color: var(--text);
+}
+.dbtn.is-spinning svg {
+  animation: dspin 0.9s linear infinite;
+}
+@keyframes dspin {
+  to { transform: rotate(360deg); }
+}
+
+/* Narrow screens (a phone, or the Tesla in an odd orientation): stop trying to
+ * be a three-column board and stack, letting the page scroll. */
+@media (max-width: 820px) {
+  .drive {
+    position: static;
+    height: auto;
+    min-height: 100dvh;
+    grid-template-rows: none;
+    overflow: visible;
+    --u: 14px;
+  }
+  .dhero {
+    grid-template-columns: 1fr;
+    text-align: center;
+    justify-items: center;
+    gap: calc(var(--u) * 0.7);
+  }
+  .dstats {
+    width: 100%;
+  }
+  .drow--top,
+  .drow--bottom {
+    grid-template-columns: 1fr;
+  }
+  .dcard {
+    min-height: calc(var(--u) * 16);
+  }
+  .dnews {
+    grid-template-columns: 1fr;
+  }
+}
