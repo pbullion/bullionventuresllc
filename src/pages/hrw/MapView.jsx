@@ -20,6 +20,8 @@ import "leaflet/dist/leaflet.css";
 import { C } from "./theme.js";
 import { TIERS, dishCount, mealLabel, tierColor } from "./data.js";
 
+const ESRI_CANVAS = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas";
+
 // Downtown Houston, for the empty-result case.
 const CENTER = [29.7589, -95.3677];
 
@@ -74,11 +76,30 @@ export default function MapView({ restaurants, faveSet, here, onLocate }) {
       tap: true,
     });
     L.control.zoom({ position: "bottomright" }).addTo(map);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    // NOT CARTO. cartocdn still answers 200 for its free dark_all tiles, but it
+    // now prints "API KEY REQUIRED" diagonally across every one of them, so the
+    // map failed by looking broken rather than by erroring (seen live on this
+    // page 2026-08-26). Esri's dark canvas is keyless and unbranded.
+    //
+    // Two things differ from CARTO and both matter:
+    //   - Esri serves {z}/{y}/{x} — ROW before COLUMN.
+    //   - its tiling scheme stops at zoom 16, where CARTO went to 19. Past 16
+    //     the server returns a small blank tile rather than a 404, so without
+    //     maxNativeZoom a zoomed-in restaurant sits on an empty grey square.
+    //     maxNativeZoom lets Leaflet upscale z16 instead.
+    L.tileLayer(`${ESRI_CANVAS}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`, {
       attribution:
-        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, © <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: "abcd",
+        'Tiles © <a href="https://www.esri.com/">Esri</a> — Esri, HERE, Garmin, © OpenStreetMap contributors',
       maxZoom: 19,
+      maxNativeZoom: 16,
+    }).addTo(map);
+    // Esri splits labels into their own layer; CARTO's dark_all had them baked
+    // in, and a restaurant map with no street names is useless.
+    L.tileLayer(`${ESRI_CANVAS}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, {
+      maxZoom: 19,
+      maxNativeZoom: 16,
+      opacity: 0.85,
+      zIndex: 300,
     }).addTo(map);
     layerRef.current = L.layerGroup().addTo(map);
     map.on("dragstart zoomstart", (e) => {

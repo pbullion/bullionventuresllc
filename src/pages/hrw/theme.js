@@ -247,9 +247,13 @@ export const HRW_CSS = `
 
 /* Leaflet, dragged into the dark ---------------------------------------- */
 .hrw-map { background: ${C.bg}; border-radius: 14px; }
-/* CARTO's dark basemap is tuned for maps that fill a white page; dropped into a
-   near-black panel its street labels all but vanish, so lift it a little. */
-.hrw-map .leaflet-tile-pane { filter: saturate(.9) brightness(1.35) contrast(1.05); }
+/* Esri's dark canvas is a mid-grey, not a near-black — noticeably lighter than
+   the CARTO basemap this replaced (see MapView.jsx for why it was replaced).
+   The old rule lifted CARTO by 1.35x to keep its street labels legible; applied
+   to Esri that washes the map out to a grey slab that fights the panel around
+   it, so the same rule now pulls the other way. Retune this number, not the
+   tile URL, if the basemap ever looks wrong against the page. */
+.hrw-map .leaflet-tile-pane { filter: saturate(.9) brightness(.62) contrast(1.15); }
 .hrw-map .leaflet-popup-content-wrapper,
 .hrw-map .leaflet-popup-tip {
   background: ${C.surfaceHi};
