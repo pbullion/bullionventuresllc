@@ -42,6 +42,7 @@ import FFDraftGuide from "./pages/ffdraft/Guide.jsx";
 import TotalsValue from "./pages/totals-value/index.jsx";
 import CryptoValue from "./pages/crypto-value/index.jsx";
 import WeatherValue from "./pages/weather-value/index.jsx";
+import GasValue from "./pages/gas-value/index.jsx";
 import MorningReview from "./pages/morning-review/index.jsx";
 import GulfHurricane from "./pages/gulf-hurricane/index.jsx";
 import TripPlannerHome from "./pages/trip-planner/index.jsx";
@@ -79,6 +80,7 @@ export default function App() {
     location.pathname.startsWith("/wnba-value");
   const isCryptoValue = location.pathname.startsWith("/crypto-value");
   const isWeatherValue = location.pathname.startsWith("/weather-value");
+  const isGasValue = location.pathname.startsWith("/gas-value");
   const isMorningReview = location.pathname.startsWith("/morning-review");
   const isEliteEdge = location.pathname.startsWith("/elite-edge-advisors");
   const isZargle = location.pathname.startsWith("/zargle");
@@ -108,6 +110,7 @@ export default function App() {
     isTotalsValue ||
     isCryptoValue ||
     isWeatherValue ||
+    isGasValue ||
     isMorningReview ||
     isEliteEdge ||
     isGulfHurricane ||
@@ -176,6 +179,7 @@ export default function App() {
           <Route path="/totals-value" element={<TotalsValue />} />
           <Route path="/crypto-value" element={<CryptoValue />} />
           <Route path="/weather-value" element={<WeatherValue />} />
+          <Route path="/gas-value" element={<GasValue />} />
           <Route path="/morning-review" element={<MorningReview />} />
           <Route path="/gulf-hurricane" element={<GulfHurricane />} />
           <Route path="/tripplanner" element={<TripPlannerHome />} />

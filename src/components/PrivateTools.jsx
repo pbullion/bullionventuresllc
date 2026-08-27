@@ -72,6 +72,12 @@ const GROUPS = [
         tagline: "Daily city-high temperature markets",
       },
       {
+        emoji: "⛽",
+        name: "Gas Value",
+        path: "/gas-value",
+        tagline: "AAA gas-price markets — paper engine",
+      },
+      {
         emoji: "☕",
         name: "Morning Review",
         path: "/morning-review",

@@ -292,6 +292,9 @@ export default function WeatherValue() {
             {pill()}
             {err && <span style={{ fontSize: 11, color: C.red }}>{err}</span>}
             <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              <a href="/gas-value" style={navLink}>
+                ⛽ gas →
+              </a>
               <a href="/totals-value" style={navLink}>
                 📈 sports →
               </a>
