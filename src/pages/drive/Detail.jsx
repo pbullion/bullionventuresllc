@@ -12,7 +12,7 @@
  * running the whole time the detail view is open. */
 
 import { Suspense, lazy, useEffect } from "react";
-import { KalshiPanel, NewsPanel, TeamsPanel, WeatherPanel } from "./panels";
+import { KalshiPanel, NewsPanel, StocksPanel, TeamsPanel, WeatherPanel } from "./panels";
 
 const Radar = lazy(() => import("./Radar"));
 
@@ -22,6 +22,7 @@ const TITLES = {
   teams: "Scoreboard",
   news: "Headlines",
   kalshi: "Kalshi",
+  stocks: "Markets",
 };
 
 function BackArrow() {
@@ -39,7 +40,7 @@ function BackArrow() {
   );
 }
 
-function Detail({ section, onClose, weather, place, coords, frames, events, ai, sports, kalshi }) {
+function Detail({ section, onClose, weather, place, coords, frames, events, ai, sports, kalshi, stocks }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
@@ -73,6 +74,8 @@ function Detail({ section, onClose, weather, place, coords, frames, events, ai, 
     body = <TeamsPanel events={events} />;
   } else if (section === "news") {
     body = <NewsPanel ai={ai} sports={sports} />;
+  } else if (section === "stocks") {
+    body = <StocksPanel data={stocks} />;
   } else if (section === "kalshi") {
     body = <KalshiPanel data={kalshi} />;
     action = (

@@ -9,7 +9,8 @@
 
 import { useState } from "react";
 import { WeatherIcon } from "./icons";
-import { TEAMS, cToF } from "./data";
+import { TEAMS, cToF, pct, price } from "./data";
+import { Spark } from "./Stocks";
 
 /* ------------------------------------------------------------------ shared */
 
@@ -476,4 +477,61 @@ function KalshiPanel({ data }) {
   );
 }
 
-export { WeatherPanel, TeamsPanel, NewsPanel, KalshiPanel };
+
+/* ----------------------------------------------------------------- stocks */
+
+function StocksPanel({ data }) {
+  if (!data?.rows?.length) return <div className="dempty">Quotes unavailable</div>;
+
+  const indices = data.rows.filter((r) => r.symbol.startsWith("."));
+  const holdings = data.rows.filter((r) => !r.symbol.startsWith("."));
+
+  const table = (rows) => (
+    <div className="dtable">
+      <div className="dtable__head dtable__row dtable__row--stk">
+        <span className="dtable__main">Symbol</span>
+        <span>Last</span>
+        <span>Change</span>
+        <span>Prev close</span>
+        <span>Today</span>
+      </div>
+      {rows.map((r) => {
+        const up = (r.changePct ?? 0) >= 0;
+        return (
+          <div key={r.symbol} className="dtable__row dtable__row--stk">
+            <span className="dtable__main">
+              <span className="dtable__pick">{r.ticker}</span>
+              <span className="dtable__sub">{r.name || r.label}</span>
+            </span>
+            <span>{price(r.price)}</span>
+            <span className={r.changePct == null ? "" : up ? "dk__pos" : "dk__neg"}>
+              {pct(r.changePct)}
+            </span>
+            <span>{price(r.prevClose)}</span>
+            <span>
+              <Spark points={r.spark} prevClose={r.prevClose} up={up} />
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="dpanel">
+      <section className="dpanel__block">
+        <h2 className="dpanel__h">Indices</h2>
+        {table(indices)}
+      </section>
+      <section className="dpanel__block">
+        <h2 className="dpanel__h">
+          Holdings
+          <span className="dpanel__hnote">{holdings.length} symbols</span>
+        </h2>
+        {table(holdings)}
+      </section>
+    </div>
+  );
+}
+
+export { WeatherPanel, TeamsPanel, NewsPanel, KalshiPanel, StocksPanel };

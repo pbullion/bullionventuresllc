@@ -1,16 +1,28 @@
 /* Data layer for /drive — the in-car dashboard.
  *
- * EVERY SOURCE HERE IS BROWSER-REACHABLE WITH NO KEY AND NO NEW BACKEND ROUTE.
- * That is deliberate: the Tesla browser sits on LTE and this page is meant to
- * be typed into a car and forgotten, so it must not depend on anything that
- * needs a deploy to keep working. Two of the three hosts were CORS-verified
- * against this origin before the page was written (ESPN and RainViewer send
- * `access-control-allow-origin: *`; hn.algolia.com echoes this origin back).
+ * EVERY SOURCE HERE IS KEYLESS. That is deliberate: the Tesla browser sits on
+ * LTE and this page is meant to be typed into a car and forgotten, so it must
+ * not depend on anything that needs a key rotation to keep working. Two of the
+ * three original hosts were CORS-verified against this origin before the page
+ * was written (ESPN and RainViewer send `access-control-allow-origin: *`;
+ * hn.algolia.com echoes this origin back).
  *
- * Sheline backend  -> weather (Apple WeatherKit, already keyed there) + Kalshi.
+ * Sheline backend  -> weather (Apple WeatherKit, already keyed there) + Kalshi
+ *                     + stock quotes (see the exception below).
  * site.api.espn.com -> team next/live games and sports headlines.
  * hn.algolia.com    -> AI headlines.
  * api.rainviewer.com -> radar tile index.
+ *
+ * THE ONE BACKEND ROUTE ADDED SINCE. This file used to say "no new backend
+ * route" as well. /quotes broke that, for payload and nothing else: CNBC's
+ * chart endpoint is keyless and CORS-open, so the browser CAN call it, but it
+ * returns the whole trading day at ~1s resolution — 1,792 bars, 39.6 KB
+ * gzipped, per symbol, with no interval parameter that does anything. Seven
+ * symbols is ~277 KB every poll to draw seven 90px sparklines. The route
+ * downsamples to 40 points server-side and the car pulls ~3.4 KB instead
+ * (measured, both numbers). Yahoo would have needed no route at all and does
+ * not work: no CORS header for the browser, and it 429s this app's own Heroku
+ * dyno. See routes/quotes.js in the backend repo.
  *
  * PAYLOAD IS A REAL CONSTRAINT. An ESPN league scoreboard is ~450 KB raw
  * (~31 KB gzipped, which is what a browser actually pulls). Polling all five
@@ -491,4 +503,71 @@ export async function fetchRadarFrames() {
     url: `${data.host}${f.path}/512/{z}/{x}/{y}/4/1_1.png`,
     forecast: !past.includes(f),
   }));
+}
+
+/* ----------------------------------------------------------------- stocks */
+
+/* Display formatters live here rather than in Stocks.jsx because both the card
+ * and the full-screen panel need them, and a component file that also exports
+ * plain functions breaks react-refresh (eslint enforces it). */
+
+/* Indices run to five figures and need no cents; a $9.96 stock needs both. */
+export function price(n) {
+  if (n == null || Number.isNaN(n)) return "—";
+  return Number(n).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function pct(n) {
+  if (n == null || Number.isNaN(n)) return "—";
+  return `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(2)}%`;
+}
+
+/* Indices first, then holdings — the order the card renders them in, and the
+ * order Patrick asked for. CNBC prefixes an index with a dot (.IXIC), which is
+ * NOT the caret Yahoo uses (^IXIC); passing a caret here returns an empty row
+ * rather than an error, so a symbol that silently goes blank is probably this.
+ *
+ * `label` overrides the upstream name where CNBC's is longer than the row can
+ * show at arm's length in a moving car — everything else falls back to the name
+ * the quote comes with. */
+export const STOCKS = [
+  { symbol: ".IXIC", label: "NASDAQ" },
+  { symbol: ".SPX", label: "S&P 500" },
+  { symbol: ".DJI", label: "Dow Jones" },
+  { symbol: "OBK" },
+  { symbol: "TSLA" },
+  { symbol: "SPCX" },
+  { symbol: "DJT" },
+];
+
+/* One request for the whole panel. The backend holds a 60s quote cache and a
+ * 5-minute chart cache, so polling this faster than once a minute buys nothing
+ * and just spends the car's connection. */
+export async function fetchStocks() {
+  const symbols = STOCKS.map((s) => s.symbol).join(",");
+  const data = await get(`${API_BASE}/quotes?symbols=${encodeURIComponent(symbols)}`, 15000);
+  if (!data?.quotes?.length) return null;
+
+  const bySymbol = new Map(data.quotes.map((q) => [q.symbol, q]));
+  const rows = STOCKS.map((cfg) => {
+    const q = bySymbol.get(cfg.symbol) || {};
+    return {
+      symbol: cfg.symbol,
+      /* The ticker as a human reads it: the dot is CNBC's index convention and
+       * means nothing to a driver. */
+      ticker: cfg.symbol.replace(/^\./, ""),
+      label: cfg.label || q.name || cfg.symbol,
+      name: q.name || null,
+      price: q.price ?? null,
+      changePct: q.changePct ?? null,
+      prevClose: q.prevClose ?? null,
+      spark: Array.isArray(q.spark) ? q.spark : [],
+      stale: Boolean(q.stale),
+    };
+  });
+
+  return { rows, asOf: data.asOf, ok: rows.some((r) => r.price != null) };
 }

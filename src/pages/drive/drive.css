@@ -284,8 +284,11 @@
 .drow--top {
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.25fr);
 }
+/* Three cards since Markets joined the row. News keeps the largest share
+   because its rows wrap to two lines; Markets needs enough width for a ticker,
+   a sparkline and a price without the sparkline collapsing to a smear. */
 .drow--bottom {
-  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.67fr) minmax(0, 1.13fr) minmax(0, 1fr);
 }
 
 /* --------------------------------------------------------------- forecast */
@@ -560,9 +563,15 @@
   color: #04070d;
 }
 
+/* auto-fit, not a hard 1fr 1fr: this card lost ~200px when Markets joined the
+   bottom row, and a fixed two-column grid does not narrow — it clips the second
+   column mid-word. Below ~two 14u columns it now drops to one and stays
+   legible, which is the property that matters at arm's length. The 820px
+   viewport rule below is still needed for the phone case, where the card is
+   wide but the page is not. */
 .dnews {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 14), 1fr));
   gap: calc(var(--u) * 0.42);
   align-content: start;
   padding-right: calc(var(--u) * 0.2);
@@ -1304,6 +1313,9 @@
 .dtable__row--pos {
   grid-template-columns: 1fr calc(var(--u) * 4) calc(var(--u) * 4.6) calc(var(--u) * 4.6) calc(var(--u) * 5) calc(var(--u) * 5);
 }
+.dtable__row--stk {
+  grid-template-columns: 1fr calc(var(--u) * 5.4) calc(var(--u) * 4.6) calc(var(--u) * 5.4) calc(var(--u) * 5.2);
+}
 .dtable__row--grp {
   grid-template-columns: 1fr calc(var(--u) * 5) calc(var(--u) * 4) calc(var(--u) * 5) calc(var(--u) * 5.4) calc(var(--u) * 4.4);
 }
@@ -1386,9 +1398,16 @@
   .dtable__row--grp {
     grid-template-columns: 1fr auto auto;
   }
+  .dtable__row--stk {
+    grid-template-columns: 1fr auto auto;
+  }
   .dtable__row--pos > span:nth-child(3),
   .dtable__row--pos > span:nth-child(6),
-  .dtable__row--grp > span:nth-child(4) {
+  .dtable__row--grp > span:nth-child(4),
+  /* Prev close and the sparkline are the two the narrow layout can lose:
+     the change column already carries the day's direction. */
+  .dtable__row--stk > span:nth-child(4),
+  .dtable__row--stk > span:nth-child(5) {
     display: none;
   }
   .dwx__day {
@@ -1404,4 +1423,108 @@
 
 .dcap {
   text-transform: capitalize;
+}
+
+/* ----------------------------------------------------------------- stocks */
+
+/* Sized so all seven rows fit the card with no scrolling. Nothing on this page
+   should ask a driver to scroll; if an eighth symbol is added, take the height
+   out of the row padding before letting the list overflow. */
+.dst__list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.26);
+}
+
+/* Three tracks: identity, sparkline, numbers. The sparkline column is a fixed
+ * width so every line starts and ends on the same x — ragged sparkline edges
+ * read as noise when seven of them stack up. */
+.dst__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(var(--u) * 4.6) auto;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+  padding: calc(var(--u) * 0.26) calc(var(--u) * 0.45);
+  border-radius: calc(var(--u) * 0.5);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.dst__id {
+  min-width: 0;
+}
+.dst__ticker {
+  font-size: calc(var(--u) * 1.02);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.dst__name {
+  font-size: calc(var(--u) * 0.78);
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* preserveAspectRatio="none" on the SVG means this box IS the geometry. */
+.dst__spark {
+  width: 100%;
+  height: calc(var(--u) * 1.55);
+  display: block;
+  overflow: visible;
+}
+.dst__line {
+  fill: none;
+  stroke-width: 2.4;
+  /* The path is stretched non-uniformly, so the join/cap style is what keeps a
+   * steep segment from looking like a break. */
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.dst__line.is-up {
+  stroke: var(--pos);
+}
+.dst__line.is-down {
+  stroke: var(--neg);
+}
+.dst__base {
+  stroke: var(--line-hi);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.dst__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: calc(var(--u) * 0.16);
+}
+.dst__price {
+  font-size: calc(var(--u) * 1.02);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  /* Tabular figures stop the price column jittering on every tick. */
+  font-variant-numeric: tabular-nums;
+}
+.dst__pill {
+  font-size: calc(var(--u) * 0.8);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: calc(var(--u) * 0.1) calc(var(--u) * 0.36);
+  border-radius: calc(var(--u) * 0.3);
+  color: #fff;
+  min-width: calc(var(--u) * 3.1);
+  text-align: center;
+}
+.dst__pill.is-up {
+  background: #21a33a;
+}
+.dst__pill.is-down {
+  background: #d13a2f;
+}
+.dst__pill.is-dead {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--faint);
 }

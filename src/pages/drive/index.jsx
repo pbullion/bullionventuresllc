@@ -28,6 +28,7 @@ import Forecast from "./Forecast";
 import Teams from "./Teams";
 import News from "./News";
 import Kalshi from "./Kalshi";
+import Stocks from "./Stocks";
 import Detail from "./Detail";
 import { RefreshIcon } from "./icons";
 import {
@@ -39,6 +40,7 @@ import {
   fetchPlaceName,
   fetchRadarFrames,
   fetchSportsNews,
+  fetchStocks,
   fetchTeamEvents,
   fetchWeather,
 } from "./data";
@@ -54,6 +56,9 @@ const SCORES_EVERY_LIVE = 25 * 1000;
 const NEWS_EVERY = 10 * MIN;
 const KALSHI_EVERY = MIN;
 const RADAR_EVERY = 5 * MIN;
+/* The backend caches quotes for 60s and charts for 5 minutes, so polling this
+ * harder than once a minute spends the car's connection for identical bytes. */
+const STOCKS_EVERY = MIN;
 const RELOAD_AFTER = 12 * 60 * MIN;
 
 /* Roughly 2 miles. Below this the weather and the radar frame do not change, so
@@ -101,6 +106,7 @@ function Drive() {
   const [ai, setAi] = useState(undefined);
   const [sports, setSports] = useState(undefined);
   const [kalshi, setKalshi] = useState(null);
+  const [stocks, setStocks] = useState(null);
   const [frames, setFrames] = useState(null);
   const [lastOk, setLastOk] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -266,6 +272,20 @@ function Drive() {
 
   usePoll(
     async () => {
+      const data = await fetchStocks();
+      /* Keep the last good board on a failed poll rather than emptying it —
+       * outside market hours the numbers are correct and simply not moving. */
+      if (data?.ok) {
+        setStocks(data);
+        markOk();
+      }
+    },
+    STOCKS_EVERY,
+    [markOk],
+  );
+
+  usePoll(
+    async () => {
       const f = await fetchRadarFrames();
       if (f) setFrames(f);
     },
@@ -277,13 +297,14 @@ function Drive() {
    * there is no separate "manual" fetch to drift out of sync. */
   const refreshAll = useCallback(async () => {
     setBusy(true);
-    const [w, ev, a, s, k, f] = await Promise.all([
+    const [w, ev, a, s, k, f, q] = await Promise.all([
       fetchWeather(coords.lat, coords.lon),
       fetchTeamEvents(),
       fetchAiNews(),
       fetchSportsNews(),
       fetchKalshi(),
       fetchRadarFrames(),
+      fetchStocks(),
     ]);
     if (w) setWeather(w);
     if (ev) setEvents((prev) => ({ ...prev, ...ev }));
@@ -291,6 +312,7 @@ function Drive() {
     setSports(s);
     if (k?.ok) setKalshi(k);
     if (f) setFrames(f);
+    if (q?.ok) setStocks(q);
     markOk();
     setBusy(false);
   }, [coords.lat, coords.lon, markOk]);
@@ -348,6 +370,7 @@ function Drive() {
       <div className="drow drow--bottom">
         <News ai={ai} sports={sports} onExpand={() => openSection("news")} />
         <Kalshi data={kalshi} onExpand={() => openSection("kalshi")} />
+        <Stocks data={stocks} onExpand={() => openSection("stocks")} />
       </div>
 
       {expanded && (
@@ -362,6 +385,7 @@ function Drive() {
           ai={ai}
           sports={sports}
           kalshi={kalshi}
+          stocks={stocks}
         />
       )}
     </div>
