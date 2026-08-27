@@ -507,9 +507,10 @@ export default function SouthsideWalkthrough() {
           <Step title="One screen for everything waiting on you">
             <p style={styles.stepBody}>
               <strong style={s.strong}>Staff To-Do</strong> is the first thing under Admin, and the More tab carries a
-              number so you can see there’s something waiting without opening anything. Members to approve, posts to
-              review, reported content, visitors to follow up, prayer requests to pick up, serving spots and meal-train
-              days nobody has taken, and a sermon still in draft with Sunday coming. Where somebody is waiting on you,
+              number so you can see there’s something waiting without opening anything. Members to approve, reported
+              posts pulled off the feed, anything else that was reported, visitors to follow up, prayer requests to
+              pick up, serving spots and meal-train days nobody has taken, and a sermon still in draft with Sunday
+              coming. Where somebody is waiting on you,
               the card tells you how long they’ve waited; where it’s a gap to fill, it tells you the date it falls due.
             </p>
             <p style={styles.stepBody}>
