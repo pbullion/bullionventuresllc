@@ -1251,9 +1251,16 @@ const weatherCityOf = (b) => {
   if (w.city) return w.city;
   const seg = String(b.ticker || "")
     .split("-")[0]
-    .replace(/^KXHIGH/, "");
+    .replace(/^KXHIGHT?|^KXLOWT/, "");
   return seg || "—";
 };
+/* "high" for the KXHIGH* families, "low" for KXLOWT* — a daily-low market
+ * labelled "high" is wrong data, not just wrong wording. Mirrors
+ * weatherKindFor in the backend's routes/kalshi.js; the enriched position
+ * also carries display.weather.kind, and this is the fallback for the
+ * History tab's ticker-only cards. */
+const weatherKindOf = (ticker) =>
+  /^KXLOWT/.test(String(ticker || "").split("-")[0]) ? "low" : "high";
 /* City names by weather series, mirroring WEATHER_CITY in the backend's
  * routes/kalshi.js. Needed because the History tab names a weather bet from
  * NOTHING BUT its ticker — neither kind of card there has a city to read:
@@ -1273,6 +1280,14 @@ const WEATHER_SERIES_CITY = {
   KXHIGHLAX: "LA",
   KXHIGHMIA: "Miami",
   KXHIGHPHIL: "Philly",
+  // The 2026-08-27 expansion (paper-only today, but promotion is an env flip
+  // with no deploy — keep this moving with the backend's WEATHER_CITY map).
+  KXHIGHTSFO: "SF",
+  KXHIGHTPHX: "Phoenix",
+  KXHIGHTNOLA: "New Orleans",
+  KXLOWTNYC: "NYC",
+  KXLOWTCHI: "Chicago",
+  KXLOWTMIA: "Miami",
 };
 /* "KXHIGHLAX-26AUG21-B80.5" -> "🌡 LA high 80–81°". Returns null for anything
  * that isn't a known weather series, so the caller can fall back.
@@ -1285,18 +1300,23 @@ const WEATHER_SERIES_CITY = {
  * the card's own sub-line already carries the sale timestamp. */
 const weatherTickerTitle = (ticker, side, bracket) => {
   const parts = String(ticker || "").split("-");
-  if (!/^KXHIGH/.test(parts[0] || "")) return null;
+  if (!/^KXHIGH|^KXLOWT/.test(parts[0] || "")) return null;
   /* An unnamed series still names itself off the ticker rather than falling
      back to the raw string — a new city (this map has needed a hand-edit for
      each of the seven) would otherwise put the ticker back on the card, which
-     is the bug this function exists to fix. */
-  const city = WEATHER_SERIES_CITY[parts[0]] || parts[0].replace(/^KXHIGH/, "");
+     is the bug this function exists to fix. KXHIGHT? covers both ticker
+     shapes: the original series are KXHIGH<city> and the 8/27 additions are
+     KXHIGHT<city>. */
+  const city =
+    WEATHER_SERIES_CITY[parts[0]] ||
+    parts[0].replace(/^KXHIGHT?|^KXLOWT/, "");
   if (!city) return null;
+  const kind = weatherKindOf(ticker);
   const sideTxt = side === "no" ? "No" : side === "yes" ? "Yes" : null;
   // The bracket reads as part of the name ("LA high 80–81°"); the day and the
   // side are separate facts, so they get separators.
   const range = bracket || weatherBracketFromTicker(parts[2]);
-  const name = `🌡 ${city} high${range ? ` ${range}` : ""}`;
+  const name = `🌡 ${city} ${kind}${range ? ` ${range}` : ""}`;
   return [name, weatherDayDate(weatherDayChunk(ticker)), sideTxt]
     .filter(Boolean)
     .join(" · ");
@@ -2122,6 +2142,9 @@ function WeatherNow({ d, noCity = false }) {
      (…-B90.5), so a rounded "91°" hides whether the station is at 90.6
      or 91.4 — the whole question the bet turns on. Patrick, 2026-08-20. */
   const deg = (v) => (v == null ? "—" : `${Number(v).toFixed(1)}°`);
+  /* A low city's obs_max/forecast_high carry the LOW-side values (running
+     min, forecast low) — `kind` from the backend says which; wording follows. */
+  const isLow = w.kind === "low";
   return (
     <div
       style={{
@@ -2138,12 +2161,13 @@ function WeatherNow({ d, noCity = false }) {
       {!noCity && (
         <span style={{ color: C.text, fontSize: 14, fontWeight: 800 }}>
           🌡 {w.city}
+          {isLow ? " low" : ""}
         </span>
       )}
       {/* "Now" is the only live figure, so it's the bright one. */}
       <Stat label="Now" value={deg(w.current_temp)} bright />
       {/* The number the market literally settles on, as of this moment. */}
-      <Stat label="High so far" value={deg(w.obs_max)} />
+      <Stat label={isLow ? "Low so far" : "High so far"} value={deg(w.obs_max)} />
       <Stat label="Forecast" value={deg(w.forecast_high)} />
       {/* Renders nothing when the scan had no forecast peak to record, or when
           the peak_at column has not been applied yet. */}
