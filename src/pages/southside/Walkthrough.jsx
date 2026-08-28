@@ -449,6 +449,12 @@ export default function SouthsideWalkthrough() {
             <p style={styles.stepBody}>
               Every passage he mentions is a link. Tap it and read it right there without losing your place.
             </p>
+            <p style={styles.stepBody}>
+              Reading survives a dead zone too, not just typing. The outline, the bulletin, the calendar and the
+              church’s own details all keep a saved copy on your phone, so they still open on one bar — and the app
+              tells you when you’re looking at a saved copy and what time it was last fetched, rather than quietly
+              showing you last week’s.
+            </p>
           </Step>
 
           <Step title="Read scripture in the app" shot={`${IMG}/tab-09-scripture.png`} alt="A Bible passage opened in the app" tablet>
