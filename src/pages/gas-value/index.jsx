@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
 import EngineTuning from "../../components/EngineTuning.jsx";
 
 /* Gas Value — view of the Kalshi GAS engine (backend: sheline-art-website-api
@@ -6,12 +7,11 @@ import EngineTuning from "../../components/EngineTuning.jsx";
  * state dailies and the weekly, settling every morning on the price AAA
  * publishes at gasprices.aaa.com.
  *
- * PAPER-ONLY BY DESIGN (born 2026-08-27): there is no order path in the
- * backend and therefore no kill switch, no real ledger, and no cash-out story
- * on this page. The paper ledger is the whole product for now — it is what
- * earns (or refuses) a live order path, the discipline the weather engine
- * skipped. Everything here reads like /weather-value so the pages stay
- * side-by-side comparable. */
+ * Born paper-only 2026-08-27; LIVE-MONEY since 2026-08-28 (Patrick's call,
+ * weather's sizing defaults, arms via GASBET_ENABLED). TWO ledgers on
+ * purpose, like /weather-value: the real one and the shadow paper ledger,
+ * which keeps writing in live mode because it is the model's judge — "the
+ * model is right" and "the account is up" stay two different questions. */
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi-gas";
 
 const C = {
@@ -87,17 +87,21 @@ const td = {
 export default function GasValue() {
   const [status, setStatus] = useState(null);
   const [paper, setPaper] = useState([]);
+  const [bets, setBets] = useState([]);
+  const [showPaper, setShowPaper] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   const load = async () => {
     try {
-      const [s, p] = await Promise.all([
+      const [s, p, b] = await Promise.all([
         fetch(`${API_BASE}/auto-bets/status`).then((r) => r.json()),
         fetch(`${API_BASE}/paper-bets`).then((r) => r.json()),
+        fetch(`${API_BASE}/auto-bets`).then((r) => r.json()),
       ]);
       setStatus(s);
       setPaper(p.bets || []);
+      setBets(b.bets || []);
       setErr("");
     } catch (e) {
       setErr(e.message || "load failed");
@@ -152,8 +156,27 @@ export default function GasValue() {
     return null;
   };
 
+  const kill = async () => {
+    if (!window.confirm("Kill the gas engine? (paper scanning continues)"))
+      return;
+    if (await postWithPin("/auto-bets/kill")) load();
+  };
+  const enable = async () => {
+    if (await postWithPin("/auto-bets/enable")) load();
+  };
+
+  const pill = () => {
+    if (!status) return null;
+    if (status.killed)
+      return <span style={chip(C.redSoft, C.red)}>KILLED</span>;
+    if (status.enabled)
+      return <span style={chip(C.greenSoft, C.green)}>LIVE</span>;
+    return <span style={chip("#332a12", C.amber)}>PAPER</span>;
+  };
+
   const lastScan = status && status.last_scan;
   const cfg = status && status.config;
+  const live = status && status.live_ledger;
   const pp = status && status.paper;
   const byRegion = (status && status.paper_by_region) || [];
   const byLead = (status && status.paper_by_lead) || [];
@@ -162,15 +185,28 @@ export default function GasValue() {
     ((status && status.regions) || []).map((r) => [r.key, r.label]),
   );
 
-  const betRow = (b) => {
-    // A paper bet WON when the market's outcome equals the side it took.
+  const betRow = (b, isPaper) => {
+    // WON when the market's outcome equals the side held; a real row the
+    // cash-out monitor sold carries the literal 'cashed_out' instead.
     const res = b.result
       ? b.result === b.side
         ? { color: C.green, label: "WON" }
-        : { color: C.red, label: "LOST" }
+        : b.result === "cashed_out"
+          ? { color: C.amber, label: "SOLD" }
+          : { color: C.red, label: "LOST" }
       : null;
+    const price = isPaper ? b.price : (b.fill_price ?? b.intended_price);
+    const pnl = isPaper ? b.pnl : b.pnl_dollars;
+    const stake = isPaper
+      ? b.stake
+      : b.status === "unfilled"
+        ? null
+        : (b.filled_contracts ?? 0) * (b.fill_price ?? 0);
     return (
-      <tr key={b.id} style={{ borderTop: `1px solid ${C.border}` }}>
+      <tr
+        key={`${isPaper ? "p" : "r"}${b.id}`}
+        style={{ borderTop: `1px solid ${C.border}` }}
+      >
         <td style={td}>{clockTime(b.created_at)}</td>
         <td style={td}>{(regionLabel[b.region] || b.region).toUpperCase()}</td>
         <td style={{ ...td, whiteSpace: "normal" }}>
@@ -178,7 +214,8 @@ export default function GasValue() {
           <span style={{ color: C.muted }}>({b.bracket})</span>
         </td>
         <td style={td}>{String(b.side || "").toUpperCase()}</td>
-        <td style={td}>{cents(b.price)}</td>
+        <td style={td}>{cents(price)}</td>
+        <td style={td}>{stake != null ? money(stake) : "—"}</td>
         <td style={td}>
           {b.p_model != null ? `${Math.round(b.p_model * 100)}%` : "—"}
         </td>
@@ -187,15 +224,19 @@ export default function GasValue() {
         </td>
         <td style={td}>{b.lead_days != null ? `${b.lead_days}d` : "—"}</td>
         <td style={{ ...td, color: res ? res.color : C.muted }}>
-          {res ? res.label : "OPEN"}
+          {res
+            ? res.label
+            : isPaper
+              ? "OPEN"
+              : (b.status || "").toUpperCase()}
         </td>
         <td
           style={{
             ...td,
-            color: b.pnl > 0 ? C.green : b.pnl < 0 ? C.red : C.muted,
+            color: pnl > 0 ? C.green : pnl < 0 ? C.red : C.muted,
           }}
         >
-          {b.pnl != null ? money(b.pnl) : "—"}
+          {pnl != null ? money(pnl) : "—"}
         </td>
       </tr>
     );
@@ -221,7 +262,7 @@ export default function GasValue() {
           }}
         >
           <h1 style={{ margin: 0, fontSize: 20 }}>⛽ Gas Value</h1>
-          <span style={chip("#332a12", C.amber)}>PAPER</span>
+          {pill()}
           {err && <span style={{ fontSize: 11, color: C.red }}>{err}</span>}
           <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <a href="/weather-value" style={navLink}>
@@ -239,9 +280,11 @@ export default function GasValue() {
           </span>
         </div>
 
-        {/* Header strip: what the engine is doing + the live AAA reads that
-            are its whole input. Delta chips are vs YESTERDAY's print — the
-            exact quantity tomorrow's market is a bet on. */}
+        <EngineBlockedBanner blocked={status && status.blocked} engine="Gas" />
+
+        {/* Header strip: sizing + the live AAA reads that are the model's
+            whole input. Delta chips are vs YESTERDAY's print — the exact
+            quantity tomorrow's market is a bet on. */}
         <div
           style={{
             background: C.panel,
@@ -259,21 +302,51 @@ export default function GasValue() {
               alignItems: "center",
             }}
           >
-            <span style={{ fontWeight: 800, fontSize: 15 }}>
-              🤖 Paper engine
-            </span>
+            <span style={{ fontWeight: 800, fontSize: 15 }}>🤖 Auto-Bet</span>
             {cfg && (
               <span style={{ color: C.muted, fontSize: 12, flex: 1 }}>
-                ${cfg.paper_stake} paper stakes · needs{" "}
-                {Math.round(cfg.min_edge * 100)}¢+ edge · ≤{cfg.max_lead_days}d
-                lead · σ {(cfg.sigma_us * 100).toFixed(1)}¢ US /{" "}
-                {(cfg.sigma_state * 100).toFixed(1)}¢ state · scan{" "}
+                ${cfg.unit_dollars}/u +1u per 3¢ edge · ${cfg.max_bet_dollars}{" "}
+                max/bet · ${cfg.max_daily_dollars}/day loss cap · $
+                {cfg.max_event_dollars}/region-day · needs{" "}
+                {Math.round(cfg.min_edge * 100)}¢+ edge · scan{" "}
                 {clockTime(lastScan && lastScan.at)}
               </span>
             )}
-            <span style={{ color: C.muted, fontSize: 11 }}>
-              No real money — the ledger below is what earns an order path.
-            </span>
+            {status && status.killed ? (
+              <button
+                onClick={enable}
+                disabled={busy}
+                style={{
+                  background: C.greenSoft,
+                  color: C.green,
+                  border: `1px solid ${C.greenBorder}`,
+                  borderRadius: 8,
+                  padding: "5px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Enable (PIN)
+              </button>
+            ) : (
+              <button
+                onClick={kill}
+                disabled={busy}
+                style={{
+                  background: C.redSoft,
+                  color: C.red,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "5px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Kill
+              </button>
+            )}
           </div>
           {lastScan && lastScan.regions && (
             <div
@@ -320,7 +393,10 @@ export default function GasValue() {
           )}
         </div>
 
-        {/* The ledger, numbers first — this is the only scoreboard there is. */}
+        {/* The two ledgers, numbers first. Wins, losses and sold-early are
+            three separate counts (the cash-out monitor sells winners before
+            they settle, stamping the literal 'cashed_out') — blending them
+            printed "0 wins" over green days on both other engines. */}
         <div
           style={{
             display: "flex",
@@ -339,7 +415,40 @@ export default function GasValue() {
             }}
           >
             <div style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>
-              PAPER (the only ledger)
+              REAL
+            </div>
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                color:
+                  live && Number(live.pnl) > 0
+                    ? C.green
+                    : live && Number(live.pnl) < 0
+                      ? C.red
+                      : C.text,
+              }}
+            >
+              {money(live && live.pnl)}
+            </div>
+            <div style={{ color: C.muted, fontSize: 12 }}>
+              {live
+                ? `${live.open_positions || 0} open · ${money(live.staked)} staked · ` +
+                  `${live.won || 0}-${live.lost || 0}${Number(live.cashed) ? ` · ${live.cashed} sold early` : ""}`
+                : "—"}
+            </div>
+          </div>
+          <div
+            style={{
+              flex: "1 1 240px",
+              background: C.panel,
+              border: `1px solid ${C.border}`,
+              borderRadius: 12,
+              padding: 14,
+            }}
+          >
+            <div style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>
+              PAPER (the model's judge)
             </div>
             <div
               style={{
@@ -496,8 +605,31 @@ export default function GasValue() {
             marginBottom: 12,
           }}
         >
-          <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>
-            📝 Paper ledger
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <span style={{ fontWeight: 800, fontSize: 14 }}>
+              {showPaper ? "📝 Paper ledger" : "💵 Real ledger"}
+            </span>
+            <button
+              onClick={() => setShowPaper((v) => !v)}
+              style={{
+                background: C.chipBg,
+                color: C.text,
+                border: `1px solid ${C.border}`,
+                borderRadius: 8,
+                padding: "4px 10px",
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              show {showPaper ? "real" : "paper"}
+            </button>
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ borderCollapse: "collapse", width: "100%" }}>
@@ -509,6 +641,7 @@ export default function GasValue() {
                     "Market",
                     "Side",
                     "Price",
+                    "Stake",
                     "Model",
                     "Edge",
                     "Lead",
@@ -521,9 +654,11 @@ export default function GasValue() {
                   ))}
                 </tr>
               </thead>
-              <tbody>{paper.map((b) => betRow(b))}</tbody>
+              <tbody>
+                {(showPaper ? paper : bets).map((b) => betRow(b, showPaper))}
+              </tbody>
             </table>
-            {!paper.length && (
+            {!(showPaper ? paper : bets).length && (
               <div style={{ color: C.muted, fontSize: 13, padding: 8 }}>
                 Nothing yet.
               </div>
