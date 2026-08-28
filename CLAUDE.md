@@ -162,6 +162,9 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | --- | --- |
 | `/my-bets`, `/totals-value` | `/kalshi` |
 | `/crypto-value` | `/kalshi-crypto` |
+| `/weather-value` | `/kalshi-weather` |
+| `/gas-value` | `/kalshi-gas` |
+| `/morning-review` | `/kalshi/morning-report` + all four engines' `/auto-bets/status` |
 | `/elite-edge-advisors` | `/elite-edge-advisors`, `/odds`, `/parlays` |
 | `/gulf-hurricane` | `/nhc` |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` |
