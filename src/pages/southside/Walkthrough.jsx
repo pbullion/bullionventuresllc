@@ -248,7 +248,7 @@ const RULES = [
   ['Members only, by approval', 'Church staff approve every account by hand. Nothing a member posts is ever public.'],
   ['No private messaging', 'Conversation happens in named ministry and class groups only. This is a deliberate safeguard for students, not an oversight.'],
   ['One report takes it down', 'Posts go out to the congregation right away. If any member reports one it leaves the feed immediately — before staff have even read the report — and stays off until they put it back or delete it.'],
-  ['Report and block, everywhere', 'Press and hold any post, comment, message or prayer request. Blocked people disappear from your feed, comments and groups.'],
+  ['Report and block, everywhere', 'Press and hold any post, comment, message or prayer request \u2014 including the ones visitors share with the congregation, which come off the wall the moment anyone reports them. Blocked people disappear from your feed, comments and groups.'],
   ['Delete everything, yourself', 'More → your name → Delete My Account removes your account, posts, comments, messages and the actual photo files. No email required.'],
   ['Children stay out of feeds', 'Kids’ ages and guest contact details appear only in staff screens — never in the feed, never on the calendar.'],
   ['Giving links out', 'Give opens the church’s own secure giving page in your browser. The app never handles card or bank details.'],
@@ -423,6 +423,11 @@ export default function SouthsideWalkthrough() {
               Requests shared with the congregation are deleted automatically after seven days, and each one shows its
               own countdown.
             </p>
+            <p style={styles.stepBody}>
+              Anyone can ask for prayer, with or without an account, so those shared requests can be reported the same
+              way as anything else in the app — press and hold. One report takes the request off the wall straight
+              away, before staff have read a word of it, and it stays off until they decide.
+            </p>
           </Step>
 
           <Step title="Your people" shot={`${IMG}/phone-05-groups.png`} alt="Ministry groups">
@@ -531,6 +536,12 @@ export default function SouthsideWalkthrough() {
               Reported content lands in its own list, where you can remove the post and disable the account behind it.
               Disabling is reversible and is the usual answer; deleting an account outright is also there, for a spam
               signup or somebody who asks to be erased, and it takes their posts and photos with it.
+            </p>
+            <p style={styles.stepBody}>
+              A reported <em>prayer request</em> works a little differently, because a visitor who asked for prayer has
+              no account to disable. Those are ruled on under Private Prayers — put it back on the wall, keep it off,
+              or delete it — and the reported-content list links you straight there. Whichever you choose closes the
+              report at the same time, so nothing sits in two places waiting for you twice.
             </p>
           </Step>
 
