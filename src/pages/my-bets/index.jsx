@@ -9,6 +9,8 @@ const CRYPTO_API_BASE =
   "https://sheline-art-website-api.herokuapp.com/kalshi-crypto";
 const WEATHER_API_BASE =
   "https://sheline-art-website-api.herokuapp.com/kalshi-weather";
+const GAS_API_BASE =
+  "https://sheline-art-website-api.herokuapp.com/kalshi-gas";
 
 // Kalshi's own portfolio page, linked from the Portfolio figure in the header.
 const KALSHI_PORTFOLIO_URL = "https://kalshi.com/portfolio";
@@ -2338,11 +2340,12 @@ export default function MyBets() {
   // History tab (a cashed-out position leaves the positions list and shows up
   // in the settlements feed as revenue $0 at best, so this is its real record).
   const [cashouts, setCashouts] = useState(null);
-  // { sports, crypto } — each null when that engine has nothing wrong.
+  // One per engine — each null when that engine has nothing wrong.
   const [engineBlocks, setEngineBlocks] = useState({
     sports: null,
     crypto: null,
     weather: null,
+    gas: null,
   });
   const [histLoading, setHistLoading] = useState(false);
   const [histExpanded, setHistExpanded] = useState(() => new Set());
@@ -2511,12 +2514,13 @@ export default function MyBets() {
         return null;
       }
     };
-    const [sports, crypto, weather] = await Promise.all([
+    const [sports, crypto, weather, gas] = await Promise.all([
       read(`${API_BASE}/auto-bets/status`),
       read(`${CRYPTO_API_BASE}/auto-bets/status`),
       read(`${WEATHER_API_BASE}/auto-bets/status`),
+      read(`${GAS_API_BASE}/auto-bets/status`),
     ]);
-    setEngineBlocks({ sports, crypto, weather });
+    setEngineBlocks({ sports, crypto, weather, gas });
   };
 
   // Best-effort — the page works fine without it (older backend deploys don't
@@ -2926,6 +2930,7 @@ export default function MyBets() {
         <EngineBlockedBanner blocked={engineBlocks.sports} engine="Sports" />
         <EngineBlockedBanner blocked={engineBlocks.crypto} engine="Crypto" />
         <EngineBlockedBanner blocked={engineBlocks.weather} engine="Weather" />
+        <EngineBlockedBanner blocked={engineBlocks.gas} engine="Gas" />
 
         {/* Mobile-only compact summary (the big hero + the desktop top-bar
             strip are both hidden on the other breakpoint via CSS). */}

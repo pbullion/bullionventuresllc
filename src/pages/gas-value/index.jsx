@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
 import EngineTuning from "../../components/EngineTuning.jsx";
+import OpenBetsRail from "../../components/OpenBetsRail";
 
 /* Gas Value — view of the Kalshi GAS engine (backend: sheline-art-website-api
  * routes/kalshiGas.js). AAA average-gas-price ladders: the national daily, six
@@ -251,7 +252,10 @@ export default function GasValue() {
         padding: 16,
       }}
     >
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+      {/* Same shell as the other engine pages: content + a sticky right-hand
+          rail of THIS page's open positions on desktop. */}
+      <div className="bv-shell" style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div className="bv-main">
         <div
           style={{
             display: "flex",
@@ -673,6 +677,8 @@ export default function GasValue() {
           C={C}
           storageKey="bv_tuning_open_gas"
         />
+        </div>
+        <OpenBetsRail domain="gas" />
       </div>
     </div>
   );

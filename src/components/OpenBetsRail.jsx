@@ -18,11 +18,21 @@ const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
  * from the rail. Everything that isn't crypto is treated as sports, so a new
  * league shows up on /totals-value without a code change. */
 const CRYPTO_TICKER = /^KX(BTC|ETH|XRP|SOL|DOGE)[A-Z0-9]*-/;
-/* Weather engine series all share the KXHIGH prefix (KXHIGHNY, KXHIGHCHI, …).
- * Before this existed, "everything that isn't crypto is sports" put weather
- * positions on the /totals-value rail — Patrick, 2026-08-19. */
-const WEATHER_TICKER = /^KXHIGH/;
-const DOMAIN_LABEL = { crypto: "crypto", weather: "weather", sports: "sports" };
+/* Weather engine series: the original KXHIGH<city> family, the 8/27 expansion's
+ * KXHIGHT<city>, and the daily-LOW KXLOWT<city> markets. Before this existed,
+ * "everything that isn't crypto is sports" put weather positions on the
+ * /totals-value rail — Patrick, 2026-08-19. */
+const WEATHER_TICKER = /^(KXHIGH|KXLOWT)/;
+/* Gas engine: the AAA ladders (KXAAAGASD, KXAAAGASDCA, KXAAAGASW, …). Without
+ * this the same fall-through bug returned on 2026-08-28 — the engine's first
+ * real position, a Florida gas contract, was sitting on the SPORTS rail. */
+const GAS_TICKER = /^KXAAAGAS/;
+const DOMAIN_LABEL = {
+  crypto: "crypto",
+  weather: "weather",
+  gas: "gas",
+  sports: "sports",
+};
 
 /* Same permanent hide as the Open tab on /my-bets — a dead futures market that
  * won't SETTLE for months and would otherwise sit in the rail forever. Keep in
@@ -103,10 +113,12 @@ export default function OpenBetsRail({ domain }) {
       if (ALWAYS_HIDDEN_TICKERS.has(p.ticker)) return false;
       const isCrypto = CRYPTO_TICKER.test(p.ticker || "");
       const isWeather = WEATHER_TICKER.test(p.ticker || "");
+      const isGas = GAS_TICKER.test(p.ticker || "");
       if (domain === "crypto") return isCrypto;
       if (domain === "weather") return isWeather;
+      if (domain === "gas") return isGas;
       // sports = the remainder, so a new league still shows up with no change
-      return !isCrypto && !isWeather;
+      return !isCrypto && !isWeather && !isGas;
     })
     .sort(
       (a, b) =>

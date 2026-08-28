@@ -3,11 +3,11 @@ import { useCallback, useEffect, useState } from "react";
 /* Morning Review — the three nightly review desks in one page.
  *
  * Backend: GET/POST /kalshi/morning-report (table kalshi_morning_reports).
- * Three independent review agents write one section each — sports 5:30,
- * weather 5:45, crypto 6:00 CT — via the per-engine merge shape, so a section
- * arriving late never clobbers one that arrived early. They run well after the
- * engines' own deterministic reviews (2:00/2:20/2:30), so the data is settled
- * by the time a desk reads it.
+ * Four independent review agents write one section each — sports 5:30,
+ * weather 5:45, crypto 6:00, gas 6:15 CT — via the per-engine merge shape, so a
+ * section arriving late never clobbers one that arrived early. They run well
+ * after the engines' own deterministic reviews (2:00/2:20/2:30/2:40), so the
+ * data is settled by the time a desk reads it.
  *
  * Report shape: { headline, sections: [{ engine, title, body, actions[] }] }
  * where body is plain text with newlines and each action is a PROPOSAL:
@@ -45,6 +45,7 @@ const ENGINES = [
   { key: "sports", label: "Sports", icon: "🏟", accent: "#38bdf8", status: `${ROOT}/kalshi/auto-bets/status`, href: "/totals-value" },
   { key: "weather", label: "Weather", icon: "🌡", accent: "#f59e0b", status: `${ROOT}/kalshi-weather/auto-bets/status`, href: "/weather-value" },
   { key: "crypto", label: "Crypto", icon: "🪙", accent: "#a78bfa", status: `${ROOT}/kalshi-crypto/auto-bets/status`, href: "/crypto-value" },
+  { key: "gas", label: "Gas", icon: "⛽", accent: "#34d399", status: `${ROOT}/kalshi-gas/auto-bets/status`, href: "/gas-value" },
 ];
 const byKey = (k) => ENGINES.find((e) => e.key === k) || ENGINES[0];
 
@@ -189,8 +190,8 @@ export default function MorningReview() {
         {err && <span style={{ fontSize: 11, color: C.amber }}>{err}</span>}
       </div>
       <div style={{ fontSize: 12.5, color: C.muted, margin: "6px 0 14px" }}>
-        Three review desks, one per engine, filed each morning — sports 5:30,
-        weather 5:45, crypto 6:00 CT.
+        Four review desks, one per engine, filed each morning — sports 5:30,
+        weather 5:45, crypto 6:00, gas 6:15 CT.
       </div>
 
       {/* Live status strip — true regardless of which report you are reading. */}
