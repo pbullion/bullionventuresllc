@@ -322,7 +322,11 @@ export default function MaidlyWalkthrough() {
             </div>
           </div>
 
-          <Step title="Sign up and pick your company">
+          <Step
+            title="Sign up and pick your company"
+            shot="/images/maidly/walkthrough/phone-01-welcome.png"
+            alt="The Maidly welcome screen, with Sign In and Create an Account"
+          >
             <p style={styles.stepBody}>
               Maidly asks who you are first — customer, cleaner, or company owner — because the rest of the form
               depends on the answer. As a customer you pick the cleaning company you want to book with from a list, and
