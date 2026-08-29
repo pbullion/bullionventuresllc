@@ -84,6 +84,12 @@ const GROUPS = [
         tagline: "The 7am engine report",
       },
       {
+        emoji: "📋",
+        name: "Morning Briefing",
+        path: "/briefing",
+        tagline: "Revenue, signups, support, calendar",
+      },
+      {
         emoji: "🏆",
         name: "Elite Edge Advisors",
         path: "/elite-edge-advisors",
