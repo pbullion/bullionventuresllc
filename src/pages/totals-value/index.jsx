@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import OpenBetsRail from "../../components/OpenBetsRail";
 import PnlChart from "../../components/PnlChart.jsx";
 import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
+import EngineWhyCard from "../../components/EngineWhyCard.jsx";
 import EngineTuning from "../../components/EngineTuning.jsx";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
@@ -1125,6 +1126,7 @@ function AutoBetPanel({ games }) {
           and a reason the engine is stopped is worth exactly nothing behind a
           disclosure triangle. */}
       <EngineBlockedBanner blocked={status.blocked} engine="Sports" />
+      <EngineWhyCard url={`${API_BASE}/auto-bets/why`} />
       <div
         style={{
           background: C.panel,
