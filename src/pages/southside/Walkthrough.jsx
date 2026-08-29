@@ -336,6 +336,18 @@ export default function SouthsideWalkthrough() {
             </p>
           </Step>
 
+          <Step title="Hear about what everyone's invited to">
+            <p style={styles.stepBody}>
+              There's a switch on the church page for a rare heads-up about church-wide events — the Trunk or
+              Treat, the fall festival, the things anybody is welcome at. You don't need an account, and you can
+              switch it back off in the same place.
+            </p>
+            <p style={styles.note}>
+              Nothing asks for permission to send notifications until you tap that switch, and it's only ever used
+              for events the whole church is invited to.
+            </p>
+          </Step>
+
           <Step title="Plan a visit, or ask for prayer">
             <p style={styles.stepBody}>
               <strong style={s.strong}>“First time? Plan a visit”</strong> asks when you’re coming and whether you’re
@@ -414,6 +426,19 @@ export default function SouthsideWalkthrough() {
             </p>
           </Step>
 
+          <Step title="Photos from the event, on the event">
+            <p style={styles.stepBody}>
+              Every event has a Photos section. After the potluck or the car wash, anyone who was there can add
+              their pictures to that event, and everyone sees them in one place instead of scattered across five
+              group chats. You can delete your own at any time.
+            </p>
+            <p style={styles.note}>
+              Albums are for members only — they're never shown to visitors browsing without an account, because
+              they're pictures of our children. Press and hold any photo to report it, and it comes off the album
+              straight away while staff take a look.
+            </p>
+          </Step>
+
           <Step title="Prayer that actually gets prayed" shot={`${IMG}/phone-04-prayer.png`} alt="The prayer wall">
             <p style={styles.stepBody}>
               Post a request by name or anonymously, and see who’s praying. Mark it answered and everyone who prayed
@@ -438,6 +463,19 @@ export default function SouthsideWalkthrough() {
             <p style={styles.note}>
               There is no one-on-one messaging in this app, and there won’t be. It’s a deliberate safeguard for our
               students.
+            </p>
+          </Step>
+
+          <Step title="Look up someone at church">
+            <p style={styles.stepBody}>
+              The member directory lists people who chose to be listed — nobody else. You turn it on for yourself in
+              your profile, and you decide separately whether to show an email address. Both are off until you
+              change them.
+            </p>
+            <p style={styles.note}>
+              A member of staff confirms each listing as well, so no young person ends up in a browsable list of the
+              congregation. And there's no message button — the same safeguard that keeps one-on-one messaging out
+              of the rest of the app.
             </p>
           </Step>
 
