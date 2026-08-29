@@ -53,6 +53,14 @@ const apps = [
       "The congregation app for Southside Baptist Church in Port Neches, Texas. Calendar and RSVPs, the weekly bulletin, a moderated photo feed, a prayer wall, ministry group chats, and sermon notes — plus a guest mode so visitors can look around before they ever walk in.",
   },
   {
+    icon: "/images/app-icons/maidly.png",
+    name: "Maidly",
+    path: "/maidly",
+    tagline: "Run a cleaning company",
+    description:
+      "One app for a cleaning company and everyone around it. Customers book and watch the job move; cleaners get their day in order with the checklist already attached; owners price requests, assign the team, and see revenue and hours. No card numbers, no commission — you keep getting paid the way you already do.",
+  },
+  {
     icon: "/images/app-icons/slumbr.png",
     name: "slumbr",
     path: "/slumbr",

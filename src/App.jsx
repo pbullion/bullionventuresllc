@@ -23,6 +23,11 @@ import SouthsideHome from "./pages/southside/Home.jsx";
 import SouthsidePrivacy from "./pages/southside/Privacy.jsx";
 import SouthsideSupport from "./pages/southside/Support.jsx";
 import SouthsideWalkthrough from "./pages/southside/Walkthrough.jsx";
+import MaidlyHome from "./pages/maidly/Home.jsx";
+import MaidlyPrivacy from "./pages/maidly/Privacy.jsx";
+import MaidlySupport from "./pages/maidly/Support.jsx";
+import MaidlyTerms from "./pages/maidly/Terms.jsx";
+import MaidlyWalkthrough from "./pages/maidly/Walkthrough.jsx";
 import MancaveHome from "./pages/mancave-displays/Home.jsx";
 import MancavePrivacy from "./pages/mancave-displays/Privacy.jsx";
 import MancaveSupport from "./pages/mancave-displays/Support.jsx";
@@ -148,6 +153,13 @@ export default function App() {
           />
           {/* "tour" is the word people guess for this — same page. */}
           <Route path="/southside/tour" element={<SouthsideWalkthrough />} />
+          <Route path="/maidly" element={<MaidlyHome />} />
+          <Route path="/maidly/privacy" element={<MaidlyPrivacy />} />
+          <Route path="/maidly/support" element={<MaidlySupport />} />
+          <Route path="/maidly/terms" element={<MaidlyTerms />} />
+          <Route path="/maidly/walkthrough" element={<MaidlyWalkthrough />} />
+          {/* "tour" is the word people guess for this — same page. */}
+          <Route path="/maidly/tour" element={<MaidlyWalkthrough />} />
           <Route path="/mancave-displays" element={<MancaveHome />} />
           <Route
             path="/mancave-displays/privacy"
