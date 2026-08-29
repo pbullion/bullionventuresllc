@@ -152,9 +152,19 @@ const REGULATION = {
   nba: { periods: 4, periodSecs: 720 }, // 4 x 12:00
   "mens-college-basketball": { periods: 2, periodSecs: 1200 }, // 2 x 20:00
   "womens-college-basketball": { periods: 2, periodSecs: 1200 },
+  football: { periods: 4, periodSecs: 900 }, // 4 x 15:00, NFL and college alike
 };
 const regulationFor = (league) => {
   const key = String(league || "").toLowerCase();
+  // Kalshi labels the category "College Football" / "Pro Football"; the
+  // engine's own key is "ncaaf" / "nfl". Any of them is 4 x 15:00.
+  if (
+    key.includes("football") ||
+    key.includes("nfl") ||
+    key.includes("ncaaf") ||
+    key.includes("cfb")
+  )
+    return REGULATION.football;
   if (!key.includes("basket") && !key.includes("nba")) return null;
   // Women's hoops (WNBA / college women) — Kalshi labels it "Pro Basketball (W)"
   // or "... women's ...". 4 x 10:00.

@@ -43,6 +43,11 @@ const C = {
  * status strip so a colour always means the same desk. */
 const ENGINES = [
   { key: "sports", label: "Sports", icon: "🏟", accent: "#38bdf8", status: `${ROOT}/kalshi/auto-bets/status`, href: "/totals-value" },
+  // College football bets from the sports engine (same status, same kill
+  // switch) but files its own desk — a Saturday slate is nothing like a
+  // Tuesday MLB one. `status: null` keeps it out of the live strip, so the
+  // sports engine is not drawn twice.
+  { key: "ncaaf", label: "College Football", icon: "🏈", accent: "#fb7185", status: null, href: "/totals-value" },
   { key: "weather", label: "Weather", icon: "🌡", accent: "#f59e0b", status: `${ROOT}/kalshi-weather/auto-bets/status`, href: "/weather-value" },
   { key: "crypto", label: "Crypto", icon: "🪙", accent: "#a78bfa", status: `${ROOT}/kalshi-crypto/auto-bets/status`, href: "/crypto-value" },
   { key: "gas", label: "Gas", icon: "⛽", accent: "#34d399", status: `${ROOT}/kalshi-gas/auto-bets/status`, href: "/gas-value" },
@@ -99,7 +104,7 @@ export default function MorningReview() {
   /* Status is fetched once, not per report date — it is always "right now",
    * even when you are reading last Tuesday's report. */
   useEffect(() => {
-    ENGINES.forEach(async (e) => {
+    ENGINES.filter((e) => e.status).forEach(async (e) => {
       try {
         const s = await fetch(e.status).then((x) => x.json());
         setStatus((prev) => ({ ...prev, [e.key]: s }));
@@ -190,8 +195,9 @@ export default function MorningReview() {
         {err && <span style={{ fontSize: 11, color: C.amber }}>{err}</span>}
       </div>
       <div style={{ fontSize: 12.5, color: C.muted, margin: "6px 0 14px" }}>
-        Four review desks, one per engine, filed each morning — sports 5:30,
-        weather 5:45, crypto 6:00, gas 6:15 CT.
+        Five review desks filed each morning — sports 5:30, weather 5:45,
+        crypto 6:00, gas 6:15, college football 6:30 CT (its own desk, though it
+        bets from the sports engine).
       </div>
 
       {/* Live status strip — true regardless of which report you are reading. */}
@@ -203,7 +209,7 @@ export default function MorningReview() {
           marginBottom: 16,
         }}
       >
-        {ENGINES.map((e) => {
+        {ENGINES.filter((e) => e.status).map((e) => {
           const s = status[e.key] || {};
           const blocked = s.blocked && s.blocked.label;
           const killed = s.killed;
