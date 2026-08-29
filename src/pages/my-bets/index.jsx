@@ -1546,6 +1546,14 @@ const cashOutGap = (d) => {
   return Math.abs(gapCents) >= CASH_OUT_MIN_GAP_CENTS ? n : null;
 };
 
+/* Selling right now against what the ticket cost: the up/down you'd actually
+ * bank by taking the bid. Its own figure, not the P&L beside it — that marks
+ * to the midpoint, and on a thin book the bid you can really hit is well under
+ * it. Patrick, 2026-08-28: "i dont want to have to do the math of how much
+ * they are up/down by." Only ever rendered beside cashOutGap, so it assumes
+ * that already returned non-null. */
+const cashOutDelta = (d) => cashOutGap(d) - (Number(d.cost_dollars) || 0);
+
 /* A total bet read from the side actually held. `remaining` is whole runs/points
  * to the line — points needed for the over, cushion left for the under.
  * `projected` extrapolates the final total from current pace, and `onTarget`
@@ -2220,16 +2228,10 @@ function SingleRow({ b, showWeather = true }) {
           it — Patrick, 2026-08-19. */}
       {cashOutGap(d) != null && (
         <div style={S.rowCashOutLine}>
-          <span style={S.rowCashOut}>cash out {usd(cashOutGap(d))}</span>
-          {(() => {
-            const delta = cashOutGap(d) - (Number(d.cost_dollars) || 0);
-            return (
-              <span style={{ color: pnlColor(delta), fontWeight: 600 }}>
-                {" "}
-                ({pnlStr(delta)})
-              </span>
-            );
-          })()}
+          <span style={S.rowCashOut}>cash out {usd(cashOutGap(d))}</span>{" "}
+          <span style={{ color: pnlColor(cashOutDelta(d)), fontWeight: 600 }}>
+            ({pnlStr(cashOutDelta(d))})
+          </span>
         </div>
       )}
     </Row>
@@ -2312,8 +2314,16 @@ function ParlayRows({ b }) {
         <span style={S.parlayFootItem}>
           Value {usd(d.current_value_dollars)}
         </span>
+        {/* Carries its own up/down, same as a single row: this is what taking
+            the bid banks against cost, which is NOT the mark-to-market P&L at
+            the end of the same line. */}
         {cashOutGap(d) != null && (
-          <span style={S.rowCashOut}>Cash out {usd(cashOutGap(d))}</span>
+          <span style={S.rowCashOut}>
+            Cash out {usd(cashOutGap(d))}{" "}
+            <span style={{ color: pnlColor(cashOutDelta(d)) }}>
+              ({pnlStr(cashOutDelta(d))})
+            </span>
+          </span>
         )}
         <span style={S.parlayFootItem}>
           Pays out {usd0(d.max_payout_dollars)}

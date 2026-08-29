@@ -81,6 +81,11 @@ const cashOutGap = (d) => {
   return Math.abs(gapCents) >= CASH_OUT_MIN_GAP_CENTS ? n : null;
 };
 
+/* What taking that bid banks against cost — the up/down, so the rail doesn't
+ * ask you to subtract two of its own figures. Same derivation and same wording
+ * as /my-bets; only ever rendered beside a non-null cashOutGap. */
+const cashOutDelta = (d) => cashOutGap(d) - (Number(d.cost_dollars) || 0);
+
 export default function OpenBetsRail({ domain }) {
   const [positions, setPositions] = useState(null);
   const [err, setErr] = useState(null);
@@ -198,7 +203,10 @@ export default function OpenBetsRail({ domain }) {
               </span>
               {cashOutGap(d) != null && (
                 <span style={S.rowCashOut}>
-                  cash out {usd(cashOutGap(d))} now
+                  cash out {usd(cashOutGap(d))} now{" "}
+                  <span style={{ color: pnlColor(cashOutDelta(d)) }}>
+                    ({pnlStr(cashOutDelta(d))})
+                  </span>
                 </span>
               )}
             </div>
