@@ -10,44 +10,48 @@ TODO
 ---
 
 - **Learn & Play Food Explorer — restaurant kids-menus needs new food art.**
-  Adding a restaurant picker to `childrens-game` → `src/screens/FoodScreen.js`
+  Restaurant picker added to `childrens-game` → `src/screens/FoodScreen.js`
   (tap a restaurant, the grid filters to that restaurant's kids-meal items).
-  Pictures come from the app's own set in `assets/images/food/` — we are NOT
-  scraping restaurants' photos. The 36 existing images skew American
-  diner/breakfast, but the target neighborhoods (Garden Oaks, River Oaks,
-  Montrose, Oak Forest, Timbergrove, Memorial) are Tex-Mex heavy, so several
-  kids menus map to zero art. Scope decision 2026-08-30: ship only what current
-  art covers, so every item below is a restaurant that renders thin or empty
-  until the art exists.
+  Data lives in `childrens-game/src/data/restaurants.js`. Pictures come from the
+  app's own set in `assets/images/food/` — we are NOT scraping restaurants'
+  photos. Scope decision (Patrick, 2026-08-30): ship only what current art
+  covers, so every item below is real menu food we can't show yet.
 
-  Match the existing style: photographic, on white, ~200–700px, and COMPRESS —
-  the 36 current files are already 35MB and `childrens-game/CLAUDE.md` forbids
-  adding uncompressed media (repo is ~260MB of history).
+  Match the existing style — photographic, ~200-700px — and COMPRESS: the 36
+  current files are already 35MB and `childrens-game/CLAUDE.md` forbids adding
+  uncompressed media (repo is ~260MB of history).
 
-  **CONFIRMED — read off a real menu, blocking a specific restaurant:**
-  | file to add | item | blocks |
+  **Ranked by how many restaurants each unblocks.** Every item was read off a
+  real published menu on 2026-08-30, not guessed.
+
+  | # | file to add | unblocks |
   |---|---|---|
-  | `corn_dog.png` | Corn Dog | James Coney Island (only gap — other 5 items map) |
-  | `quesadilla.png` | Cheese Quesadilla | La Mexicana |
-  | `cheese_enchilada.png` | Cheese Enchilada | La Mexicana |
-  | `soft_taco.png` | Ground Beef Soft Taco | La Mexicana |
-  | `tamale.png` | Pork Tamale | La Mexicana |
-  | `mexican_rice.png` | Rice (every La Mexicana kids plate) | La Mexicana |
-  | `refried_beans.png` | Beans (every La Mexicana kids plate) | La Mexicana |
-  | `apple_juice.png` | Apple Juice (kids-meal drink choice) | James Coney Island |
+  | 1 | `grilled_cheese.png` | **3** — Barnaby's, Beck's Prime, Cafe Express |
+  | 2 | `corn_dog.png` | **2** — Barnaby's, James Coney Island |
+  | 3 | `milk.png` | **2** — Beck's Prime, McDonald's |
+  | 4 | `apple_juice.png` | **2** — Beck's Prime, James Coney Island |
+  | 5 | `ice_cream.png` | 1 — Barnaby's |
+  | 6 | `quesadilla.png` | La Mexicana |
+  | 7 | `cheese_enchilada.png` | La Mexicana |
+  | 8 | `soft_taco.png` | La Mexicana |
+  | 9 | `tamale.png` | La Mexicana |
+  | 10 | `mexican_rice.png` | La Mexicana |
+  | 11 | `refried_beans.png` | La Mexicana |
 
-  Without the six Tex-Mex items, La Mexicana shows **nothing at all** — all four
-  of its kids plates are quesadilla / enchilada / taco / tamale.
+  Items 6-11 are one block: La Mexicana's kids menu is four Tex-Mex plates each
+  served with rice and beans, so it shows **nothing at all** until all six
+  exist. It is in the data with an empty `items` and is filtered out of the
+  picker by `RESTAURANTS_WITH_ART` — it appears on its own once the art lands.
+  That same six unblocks the other Tex-Mex spots in these neighborhoods
+  (Molina's, Berryhill, Tacos A Go Go, Los Tios, Chuy's, Lupe Tortilla).
 
-  **EXPECTED — standard kids-menu items with no art, not yet tied to a
-  specific restaurant (18 of 20 menus still to read):**
-  `grilled_cheese` · `fish_sticks` · `pbj` · `broccoli` · `mashed_potatoes` ·
-  `ice_cream` · `side_salad` · `milk`
+  Live now with art (6): Barnaby's Cafe 7 items, Beck's Prime 5, James Coney
+  Island 5, Cafe Express 4, McDonald's 4, Chick-fil-A 4 (Chick-fil-A needs no
+  new art at all).
 
-  Already covered, no art needed: burger, hot_dog, chicken_tenders,
-  mac_and_cheese, french_fries, tater_tots, pizza, spaghetti, noodles, corn,
-  green_beans, apple, cookie.
-
-  Verified working so far: **James Coney Island** 5/6 items map, **Beck's Prime**
-  4/4 map. Tex-Mex spots (La Mexicana, Molina's, Berryhill, Tacos A Go Go,
-  Los Tios, Chuy's, Lupe Tortilla) are the ones that need this art to be viable.
+  **Still to do — get to 30 restaurants.** Each one needs its real kids menu
+  read; chain kids-menu URLs are mostly guesses that 404, so the reliable
+  method is: find the menu from the site's own nav, screenshot it, transcribe.
+  Fast food maps onto existing art far better than Tex-Mex does (nuggets →
+  chicken_tenders, apple slices → apple, fries → french_fries), so it is the
+  cheapest way to grow the list.
