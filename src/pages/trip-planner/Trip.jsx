@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
 import { deleteTripWithPin, setTripAccess, tripFetch, TRIP_DELETE_VISIBLE } from "./tripPin";
 import { groupByAisle, sortByName } from "./groceryAisles";
+import { formatAmount, rollUpItems } from "./rollup";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 
@@ -49,6 +50,20 @@ const TP_CSS = `
 .tp-jump a { background: #fff; border: 1px solid #d8d0c2; border-radius: 999px; padding: 7px 14px; font-size: 14px; font-weight: 600; color: #26303a; text-decoration: none; }
 .tp-jump a:hover { border-color: #2a9d8f; color: #1f7a6f; }
 h2[id] { scroll-margin-top: 12px; }
+.tp-qty { font-weight: 700; color: #1f7a6f; white-space: nowrap; }
+.tp-breakdown { font-size: 12px; color: #a8a094; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.tp-recipe-link { background: none; border: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: #1f7a6f; cursor: pointer; text-decoration: underline; }
+/* The backdrop is fixed and the sheet scrolls inside it, so a long recipe never
+   scrolls the trip page underneath it on a phone. */
+.tp-modal-back { position: fixed; inset: 0; background: rgba(22, 28, 34, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+.tp-modal { background: #fff; border-radius: 16px; max-width: 560px; width: 100%; max-height: 88vh; overflow-y: auto; padding: 20px 22px 24px; box-shadow: 0 18px 50px rgba(0,0,0,0.3); }
+.tp-modal h3 { margin: 0 0 2px; font-size: 21px; }
+.tp-modal ol { padding-left: 20px; margin: 0; }
+.tp-modal ol li { margin-bottom: 9px; line-height: 1.45; }
+.tp-modal-x { position: sticky; top: 0; float: right; background: #f0ebe0; border: none; border-radius: 999px; width: 30px; height: 30px; font-size: 16px; color: #6b7684; cursor: pointer; line-height: 1; }
+.tp-ing-row { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid #f6f3ec; font-size: 15px; }
+.tp-scale { border: 1px solid #d8d0c2; background: #fff; color: #6b7684; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.tp-scale.on { background: #e7f3f1; border-color: #2a9d8f; color: #1f7a6f; }
 `;
 
 // One color per family, assigned by position in trip.families.
@@ -108,33 +123,158 @@ function Chip({ children, color }) {
   );
 }
 
+/* The recipe itself, over the page rather than on it.
+ *
+ * A modal and not a route: you open a recipe while standing at the stove with
+ * the meal plan already scrolled to the right day, and a route change loses that
+ * position on the way back. It writes #recipe-<id> into the URL anyway so the
+ * casserole can be texted to somebody as a link, and the page reads that hash on
+ * load to reopen it.
+ *
+ * Quantities are shown SCALED — if the meal is set to 2x, the card says 2 lb,
+ * not "1 lb (x2)". The scale is stated in the header so the numbers are never
+ * mysterious, and the recipe's own yield sits next to it, because doubling a
+ * 9x13 means finding a second pan and that is worth seeing before you start. */
+function RecipeModal({ recipe, scale = 1, mealTitle, onClose }) {
+  // Esc closes, and the page behind is frozen so a scroll gesture inside a long
+  // recipe doesn't leak through to the trip and lose the reader's place.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  if (!recipe) return null;
+  const ings = recipe.ingredients || [];
+  const steps = recipe.directions || [];
+
+  return (
+    <div
+      className="tp-modal-back"
+      role="dialog"
+      aria-modal="true"
+      aria-label={recipe.title}
+      // Only a click that both starts and ends on the backdrop closes it —
+      // otherwise a text selection that drags off the sheet shuts the recipe.
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="tp-modal">
+        <button className="tp-modal-x" onClick={onClose} aria-label="Close recipe">✕</button>
+        <h3>{recipe.title}</h3>
+        <div style={{ fontSize: 13, color: "#6b7684", marginBottom: 14 }}>
+          {[
+            recipe.servings && `Makes ${recipe.servings}`,
+            scale !== 1 && `cooking ${scale}x`,
+            recipe.source && `from ${recipe.source}`,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          {mealTitle ? <div style={{ marginTop: 2 }}>For: {mealTitle}</div> : null}
+        </div>
+
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
+          Ingredients{scale !== 1 ? ` (scaled ${scale}x)` : ""}
+        </div>
+        <div style={{ marginBottom: 18 }}>
+          {ings.map((ing, i) => (
+            <div className="tp-ing-row" key={i}>
+              <span className="tp-qty" style={{ minWidth: 78 }}>
+                {formatAmount(ing.qty == null ? null : ing.qty * scale, ing.unit)}
+              </span>
+              <span style={{ flex: 1 }}>
+                {ing.name}
+                {ing.note && <span style={{ color: "#a8a094" }}> — {ing.note}</span>}
+              </span>
+            </div>
+          ))}
+          {ings.length === 0 && <div style={{ color: "#a8a094", fontSize: 14 }}>No ingredients recorded.</div>}
+        </div>
+
+        {steps.length > 0 && (
+          <>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+              Directions
+            </div>
+            <ol>
+              {steps.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ol>
+          </>
+        )}
+
+        {recipe.notes && (
+          <div style={{ marginTop: 16, background: "#faf8f2", border: "1px solid #f0ebe0", borderRadius: 10, padding: "10px 12px", fontSize: 14, whiteSpace: "pre-wrap" }}>
+            {recipe.notes}
+          </div>
+        )}
+
+        {recipe.source_url && (
+          <div style={{ marginTop: 16, fontSize: 14 }}>
+            <a href={recipe.source_url} target="_blank" rel="noreferrer" style={{ color: "#1f7a6f" }}>
+              Original recipe ↗
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Inline editor for one meal slot. Saves the whole slot in one PUT upsert;
 // clearing every field deletes the slot server-side. Ingredient edits are
 // queued locally and committed alongside Save so a brand-new slot (no meal row
 // yet) can take ingredients too — each one becomes a Groceries item on the
 // shopping list, linked to this meal.
-function MealEditor({ meal, ingredients, onSave, onCancel, saving }) {
+function MealEditor({ meal, ingredients, recipes, onSave, onCancel, saving }) {
   const [title, setTitle] = useState(meal?.title || "");
   const [assigned, setAssigned] = useState(meal?.assigned_to || "");
   const [details, setDetails] = useState(meal?.details || "");
-  const [ings, setIngs] = useState(ingredients.map((i) => ({ id: i.id, name: i.name })));
-  const [newIng, setNewIng] = useState("");
+  const [ings, setIngs] = useState(
+    ingredients.map((i) => ({ id: i.id, name: i.name, qty: i.qty, unit: i.unit, from_recipe: i.from_recipe }))
+  );
+  const [newIng, setNewIng] = useState({ qty: "", unit: "", name: "" });
+  const [recipeId, setRecipeId] = useState(meal?.recipe_id ? String(meal.recipe_id) : "");
+  const [scale, setScale] = useState(Number(meal?.recipe_scale) || 1);
 
   const addIng = () => {
-    const name = newIng.trim();
+    const name = newIng.name.trim();
     if (!name) return;
-    setIngs((l) => [...l, { id: null, name }]);
-    setNewIng("");
+    setIngs((l) => [...l, { id: null, name, qty: newIng.qty, unit: newIng.unit.trim() }]);
+    setNewIng({ qty: "", unit: "", name: "" });
   };
 
   const save = (fields) => {
     const kept = new Set(ings.filter((g) => g.id).map((g) => g.id));
     const removeIds = ingredients.filter((i) => !kept.has(i.id)).map((i) => i.id);
-    const addNames = ings.filter((g) => !g.id).map((g) => g.name);
+    const addItems = ings
+      .filter((g) => !g.id)
+      .map((g) => ({ name: g.name, qty: g.qty || null, unit: g.unit || "" }));
     // Don't lose an ingredient typed but not yet added when Save is tapped.
-    const pending = newIng.trim();
-    if (pending) addNames.push(pending);
-    onSave(fields, { addNames, removeIds });
+    if (newIng.name.trim()) {
+      addItems.push({ name: newIng.name.trim(), qty: newIng.qty || null, unit: newIng.unit.trim() });
+    }
+    /* The recipe link is reported as a CHANGE, not a value: attaching one
+     * rewrites the meal's ingredient rows server-side, so re-sending the same
+     * recipe on an unrelated title edit would silently undo an ingredient the
+     * cook had just deleted by hand. `null` means detach, `undefined` means
+     * leave whatever is there alone. */
+    const wasId = meal?.recipe_id ? String(meal.recipe_id) : "";
+    const wasScale = Number(meal?.recipe_scale) || 1;
+    let recipeChange;
+    if (recipeId !== wasId || (recipeId && scale !== wasScale)) {
+      recipeChange = recipeId ? { recipe_id: Number(recipeId), scale } : null;
+    }
+    onSave(fields, { addItems, removeIds }, recipeChange);
   };
 
   return (
@@ -149,21 +289,81 @@ function MealEditor({ meal, ingredients, onSave, onCancel, saving }) {
         rows={2}
         style={{ resize: "vertical" }}
       />
+      {/* Attaching a recipe fills the ingredient list below from the recipe's own
+          quantities, scaled. It does not touch anything added by hand here. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", margin: "4px 0 10px" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#6b7684" }}>📖 Recipe</span>
+        <select
+          className="tp-input"
+          style={{ marginBottom: 0, flex: "1 1 160px", width: "auto" }}
+          value={recipeId}
+          onChange={(e) => setRecipeId(e.target.value)}
+        >
+          <option value="">— none —</option>
+          {recipes.map((r) => (
+            <option key={r.id} value={String(r.id)}>{r.title}</option>
+          ))}
+        </select>
+        {recipeId && (
+          <div style={{ display: "flex", gap: 4 }}>
+            {[1, 1.5, 2, 3].map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`tp-scale${scale === n ? " on" : ""}`}
+                onClick={() => setScale(n)}
+                title={`Cook ${n}x the recipe`}
+              >
+                {n}x
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", margin: "2px 0 6px" }}>
         🛒 Ingredients <span style={{ fontWeight: 400 }}>— auto-added to the shopping list</span>
       </div>
       {ings.map((g, idx) => (
         <div key={g.id ?? `new-${idx}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
-          <span style={{ flex: 1, fontSize: 14 }}>{g.name}</span>
+          <span className="tp-qty" style={{ fontSize: 14, minWidth: 62 }}>{formatAmount(g.qty, g.unit)}</span>
+          <span style={{ flex: 1, fontSize: 14 }}>
+            {g.name}
+            {/* Says where the row came from, so deleting one reads as "we already
+                have salt" rather than as editing the recipe itself. */}
+            {g.from_recipe && <span style={{ color: "#c2b8a6", marginLeft: 5 }} title="From the attached recipe">📖</span>}
+          </span>
           <button className="tp-del" title="Remove ingredient" onClick={() => setIngs((l) => l.filter((_, i) => i !== idx))}>✕</button>
         </div>
       ))}
-      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        <input
+          className="tp-input"
+          style={{ marginBottom: 0, flex: "0 0 52px" }}
+          value={newIng.qty}
+          onChange={(e) => setNewIng((n) => ({ ...n, qty: e.target.value }))}
+          placeholder="2"
+          inputMode="decimal"
+          aria-label="Quantity"
+        />
+        <input
+          className="tp-input"
+          style={{ marginBottom: 0, flex: "0 0 64px" }}
+          value={newIng.unit}
+          onChange={(e) => setNewIng((n) => ({ ...n, unit: e.target.value }))}
+          placeholder="lb"
+          list="tp-units"
+          aria-label="Unit"
+        />
+        <datalist id="tp-units">
+          {["lb", "oz", "cup", "tsp", "tbsp", "can", "bag", "box", "bottle", "jar", "pkg", "dozen"].map((u) => (
+            <option key={u} value={u} />
+          ))}
+        </datalist>
         <input
           className="tp-input"
           style={{ marginBottom: 0, flex: 1 }}
-          value={newIng}
-          onChange={(e) => setNewIng(e.target.value)}
+          value={newIng.name}
+          onChange={(e) => setNewIng((n) => ({ ...n, name: e.target.value }))}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -171,8 +371,9 @@ function MealEditor({ meal, ingredients, onSave, onCancel, saving }) {
             }
           }}
           placeholder="Add an ingredient…"
+          aria-label="Ingredient"
         />
-        <button className="tp-btn" type="button" onClick={addIng} disabled={!newIng.trim()}>
+        <button className="tp-btn" type="button" onClick={addIng} disabled={!newIng.name.trim()}>
           Add
         </button>
       </div>
@@ -181,7 +382,7 @@ function MealEditor({ meal, ingredients, onSave, onCancel, saving }) {
           {saving ? "Saving…" : "Save"}
         </button>
         {meal && (
-          <button className="tp-btn-quiet" disabled={saving} onClick={() => onSave({ title: "", assigned_to: "", details: "" }, { addNames: [], removeIds: [] })}>
+          <button className="tp-btn-quiet" disabled={saving} onClick={() => onSave({ title: "", assigned_to: "", details: "" }, { addItems: [], removeIds: [] })}>
             Clear
           </button>
         )}
@@ -203,6 +404,11 @@ export default function TripPlanner() {
   const [savingSlot, setSavingSlot] = useState(null);
   const [pickingDay, setPickingDay] = useState(null); // date whose meal-slot picker is open
   const [newItem, setNewItem] = useState({ name: "", category: "Groceries", assigned_to: "" });
+  /* The recipe CATALOGUE (id/title only) — every recipe that exists, for the
+   * picker in the meal editor. Distinct from trip.recipes, which is the handful
+   * of full recipes this trip's meals actually use and arrives with the trip. */
+  const [recipeCatalog, setRecipeCatalog] = useState([]);
+  const [openRecipe, setOpenRecipe] = useState(null); // { recipe, scale, mealTitle }
   const [addingItem, setAddingItem] = useState(false);
   const [newBring, setNewBring] = useState({ name: "", assigned_to: "" });
   // One draft per family, keyed by name, so typing in one family's box doesn't
@@ -335,6 +541,51 @@ export default function TripPlanner() {
 
   useEffect(loadWeather, [loadWeather]);
 
+  /* The picker's list of every recipe on file. Open endpoint, no PIN — a recipe
+   * title is not trip data — and failure is silent: without it you simply can't
+   * attach a recipe, which must not stop the rest of the page loading. */
+  useEffect(() => {
+    fetch(`${API_BASE}/recipes`)
+      .then((r) => r.json())
+      .then((rows) => setRecipeCatalog(Array.isArray(rows) ? rows : []))
+      .catch(() => {});
+  }, []);
+
+  /* #recipe-<id> opens that recipe straight away, so a link to one can be texted
+   * to whoever is cooking. Waits for the trip, because the scale to show it at
+   * belongs to the meal rather than the recipe.
+   *
+   * Fires AT MOST ONCE per page load. The trip refetches on every tab focus and
+   * after any recipe edit, and without the latch this effect re-ran on each one
+   * and reopened a modal the reader had already closed — the hash is still in
+   * the URL, so the condition stays true forever. */
+  const hashOpened = useRef(false);
+  useEffect(() => {
+    if (hashOpened.current || !trip?.recipes) return;
+    const m = /^#recipe-(\d+)$/.exec(window.location.hash || "");
+    if (!m) return;
+    hashOpened.current = true;
+    const recipe = trip.recipes.find((r) => String(r.id) === m[1]);
+    if (!recipe) return;
+    const meal = trip.meals.find((x) => String(x.recipe_id) === m[1]);
+    setOpenRecipe({ recipe, scale: Number(meal?.recipe_scale) || 1, mealTitle: meal?.title });
+  }, [trip]);
+
+  /* Opening a recipe puts it in the URL so the address bar is shareable, and
+   * closing takes it back out. replaceState, not a hash assignment: assigning
+   * location.hash pushes a history entry, which turns the browser Back button
+   * into "reopen the recipe I just closed". */
+  const showRecipe = useCallback((recipe, scale, mealTitle) => {
+    if (!recipe) return;
+    setOpenRecipe({ recipe, scale: Number(scale) || 1, mealTitle });
+    window.history.replaceState(null, "", `#recipe-${recipe.id}`);
+  }, []);
+
+  const hideRecipe = useCallback(() => {
+    setOpenRecipe(null);
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  }, []);
+
   // Pick up other families' edits whenever the tab comes back into view.
   useEffect(() => {
     const onVisible = () => {
@@ -344,7 +595,7 @@ export default function TripPlanner() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [load]);
 
-  async function saveMeal(date, mealType, fields, ingChanges = { addNames: [], removeIds: [] }) {
+  async function saveMeal(date, mealType, fields, ingChanges = { addItems: [], removeIds: [] }, recipeChange) {
     const slotKey = `${date}|${mealType}`;
     setSavingSlot(slotKey);
     setError("");
@@ -361,7 +612,8 @@ export default function TripPlanner() {
         return slot ? trip.items.some((i) => i.meal_id === slot.id) : false;
       })();
       const keep =
-        ingChanges.addNames.length > 0 ||
+        ingChanges.addItems.length > 0 ||
+        !!recipeChange ||
         (existingIngredients && ingChanges.removeIds.length === 0);
 
       const res = await tripFetch(slug, `${API_BASE}/trips/${slug}/meals`, {
@@ -388,16 +640,35 @@ export default function TripPlanner() {
 
       const [added] = await Promise.all([
         Promise.all(
-          ingChanges.addNames.map((name) =>
+          ingChanges.addItems.map((ing) =>
             tripFetch(slug, `${API_BASE}/trips/${slug}/items`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name, category: "Groceries", meal_id: saved.id }),
+              body: JSON.stringify({ ...ing, category: "Groceries", meal_id: saved.id }),
             }).then((r) => (r.ok ? r.json() : null))
           )
         ),
         Promise.all(ingChanges.removeIds.map((id) => tripFetch(slug, `${API_BASE}/items/${id}`, { method: "DELETE" }))),
       ]);
+
+      /* Attaching or re-scaling a recipe rewrites this meal's ingredient rows on
+       * the server, so the local copy is stale the moment it succeeds — refetch
+       * rather than trying to mirror the server's insert/delete set here. It is
+       * one request and only on the edits that actually moved a recipe. */
+      if (recipeChange !== undefined) {
+        const url = `${API_BASE}/trips/${slug}/meals/${saved.id}/recipe`;
+        const res2 = recipeChange
+          ? await tripFetch(slug, url, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(recipeChange),
+            })
+          : await tripFetch(slug, url, { method: "DELETE" });
+        if (!res2.ok) throw new Error("couldn't update the recipe for that meal");
+        setEditingSlot(null);
+        await load();
+        return;
+      }
 
       setTrip((t) => ({
         ...t,
@@ -450,6 +721,29 @@ export default function TripPlanner() {
       flip(item.checked);
       setError("Couldn't save that checkbox — try again.");
     }
+  }
+
+  /* A shopping row can stand for several ingredient rows — one per meal that
+   * wants it — so ticking it has to tick all of them, or the line comes back
+   * half-checked on the next load and the count in the heading is wrong.
+   *
+   * Toggling toward "all bought" when any part is still open: a row showing 2 lb
+   * is one purchase, and the person tapping it has that sausage in the cart. */
+  async function toggleRow(row) {
+    const target = !row.checked;
+    await Promise.all(row.parts.filter((p) => p.checked !== target).map((p) => toggleItem(p)));
+  }
+
+  async function deleteRow(row) {
+    if (
+      row.parts.length > 1 &&
+      !window.confirm(
+        `"${row.name}" is on the list for ${row.parts.length} meals. Remove all ${row.parts.length}?`
+      )
+    ) {
+      return;
+    }
+    await Promise.all(row.parts.map((p) => deleteItem(p)));
   }
 
   async function deleteItem(item) {
@@ -739,6 +1033,7 @@ export default function TripPlanner() {
       (m.assigned_to || "").trim() !== "" ||
       trip.items.some((i) => i.meal_id === m.id));
   const mealById = Object.fromEntries(trip.meals.map((m) => [m.id, m]));
+  const recipeById = Object.fromEntries((trip.recipes || []).map((r) => [r.id, r]));
   const bringItems = trip.items.filter((i) => i.category === "Bringing");
   const listItems = trip.items.filter(
     (i) => i.category !== "Bringing" && i.category !== FAMILY_PACKING
@@ -751,6 +1046,14 @@ export default function TripPlanner() {
     return idx >= 0 ? FAMILY_COLORS[idx % FAMILY_COLORS.length] : undefined;
   };
   const categories = [...new Set(listItems.map((i) => i.category))];
+  /* Counted over rolled-up ROWS, matching what the list renders. Counting raw
+   * tp_items here instead told you "12 to go" above a list of 10 lines, because
+   * the two ingredient rows behind "2 lb sausage" are one thing to buy. */
+  const shoppingLeft =
+    categories.reduce(
+      (n, cat) => n + rollUpItems(listItems.filter((i) => i.category === cat)).filter((r) => !r.checked).length,
+      0
+    ) + trip.items.filter((i) => i.category === FAMILY_PACKING && !i.checked).length;
   /* "Who's bringing what" grouped by family rather than by when it was claimed —
    * the question it answers is "what am I loading in my car". Families keep
    * trip.families order so the section headings run in the same order as their
@@ -812,6 +1115,14 @@ export default function TripPlanner() {
   return (
     <div className="tp-root">
       <style>{TP_CSS}</style>
+      {openRecipe && (
+        <RecipeModal
+          recipe={openRecipe.recipe}
+          scale={openRecipe.scale}
+          mealTitle={openRecipe.mealTitle}
+          onClose={hideRecipe}
+        />
+      )}
       <div className="tp-shell">
         <Link to="/tripplanner" style={{ color: "#2a9d8f", fontSize: 14, textDecoration: "none" }}>
           ← All trips
@@ -937,7 +1248,7 @@ export default function TripPlanner() {
 
         <nav className="tp-jump">
           <a href="#tp-meals">🍽️ Meals</a>
-          <a href="#tp-packing">🛒 Shopping{trip.items.some((i) => i.category !== "Bringing") ? ` (${trip.items.filter((i) => i.category !== "Bringing" && !i.checked).length} to go)` : ""}</a>
+          <a href="#tp-packing">🛒 Shopping{listItems.length + trip.items.filter((i) => i.category === FAMILY_PACKING).length > 0 ? ` (${shoppingLeft} to go)` : ""}</a>
           <a href="#tp-bringing">🏕️ Bringing</a>
           <a href="#tp-familypacking">🧳 Family packing</a>
           <a href="#tp-cabin">🏠 Cabin</a>
@@ -1029,6 +1340,7 @@ export default function TripPlanner() {
                         <MealEditor
                           meal={meal}
                           ingredients={mealIngs}
+                          recipes={recipeCatalog}
                           saving={savingSlot === slotKey}
                           onSave={(fields, ingChanges) => saveMeal(date, key, fields, ingChanges)}
                           onCancel={() => setEditingSlot(null)}
@@ -1036,8 +1348,14 @@ export default function TripPlanner() {
                       </div>
                     );
                   }
+                  const cardRecipe = meal?.recipe_id ? recipeById[meal.recipe_id] : null;
                   return (
-                    <button key={key} className="tp-slot" onClick={() => setEditingSlot(slotKey)}>
+                    /* The slot is a button, so the recipe link sits OUTSIDE it
+                       rather than nested in it — a button inside a button is
+                       invalid, and the inner one swallows taps unpredictably on
+                       iOS Safari, which is most of how this page gets read. */
+                    <div key={key}>
+                    <button className="tp-slot" onClick={() => setEditingSlot(slotKey)}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684", textTransform: "uppercase", letterSpacing: 0.5, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                         <span>{emoji} {label}</span>
                         {meal?.assigned_to && <Chip color={colorFor(meal.assigned_to)}>{meal.assigned_to}</Chip>}
@@ -1051,6 +1369,7 @@ export default function TripPlanner() {
                               🛒{" "}
                               {mealIngs.map((i, idx) => (
                                 <span key={i.id} style={{ textDecoration: i.checked ? "line-through" : "none", color: i.checked ? "#a8a094" : undefined }}>
+                                  {i.qty != null && <span className="tp-qty">{formatAmount(i.qty, i.unit)} </span>}
                                   {i.name}
                                   {idx < mealIngs.length - 1 ? ", " : ""}
                                 </span>
@@ -1062,6 +1381,18 @@ export default function TripPlanner() {
                         <div style={{ color: "#b8ad9a", marginTop: 3, fontSize: 14 }}>+ Add {label.toLowerCase()}</div>
                       )}
                     </button>
+                    {cardRecipe && (
+                      <div style={{ padding: "0 14px 10px" }}>
+                        <button
+                          className="tp-recipe-link"
+                          onClick={() => showRecipe(cardRecipe, meal.recipe_scale, meal.title)}
+                        >
+                          📖 {cardRecipe.title}
+                          {Number(meal.recipe_scale) !== 1 ? ` · ${Number(meal.recipe_scale)}x` : ""}
+                        </button>
+                      </div>
+                    )}
+                    </div>
                   );
                 })}
               </div>
@@ -1075,8 +1406,8 @@ export default function TripPlanner() {
             <p style={{ color: "#6b7684", marginTop: 0 }}>Nothing on the list yet — add the essentials below.</p>
           )}
           {categories.map((cat) => {
-            const catItems = listItems.filter((i) => i.category === cat);
-            const left = catItems.filter((i) => !i.checked).length;
+            const catRows = rollUpItems(listItems.filter((i) => i.category === cat));
+            const left = catRows.filter((r) => !r.checked).length;
             const isCollapsed = collapsed.has(cat);
             return (
             <div key={cat} style={{ marginBottom: 14 }}>
@@ -1098,7 +1429,7 @@ export default function TripPlanner() {
                 <span style={{ fontSize: 10, color: "#a8a094" }}>{isCollapsed ? "▶" : "▼"}</span>
                 {cat}
                 <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "#a8a094" }}>
-                  {left > 0 ? `${left} to go` : `${catItems.length} done`}
+                  {left > 0 ? `${left} to go` : `${catRows.length} done`}
                 </span>
               </button>
               {!isCollapsed && (
@@ -1106,9 +1437,15 @@ export default function TripPlanner() {
               {/* Groceries get aisle sub-headings so the trip is one pass through
                   the store; every other category is just sorted A-Z, because an
                   aisle means nothing for beach chairs. */}
+              {/* Roll up FIRST, then file into aisles. The other order files each
+                  meal's copy separately and a merged row would have to pick an
+                  aisle from one of them — "Jimmy Dean Sausage" and "Breakfast
+                  Sausage" both land in Meat today, but nothing guarantees that
+                  for the next pair, and a row appearing in two aisles is worse
+                  than either aisle being slightly off. */}
               {(cat.toLowerCase() === "groceries"
-                ? groupByAisle(listItems.filter((i) => i.category === cat))
-                : [{ label: null, items: sortByName(listItems.filter((i) => i.category === cat)) }]
+                ? groupByAisle(rollUpItems(listItems.filter((i) => i.category === cat)))
+                : [{ label: null, items: sortByName(rollUpItems(listItems.filter((i) => i.category === cat))) }]
               ).map((group) => (
                 <div key={group.label || "all"}>
                   {group.label && (
@@ -1116,29 +1453,65 @@ export default function TripPlanner() {
                       {group.label}
                     </div>
                   )}
-                  {group.items.map((item) => {
-                  const meal = item.meal_id ? mealById[item.meal_id] : null;
+                  {group.items.map((row) => {
+                  /* One row per ingredient, not per meal. `row.parts` is every
+                     underlying tp_items row it stands for — usually one, and
+                     then this renders exactly as the list always has. */
+                  const shared = row.parts.length > 1;
+                  const soleMeal = !shared && row.parts[0].meal_id ? mealById[row.parts[0].meal_id] : null;
+                  const owners = [...new Set(row.parts.map((p) => p.assigned_to).filter(Boolean))];
                   return (
-                    <div key={item.id} className="tp-item-row">
-                      <input type="checkbox" className="tp-check" checked={item.checked} onChange={() => toggleItem(item)} />
-                      <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
-                        {item.name}
-                        {meal && (
+                    <div key={row.key} className="tp-item-row">
+                      <input type="checkbox" className="tp-check" checked={row.checked} onChange={() => toggleRow(row)} />
+                      <span style={{ flex: 1, textDecoration: row.checked ? "line-through" : "none", color: row.checked ? "#a8a094" : "inherit" }}>
+                        {row.name}
+                        {row.total.text && <span className="tp-qty"> — {row.total.text}</span>}
+                        {/* Says out loud that the total is short: two meals want
+                            it, one of them never said how much, and the number
+                            to the left only covers the other. Better than a
+                            confident figure that under-buys. */}
+                        {row.total.unquantified > 0 && row.total.text && (
+                          <span style={{ fontSize: 12, color: "#a8802a" }}> +{row.total.unquantified} more, amount not set</span>
+                        )}
+                        {soleMeal && (
                           <span style={{ fontSize: 12, color: "#a8a094", marginLeft: 6 }}>
-                            {format(parseISO(meal.date), "EEE")} {meal.meal_type}
-                            {meal.title ? ` · ${meal.title}` : ""}
+                            {format(parseISO(soleMeal.date), "EEE")} {soleMeal.meal_type}
+                            {soleMeal.title ? ` · ${soleMeal.title}` : ""}
                             {/* Its day is no longer part of the trip, so the
                                 "Thu dinner" above points at a card that isn't
                                 on the page — say why before someone buys for
                                 a meal nobody is cooking. */}
-                            {outsideDate(meal.date) && (
+                            {outsideDate(soleMeal.date) && (
                               <span style={{ color: "#a8802a" }}> · outside trip dates</span>
                             )}
                           </span>
                         )}
+                        {/* The whole reason the totals exist: WHICH meals, and
+                            how much each one wants. Without it a doubled number
+                            is unexplainable, and dropping a meal leaves you
+                            unable to work out what the new total should be. */}
+                        {shared && (
+                          <span className="tp-breakdown">
+                            {row.parts.map((p) => {
+                              const m = p.meal_id ? mealById[p.meal_id] : null;
+                              const when = m
+                                ? `${format(parseISO(m.date), "EEE")} ${m.title || m.meal_type}`
+                                : "on the list";
+                              const amount = p.qty != null ? ` ${formatAmount(p.qty, p.unit)}` : "";
+                              return (
+                                <span key={p.id} style={{ textDecoration: p.checked ? "line-through" : "none" }}>
+                                  · {when}{amount}
+                                  {m && outsideDate(m.date) && <span style={{ color: "#a8802a" }}> (outside trip dates)</span>}
+                                </span>
+                              );
+                            })}
+                          </span>
+                        )}
                       </span>
-                      {item.assigned_to && <Chip color={colorFor(item.assigned_to)}>{item.assigned_to}</Chip>}
-                      <button className="tp-del" title="Remove item" onClick={() => deleteItem(item)}>✕</button>
+                      {owners.map((o) => (
+                        <Chip key={o} color={colorFor(o)}>{o}</Chip>
+                      ))}
+                      <button className="tp-del" title="Remove item" onClick={() => deleteRow(row)}>✕</button>
                     </div>
                   );
                   })}

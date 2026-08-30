@@ -13,6 +13,13 @@
  *     swallowed by the broad pantry list.
  *   - "ham" is anchored with word boundaries; without them it matches
  *     "hamburger". Same for "ice" (vs "ice cream") and "corn" (vs "cornstarch").
+ *   - Produce claims only a QUALIFIED or PLURAL pepper — "bell pepper", "green
+ *     pepper", "peppers" — and lets a bare "Pepper" fall through to the spice
+ *     rack in Pantry, which is what a recipe means by it. It used to match the
+ *     bare singular and filed the breakfast casserole's ⅛ tsp of black pepper
+ *     under Produce.
+ *   - "meat" is anchored against "Meat Church", a BBQ rub brand. Without it the
+ *     sausage-ball recipe's Holy Cow rub was sent to the butcher counter.
  *   - Two negative lookaheads fix collisions the ordering alone cannot, because
  *     they run the other way: "garlic bread" is bakery but Produce is checked
  *     first and matched the garlic, and "bread crumbs" is pantry but bakery's
@@ -26,7 +33,7 @@
 const AISLES = [
   {
     label: "Produce",
-    re: /\b(lettuce|tomato|onion|avocado|potato|apple|banana|lime|lemon|cilantro|garlic(?!\s*bread)|cucumber|celery|carrot|spinach|salad|kale|cabbage|squash|zucchini|watermelon|melon|strawberr|blueberr|raspberr|berries|grape|broccoli|mushroom|jalapen|jalapeño|pepper(?:s)?\b(?!corn)|green bean|asparagus|corn\b|fruit|veggie|vegetable|herb|lettuce|scallion|shallot|ginger|pineapple|peach|pear|orange|cantaloupe)/i,
+    re: /\b(lettuce|tomato|onion|avocado|potato|apple|banana|lime|lemon|cilantro|garlic(?!\s*bread)|cucumber|celery|carrot|spinach|salad|kale|cabbage|squash|zucchini|watermelon|melon|strawberr|blueberr|raspberr|berries|grape|broccoli|mushroom|jalapen|jalapeño|bell pepper|green pepper|peppers\b|green bean|asparagus|corn\b|fruit|veggie|vegetable|herb|lettuce|scallion|shallot|ginger|pineapple|peach|pear|orange|cantaloupe)/i,
   },
   {
     label: "Bakery & bread",
@@ -34,7 +41,7 @@ const AISLES = [
   },
   {
     label: "Meat & seafood",
-    re: /\b(beef|steak|brisket|ribs|sirloin|tenderloin|ground meat|ground turkey|meat\b|chicken|wings|pork|bacon|sausage|smokies|boudain|boudin|hot ?dog|frank|burger|patt(?:y|ies)|\bham\b|turkey|salami|pepperoni|shrimp|fish|salmon|tilapia|crab|crawfish|oyster|lobster|deli)/i,
+    re: /\b(beef|steak|brisket|ribs|sirloin|tenderloin|ground meat|ground turkey|meat\b(?!\s*church)|chicken|wings|pork|bacon|sausage|smokies|boudain|boudin|hot ?dog|frank|burger|patt(?:y|ies)|\bham\b|turkey|salami|pepperoni|shrimp|fish|salmon|tilapia|crab|crawfish|oyster|lobster|deli)/i,
   },
   {
     label: "Dairy & eggs",
@@ -50,7 +57,7 @@ const AISLES = [
   },
   {
     label: "Pantry & snacks",
-    re: /\b(rice|bean|pasta|noodle|sauce|salsa|ketchup|mustard|mayo|mayonnaise|relish|pickle|oil|vinegar|sugar|flour|salt|spice|seasoning|rub\b|chips|tortilla chips|queso dip|dip\b|cereal|oat|granola|peanut butter|jelly|jam\b|honey|syrup|broth|stock\b|can\b|canned|crackers|cookies|candy|marshmallow|smore|s'more|chocolate|popcorn|nuts|snack|bread crumbs|panko|taco shell|taco seasoning|ranch|bbq|barbecue)/i,
+    re: /\b(rice|bean|pasta|noodle|sauce|salsa|ketchup|mustard|mayo|mayonnaise|relish|pickle|oil|vinegar|sugar|flour|salt|\bpepper\b|peppercorn|spice|seasoning|rub\b|bisquick|baking mix|pancake mix|baking powder|baking soda|chips|tortilla chips|queso dip|dip\b|cereal|oat|granola|peanut butter|jelly|jam\b|honey|syrup|broth|stock\b|can\b|canned|crackers|cookies|candy|marshmallow|smore|s'more|chocolate|popcorn|nuts|snack|bread crumbs|panko|taco shell|taco seasoning|ranch|bbq|barbecue)/i,
   },
   {
     label: "Ice & household",
