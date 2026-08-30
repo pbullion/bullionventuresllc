@@ -42,6 +42,25 @@ const money = (cents, currency = "usd") =>
     currency: currency.toUpperCase(),
   }).format((cents || 0) / 100);
 
+/* The desks write `headline` as free prose and it regularly arrives as five
+ * sentences of desk jargon, which lands as a wall of text in a card whose whole
+ * job is to be a pointer. Split it so the first sentence reads as the headline
+ * and the rest read as supporting lines.
+ *
+ * Split on end punctuation followed by a capital, never on a bare period —
+ * these headlines are full of "-$14.08", "3-6x" and "w=0.49/0.57" and a naive
+ * split on "." shatters every one of them onto its own line. Written without a
+ * lookbehind on purpose: Safari before 16.4 throws a SyntaxError at parse time,
+ * which blanks the entire page rather than just this card. */
+const SENTENCE_SPLIT = "\u0000";
+function splitSentences(text) {
+  return String(text || "")
+    .replace(/([.!?])\s+(?=["'(]?[A-Z])/g, `$1${SENTENCE_SPLIT}`)
+    .split(SENTENCE_SPLIT)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function Panel({ title, subtitle, children }) {
   return (
     <section
@@ -378,13 +397,56 @@ export default function Briefing() {
             <div style={{ color: C.muted, fontSize: 13 }}>No report written yet.</div>
           ) : (
             <div>
-              <div style={{ fontSize: 13.5 }}>{kalshi.headline || "(no headline)"}</div>
-              <div style={{ fontSize: 12, color: kalshi.stale ? C.amber : C.muted, marginTop: 5 }}>
+              {/* Dateline first. It is one short line and it decides whether the
+                * paragraph under it is worth reading at all. */}
+              <div
+                style={{
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.3,
+                  color: kalshi.stale ? C.amber : C.muted,
+                  marginBottom: 9,
+                }}
+              >
                 {kalshi.reportDate} · {kalshi.sectionCount} section
                 {kalshi.sectionCount === 1 ? "" : "s"}
                 {kalshi.stale ? " · STALE — no desk wrote this morning" : ""}
               </div>
-              <a href="/morning-review" style={{ fontSize: 12.5, color: C.green }}>
+              {(() => {
+                const [lead, ...rest] = splitSentences(kalshi.headline);
+                if (!lead) {
+                  return (
+                    <div style={{ color: C.muted, fontSize: 13 }}>(no headline)</div>
+                  );
+                }
+                return (
+                  <>
+                    <div style={{ ...headlineMeasure, fontSize: 14.5, fontWeight: 600 }}>
+                      {lead}
+                    </div>
+                    {rest.map((s, i) => (
+                      <div
+                        key={i}
+                        style={{ ...headlineMeasure, display: "flex", gap: 9, marginTop: 9 }}
+                      >
+                        <span style={{ color: C.green, flex: "0 0 auto" }} aria-hidden="true">
+                          —
+                        </span>
+                        <span style={{ fontSize: 13.5, color: C.muted }}>{s}</span>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
+              <a
+                href="/morning-review"
+                style={{
+                  display: "inline-block",
+                  marginTop: 14,
+                  fontSize: 12.5,
+                  color: C.green,
+                }}
+              >
                 Open Morning Review →
               </a>
             </div>
@@ -394,6 +456,10 @@ export default function Briefing() {
     </div>
   );
 }
+
+/* A 900px panel at 13.5px runs ~110 characters a line, which is roughly twice
+ * the width the eye tracks comfortably. Cap the measure and open the leading. */
+const headlineMeasure = { maxWidth: "62ch", lineHeight: 1.55 };
 
 const btn = {
   background: C.chipBg,
