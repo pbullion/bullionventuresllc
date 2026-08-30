@@ -334,10 +334,15 @@ The Kalshi card is **read-only and has no controls of any kind**. It shows live
 balances on a public unauthenticated route, which was Patrick's explicit call
 (2026-08-26) — obscurity only, same as the other unlisted pages here.
 
-A **next-meeting card is deliberately absent.** `/calendar/events` on the
-backend 500s: the published Outlook ICS URL in `routes/calendar.js` redirects to
-Microsoft's `olkerror.html?httpCode=404`, i.e. the share link was revoked. That
-is upstream, not a code bug. Republish the calendar and the card can go in.
+A **next-meeting card is deliberately absent, and the Morning Briefing's
+Calendar panel was removed on 2026-08-30.** Both were fed by an Outlook
+published-ICS URL that Microsoft revoked on 2026-08-28, and it cannot be
+re-issued: the Opportune tenant has calendar publishing disabled, so "Shared
+calendars" is gone from Outlook's settings entirely. There is no link to
+republish. Reviving Opportune calendar data here means Microsoft Graph with a
+registered app and tenant admin consent — do not wire another ICS URL. (The
+`/calendar` route on the backend was deleted in the same pass; Briefly's
+per-user iCal feeds are unrelated and untouched.)
 
 ## Conventions
 

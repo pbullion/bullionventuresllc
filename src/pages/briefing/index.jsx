@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from "react";
  *
  * Backend: GET /briefing/today (routes/briefing.js). One call, assembled
  * server-side and cached there, so this page stays a renderer and never fans
- * out to Stripe or the calendar feed itself.
+ * out to Stripe or the database itself.
  *
  * WHY THIS IS NOT PART OF /morning-review. That page is the trading desk: it is
  * written by the Kalshi review agents and its whole contract is "three engines
- * wrote three sections". This page is revenue, signups, support and calendar,
+ * wrote three sections". This page is revenue, signups and support,
  * it has no agent writing it, and it must render on a morning when no agent ran
  * at all. Sharing a page would have meant sharing that dependency.
  *
@@ -172,9 +172,7 @@ export default function Briefing() {
     );
   }
 
-  const { attention, revenue, signups, calendar, kalshi } = data || {};
-  const todayEvents = Array.isArray(calendar) ? calendar.filter((e) => e.isToday) : [];
-  const laterEvents = Array.isArray(calendar) ? calendar.filter((e) => !e.isToday) : [];
+  const { attention, revenue, signups, kalshi } = data || {};
 
   return (
     <div style={wrap}>
@@ -340,52 +338,6 @@ export default function Briefing() {
                 </tbody>
               </table>
             </div>
-          )}
-        </Panel>
-
-        {/* ── Calendar ── */}
-        <Panel title="Calendar" subtitle="Opportune calendar, next 7 days.">
-          {calendar?.error ? (
-            <SectionError message={calendar.error} />
-          ) : !calendar?.length ? (
-            <div style={{ color: C.muted, fontSize: 13 }}>Nothing scheduled.</div>
-          ) : (
-            <>
-              <div style={{ fontSize: 11, textTransform: "uppercase", color: C.muted }}>
-                Today
-              </div>
-              {todayEvents.length ? (
-                todayEvents.map((e, i) => (
-                  <div key={i} style={{ fontSize: 13.5, padding: "5px 0" }}>
-                    <span style={{ color: C.green, fontVariantNumeric: "tabular-nums" }}>
-                      {e.time}
-                    </span>{" "}
-                    {e.summary}
-                  </div>
-                ))
-              ) : (
-                <div style={{ color: C.muted, fontSize: 13, padding: "5px 0" }}>Clear.</div>
-              )}
-              {laterEvents.length ? (
-                <>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      textTransform: "uppercase",
-                      color: C.muted,
-                      marginTop: 12,
-                    }}
-                  >
-                    Coming up
-                  </div>
-                  {laterEvents.map((e, i) => (
-                    <div key={i} style={{ fontSize: 13, padding: "4px 0", color: C.muted }}>
-                      {e.day} {e.time} — {e.summary}
-                    </div>
-                  ))}
-                </>
-              ) : null}
-            </>
           )}
         </Panel>
 
