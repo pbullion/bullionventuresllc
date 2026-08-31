@@ -3,6 +3,23 @@ import OpenBetsRail from "../../components/OpenBetsRail";
 import PnlChart from "../../components/PnlChart.jsx";
 import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
 import EngineTuning from "../../components/EngineTuning.jsx";
+import EnginePage from "../../components/engine/EnginePage.jsx";
+import {
+  EngineHeader,
+  EnginePill,
+} from "../../components/engine/EngineChrome.jsx";
+import LedgerTiles from "../../components/engine/LedgerTiles.jsx";
+import Panel from "../../components/engine/Panel.jsx";
+import {
+  C,
+  cents,
+  chip,
+  edgeCents,
+  money,
+  pct,
+  td,
+  th,
+} from "../../components/engine/theme.js";
 
 /* Crypto Value — live view of the Kalshi crypto engine (backend:
  * sheline-art-website-api routes/kalshiCrypto.js, spec in
@@ -11,34 +28,6 @@ import EngineTuning from "../../components/EngineTuning.jsx";
  * is documented there, not re-derived here. */
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi-crypto";
 
-/* ─── Dark palette (matches totals-value / my-bets) ─── */
-const C = {
-  bg: "#0b0e14",
-  panel: "#151a24",
-  border: "#252c3a",
-  text: "#e8eaed",
-  muted: "#8a93a6",
-  green: "#22c55e",
-  greenSoft: "#123021",
-  greenBorder: "#2f7d55",
-  red: "#ef4444",
-  redSoft: "#301416",
-  amber: "#eab308",
-  chipBg: "#1c2430",
-  rowAlt: "#1a2029",
-};
-
-const cents = (d) => (d == null ? "—" : `${Math.round(Number(d) * 100)}¢`);
-const pct = (p) => (p == null ? "—" : `${Math.round(Number(p) * 100)}%`);
-const edgeCents = (e) => {
-  if (e == null) return "—";
-  const v = Math.round(Number(e) * 100);
-  return `${v >= 0 ? "+" : ""}${v}¢`;
-};
-const money = (v) =>
-  v == null
-    ? "—"
-    : `${Number(v) < 0 ? "-" : ""}$${Math.abs(Number(v)).toFixed(2)}`;
 /* What the bet actually cost. An unfilled IOC holds no position and risks
    nothing, so it's $0 — not the intended stake. Mirrors the backend's
    CRYPTO_STAKE_SQL, which is what the daily cap already counts against. */
@@ -80,61 +69,6 @@ const clockTime = (iso) => {
   const m = String(d.getMinutes()).padStart(2, "0");
   return `${h12}:${m}${h < 12 ? "a" : "p"}`;
 };
-
-const panelStyle = {
-  background: C.panel,
-  border: `1px solid ${C.border}`,
-  borderRadius: 12,
-  padding: 14,
-  marginBottom: 14,
-};
-const h2Style = {
-  margin: "0 0 10px",
-  fontSize: 15,
-  fontWeight: 700,
-  color: C.text,
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-};
-const chip = (bg, color) => ({
-  display: "inline-block",
-  padding: "2px 8px",
-  borderRadius: 999,
-  fontSize: 11,
-  fontWeight: 700,
-  background: bg,
-  color,
-});
-const th = {
-  textAlign: "left",
-  padding: "4px 8px",
-  fontSize: 11,
-  color: C.muted,
-  fontWeight: 600,
-  whiteSpace: "nowrap",
-};
-const td = {
-  padding: "5px 8px",
-  fontSize: 12.5,
-  color: C.text,
-  whiteSpace: "nowrap",
-};
-/* Cross-link to a sibling betting screen. Kept identical to the counterpart
- * links on /totals-value and /my-bets — these three pages are one set, so the
- * button should read the same on all of them. */
-const navLink = {
-  fontSize: 12,
-  fontWeight: 700,
-  color: C.text,
-  background: C.chipBg,
-  border: `1px solid ${C.border}`,
-  borderRadius: 8,
-  padding: "5px 12px",
-  textDecoration: "none",
-  whiteSpace: "nowrap",
-};
-const navGroup = { marginLeft: "auto", display: "flex", gap: 8 };
 
 /* Responsive tables. These panels run 6–8 numeric columns, which no phone can
  * fit, and the `overflowX: auto` wrappers meant Status and P&L — the columns
@@ -192,76 +126,6 @@ const CV_CSS = `
   .cv-table td[colspan] { flex: 1 1 100%; }
 }
 `;
-
-/* Collapsible panel. Open/closed is remembered per id in localStorage, because
- * the page repolls every 30s and a panel you collapsed should stay collapsed
- * across reloads too. `right` renders controls in the header row (Kill, CAP) —
- * they're siblings of the toggle button, so clicking them can't collapse the
- * panel they live in. */
-const panelKey = (id) => `bv_crypto_panel_${id}`;
-function Panel({ id, title, right, defaultOpen = true, children }) {
-  const [open, setOpen] = useState(() => {
-    try {
-      const v = window.localStorage.getItem(panelKey(id));
-      return v == null ? defaultOpen : v === "1";
-    } catch {
-      return defaultOpen; // private mode / storage disabled
-    }
-  });
-  const toggle = () =>
-    setOpen((v) => {
-      try {
-        window.localStorage.setItem(panelKey(id), v ? "0" : "1");
-      } catch {
-        /* not persisted — collapsing still works for this session */
-      }
-      return !v;
-    });
-  return (
-    <div style={panelStyle}>
-      <div style={{ ...h2Style, marginBottom: open ? 10 : 0 }}>
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: C.text,
-            font: "inherit",
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: "pointer",
-            padding: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-            textAlign: "left",
-          }}
-        >
-          <span style={{ color: C.muted, fontSize: 11 }}>
-            {open ? "▾" : "▸"}
-          </span>
-          {title}
-        </button>
-        {right != null && (
-          <span
-            style={{
-              marginLeft: "auto",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            {right}
-          </span>
-        )}
-      </div>
-      {open && children}
-    </div>
-  );
-}
 
 export default function CryptoValue() {
   const [scan, setScan] = useState(null);
@@ -534,20 +398,6 @@ export default function CryptoValue() {
     ? bets
     : bets.filter((b) => b.status !== "unfilled");
 
-  const pill = () => {
-    if (!status) return null;
-    if (status.enabled) {
-      return <span style={chip(C.greenSoft, C.green)}>LIVE</span>;
-    }
-    if (status.killed) {
-      return <span style={chip(C.redSoft, C.red)}>KILLED</span>;
-    }
-    if (status.paper) {
-      return <span style={chip("#332a12", C.amber)}>PAPER</span>;
-    }
-    return <span style={chip(C.chipBg, C.muted)}>OFF</span>;
-  };
-
   const assets = scan ? Object.entries(scan.assets || {}) : [];
 
   /* Daily-cap progress, matching the bar on /totals-value. The two engines name
@@ -573,731 +423,772 @@ export default function CryptoValue() {
   const capAmt = Math.abs(capUsed).toFixed(2);
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: C.bg,
-        color: C.text,
-        fontFamily:
-          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        padding: "16px 12px 40px",
-        // App.jsx wraps every route in a column flex container, so this div is
-        // a flex item — and a flex item's `min-width: auto` refuses to shrink
-        // below min-content. The wide tables below made that ~600px, so on a
-        // phone the whole PAGE scrolled sideways (header and Kill button off
-        // screen) instead of each table scrolling inside its own
-        // `overflowX: auto` wrapper. Pinning the width makes it shrink.
-        width: "100%",
-        minWidth: 0,
-        boxSizing: "border-box",
-      }}
-    >
-      <style>{CV_CSS}</style>
-      {/* The centering this page used to do inline now lives in .bv-shell, so
-          the open-bets rail can sit beside the column on a wide screen. */}
-      <div className="bv-shell">
-        <div className="bv-main">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              gap: 10,
-              marginBottom: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>
-              🪙 Crypto Value
-            </h1>
-            {pill()}
-            {/* Engine liveness, NOT `scan.generated_at`. GET /scan runs a scan
-                on demand for this page and stamps it "now", so the old label
-                read "scan 0s ago" for the entire 7h14m outage on 2026-08-04 —
-                it measured this page's own poll, not the betting loop. The
-                honest signal is loop.eval_age_secs: only the background loop
-                writes eval rows. Amber past 5 min, red past the engine's own
-                25-min alarm threshold. */}
-            {(() => {
-              const age = status && status.loop && status.loop.eval_age_secs;
-              if (!status)
-                return (
-                  <span style={{ fontSize: 11, color: C.muted }}>loading…</span>
-                );
-              if (age == null)
-                return (
-                  <span style={{ fontSize: 11, color: C.muted }}>engine —</span>
-                );
-              const mins = age / 60;
-              const color = mins >= 25 ? C.red : mins >= 5 ? C.amber : C.muted;
-              const label =
-                age < 90 ? `${Math.round(age)}s` : `${Math.round(mins)}m`;
-              return (
-                <span style={{ fontSize: 11, color }}>
-                  engine {label} ago
-                  {mins >= 25 ? " — STALLED" : ""}
-                </span>
-              );
-            })()}
-            {err && <span style={{ fontSize: 11, color: C.red }}>{err}</span>}
-            {/* One group so the header's flex-wrap moves both chips together
-                rather than stranding one on its own line. */}
-            <span style={navGroup}>
-              <a href="/weather-value" style={navLink}>
-                🌡 weather →
-              </a>
-              <a href="/totals-value" style={navLink}>
-                📈 sports →
-              </a>
-              <a href="/my-bets" style={navLink}>
-                🎯 my bets →
-              </a>
-            </span>
-          </div>
+    <EnginePage css={CV_CSS} rail={<OpenBetsRail domain="crypto" />}>
+      {/* Engine liveness comes from loop.eval_age_secs, NOT `scan.generated_at`
+          and not this page's own poll: GET /scan runs a scan on demand for the
+          page and stamps it "now", so a label built from it read "scan 0s ago"
+          for the entire 7h14m outage on 2026-08-04. Only the background loop
+          writes eval rows. `paper` is passed because crypto — alone among the
+          engines — sends a real boolean under that name, which is what lets its
+          pill still distinguish PAPER from OFF. */}
+      <EngineHeader
+        title="🪙 Crypto Value"
+        self="crypto"
+        status={status}
+        paper={status && status.paper}
+        ageSecs={status && status.loop && status.loop.eval_age_secs}
+        err={err}
+      />
 
-          {/* Above the Panel, not inside it: Panel remembers being collapsed
+      {/* Above the Panel, not inside it: Panel remembers being collapsed
               per browser, and a halted engine must not be something you have to
               expand a section to discover. */}
-          <EngineBlockedBanner
-            blocked={status && status.blocked}
-            engine="Crypto"
-          />
+      <EngineBlockedBanner blocked={status && status.blocked} engine="Crypto" />
 
-          {/* ── Auto-bet panel ── */}
-          <Panel
-            id="autobet"
-            title={
-              <>
-                🤖 Auto-Bet
-                {pill()}
-                {status && status.combos_enabled && (
-                  <span style={chip(C.chipBg, C.amber)}>COMBOS ARMED</span>
-                )}
-                {/* Account-wide auto cash-out (kalshi.js monitor): sells any
+      {/* TODAY, before anything collapsible — the same slot the REAL/PAPER
+          tiles occupy on /weather-value and /gas-value. Crypto runs no shadow
+          paper ledger, so there is no second tile and inventing one would be
+          inventing a distinction this engine does not make. What it has instead
+          is the daily net-loss cap, which is the number that decides whether it
+          keeps betting today.
+
+          P&L is the NEGATIVE of the cap figure: `today.lost` counts net money
+          LOST, so a winning day is a negative loss. Only `lost` feeds the tile
+          — the `staked` fallback below keeps an older backend rendering a sane
+          bar, but staked is not P&L and must never be coloured as if it were. */}
+      <LedgerTiles
+        tiles={[
+          {
+            label: "TODAY",
+            pnl: cap.lost != null ? -Number(cap.lost) : null,
+            sub:
+              cap.remaining != null
+                ? `$${Number(cap.remaining).toFixed(2)} left of the $${cap.daily_cap} daily cap`
+                : "—",
+          },
+        ]}
+      />
+
+      {/* Daily-cap progress, same treatment as /totals-value: green until 60%
+          of the loss cap is used, amber to 90%, red past that, so how close the
+          engine is to standing itself down is readable at a glance instead of
+          being two numbers to compare. Sits with the tile it qualifies. */}
+      {status && cap.daily_cap != null && (
+        <div style={{ marginBottom: 14 }}>
+          <div
+            style={{
+              height: 10,
+              background: C.rowAlt,
+              borderRadius: 5,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${capPct}%`,
+                height: "100%",
+                background:
+                  capPct >= 90 ? C.red : capPct >= 60 ? C.amber : C.green,
+              }}
+            />
+          </div>
+          <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
+            {/* 2dp throughout: real days have run under $3, and whole
+                      dollars turned $0.90 into "$1". */}
+            {cap.placed != null ? `${cap.placed} bets · ` : ""}
+            <b style={{ color: capUp ? C.green : C.text }}>${capAmt}</b>
+            {capUp ? " up on the day, against a $" : " lost of $"}
+            {cap.daily_cap} daily net-loss cap · $
+            {Number(cap.staked || 0).toFixed(2)} staked
+            {cap.remaining != null && (
+              <span
+                style={{
+                  color: Number(cap.remaining) <= 0 ? C.red : C.green,
+                }}
+              >
+                {" "}
+                · ${Number(cap.remaining).toFixed(2)} left
+              </span>
+            )}
+            {cap.daily_cap_override != null && (
+              <span style={{ color: C.amber }}> (override)</span>
+            )}
+            {status.paper && (
+              <span style={{ color: C.amber }}>
+                {" "}
+                · PAPER — evaluating only, no orders
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Auto-bet panel ── */}
+      <Panel
+        id="autobet"
+        keyPrefix="bv_crypto_panel_"
+        title={
+          <>
+            🤖 Auto-Bet
+            <EnginePill status={status} paper={status && status.paper} />
+            {status && status.combos_enabled && (
+              <span style={chip(C.chipBg, C.amber)}>COMBOS ARMED</span>
+            )}
+            {/* Account-wide auto cash-out (kalshi.js monitor): sells any
                     position once selling nets ≥ pct of max payout. */}
-                {status && status.cashout && status.cashout.enabled && (
-                  <span style={chip(C.greenSoft, C.green)}>
-                    CASHOUT {Math.round(status.cashout.pct * 100)}%
-                  </span>
-                )}
-                {/* A disarmed money guard has to be visible without opening
+            {status && status.cashout && status.cashout.enabled && (
+              <span style={chip(C.greenSoft, C.green)}>
+                CASHOUT {Math.round(status.cashout.pct * 100)}%
+              </span>
+            )}
+            {/* A disarmed money guard has to be visible without opening
                     anything — this is the same lesson as the blocked banner
                     above. Red when off, amber when the website toggle is what's
                     holding it (either way, not the default), plain when armed
                     from config. Click to change; PIN-gated server-side. */}
-                {status && status.guards && (
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleGiveBack();
-                    }}
-                    title="Give-back guard — click to arm, disarm, or follow server config"
-                    style={{
-                      ...chip(
-                        status.guards.give_back_enabled ? C.chipBg : C.redSoft,
-                        status.guards.give_back_enabled
-                          ? status.guards.give_back_override != null
-                            ? C.amber
-                            : C.muted
-                          : C.red,
-                      ),
-                      cursor: "pointer",
-                    }}
-                  >
-                    GIVE-BACK {status.guards.give_back_enabled ? "ON" : "OFF"}
-                  </span>
-                )}
-                {/* Same one-glance summary /totals-value keeps in its header.
+            {status && status.guards && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleGiveBack();
+                }}
+                title="Give-back guard — click to arm, disarm, or follow server config"
+                style={{
+                  ...chip(
+                    status.guards.give_back_enabled ? C.chipBg : C.redSoft,
+                    status.guards.give_back_enabled
+                      ? status.guards.give_back_override != null
+                        ? C.amber
+                        : C.muted
+                      : C.red,
+                  ),
+                  cursor: "pointer",
+                }}
+              >
+                GIVE-BACK {status.guards.give_back_enabled ? "ON" : "OFF"}
+              </span>
+            )}
+            {/* Same one-glance summary /totals-value keeps in its header.
                     It isn't redundant with the bar caption below: this panel
                     collapses and remembers that per browser, and everything
                     else — bar, caption, paused note — lives in the body. Left
                     collapsed, the page otherwise says nothing about whether the
                     engine is near its cap. */}
-                {status && cap.daily_cap != null && (
-                  <span
-                    style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}
-                  >
-                    {cap.placed != null ? `${cap.placed} bets · ` : ""}${capAmt}
-                    {capUp
-                      ? ` up · $${cap.daily_cap} cap`
-                      : ` / $${cap.daily_cap} lost`}
-                    {(status.paused_segments || []).length > 0 && (
-                      <span style={{ color: C.amber }}>
-                        {" "}
-                        · {status.paused_segments.length} paused
-                      </span>
-                    )}
+            {status && cap.daily_cap != null && (
+              <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>
+                {cap.placed != null ? `${cap.placed} bets · ` : ""}${capAmt}
+                {capUp
+                  ? ` up · $${cap.daily_cap} cap`
+                  : ` / $${cap.daily_cap} lost`}
+                {(status.paused_segments || []).length > 0 && (
+                  <span style={{ color: C.amber }}>
+                    {" "}
+                    · {status.paused_segments.length} paused
                   </span>
                 )}
-              </>
-            }
-            right={
-              <>
-                {/* Amber while an override is in force today — a resize you
+              </span>
+            )}
+          </>
+        }
+        right={
+          <>
+            {/* Amber while an override is in force today — a resize you
                     forgot about should be visible, not just implied by the
                     stake sizes. */}
-                <button
-                  onClick={changeUnit}
-                  disabled={busy}
-                  style={{
-                    background: C.chipBg,
-                    color:
-                      status &&
-                      status.today &&
-                      status.today.unit_override != null
-                        ? C.amber
-                        : C.text,
-                    border: `1px solid ${
-                      status &&
-                      status.today &&
-                      status.today.unit_override != null
-                        ? C.amber
-                        : C.border
-                    }`,
-                    borderRadius: 8,
-                    padding: "5px 12px",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: "pointer",
-                    opacity: busy ? 0.5 : 1,
-                  }}
-                >
-                  UNIT $
-                  {status && status.config && status.config.unit_dollars != null
-                    ? status.config.unit_dollars
-                    : "—"}{" "}
-                  ✎
-                </button>
-                <button
-                  onClick={changeCap}
-                  disabled={busy}
-                  style={{
-                    background: C.chipBg,
-                    color: C.text,
-                    border: `1px solid ${C.border}`,
-                    borderRadius: 8,
-                    padding: "5px 12px",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: "pointer",
-                    opacity: busy ? 0.5 : 1,
-                  }}
-                >
-                  CAP $
-                  {status && status.today && status.today.daily_cap != null
-                    ? Math.round(status.today.daily_cap)
-                    : "—"}{" "}
-                  ✎
-                </button>
-                {/* Amber while UNSET — the dangerous state here is no bound
+            <button
+              onClick={changeUnit}
+              disabled={busy}
+              style={{
+                background: C.chipBg,
+                color:
+                  status && status.today && status.today.unit_override != null
+                    ? C.amber
+                    : C.text,
+                border: `1px solid ${
+                  status && status.today && status.today.unit_override != null
+                    ? C.amber
+                    : C.border
+                }`,
+                borderRadius: 8,
+                padding: "5px 12px",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                opacity: busy ? 0.5 : 1,
+              }}
+            >
+              UNIT $
+              {status && status.config && status.config.unit_dollars != null
+                ? status.config.unit_dollars
+                : "—"}{" "}
+              ✎
+            </button>
+            <button
+              onClick={changeCap}
+              disabled={busy}
+              style={{
+                background: C.chipBg,
+                color: C.text,
+                border: `1px solid ${C.border}`,
+                borderRadius: 8,
+                padding: "5px 12px",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                opacity: busy ? 0.5 : 1,
+              }}
+            >
+              CAP $
+              {status && status.today && status.today.daily_cap != null
+                ? Math.round(status.today.daily_cap)
+                : "—"}{" "}
+              ✎
+            </button>
+            {/* Amber while UNSET — the dangerous state here is no bound
                     at all, the opposite polarity from the unit button. */}
-                <button
-                  onClick={changeCeiling}
-                  disabled={busy}
-                  style={{
-                    background: C.chipBg,
-                    color:
-                      status &&
-                      status.config &&
-                      status.config.daily_ceiling == null
-                        ? C.amber
-                        : C.text,
-                    border: `1px solid ${
-                      status &&
-                      status.config &&
-                      status.config.daily_ceiling == null
-                        ? C.amber
-                        : C.border
-                    }`,
-                    borderRadius: 8,
-                    padding: "5px 12px",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: "pointer",
-                    opacity: busy ? 0.5 : 1,
-                  }}
-                >
-                  CEIL{" "}
-                  {status &&
-                  status.config &&
-                  status.config.daily_ceiling != null
-                    ? `$${Math.round(status.config.daily_ceiling)}`
-                    : "∞"}{" "}
-                  ✎
-                </button>
-                {status && status.enabled === false && status.killed ? (
-                  <button
-                    onClick={enable}
-                    disabled={busy}
-                    style={{
-                      background: C.greenSoft,
-                      color: C.green,
-                      border: `1px solid ${C.greenBorder}`,
-                      borderRadius: 8,
-                      padding: "5px 12px",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Enable (PIN)
-                  </button>
-                ) : (
-                  <button
-                    onClick={kill}
-                    disabled={busy}
-                    style={{
-                      background: C.redSoft,
-                      color: C.red,
-                      border: `1px solid ${C.border}`,
-                      borderRadius: 8,
-                      padding: "5px 12px",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Kill
-                  </button>
-                )}
+            <button
+              onClick={changeCeiling}
+              disabled={busy}
+              style={{
+                background: C.chipBg,
+                color:
+                  status && status.config && status.config.daily_ceiling == null
+                    ? C.amber
+                    : C.text,
+                border: `1px solid ${
+                  status && status.config && status.config.daily_ceiling == null
+                    ? C.amber
+                    : C.border
+                }`,
+                borderRadius: 8,
+                padding: "5px 12px",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                opacity: busy ? 0.5 : 1,
+              }}
+            >
+              CEIL{" "}
+              {status && status.config && status.config.daily_ceiling != null
+                ? `$${Math.round(status.config.daily_ceiling)}`
+                : "∞"}{" "}
+              ✎
+            </button>
+            {status && status.enabled === false && status.killed ? (
+              <button
+                onClick={enable}
+                disabled={busy}
+                style={{
+                  background: C.greenSoft,
+                  color: C.green,
+                  border: `1px solid ${C.greenBorder}`,
+                  borderRadius: 8,
+                  padding: "5px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Enable (PIN)
+              </button>
+            ) : (
+              <button
+                onClick={kill}
+                disabled={busy}
+                style={{
+                  background: C.redSoft,
+                  color: C.red,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "5px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Kill
+              </button>
+            )}
+          </>
+        }
+      >
+        {status && (
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+            ${status.config.unit_dollars}/u · calib-edge-scaled ≤
+            {status.config.max_units}u · ${status.today.daily_cap} max daily
+            LOSS · raw ≥{cents(status.config.min_edge)} · calib ≥
+            {cents(status.config.min_calib_edge)} · spread ≤
+            {cents(status.config.max_spread)} · $
+            {status.config.max_window_dollars}/window
+            {status.config.cheap_price_max != null && (
+              <>
+                {" "}
+                · {"<"}
+                {cents(status.config.cheap_price_max)}{" "}
+                {status.config.cheap_units > 0
+                  ? `@ ${status.config.cheap_units}u`
+                  : "off"}
               </>
-            }
-          >
-            {status && (
-              <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
-                ${status.config.unit_dollars}/u · calib-edge-scaled ≤
-                {status.config.max_units}u · ${status.today.daily_cap} max daily
-                LOSS · raw ≥{cents(status.config.min_edge)} · calib ≥
-                {cents(status.config.min_calib_edge)} · spread ≤
-                {cents(status.config.max_spread)} · $
-                {status.config.max_window_dollars}/window
-                {status.config.cheap_price_max != null && (
-                  <>
-                    {" "}
-                    · {"<"}
-                    {cents(status.config.cheap_price_max)}{" "}
-                    {status.config.cheap_units > 0
-                      ? `@ ${status.config.cheap_units}u`
-                      : "off"}
-                  </>
-                )}{" "}
-                · {status.config.assets.join("+").toUpperCase()} ·{" "}
-                {status.config.horizons.join("+")}
-                {/* The money figures used to be crammed on the end of this line;
+            )}{" "}
+            · {status.config.assets.join("+").toUpperCase()} ·{" "}
+            {status.config.horizons.join("+")}
+            {/* The money figures used to be crammed on the end of this line;
                     they now caption the progress bar below, where the same
                     numbers read as headroom rather than as more config. */}
-                {status.calibration_cells_live &&
-                  status.calibration_cells_live.length > 0 && (
-                    <span style={{ marginLeft: 8, color: C.green }}>
-                      {status.calibration_cells_live.length} trusted cell
-                      {status.calibration_cells_live.length > 1 ? "s" : ""}
-                    </span>
-                  )}
-                {status.calibration_cells_live &&
-                  status.calibration_cells_live.length === 0 && (
-                    <span style={{ marginLeft: 8, color: C.amber }}>
-                      0 trusted cells — engine stakes nothing until calibration
-                      earns trust
-                    </span>
-                  )}
-              </div>
-            )}
-            {/* Stood-down segments. The engine silently skips these (skip
+            {status.calibration_cells_live &&
+              status.calibration_cells_live.length > 0 && (
+                <span style={{ marginLeft: 8, color: C.green }}>
+                  {status.calibration_cells_live.length} trusted cell
+                  {status.calibration_cells_live.length > 1 ? "s" : ""}
+                </span>
+              )}
+            {status.calibration_cells_live &&
+              status.calibration_cells_live.length === 0 && (
+                <span style={{ marginLeft: 8, color: C.amber }}>
+                  0 trusted cells — engine stakes nothing until calibration
+                  earns trust
+                </span>
+              )}
+          </div>
+        )}
+        {/* Stood-down segments. The engine silently skips these (skip
                 reason "segment-paused"), so without the notice a paused
                 asset:horizon looks like one that simply isn't finding edges.
                 Pausing is open server-side but resuming is PIN'd. Since
                 2026-08-21 the nightly review no longer adds to this list —
                 every entry here was set by hand. */}
-            {status && (status.paused_segments || []).length > 0 && (
-              <div style={{ color: C.amber, fontSize: 12, marginBottom: 8 }}>
-                ⏸ Paused (set by hand):{" "}
-                {status.paused_segments.map((seg, i) => (
-                  <span key={seg}>
-                    {i > 0 ? ", " : ""}
-                    <span
-                      onClick={() => resumeSegment(seg)}
-                      style={{ cursor: "pointer", textDecoration: "underline" }}
-                    >
-                      {seg} (resume)
-                    </span>
-                  </span>
-                ))}
-              </div>
-            )}
-            {/* Daily-cap progress bar, same treatment as /totals-value: green
-                until 60% of the loss cap is used, amber to 90%, red past that,
-                so how close the engine is to standing itself down is readable
-                at a glance instead of being two numbers to compare. */}
-            {status && cap.daily_cap != null && (
-              <div style={{ marginBottom: 10 }}>
-                <div
-                  style={{
-                    height: 10,
-                    background: C.rowAlt,
-                    borderRadius: 5,
-                    overflow: "hidden",
-                  }}
+        {status && (status.paused_segments || []).length > 0 && (
+          <div style={{ color: C.amber, fontSize: 12, marginBottom: 8 }}>
+            ⏸ Paused (set by hand):{" "}
+            {status.paused_segments.map((seg, i) => (
+              <span key={seg}>
+                {i > 0 ? ", " : ""}
+                <span
+                  onClick={() => resumeSegment(seg)}
+                  style={{ cursor: "pointer", textDecoration: "underline" }}
                 >
-                  <div
-                    style={{
-                      width: `${capPct}%`,
-                      height: "100%",
-                      background:
-                        capPct >= 90 ? C.red : capPct >= 60 ? C.amber : C.green,
-                    }}
-                  />
-                </div>
-                <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
-                  {/* 2dp throughout: real days have run under $3, and whole
-                      dollars turned $0.90 into "$1". */}
-                  {cap.placed != null ? `${cap.placed} bets · ` : ""}
-                  <b style={{ color: capUp ? C.green : C.text }}>${capAmt}</b>
-                  {capUp ? " up on the day, against a $" : " lost of $"}
-                  {cap.daily_cap} daily net-loss cap · $
-                  {Number(cap.staked || 0).toFixed(2)} staked
-                  {cap.remaining != null && (
-                    <span
-                      style={{
-                        color: Number(cap.remaining) <= 0 ? C.red : C.green,
-                      }}
-                    >
-                      {" "}
-                      · ${Number(cap.remaining).toFixed(2)} left
-                    </span>
-                  )}
-                  {cap.daily_cap_override != null && (
-                    <span style={{ color: C.amber }}> (override)</span>
-                  )}
-                  {status.paper && (
-                    <span style={{ color: C.amber }}>
-                      {" "}
-                      · PAPER — evaluating only, no orders
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-            <div style={{ overflowX: "auto" }}>
-              <table
-                className="cv-table"
-                style={{ borderCollapse: "collapse", width: "100%" }}
-              >
-                <thead>
-                  <tr>
-                    <th style={th}>Time</th>
-                    <th style={th}>Pick</th>
-                    <th style={th}>Stake</th>
-                    <th style={th}>Price</th>
-                    <th style={th}>Edge (calib)</th>
-                    <th style={th}>Status</th>
-                    <th style={th}>P&L</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shownBets.map((b, i) => (
-                    <tr
-                      key={b.id}
-                      style={{ background: i % 2 ? C.rowAlt : "transparent" }}
-                    >
-                      <td style={{ ...td, color: C.muted }} data-label="Time">
-                        {clockTime(b.created_at)}
-                      </td>
-                      <td style={td} data-primary="">
-                        {b.pick_label}
-                      </td>
-                      {/* Real money at risk, not the intended unit. IOC orders
+                  {seg} (resume)
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      {/* ── P&L over time (crypto ledger only) ── */}
+      <PnlChart
+        engines={[{ key: "crypto", label: "Crypto" }]}
+        defaultEngine="crypto"
+        title="Crypto P&L over time"
+      />
+
+      {/* The ledger, in the slot every engine page keeps it: after the
+              P&L curve, before the breakdowns. It used to live INSIDE the
+              Auto-Bet panel, so collapsing the engine's settings also hid every
+              bet it had placed. */}
+      <Panel id="bets" keyPrefix="bv_crypto_panel_" title="💵 Recent bets">
+        <div style={{ overflowX: "auto" }}>
+          <table
+            className="cv-table"
+            style={{ borderCollapse: "collapse", width: "100%" }}
+          >
+            <thead>
+              <tr>
+                <th style={th}>Time</th>
+                <th style={th}>Pick</th>
+                <th style={th}>Stake</th>
+                <th style={th}>Price</th>
+                <th style={th}>Edge (calib)</th>
+                <th style={th}>Status</th>
+                <th style={th}>P&L</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shownBets.map((b, i) => (
+                <tr
+                  key={b.id}
+                  style={{ background: i % 2 ? C.rowAlt : "transparent" }}
+                >
+                  <td style={{ ...td, color: C.muted }} data-label="Time">
+                    {clockTime(b.created_at)}
+                  </td>
+                  <td style={td} data-primary="">
+                    {b.pick_label}
+                  </td>
+                  {/* Real money at risk, not the intended unit. IOC orders
                           partial-fill constantly (5 contracts asked, 1 filled is
                           typical), so stake_dollars overstated exposure — a $5 row
                           that actually cost $0.90 made the P&L column look far
                           worse than it was. Intent is kept underneath when the two
                           differ, so a chronically-missing fill is still visible. */}
-                      <td style={td} data-label="Stake">
-                        <span>
-                          {money(actualStake(b))}
-                          {Math.abs(actualStake(b) - Number(b.stake_dollars)) >
-                            0.005 && (
-                            <span style={{ color: C.muted, fontSize: 10.5 }}>
-                              {" "}
-                              of {money(b.stake_dollars)}
-                            </span>
-                          )}
+                  <td style={td} data-label="Stake">
+                    <span>
+                      {money(actualStake(b))}
+                      {Math.abs(actualStake(b) - Number(b.stake_dollars)) >
+                        0.005 && (
+                        <span style={{ color: C.muted, fontSize: 10.5 }}>
+                          {" "}
+                          of {money(b.stake_dollars)}
                         </span>
-                      </td>
-                      <td style={td} data-label="Price">
-                        {cents(b.fill_price || b.limit_price)}
-                      </td>
-                      <td style={td} data-label="Edge (calib)">
-                        <span>
-                          {edgeCents(b.edge)} ({edgeCents(b.calib_edge)})
-                        </span>
-                      </td>
-                      <td
-                        data-label="Status"
-                        style={{
-                          ...td,
-                          color:
-                            b.result === "won" || b.result === "cashed_out"
-                              ? C.green
-                              : b.result === "lost"
-                                ? C.red
-                                : C.muted,
-                        }}
-                      >
-                        {b.result === "cashed_out"
-                          ? "cashed out 💰"
-                          : b.result || b.status}
-                      </td>
-                      <td
-                        data-label="P&L"
-                        style={{
-                          ...td,
-                          color:
-                            b.pnl_dollars > 0
-                              ? C.green
-                              : b.pnl_dollars < 0
-                                ? C.red
-                                : C.muted,
-                        }}
-                      >
-                        {b.pnl_dollars != null ? money(b.pnl_dollars) : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                  {!shownBets.length && (
-                    <tr>
-                      <td style={{ ...td, color: C.muted }} colSpan={7}>
-                        {bets.length
-                          ? `No filled bets today (${unfilledCount} unfilled).`
-                          : "No bets today."}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {/* Unfilled IOC orders hold no position and risk nothing, and they
-                outnumber fills several to one — hidden by default. Still reachable,
-                because a chronically-unfilled market IS a signal worth seeing. */}
-            {unfilledCount > 0 && (
-              <button
-                onClick={() => setShowUnfilled((v) => !v)}
-                style={{
-                  marginTop: 6,
-                  // Both toggles are zero-padding inline buttons, so without this
-                  // they read as one run-together string on a narrow screen.
-                  marginRight: 14,
-                  background: "transparent",
-                  border: "none",
-                  color: C.muted,
-                  fontSize: 11.5,
-                  cursor: "pointer",
-                  padding: 0,
-                }}
-              >
-                {showUnfilled ? "▾ hide" : "▸ show"} {unfilledCount} unfilled
-              </button>
-            )}
-            <button
-              onClick={() => setShowActivity((v) => !v)}
-              style={{
-                marginTop: 8,
-                background: "transparent",
-                border: "none",
-                color: C.muted,
-                fontSize: 12,
-                cursor: "pointer",
-                padding: 0,
-              }}
-            >
-              {showActivity ? "▾ hide" : "▸ show"} activity feed
-            </button>
-            {showActivity && (
-              <div style={{ marginTop: 6, maxHeight: 260, overflowY: "auto" }}>
-                {activity.map((a) => (
-                  <div
-                    key={a.id}
+                      )}
+                    </span>
+                  </td>
+                  <td style={td} data-label="Price">
+                    {cents(b.fill_price || b.limit_price)}
+                  </td>
+                  <td style={td} data-label="Edge (calib)">
+                    <span>
+                      {edgeCents(b.edge)} ({edgeCents(b.calib_edge)})
+                    </span>
+                  </td>
+                  <td
+                    data-label="Status"
                     style={{
-                      fontSize: 11.5,
-                      padding: "3px 0",
+                      ...td,
                       color:
-                        a.decision === "placed"
+                        b.result === "won" || b.result === "cashed_out"
                           ? C.green
-                          : a.decision === "would-place"
-                            ? C.amber
+                          : b.result === "lost"
+                            ? C.red
                             : C.muted,
                     }}
                   >
-                    {timeAgo(a.ran_at)} · {a.pick_label || a.market_ticker} ·{" "}
-                    {a.decision}
-                    {a.skip_reason ? `: ${a.skip_reason}` : ""}
-                    {a.edge != null ? ` · edge ${edgeCents(a.edge)}` : ""}
-                  </div>
-                ))}
-                {!activity.length && (
-                  <div style={{ fontSize: 12, color: C.muted }}>
-                    Nothing evaluated yet.
-                  </div>
+                    {b.result === "cashed_out"
+                      ? "cashed out 💰"
+                      : b.result || b.status}
+                  </td>
+                  <td
+                    data-label="P&L"
+                    style={{
+                      ...td,
+                      color:
+                        b.pnl_dollars > 0
+                          ? C.green
+                          : b.pnl_dollars < 0
+                            ? C.red
+                            : C.muted,
+                    }}
+                  >
+                    {b.pnl_dollars != null ? money(b.pnl_dollars) : "—"}
+                  </td>
+                </tr>
+              ))}
+              {!shownBets.length && (
+                <tr>
+                  <td style={{ ...td, color: C.muted }} colSpan={7}>
+                    {bets.length
+                      ? `No filled bets today (${unfilledCount} unfilled).`
+                      : "No bets today."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {/* Unfilled IOC orders hold no position and risk nothing, and they
+                outnumber fills several to one — hidden by default. Still reachable,
+                because a chronically-unfilled market IS a signal worth seeing. */}
+        {unfilledCount > 0 && (
+          <button
+            onClick={() => setShowUnfilled((v) => !v)}
+            style={{
+              marginTop: 6,
+              // Both toggles are zero-padding inline buttons, so without this
+              // they read as one run-together string on a narrow screen.
+              marginRight: 14,
+              background: "transparent",
+              border: "none",
+              color: C.muted,
+              fontSize: 11.5,
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            {showUnfilled ? "▾ hide" : "▸ show"} {unfilledCount} unfilled
+          </button>
+        )}
+        <button
+          onClick={() => setShowActivity((v) => !v)}
+          style={{
+            marginTop: 8,
+            background: "transparent",
+            border: "none",
+            color: C.muted,
+            fontSize: 12,
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          {showActivity ? "▾ hide" : "▸ show"} activity feed
+        </button>
+        {showActivity && (
+          <div style={{ marginTop: 6, maxHeight: 260, overflowY: "auto" }}>
+            {activity.map((a) => (
+              <div
+                key={a.id}
+                style={{
+                  fontSize: 11.5,
+                  padding: "3px 0",
+                  color:
+                    a.decision === "placed"
+                      ? C.green
+                      : a.decision === "would-place"
+                        ? C.amber
+                        : C.muted,
+                }}
+              >
+                {timeAgo(a.ran_at)} · {a.pick_label || a.market_ticker} ·{" "}
+                {a.decision}
+                {a.skip_reason ? `: ${a.skip_reason}` : ""}
+                {a.edge != null ? ` · edge ${edgeCents(a.edge)}` : ""}
+              </div>
+            ))}
+            {!activity.length && (
+              <div style={{ fontSize: 12, color: C.muted }}>
+                Nothing evaluated yet.
+              </div>
+            )}
+          </div>
+        )}
+      </Panel>
+
+      {/* ── Feed health strip ── */}
+      <Panel id="feeds" keyPrefix="bv_crypto_panel_" title="Feeds">
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {assets.map(([key, a]) => (
+            <div
+              key={key}
+              style={{
+                background: C.chipBg,
+                border: `1px solid ${a.feed_ok ? C.border : C.red}`,
+                borderRadius: 8,
+                padding: "6px 10px",
+                minWidth: 118,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700 }}>
+                {key.toUpperCase()}{" "}
+                <span style={{ color: a.feed_ok ? C.green : C.red }}>
+                  {a.feed_ok ? "●" : "○"}
+                </span>
+                {a.vol_warmup && (
+                  <span style={{ fontSize: 10, color: C.amber }}> warmup</span>
                 )}
               </div>
-            )}
-          </Panel>
-
-          {/* Follows the Auto-Bet panel: that one reports what the engine DID,
-              this one is what it is ALLOWED to do. Own collapse state, closed
-              by default — every row in it moves real money. */}
-          <EngineTuning
-            apiBase={API_BASE}
-            post={postWithPin}
-            busy={busy}
-            C={C}
-            storageKey="bv_tuning_open_crypto"
-          />
-
-          {/* ── P&L over time (crypto ledger only) ── */}
-          <PnlChart
-            engines={[{ key: "crypto", label: "Crypto" }]}
-            defaultEngine="crypto"
-            title="Crypto P&L over time"
-          />
-
-          {/* ── Feed health strip ── */}
-          <Panel id="feeds" title="Feeds">
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {assets.map(([key, a]) => (
-                <div
-                  key={key}
-                  style={{
-                    background: C.chipBg,
-                    border: `1px solid ${a.feed_ok ? C.border : C.red}`,
-                    borderRadius: 8,
-                    padding: "6px 10px",
-                    minWidth: 118,
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 700 }}>
-                    {key.toUpperCase()}{" "}
-                    <span style={{ color: a.feed_ok ? C.green : C.red }}>
-                      {a.feed_ok ? "●" : "○"}
-                    </span>
-                    {a.vol_warmup && (
-                      <span style={{ fontSize: 10, color: C.amber }}>
-                        {" "}
-                        warmup
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 12.5 }}>{fmtPrice(key, a.spot)}</div>
-                  <div style={{ fontSize: 10, color: C.muted }}>
-                    σ1s{" "}
-                    {a.sigma_1s ? (a.sigma_1s * 1e4).toFixed(2) + "bp" : "—"} ·
-                    basis {a.basis != null ? Number(a.basis).toFixed(2) : "—"}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          {/* ── Windows: model vs market per asset ── */}
-          <Panel id="windows" title="Live windows — model vs market">
-            <div style={{ overflowX: "auto" }}>
-              <table
-                className="cv-table"
-                style={{ borderCollapse: "collapse", width: "100%" }}
-              >
-                <thead>
-                  <tr>
-                    <th style={th}>Market</th>
-                    <th style={th}>Target</th>
-                    <th style={th}>Spot</th>
-                    <th style={th}>Left</th>
-                    <th style={th}>Model</th>
-                    <th style={th}>Bid/Ask</th>
-                    <th style={th}>Best edge</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {assets.flatMap(([key, a], ai) =>
-                    (a.windows || [])
-                      .filter(
-                        (w) =>
-                          w.horizon === "15m" || (w.best && w.best.edge > 0),
-                      )
-                      .slice(0, 6)
-                      .map((w, i) => (
-                        <tr
-                          key={w.market_ticker}
-                          style={{
-                            background: (ai + i) % 2 ? C.rowAlt : "transparent",
-                          }}
-                        >
-                          <td style={td} data-primary="">
-                            <span>
-                              <b>{key.toUpperCase()}</b>{" "}
-                              <span style={{ color: C.muted, fontSize: 11 }}>
-                                {w.horizon}
-                                {w.in_final_min ? " · FINAL MIN" : ""}
-                              </span>
-                            </span>
-                          </td>
-                          <td style={td} data-label="Target">
-                            {fmtPrice(key, w.target)}
-                          </td>
-                          <td style={td} data-label="Spot">
-                            {fmtPrice(key, a.spot)}
-                          </td>
-                          <td style={td} data-label="Left">
-                            {countdown(w.tau_secs)}
-                          </td>
-                          <td style={td} data-label="Model">
-                            {pct(w.model_p)}
-                          </td>
-                          <td style={td} data-label="Bid/Ask">
-                            <span>
-                              {cents(w.yes_bid)}/{cents(w.yes_ask)}
-                            </span>
-                          </td>
-                          <td
-                            data-label="Best edge"
-                            style={{
-                              ...td,
-                              color:
-                                w.best && w.best.edge >= 0.03
-                                  ? C.green
-                                  : C.muted,
-                              fontWeight:
-                                w.best && w.best.edge >= 0.03 ? 700 : 400,
-                            }}
-                          >
-                            {w.best
-                              ? `${w.best.side === "yes" ? "UP" : "DOWN"} ${edgeCents(w.best.edge)}`
-                              : "—"}
-                          </td>
-                        </tr>
-                      )),
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {scan && scan.candidates && scan.candidates.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 12, color: C.amber }}>
-                ⚡ {scan.candidates.length} candidate
-                {scan.candidates.length > 1 ? "s" : ""} above the raw-edge floor
-                right now
+              <div style={{ fontSize: 12.5 }}>{fmtPrice(key, a.spot)}</div>
+              <div style={{ fontSize: 10, color: C.muted }}>
+                σ1s {a.sigma_1s ? (a.sigma_1s * 1e4).toFixed(2) + "bp" : "—"} ·
+                basis {a.basis != null ? Number(a.basis).toFixed(2) : "—"}
               </div>
-            )}
-          </Panel>
+            </div>
+          ))}
+        </div>
+      </Panel>
 
-          {/* ── Combo correlation discount (edge hypothesis #1, visible day one) ── */}
-          <Panel
-            id="combos"
-            title={
-              <>
-                Combos — correlation discount
-                <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>
-                  quote vs independence (Π legs) vs copula
-                </span>
-              </>
-            }
+      {/* ── Windows: model vs market per asset ── */}
+      <Panel
+        id="windows"
+        keyPrefix="bv_crypto_panel_"
+        title="Live windows — model vs market"
+      >
+        <div style={{ overflowX: "auto" }}>
+          <table
+            className="cv-table"
+            style={{ borderCollapse: "collapse", width: "100%" }}
           >
+            <thead>
+              <tr>
+                <th style={th}>Market</th>
+                <th style={th}>Target</th>
+                <th style={th}>Spot</th>
+                <th style={th}>Left</th>
+                <th style={th}>Model</th>
+                <th style={th}>Bid/Ask</th>
+                <th style={th}>Best edge</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assets.flatMap(([key, a], ai) =>
+                (a.windows || [])
+                  .filter(
+                    (w) => w.horizon === "15m" || (w.best && w.best.edge > 0),
+                  )
+                  .slice(0, 6)
+                  .map((w, i) => (
+                    <tr
+                      key={w.market_ticker}
+                      style={{
+                        background: (ai + i) % 2 ? C.rowAlt : "transparent",
+                      }}
+                    >
+                      <td style={td} data-primary="">
+                        <span>
+                          <b>{key.toUpperCase()}</b>{" "}
+                          <span style={{ color: C.muted, fontSize: 11 }}>
+                            {w.horizon}
+                            {w.in_final_min ? " · FINAL MIN" : ""}
+                          </span>
+                        </span>
+                      </td>
+                      <td style={td} data-label="Target">
+                        {fmtPrice(key, w.target)}
+                      </td>
+                      <td style={td} data-label="Spot">
+                        {fmtPrice(key, a.spot)}
+                      </td>
+                      <td style={td} data-label="Left">
+                        {countdown(w.tau_secs)}
+                      </td>
+                      <td style={td} data-label="Model">
+                        {pct(w.model_p)}
+                      </td>
+                      <td style={td} data-label="Bid/Ask">
+                        <span>
+                          {cents(w.yes_bid)}/{cents(w.yes_ask)}
+                        </span>
+                      </td>
+                      <td
+                        data-label="Best edge"
+                        style={{
+                          ...td,
+                          color:
+                            w.best && w.best.edge >= 0.03 ? C.green : C.muted,
+                          fontWeight: w.best && w.best.edge >= 0.03 ? 700 : 400,
+                        }}
+                      >
+                        {w.best
+                          ? `${w.best.side === "yes" ? "UP" : "DOWN"} ${edgeCents(w.best.edge)}`
+                          : "—"}
+                      </td>
+                    </tr>
+                  )),
+              )}
+            </tbody>
+          </table>
+        </div>
+        {scan && scan.candidates && scan.candidates.length > 0 && (
+          <div style={{ marginTop: 8, fontSize: 12, color: C.amber }}>
+            ⚡ {scan.candidates.length} candidate
+            {scan.candidates.length > 1 ? "s" : ""} above the raw-edge floor
+            right now
+          </div>
+        )}
+      </Panel>
+
+      {/* ── Combo correlation discount (edge hypothesis #1, visible day one) ── */}
+      <Panel
+        id="combos"
+        keyPrefix="bv_crypto_panel_"
+        title={
+          <>
+            Combos — correlation discount
+            <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>
+              quote vs independence (Π legs) vs copula
+            </span>
+          </>
+        }
+      >
+        <div style={{ overflowX: "auto" }}>
+          <table
+            className="cv-table"
+            style={{ borderCollapse: "collapse", width: "100%" }}
+          >
+            <thead>
+              <tr>
+                <th style={th}>When</th>
+                <th style={th}>Pattern</th>
+                <th style={th}>Legs</th>
+                <th style={th}>Π market</th>
+                <th style={th}>Copula</th>
+                <th style={th}>Kalshi quote</th>
+                <th style={th}>Gap</th>
+                <th style={th}>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {combos.map((q, i) => {
+                const mid =
+                  q.combo_yes_bid != null && q.combo_yes_ask != null
+                    ? (Number(q.combo_yes_bid) + Number(q.combo_yes_ask)) / 2
+                    : null;
+                const gap = mid != null ? Number(q.joint_model_p) - mid : null;
+                const legs = Array.isArray(q.legs) ? q.legs : [];
+                return (
+                  <tr
+                    key={q.created_at + q.pattern}
+                    style={{ background: i % 2 ? C.rowAlt : "transparent" }}
+                  >
+                    <td style={{ ...td, color: C.muted }} data-label="When">
+                      {timeAgo(q.created_at)}
+                    </td>
+                    <td style={{ ...td, fontWeight: 700 }} data-primary="">
+                      {q.pattern}
+                    </td>
+                    <td style={{ ...td, fontSize: 11 }} data-label="Legs">
+                      {legs.map((l) => l.asset.toUpperCase()).join("+")}
+                    </td>
+                    <td style={td} data-label="Π market">
+                      {cents(q.product_market)}
+                    </td>
+                    <td style={td} data-label="Copula">
+                      {cents(q.joint_model_p)}
+                    </td>
+                    <td style={td} data-label="Kalshi quote">
+                      {mid != null
+                        ? `${cents(q.combo_yes_bid)}/${cents(q.combo_yes_ask)}`
+                        : "no quote"}
+                    </td>
+                    <td
+                      data-label="Gap"
+                      style={{
+                        ...td,
+                        color:
+                          gap != null && gap > 0.02
+                            ? C.green
+                            : gap != null && gap < -0.02
+                              ? C.red
+                              : C.muted,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {gap != null ? edgeCents(gap) : "—"}
+                    </td>
+                    <td style={td} data-label="Result">
+                      {q.result === "yes"
+                        ? "✅ hit"
+                        : q.result === "no"
+                          ? "❌ miss"
+                          : "…"}
+                    </td>
+                  </tr>
+                );
+              })}
+              {!combos.length && (
+                <tr>
+                  <td style={{ ...td, color: C.muted }} colSpan={8}>
+                    No combo quotes logged yet — the quoter runs mid-window
+                    (minute 2–13 of each 15-min window).
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      {/* ── Performance / calibration ── */}
+      <Panel
+        id="performance"
+        keyPrefix="bv_crypto_panel_"
+        title="Model performance & calibration"
+        defaultOpen={false}
+      >
+        {perf && (
+          <div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>
+              Brier, 7d (lower is better — the model must beat the PRICE, not a
+              coin):
+            </div>
             <div style={{ overflowX: "auto" }}>
               <table
                 className="cv-table"
@@ -1305,205 +1196,111 @@ export default function CryptoValue() {
               >
                 <thead>
                   <tr>
-                    <th style={th}>When</th>
-                    <th style={th}>Pattern</th>
-                    <th style={th}>Legs</th>
-                    <th style={th}>Π market</th>
-                    <th style={th}>Copula</th>
-                    <th style={th}>Kalshi quote</th>
-                    <th style={th}>Gap</th>
-                    <th style={th}>Result</th>
+                    <th style={th}>Segment</th>
+                    <th style={th}>n</th>
+                    <th style={th}>Model</th>
+                    <th style={th}>Market</th>
+                    <th style={th}>Verdict</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {combos.map((q, i) => {
-                    const mid =
-                      q.combo_yes_bid != null && q.combo_yes_ask != null
-                        ? (Number(q.combo_yes_bid) + Number(q.combo_yes_ask)) /
-                          2
-                        : null;
-                    const gap =
-                      mid != null ? Number(q.joint_model_p) - mid : null;
-                    const legs = Array.isArray(q.legs) ? q.legs : [];
+                  {(perf.brier_7d || []).map((r, i) => {
+                    const better =
+                      Number(r.brier_model) < Number(r.brier_market);
                     return (
                       <tr
-                        key={q.created_at + q.pattern}
-                        style={{ background: i % 2 ? C.rowAlt : "transparent" }}
+                        key={`${r.asset}:${r.horizon}`}
+                        style={{
+                          background: i % 2 ? C.rowAlt : "transparent",
+                        }}
                       >
-                        <td style={{ ...td, color: C.muted }} data-label="When">
-                          {timeAgo(q.created_at)}
+                        <td style={td} data-primary="">
+                          <span>
+                            {r.asset.toUpperCase()} {r.horizon}
+                          </span>
                         </td>
-                        <td style={{ ...td, fontWeight: 700 }} data-primary="">
-                          {q.pattern}
+                        <td style={td} data-label="n">
+                          {r.n}
                         </td>
-                        <td style={{ ...td, fontSize: 11 }} data-label="Legs">
-                          {legs.map((l) => l.asset.toUpperCase()).join("+")}
+                        <td style={td} data-label="Model">
+                          {Number(r.brier_model).toFixed(4)}
                         </td>
-                        <td style={td} data-label="Π market">
-                          {cents(q.product_market)}
-                        </td>
-                        <td style={td} data-label="Copula">
-                          {cents(q.joint_model_p)}
-                        </td>
-                        <td style={td} data-label="Kalshi quote">
-                          {mid != null
-                            ? `${cents(q.combo_yes_bid)}/${cents(q.combo_yes_ask)}`
-                            : "no quote"}
+                        <td style={td} data-label="Market">
+                          {Number(r.brier_market).toFixed(4)}
                         </td>
                         <td
-                          data-label="Gap"
+                          data-label="Verdict"
                           style={{
                             ...td,
-                            color:
-                              gap != null && gap > 0.02
-                                ? C.green
-                                : gap != null && gap < -0.02
-                                  ? C.red
-                                  : C.muted,
-                            fontWeight: 700,
+                            color: better ? C.green : C.muted,
                           }}
                         >
-                          {gap != null ? edgeCents(gap) : "—"}
-                        </td>
-                        <td style={td} data-label="Result">
-                          {q.result === "yes"
-                            ? "✅ hit"
-                            : q.result === "no"
-                              ? "❌ miss"
-                              : "…"}
+                          {better ? "model ahead" : "market ahead"}
                         </td>
                       </tr>
                     );
                   })}
-                  {!combos.length && (
+                  {!(perf.brier_7d || []).length && (
                     <tr>
-                      <td style={{ ...td, color: C.muted }} colSpan={8}>
-                        No combo quotes logged yet — the quoter runs mid-window
-                        (minute 2–13 of each 15-min window).
+                      <td style={{ ...td, color: C.muted }} colSpan={5}>
+                        No settled snapshots yet.
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-          </Panel>
-
-          {/* ── Performance / calibration ── */}
-          <Panel
-            id="performance"
-            title="Model performance & calibration"
-            defaultOpen={false}
-          >
-            {perf && (
-              <div>
-                <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>
-                  Brier, 7d (lower is better — the model must beat the PRICE,
-                  not a coin):
-                </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table
-                    className="cv-table"
-                    style={{ borderCollapse: "collapse", width: "100%" }}
+            <div
+              style={{
+                fontSize: 12,
+                color: C.muted,
+                margin: "10px 0 4px",
+              }}
+            >
+              Trusted calibration cells (w &gt; 0 — the only places the engine
+              may stake):
+            </div>
+            <div style={{ fontSize: 12 }}>
+              {Object.entries(
+                (perf.calibration && perf.calibration.cells) || {},
+              )
+                .filter(([, c]) => c.w > 0)
+                .map(([k, c]) => (
+                  <span
+                    key={k}
+                    style={{ ...chip(C.greenSoft, C.green), margin: 3 }}
                   >
-                    <thead>
-                      <tr>
-                        <th style={th}>Segment</th>
-                        <th style={th}>n</th>
-                        <th style={th}>Model</th>
-                        <th style={th}>Market</th>
-                        <th style={th}>Verdict</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(perf.brier_7d || []).map((r, i) => {
-                        const better =
-                          Number(r.brier_model) < Number(r.brier_market);
-                        return (
-                          <tr
-                            key={`${r.asset}:${r.horizon}`}
-                            style={{
-                              background: i % 2 ? C.rowAlt : "transparent",
-                            }}
-                          >
-                            <td style={td} data-primary="">
-                              <span>
-                                {r.asset.toUpperCase()} {r.horizon}
-                              </span>
-                            </td>
-                            <td style={td} data-label="n">
-                              {r.n}
-                            </td>
-                            <td style={td} data-label="Model">
-                              {Number(r.brier_model).toFixed(4)}
-                            </td>
-                            <td style={td} data-label="Market">
-                              {Number(r.brier_market).toFixed(4)}
-                            </td>
-                            <td
-                              data-label="Verdict"
-                              style={{
-                                ...td,
-                                color: better ? C.green : C.muted,
-                              }}
-                            >
-                              {better ? "model ahead" : "market ahead"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {!(perf.brier_7d || []).length && (
-                        <tr>
-                          <td style={{ ...td, color: C.muted }} colSpan={5}>
-                            No settled snapshots yet.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: C.muted,
-                    margin: "10px 0 4px",
-                  }}
-                >
-                  Trusted calibration cells (w &gt; 0 — the only places the
-                  engine may stake):
-                </div>
-                <div style={{ fontSize: 12 }}>
-                  {Object.entries(
-                    (perf.calibration && perf.calibration.cells) || {},
-                  )
-                    .filter(([, c]) => c.w > 0)
-                    .map(([k, c]) => (
-                      <span
-                        key={k}
-                        style={{ ...chip(C.greenSoft, C.green), margin: 3 }}
-                      >
-                        {k} w={c.w} n={c.n}
-                      </span>
-                    ))}
-                  {!Object.values(
-                    (perf.calibration && perf.calibration.cells) || {},
-                  ).some((c) => c.w > 0) && (
-                    <span style={{ color: C.amber }}>
-                      none yet — snapshots are accumulating; the fit refreshes
-                      every 15 minutes
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-          </Panel>
-
-          <div style={{ fontSize: 10.5, color: C.muted, textAlign: "center" }}>
-            Settlement = 60s CF Benchmarks RTI TWAP · fees included in every
-            edge · paper mode logs would-place bets without ordering
+                    {k} w={c.w} n={c.n}
+                  </span>
+                ))}
+              {!Object.values(
+                (perf.calibration && perf.calibration.cells) || {},
+              ).some((c) => c.w > 0) && (
+                <span style={{ color: C.amber }}>
+                  none yet — snapshots are accumulating; the fit refreshes every
+                  15 minutes
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-        <OpenBetsRail domain="crypto" />
+        )}
+      </Panel>
+
+      {/* Last, as on every engine page: Auto-Bet reports what the engine
+              DID, this is what it is ALLOWED to do. Own collapse state, closed
+              by default — every row in it moves real money. */}
+      <EngineTuning
+        apiBase={API_BASE}
+        post={postWithPin}
+        busy={busy}
+        C={C}
+        storageKey="bv_tuning_open_crypto"
+      />
+
+      <div style={{ fontSize: 10.5, color: C.muted, textAlign: "center" }}>
+        Settlement = 60s CF Benchmarks RTI TWAP · fees included in every edge ·
+        paper mode logs would-place bets without ordering
       </div>
-    </div>
+    </EnginePage>
   );
 }

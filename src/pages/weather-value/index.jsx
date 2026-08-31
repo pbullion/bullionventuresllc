@@ -2,6 +2,20 @@ import { useEffect, useState } from "react";
 import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
 import EngineTuning from "../../components/EngineTuning.jsx";
 import OpenBetsRail from "../../components/OpenBetsRail";
+import PnlChart from "../../components/PnlChart.jsx";
+import EnginePage from "../../components/engine/EnginePage.jsx";
+import { EngineHeader } from "../../components/engine/EngineChrome.jsx";
+import LedgerTiles from "../../components/engine/LedgerTiles.jsx";
+import Panel from "../../components/engine/Panel.jsx";
+import {
+  C,
+  chip,
+  clockTime,
+  cents,
+  money,
+  td,
+  th,
+} from "../../components/engine/theme.js";
 
 /* Weather Value — live view of the Kalshi weather engine (backend:
  * sheline-art-website-api routes/kalshiWeather.js). Daily city-high markets,
@@ -9,69 +23,13 @@ import OpenBetsRail from "../../components/OpenBetsRail";
  * $3 units / $10 max, Patrick's call) and the shadow paper ledger, which keeps
  * writing in live mode because it is the model's judge — the page shows them
  * side by side so "the model is right" and "the account is up" stay two
- * different questions. */
+ * different questions.
+ *
+ * Laid out in the shared engine order (2026-08-31) — header, blocked banner,
+ * ledger tiles, auto-bet, P&L, bets, breakdowns — with the palette, formatters
+ * and chrome coming from ../../components/engine/. Everything this page knows
+ * about weather is still here; nothing generic is. */
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi-weather";
-
-const C = {
-  bg: "#0b0e14",
-  panel: "#151a24",
-  border: "#252c3a",
-  text: "#e8eaed",
-  muted: "#8a93a6",
-  green: "#22c55e",
-  greenSoft: "#123021",
-  greenBorder: "#2f7d55",
-  red: "#ef4444",
-  redSoft: "#301416",
-  amber: "#eab308",
-  chipBg: "#1c2430",
-};
-
-const money = (v) =>
-  v == null
-    ? "—"
-    : `${Number(v) < 0 ? "-" : ""}$${Math.abs(Number(v)).toFixed(2)}`;
-const cents = (v) => (v == null ? "—" : `${Math.round(Number(v) * 100)}¢`);
-const clockTime = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  const h = d.getHours();
-  return `${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, "0")}${h < 12 ? "a" : "p"}`;
-};
-const chip = (bg, color) => ({
-  display: "inline-block",
-  padding: "2px 8px",
-  borderRadius: 999,
-  fontSize: 11,
-  fontWeight: 700,
-  background: bg,
-  color,
-});
-const navLink = {
-  fontSize: 12,
-  fontWeight: 700,
-  color: C.text,
-  background: C.chipBg,
-  border: `1px solid ${C.border}`,
-  borderRadius: 8,
-  padding: "5px 12px",
-  textDecoration: "none",
-  whiteSpace: "nowrap",
-};
-const th = {
-  textAlign: "left",
-  padding: "4px 8px",
-  fontSize: 11,
-  color: C.muted,
-  fontWeight: 600,
-  whiteSpace: "nowrap",
-};
-const td = {
-  padding: "5px 8px",
-  fontSize: 12.5,
-  color: C.text,
-  whiteSpace: "nowrap",
-};
 
 const RESULT_STYLE = {
   won: { color: C.green, label: "WON" },
@@ -110,8 +68,8 @@ export default function WeatherValue() {
     return () => clearInterval(id);
   }, []);
 
-  // Same helper as the other two pages — PIN cached in localStorage, verified
-  // server-side, one re-prompt on 401.
+  // Same helper as the other engine pages — PIN cached in localStorage,
+  // verified server-side, one re-prompt on 401.
   const postWithPin = async (path, body = {}) => {
     let pin = window.localStorage.getItem("bv_autobet_pin") || "";
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -155,15 +113,6 @@ export default function WeatherValue() {
   };
   const enable = async () => {
     if (await postWithPin("/auto-bets/enable")) load();
-  };
-
-  const pill = () => {
-    if (!status) return null;
-    if (status.killed)
-      return <span style={chip(C.redSoft, C.red)}>KILLED</span>;
-    if (status.enabled)
-      return <span style={chip(C.greenSoft, C.green)}>LIVE</span>;
-    return <span style={chip("#332a12", C.amber)}>PAPER</span>;
   };
 
   const lastScan = status && status.last_scan;
@@ -266,361 +215,266 @@ export default function WeatherValue() {
     </div>
   );
 
+  const hasBreakdown =
+    byExit.held_to_settle ||
+    byExit.cashed_out ||
+    byLead.same_day ||
+    byLead.next_day;
+
   return (
-    <div
-      style={{
-        background: C.bg,
-        minHeight: "100vh",
-        color: C.text,
-        padding: 16,
-      }}
-    >
-      {/* Same shell as /totals-value and /crypto-value: content + a sticky
-          right-hand rail of THIS page's open positions on desktop. */}
-      <div className="bv-shell" style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <div className="bv-main">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              flexWrap: "wrap",
-              marginBottom: 12,
-            }}
-          >
-            <h1 style={{ margin: 0, fontSize: 20 }}>🌡 Weather Value</h1>
-            {pill()}
-            {err && <span style={{ fontSize: 11, color: C.red }}>{err}</span>}
-            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-              <a href="/gas-value" style={navLink}>
-                ⛽ gas →
-              </a>
-              <a href="/totals-value" style={navLink}>
-                📈 sports →
-              </a>
-              <a href="/crypto-value" style={navLink}>
-                🪙 crypto →
-              </a>
-              <a href="/my-bets" style={navLink}>
-                🎯 my bets →
-              </a>
-            </span>
-          </div>
+    <EnginePage rail={<OpenBetsRail domain="weather" />}>
+      <EngineHeader
+        title="🌡 Weather Value"
+        self="weather"
+        status={status}
+        at={lastScan && lastScan.at}
+        scanMinutes={cfg && cfg.scan_minutes}
+        err={err}
+      />
 
-          <EngineBlockedBanner
-            blocked={status && status.blocked}
-            engine="Weather"
-          />
+      {/* Above everything collapsible, like the pill: a halted engine must not
+          be something you have to expand a section to discover. */}
+      <EngineBlockedBanner
+        blocked={status && status.blocked}
+        engine="Weather"
+      />
 
-          {/* Header strip: sizing + per-city running max, the model's live input. */}
-          <div
-            style={{
-              background: C.panel,
-              border: `1px solid ${C.border}`,
-              borderRadius: 12,
-              padding: 14,
-              marginBottom: 12,
-            }}
-          >
-            <div
+      <LedgerTiles
+        tiles={[
+          {
+            label: "REAL",
+            pnl: live && live.pnl,
+            sub:
+              (live &&
+                [
+                  /* open_positions, NOT `filled`: the settle pass stamps a
+                     row's result and P&L but leaves status='filled', so
+                     `filled` counts already-decided losers here and reads as
+                     exposure that no longer exists. */
+                  `${live.open_positions ?? live.filled ?? 0} open · ${money(live.staked)} staked`,
+                  record(live),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")) ||
+              "—",
+          },
+          {
+            label: "PAPER (the model's judge)",
+            pnl: pp && pp.pnl,
+            sub: pp
+              ? `${pp.settled || 0}/${pp.n || 0} settled · ${pp.won || 0} won`
+              : "—",
+          },
+        ]}
+      />
+
+      <Panel
+        id="autobet"
+        keyPrefix="bv_wv_panel_"
+        title="🤖 Auto-Bet"
+        right={
+          status && status.killed ? (
+            <button
+              onClick={enable}
+              disabled={busy}
               style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-                alignItems: "center",
+                background: C.greenSoft,
+                color: C.green,
+                border: `1px solid ${C.greenBorder}`,
+                borderRadius: 8,
+                padding: "5px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
               }}
             >
-              <span style={{ fontWeight: 800, fontSize: 15 }}>🤖 Auto-Bet</span>
-              {cfg && (
-                <span style={{ color: C.muted, fontSize: 12, flex: 1 }}>
-                  ${cfg.unit_dollars}/u +1u per 3¢ edge · ${cfg.max_bet_dollars}{" "}
-                  max/bet · ${cfg.max_daily_dollars}/day loss cap · $
-                  {cfg.max_event_dollars}/city-day · needs{" "}
-                  {Math.round(cfg.min_edge * 100)}¢+ edge · scan{" "}
-                  {clockTime(lastScan && lastScan.at)}
-                </span>
-              )}
-              {status && status.killed ? (
-                <button
-                  onClick={enable}
-                  disabled={busy}
-                  style={{
-                    background: C.greenSoft,
-                    color: C.green,
-                    border: `1px solid ${C.greenBorder}`,
-                    borderRadius: 8,
-                    padding: "5px 12px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Enable (PIN)
-                </button>
-              ) : (
-                <button
-                  onClick={kill}
-                  disabled={busy}
-                  style={{
-                    background: C.redSoft,
-                    color: C.red,
-                    border: `1px solid ${C.border}`,
-                    borderRadius: 8,
-                    padding: "5px 12px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Kill
-                </button>
-              )}
-            </div>
-            {lastScan && lastScan.cities && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  flexWrap: "wrap",
-                  marginTop: 10,
-                }}
-              >
-                {Object.entries(lastScan.cities).map(([k, v]) => (
-                  <span
-                    key={k}
-                    style={{
-                      ...chip(C.chipBg, v.error ? C.red : C.text),
-                      fontWeight: 600,
-                    }}
-                  >
-                    {k.toUpperCase()}{" "}
-                    {v.error
-                      ? "ERR"
-                      : v.obs_max != null
-                        ? /* One decimal — the brackets are half-degree wide,
-                             so a whole-degree chip can't say which side of
-                             …-B90.5 the station is on. Matches /my-bets and
-                             both TV apps. Patrick, 2026-08-20. */
-                          `${Number(v.obs_max).toFixed(1)}°`
-                        : "—"}
-                    {v && v.new_paper_bets ? (
-                      <span style={{ color: C.amber }}>
-                        {" "}
-                        +{v.new_paper_bets}
-                      </span>
-                    ) : null}
-                  </span>
-                ))}
-              </div>
-            )}
+              Enable (PIN)
+            </button>
+          ) : (
+            <button
+              onClick={kill}
+              disabled={busy}
+              style={{
+                background: C.redSoft,
+                color: C.red,
+                border: `1px solid ${C.border}`,
+                borderRadius: 8,
+                padding: "5px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Kill
+            </button>
+          )
+        }
+      >
+        {cfg && (
+          <div style={{ color: C.muted, fontSize: 12 }}>
+            ${cfg.unit_dollars}/u +1u per 3¢ edge · ${cfg.max_bet_dollars}{" "}
+            max/bet · ${cfg.max_daily_dollars}/day loss cap · $
+            {cfg.max_event_dollars}/city-day · needs{" "}
+            {Math.round(cfg.min_edge * 100)}¢+ edge · scan{" "}
+            {clockTime(lastScan && lastScan.at)}
           </div>
-
-          {/* The two ledgers, numbers first. */}
+        )}
+        {lastScan && lastScan.cities && (
           <div
-            style={{
-              display: "flex",
-              gap: 12,
-              flexWrap: "wrap",
-              marginBottom: 12,
-            }}
+            style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}
           >
-            {[
-              [
-                "REAL",
-                live &&
-                  [
-                    /* open_positions, NOT `filled`: the settle pass stamps a
-                       row's result and P&L but leaves status='filled', so
-                       `filled` counts 6 already-decided losers here and reads
-                       as exposure that no longer exists. */
-                    `${live.open_positions ?? live.filled ?? 0} open · ${money(live.staked)} staked`,
-                    record(live),
-                  ]
-                    .filter(Boolean)
-                    .join(" · "),
-                live && live.pnl,
-              ],
-              [
-                "PAPER (the model's judge)",
-                pp &&
-                  `${pp.settled || 0}/${pp.n || 0} settled · ${pp.won || 0} won`,
-                pp && pp.pnl,
-              ],
-            ].map(([label, sub, pnl]) => (
-              <div
-                key={label}
+            {Object.entries(lastScan.cities).map(([k, v]) => (
+              <span
+                key={k}
                 style={{
-                  flex: "1 1 240px",
-                  background: C.panel,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 12,
-                  padding: 14,
+                  ...chip(C.chipBg, v.error ? C.red : C.text),
+                  fontWeight: 600,
                 }}
               >
-                <div style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>
-                  {label}
-                </div>
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 800,
-                    color: pnl > 0 ? C.green : pnl < 0 ? C.red : C.text,
-                  }}
-                >
-                  {money(pnl)}
-                </div>
-                <div style={{ color: C.muted, fontSize: 12 }}>{sub || "—"}</div>
-              </div>
+                {k.toUpperCase()}{" "}
+                {v.error
+                  ? "ERR"
+                  : v.obs_max != null
+                    ? /* One decimal — the brackets are half-degree wide, so a
+                         whole-degree chip can't say which side of …-B90.5 the
+                         station is on. Matches /my-bets and both TV apps.
+                         Patrick, 2026-08-20. */
+                      `${Number(v.obs_max).toFixed(1)}°`
+                    : "—"}
+                {v && v.new_paper_bets ? (
+                  <span style={{ color: C.amber }}> +{v.new_paper_bets}</span>
+                ) : null}
+              </span>
             ))}
           </div>
+        )}
+      </Panel>
 
-          {/* HOW THE MONEY ENDED, not just how much. On 2026-08-20 the headline
-              "-$22" hid the only thing worth knowing: every position that
-              reached settlement lost, and every one the cash-out monitor sold
-              made money. A single P&L number cannot say that, and the
-              same-day/next-day split beside it is what the 9pm lead-time gate
-              acts on — the two are confounded (a next-day position has had
-              longer to be sold), so they are shown together, not as a
-              conclusion. */}
-          {(byExit.held_to_settle ||
-            byExit.cashed_out ||
-            byLead.same_day ||
-            byLead.next_day) && (
-            <div
-              style={{
-                background: C.panel,
-                border: `1px solid ${C.border}`,
-                borderRadius: 12,
-                padding: 14,
-                marginBottom: 12,
-              }}
-            >
-              {[
-                [
-                  "HOW IT ENDED",
-                  [
-                    ["Held to settlement", byExit.held_to_settle],
-                    ["Sold early by the monitor", byExit.cashed_out],
-                  ],
-                ],
-                [
-                  "LEAD TIME (what the 9pm gate acts on)",
-                  [
-                    ["Same day", byLead.same_day],
-                    ["Next day", byLead.next_day],
-                  ],
-                ],
-              ].map(([heading, rows]) => (
-                <div key={heading} style={{ marginBottom: 10 }}>
-                  <div
-                    style={{
-                      color: C.muted,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      marginBottom: 6,
-                    }}
-                  >
-                    {heading}
-                  </div>
-                  {rows.map(([label, r]) => (
-                    <div
-                      key={label}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        fontSize: 13,
-                        padding: "3px 0",
-                      }}
-                    >
-                      <span style={{ color: C.text }}>{label}</span>
-                      <span style={{ color: C.muted, textAlign: "right" }}>
-                        {r ? (
-                          <>
-                            {r.resolved != null &&
-                            Number(r.resolved) !== Number(r.n)
-                              ? `${r.resolved} of ${r.n} resolved`
-                              : `${r.n} bet${Number(r.n) === 1 ? "" : "s"}`}
-                            {" · "}
-                            {money(r.staked)} staked{" · "}
-                            <b
-                              style={{
-                                color:
-                                  Number(r.pnl) > 0
-                                    ? C.green
-                                    : Number(r.pnl) < 0
-                                      ? C.red
-                                      : C.text,
-                              }}
-                            >
-                              {money(r.pnl)}
-                            </b>
-                          </>
-                        ) : (
-                          "none yet"
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-              <div style={{ color: C.muted, fontSize: 11, lineHeight: 1.5 }}>
-                The monitor sells at ≥90% of max payout, so it takes winners out
-                early — that is why the win column can read 0 on a ledger that
-                made money, and why "sold early" is counted apart from wins and
-                losses rather than folded into either.
-              </div>
-            </div>
-          )}
+      {/* Realized money over time, weather ledger only. */}
+      <PnlChart
+        engines={[{ key: "weather", label: "Weather" }]}
+        defaultEngine="weather"
+        title="Weather P&L over time"
+      />
 
-          <div
+      <Panel
+        id="ledger"
+        keyPrefix="bv_wv_panel_"
+        title={showPaper ? "📝 Paper ledger" : "💵 Real ledger"}
+        right={
+          <button
+            onClick={() => setShowPaper((v) => !v)}
             style={{
-              background: C.panel,
+              background: C.chipBg,
+              color: C.text,
               border: `1px solid ${C.border}`,
-              borderRadius: 12,
-              padding: 14,
-              marginBottom: 12,
+              borderRadius: 8,
+              padding: "4px 10px",
+              fontSize: 12,
+              cursor: "pointer",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                marginBottom: 8,
-              }}
-            >
-              <span style={{ fontWeight: 800, fontSize: 14 }}>
-                {showPaper ? "📝 Paper ledger" : "💵 Real ledger"}
-              </span>
-              <button
-                onClick={() => setShowPaper((v) => !v)}
+            show {showPaper ? "real" : "paper"}
+          </button>
+        }
+      >
+        {showPaper ? table(paper, true) : table(bets, false)}
+      </Panel>
+
+      {/* HOW THE MONEY ENDED, not just how much. On 2026-08-20 the headline
+          "-$22" hid the only thing worth knowing: every position that reached
+          settlement lost, and every one the cash-out monitor sold made money. A
+          single P&L number cannot say that, and the same-day/next-day split
+          beside it is what the 9pm lead-time gate acts on — the two are
+          confounded (a next-day position has had longer to be sold), so they
+          are shown together, not as a conclusion. */}
+      {hasBreakdown && (
+        <Panel id="breakdown" keyPrefix="bv_wv_panel_" title="📊 How it ended">
+          {[
+            [
+              "HOW IT ENDED",
+              [
+                ["Held to settlement", byExit.held_to_settle],
+                ["Sold early by the monitor", byExit.cashed_out],
+              ],
+            ],
+            [
+              "LEAD TIME (what the 9pm gate acts on)",
+              [
+                ["Same day", byLead.same_day],
+                ["Next day", byLead.next_day],
+              ],
+            ],
+          ].map(([heading, rows]) => (
+            <div key={heading} style={{ marginBottom: 10 }}>
+              <div
                 style={{
-                  background: C.chipBg,
-                  color: C.text,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 8,
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  cursor: "pointer",
+                  color: C.muted,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  marginBottom: 6,
                 }}
               >
-                show {showPaper ? "real" : "paper"}
-              </button>
+                {heading}
+              </div>
+              {rows.map(([label, r]) => (
+                <div
+                  key={label}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    fontSize: 13,
+                    padding: "3px 0",
+                  }}
+                >
+                  <span style={{ color: C.text }}>{label}</span>
+                  <span style={{ color: C.muted, textAlign: "right" }}>
+                    {r ? (
+                      <>
+                        {r.resolved != null &&
+                        Number(r.resolved) !== Number(r.n)
+                          ? `${r.resolved} of ${r.n} resolved`
+                          : `${r.n} bet${Number(r.n) === 1 ? "" : "s"}`}
+                        {" · "}
+                        {money(r.staked)} staked{" · "}
+                        <b
+                          style={{
+                            color:
+                              Number(r.pnl) > 0
+                                ? C.green
+                                : Number(r.pnl) < 0
+                                  ? C.red
+                                  : C.text,
+                          }}
+                        >
+                          {money(r.pnl)}
+                        </b>
+                      </>
+                    ) : (
+                      "none yet"
+                    )}
+                  </span>
+                </div>
+              ))}
             </div>
-            {showPaper ? table(paper, true) : table(bets, false)}
+          ))}
+          <div style={{ color: C.muted, fontSize: 11, lineHeight: 1.5 }}>
+            The monitor sells at ≥90% of max payout, so it takes winners out
+            early — that is why the win column can read 0 on a ledger that made
+            money, and why "sold early" is counted apart from wins and losses
+            rather than folded into either.
           </div>
+        </Panel>
+      )}
 
-          <EngineTuning
-            apiBase={API_BASE}
-            post={postWithPin}
-            busy={busy}
-            C={C}
-            storageKey="bv_tuning_open_weather"
-          />
-        </div>
-        <OpenBetsRail domain="weather" />
-      </div>
-    </div>
+      <EngineTuning
+        apiBase={API_BASE}
+        post={postWithPin}
+        busy={busy}
+        C={C}
+        storageKey="bv_tuning_open_weather"
+      />
+    </EnginePage>
   );
 }

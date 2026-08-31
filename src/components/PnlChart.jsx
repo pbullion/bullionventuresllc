@@ -145,7 +145,7 @@ function Stat({ label, value, color }) {
 }
 
 export default function PnlChart({
-  engines = [{ key: "all", label: "Combined" }, { key: "sports", label: "Sports" }, { key: "crypto", label: "Crypto" }],
+  engines = [{ key: "all", label: "Combined" }, { key: "sports", label: "Sports" }, { key: "crypto", label: "Crypto" }, { key: "weather", label: "Weather" }, { key: "gas", label: "Gas" }],
   defaultEngine = "all",
   title = "Profit & loss over time",
 }) {
@@ -163,6 +163,19 @@ export default function PnlChart({
     fetch(`${HISTORY_URL}?bucket=${bucket}&engine=${engine}&days=${days}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((d) => {
+        /* THE ENDPOINT FALLS BACK TO `all` FOR AN ENGINE IT DOESN'T KNOW, and it
+           does so with HTTP 200. Asking for an engine the deployed backend
+           hasn't learned yet therefore doesn't fail — it quietly answers with
+           the whole account's curve under this chart's title, which is the worst
+           kind of wrong on a page about one engine. It echoes what it actually
+           ran as `engine`; if that isn't what we asked for, say so and draw
+           nothing. (2026-08-31, when /gas-value got a chart before
+           /kalshi/history had a gas ledger.) */
+        if (d && d.engine && d.engine !== engine) {
+          setData(null);
+          setError(`No ${engine} history yet — the backend is still serving "${d.engine}".`);
+          return;
+        }
         setData(d);
         setError("");
       })

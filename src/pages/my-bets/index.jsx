@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import PnlChart from "../../components/PnlChart.jsx";
 import EngineBlockedBanner from "../../components/EngineBlockedBanner.jsx";
+import { ENGINE_PAGES } from "../../components/engine/pages.js";
+import { C, usd } from "../../components/engine/theme.js";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi";
 // Second engine, second mount point — the crypto router is a sibling of
@@ -60,42 +62,7 @@ const isDecidedBet = (b) => {
 };
 
 /* ─── Dark palette ─── */
-const C = {
-  bg: "#0b0e14", // page
-  panel: "#151a24", // bet card
-  card: "#151a24",
-  border: "#252c3a", // neutral borders
-  text: "#e8eaed",
-  muted: "#8a93a6",
-  green: "#22c55e",
-  greenSoft: "#123021", // green-tinted fill for leg interiors
-  greenBorder: "#2f7d55", // darker green border
-  red: "#ef4444",
-  redSoft: "#301416", // red-tinted fill
-  redBorder: "#8a3a3d", // darker red border
-  // A quieter green for the secondary money figures (profit). The bright
-  // C.green is already carrying the chance % on the same row, and two of it
-  // side by side compete; this is the dim end of the chanceColor ramp, so it
-  // still reads as the same family. 4.7:1 on C.panel.
-  greenDim: "#479463",
-  amber: "#eab308", // a live tied game — "in play, dead heat"
-  amberSoft: "#2a2410", // amber-tinted fill
-  amberBorder: "#8a7420", // darker amber border
-  accent: "#22c55e",
-  chipBg: "#1c2430",
-  legNeutral: "#1a2029", // undecided leg interior
-  legNeutralBorder: "#303845",
-  // A finished (settled) card is rendered darker than a live/open one.
-  legFinishedGreen: "#0d1f16",
-  legFinishedRed: "#210f11",
-  legFinishedNeutral: "#12161e",
-};
-
 /* ─── Formatters ─── */
-const usd = (n) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    Number.isFinite(Number(n)) ? Number(n) : 0,
-  );
 // Format an ISO game time as "M/D · 5:40 PM CT" (Central only).
 const formatKickoff = (iso) => {
   if (!iso) return null;
@@ -280,10 +247,11 @@ const S = {
     letterSpacing: -0.2,
     whiteSpace: "nowrap",
   },
-  // Cross-links to the other two betting screens. Same chip-link treatment as
-  // the "🪙 crypto →" link on /totals-value — these tools are siblings and
-  // there's no site nav here (my-bets is in App.jsx's hideChrome list).
-  // Positioning/wrapping is the `.mb-nav` class (needs a media query).
+  // Cross-links to the four engine screens, listed in ENGINE_PAGES so this
+  // page can't fall behind the set again. Same chip-link treatment they use —
+  // these tools are siblings and there's no site nav here (my-bets is in
+  // App.jsx's hideChrome list). Positioning/wrapping is the `.mb-nav` class
+  // (needs a media query).
   navLink: {
     fontSize: 12,
     fontWeight: 700,
@@ -893,7 +861,9 @@ const MB_CSS = `
 /* Cross-links to /crypto-value and /totals-value. On a phone there's no room
    for brand + both chips + Refresh on one line, so they take a full-width
    second row of the (wrapping) top bar; order:3 pushes them below Refresh. */
-.mb-nav { display: flex; gap: 8px; order: 3; width: 100%; }
+/* Wraps: with the gas engine there are four cross-links plus the auto-cashout
+   chip, and a phone fits about three across. */
+.mb-nav { display: flex; flex-wrap: wrap; gap: 8px; order: 3; width: 100%; }
 @media (min-width: 900px) {
   .mb-topstats { display: flex; }
   .mb-hero-mobile { display: none; }
@@ -2865,15 +2835,13 @@ export default function MyBets() {
           <div style={S.brandName}>My Bets</div>
         </div>
         <div className="mb-nav">
-          <a href="/crypto-value" style={S.navLink}>
-            🪙 crypto →
-          </a>
-          <a href="/weather-value" style={S.navLink}>
-            🌡 weather →
-          </a>
-          <a href="/totals-value" style={S.navLink}>
-            📈 sports →
-          </a>
+          {/* Driven by the shared list, not written out by hand — which is how
+              /gas-value went four days without a link from this page. */}
+          {ENGINE_PAGES.filter((pg) => pg.key !== "mybets").map((pg) => (
+            <a key={pg.key} href={pg.href} style={S.navLink}>
+              {pg.label} →
+            </a>
+          ))}
           {/* Account-wide auto cash-out: the backend sells ANY position once
               selling nets ≥ pct of its max payout. Armed state belongs on the
               page whose positions it will act on. */}
