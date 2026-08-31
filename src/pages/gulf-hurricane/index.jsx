@@ -60,7 +60,11 @@ const SATELLITE = [
   },
 ];
 
-function Figure({ title, caption, url, bust }) {
+/* A figure that hides itself when its image 404s, and TELLS ITS PARENT it did.
+ * Hiding alone is right for one missing graphic — NHC does not post all six for
+ * every advisory — but when every one fails the section it lives in has to say
+ * so rather than open onto an empty box. */
+function Figure({ title, caption, url, bust, onFail }) {
   const [failed, setFailed] = useState(false);
   if (failed) return null;
   return (
@@ -82,7 +86,10 @@ function Figure({ title, caption, url, bust }) {
         src={`${url}${url.includes("?") ? "&" : "?"}t=${bust}`}
         alt={title}
         loading="lazy"
-        onError={() => setFailed(true)}
+        onError={() => {
+          setFailed(true);
+          if (onFail) onFail();
+        }}
         style={{ display: "block", width: "100%", height: "auto", background: "#0b0f19" }}
       />
     </figure>
@@ -264,6 +271,24 @@ function ForecastTable({ track }) {
 
 function StormCard({ storm, bust }) {
   const [openGraphics, setOpenGraphics] = useState(false);
+  const graphics = storm.graphics || [];
+
+  /* Which of this storm's graphics came back 404. Some always will: peak_surge
+   * exists only once a storm threatens the US coast, and key_messages waits on
+   * NHC issuing one, so a hidden figure is normal. All of them failing is not —
+   * that is a disclosure that opens onto nothing and reads as a broken button,
+   * which is exactly how a wrong folder in the API went unnoticed. Keyed by
+   * graphic, and cleared on refresh so a recovered image is not held down by a
+   * stale failure. */
+  const [failedGraphics, setFailedGraphics] = useState(() => new Set());
+  useEffect(() => setFailedGraphics(new Set()), [bust]);
+  const markGraphicFailed = (key) =>
+    setFailedGraphics((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  const allGraphicsFailed = graphics.length > 0 && failedGraphics.size >= graphics.length;
   const mph = ktToMph(storm.intensityKt);
   const cat = storm.classification === "HU" ? category(mph) : null;
   const accent = classColor(storm.classification, mph);
@@ -365,7 +390,7 @@ function StormCard({ storm, bust }) {
           PNGs per storm — and the map plus the table above now answer the
           question most visits are here for. Collapsed by default so opening the
           page during a storm is not a multi-megabyte download. */}
-      {(storm.graphics || []).length ? (
+      {graphics.length ? (
         <div style={{ borderTop: "1px solid #1e2a44" }}>
           <button
             onClick={() => setOpenGraphics((v) => !v)}
@@ -384,17 +409,43 @@ function StormCard({ storm, bust }) {
           </button>
           {openGraphics ? (
             <div style={{ padding: "0 12px 4px" }}>
-              {storm.graphics.map((g) => (
-                // Upgrade any "_sm" thumbnail URL to the full-resolution graphic
-                // so it stays crisp at full phone width (defensive — backend now
-                // emits full-res too).
+              {graphics.map((g) => (
                 <Figure
                   key={g.key}
                   title={g.title}
-                  url={g.url.replace("_sm+png/", "+png/")}
+                  url={g.url}
                   bust={bust}
+                  onFail={() => markGraphicFailed(g.key)}
                 />
               ))}
+              {allGraphicsFailed ? (
+                <div
+                  style={{
+                    margin: "0 0 12px",
+                    padding: "13px 14px",
+                    background: "#111827",
+                    border: "1px solid #1e2a44",
+                    borderRadius: 14,
+                    color: "#8892b0",
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                  }}>
+                  NHC has not posted graphics for advisory {storm.advNum || "this advisory"} yet.
+                  {storm.graphicsPageUrl ? (
+                    <>
+                      {" "}
+                      <a
+                        href={storm.graphicsPageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: "#7aa2ff", fontWeight: 600 }}>
+                        Check the storm&apos;s page on nhc.noaa.gov
+                      </a>
+                      .
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -465,6 +516,13 @@ export default function GulfHurricane() {
       const res = await fetch(`${STORMS_API}?t=${Date.now()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      /* The route answers HTTP 200 with {error, storms: [], disturbances: []}
+       * when an upstream product is unreachable — deliberately, so this page can
+       * fall back to the static outlooks. Reading only res.ok turned that into
+       * "✓ No named storms and no formation areas. All quiet in the Atlantic &
+       * Gulf.", which is the one answer this page must never give when it does
+       * not actually know. */
+      if (data.error) throw new Error(String(data.error));
       setStorms(Array.isArray(data.storms) ? data.storms : []);
       setDisturbances(Array.isArray(data.disturbances) ? data.disturbances : []);
       setStatus("ok");
