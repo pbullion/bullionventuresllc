@@ -33,7 +33,9 @@ What works today:
   (mixed axios, MUI, CSS files); works, but it's the messiest corner.
 - **Gulf Hurricane** (`/gulf-hurricane`) — NHC storm data via the backend
   proxy + direct NOAA imagery. Added July 2026, seasonal. Rebuilt around a
-  Houston-anchored Leaflet map in Aug 2026 (see the CLAUDE.md section).
+  Houston-anchored Leaflet map in Aug 2026, then stripped back to storm cards
+  plus NHC graphics on 2026-08-31 when Patrick removed the map and the headline
+  (see the CLAUDE.md section).
 - **Elite Edge Advisors** (`/elite-edge-advisors`) — ported from the separate
   `elite_edge_vip`-adjacent web repo on 2026-07-17 ("Port Elite Edge Advisors
   bet board"). The bet board plus the MyBookie-JSON input modal

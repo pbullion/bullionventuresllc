@@ -300,12 +300,25 @@ see or change a task does not belong on this page.
 ## `/gulf-hurricane` — the storm tracker
 
 Rebuilt 2026-08-31 (Patrick: "more like tropicaltidbits.com/storminfo — the fact
-I can see the one close to me in Houston"). The page leads with a
-**Houston-anchored Leaflet map** — `StormMap.jsx`, lazy-loaded like
-`drive/Radar.jsx` so leaflet stays out of the main bundle — carrying Houston,
-every active system with its forecast track and cone, and NHC's disturbance
-areas. Above it sits one headline: the nearest system and how close it is
-forecast to come.
+I can see the one close to me in Houston"). **The page is the cards, and the
+NHC graphics are the point of it.** It opens straight into the systems: a
+formation-area card for each disturbance, then a card per storm carrying the
+advisory line, the forecast table, and the six NHC graphics.
+
+**The Leaflet map and the "closest to Houston" headline were both removed the
+same day they shipped** (Patrick, 2026-08-31, with them crossed out in a
+screenshot: "remove these two things"). `StormMap.jsx` is deleted — it is in git
+at f86cd79 if it is ever wanted back, and `leaflet` stays in `package.json`
+because `/drive` and `/hrw` still use it. Don't reintroduce a map here without
+asking; being asked for one is not the same as it having been missing.
+
+- **The nearest storm's graphics open on their own** (`closestStormId` in
+  `index.jsx`). Storms only — a disturbance is often closer, but NHC publishes
+  no cone, surge or wind-arrival graphic for a system it has not designated, so
+  there would be nothing to open. Ranked by `houstonScore`, the same
+  backend-computed distance the card prints, so the card that opens is always
+  the one showing the smallest number. It opens on MOUNT only: a five-minute
+  refresh must never reopen a section the reader closed.
 
 - **Disturbances (invests) are the point of the rebuild, not a bonus.** A system
   is absent from `CurrentStorms.json` until NHC *names* it, so the old page said
@@ -319,9 +332,8 @@ forecast to come.
   for an undesignated system and inventing them would be the worst kind of wrong
   on this page.
 - **Everything Houston-relative is computed in the BACKEND** (`services/
-  stormGeo.js`), not here, so the numbers on the map, the headline and the cards
-  cannot disagree. `storms.js` holds only presentation — colours, labels,
-  phrasings — and both the map and the cards read from it for the same reason.
+  stormGeo.js`), not here, so no two places on the page can disagree about a
+  distance. `storms.js` holds only presentation — colours, labels, phrasings.
 - **Distances are STATUTE MILES**, matching the NHC public advisory and how a
   Houston reader thinks. Nautical miles are the meteorological convention and
   are the wrong unit here.
@@ -330,19 +342,16 @@ forecast to come.
   nearest pass between two of them; reporting the nearest vertex overstates the
   miss badly. That, and the compass/haversine maths, are covered by
   `test/stormGeo.test.js` in the backend repo.
-- **The map's "Near me" view frames only what is within ~1,200 mi of Houston**,
-  with a ~520 mi floor. Fitting every active system pulls the zoom out to an
-  ocean-wide view in which the storm you care about is four pixels across —
-  which is what makes most storm maps useless from here. "All systems" is the
-  other button for when something matters three days out.
-- **Tiles are Esri, not CARTO** — same reason as `/drive`, and note Esri serves
-  `{z}/{y}/{x}`, row before column. `.leaflet-container` is repainted dark
-  because Leaflet's default `#ddd` makes a slow tile server look broken rather
-  than loading.
-- **The six NHC graphics per storm are collapsed behind a tap now.** They are
-  the heaviest thing on the page and the map plus the forecast table answer what
-  most visits are here for. Expanding is one tap; downloading several megabytes
-  on every open was not a choice anyone was making deliberately.
+- **Every other storm's graphics stay collapsed behind a tap.** Six full-width
+  PNGs per storm is the heaviest thing on the page, so only the nearest one
+  expands itself; the rest cost a tap. A figure whose image 404s hides itself
+  and reports it upward, and a card whose graphics ALL fail says so and links
+  NHC — six dead images otherwise look exactly like a closed section, which is
+  how a wrong folder in the API went unnoticed for a day (`/nhc` PR #3).
+- **An upstream failure must never render as calm.** `/nhc/current-storms`
+  answers HTTP 200 with an `error` field when a product upstream is unreachable,
+  so this page checks that field, not just `res.ok`, and the "no named storms"
+  panel is gated on the feed having actually answered.
 
 ## `/drive` — the in-car dashboard
 

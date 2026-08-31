@@ -1,9 +1,8 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CLASS_LABEL,
   category,
   chanceColor,
-  chanceLabel,
   classColor,
   compass,
   disturbanceTitle,
@@ -12,7 +11,6 @@ import {
   inHours,
   ktToMph,
   miles,
-  stormTitle,
 } from "./storms";
 
 /* Storm data comes from the Sheline backend, which proxies NHC's
@@ -31,7 +29,6 @@ import {
 const STORMS_API = "https://sheline-art-website-api.herokuapp.com/nhc/current-storms";
 
 /* Leaflet only loads for whoever actually opens this page. */
-const StormMap = lazy(() => import("./StormMap.jsx"));
 
 // Always-on NOAA imagery — works even when no storm is active and even if the
 // storms API is unreachable.
@@ -128,85 +125,6 @@ function Pill({ color, background, children }) {
   );
 }
 
-/* The headline: the one system a Houston reader should look at first, and the
- * single number they actually want — how close it gets, not how strong it is.
- * Placed above the map because "how close" is the question; the map is the
- * evidence for the answer. */
-function HoustonHeadline({ item }) {
-  if (!item) {
-    return (
-      <div
-        style={{
-          margin: "4px 0 16px",
-          padding: "18px 16px",
-          background: "#0d1526",
-          border: "1px solid #1e4d2b",
-          borderRadius: 14,
-          color: "#a7f3d0",
-          fontSize: 14,
-          fontWeight: 600,
-        }}>
-        ✓ Nothing tropical within reach of Houston right now.
-      </div>
-    );
-  }
-
-  const isStorm = item.kind === "storm";
-  const rel = item.houston;
-  const accent =
-    isStorm ?
-      classColor(item.classification, ktToMph(item.intensityKt))
-    : chanceColor(item.chance7 ?? item.chance2);
-  const where = houstonPhrase(rel, { edge: !isStorm });
-  const closest = isStorm ? rel?.closest : null;
-
-  return (
-    <div
-      style={{
-        margin: "4px 0 16px",
-        padding: "16px 16px 14px",
-        background: `linear-gradient(180deg, ${accent}22, #0d1526 70%)`,
-        border: `1px solid ${accent}66`,
-        borderRadius: 16,
-      }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#8892b0", letterSpacing: "0.09em" }}>
-        CLOSEST TO HOUSTON
-      </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 9, flexWrap: "wrap", marginTop: 7 }}>
-        <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.3px" }}>
-          {isStorm ? stormTitle(item) : disturbanceTitle(item)}
-        </span>
-        {!isStorm && (item.chance7 != null || item.chance2 != null) ? (
-          <Pill color="#0b0f19" background={accent}>
-            {item.chance7 ?? item.chance2}% formation
-          </Pill>
-        ) : null}
-        {item.inGulf ? (
-          <Pill color="#fde68a" background="#78350f">
-            in the Gulf
-          </Pill>
-        ) : null}
-      </div>
-      {where ? (
-        <div style={{ fontSize: 17, fontWeight: 700, color: "#eef2ff", marginTop: 8 }}>{where}</div>
-      ) : null}
-      {closest ? (
-        <div style={{ fontSize: 14, color: "#a9b4cc", marginTop: 6, lineHeight: 1.55 }}>
-          Forecast to pass within <b style={{ color: accent }}>{miles(closest.distanceMi)}</b>
-          {closest.hour != null ? ` ${inHours(closest.hour)}` : ""}.
-        </div>
-      ) : null}
-      {!isStorm ? (
-        <div style={{ fontSize: 13, color: "#a9b4cc", marginTop: 6, lineHeight: 1.55 }}>
-          Not a named storm yet — this is a {chanceLabel(item.chance7 ?? item.chance2)}-chance
-          formation area from NHC&apos;s tropical weather outlook. No forecast track exists until
-          it is designated.
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 /* The forecast positions as a table. This is the tropicaltidbits-style view of
  * an advisory: where it is expected to be, when, and how strong — which is the
  * part of the cone graphic you cannot read off the picture. */
@@ -282,8 +200,15 @@ function ForecastTable({ track }) {
   );
 }
 
-function StormCard({ storm, bust }) {
-  const [openGraphics, setOpenGraphics] = useState(false);
+function StormCard({ storm, bust, defaultOpen = false }) {
+  /* `null` means "nobody has touched this yet, follow the default", so the
+   * nearest storm's graphics are open without a tap — and a storm that BECOMES
+   * the nearest one later opens too, which a `useState(defaultOpen)` initial
+   * value could not do for a card that was already mounted. Once the reader
+   * toggles it their choice is absolute: a five-minute refresh must never
+   * reopen a section they closed. */
+  const [override, setOverride] = useState(null);
+  const openGraphics = override ?? defaultOpen;
   const graphics = storm.graphics || [];
 
   /* Which of this storm's graphics came back 404. Some always will: peak_surge
@@ -418,7 +343,7 @@ function StormCard({ storm, bust }) {
       {graphics.length ? (
         <div style={{ borderTop: "1px solid #1e2a44" }}>
           <button
-            onClick={() => setOpenGraphics((v) => !v)}
+            onClick={() => setOverride(!openGraphics)}
             style={{
               width: "100%",
               padding: "13px 16px",
@@ -575,20 +500,16 @@ export default function GulfHurricane() {
     return () => clearInterval(id);
   }, [load]);
 
-  /* Storms and disturbances ranked together, because to a reader they are one
-   * list — "what is out there and how much should I care" — and NHC's split
-   * between them is about whether a system has been designated, not about
-   * whether it matters. */
-  const ranked = useMemo(() => {
-    const all = [
-      ...storms.map((s) => ({ ...s, kind: "storm" })),
-      ...disturbances.map((d) => ({ ...d, kind: "disturbance" })),
-    ];
-    return all.sort((a, b) => houstonScore(a) - houstonScore(b));
-  }, [storms, disturbances]);
-
-  const headline = ranked[0] || null;
-  const focusId = headline?.kind === "storm" ? headline.id : null;
+  /* The nearest storm to Houston, which is the one card that opens its graphics
+   * on its own. Storms only: a disturbance can easily be closer, but NHC
+   * publishes no cone, no surge and no wind-arrival graphic for a system it has
+   * not designated, so there would be nothing to open. Ranked by the same
+   * backend-computed distance the cards print, so the card that opens is always
+   * the card showing the smallest number. */
+  const closestStormId = useMemo(() => {
+    const nearest = [...storms].sort((a, b) => houstonScore(a) - houstonScore(b))[0];
+    return nearest ? nearest.id : null;
+  }, [storms]);
   const updated = new Date(bust).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   const anything = storms.length > 0 || disturbances.length > 0;
 
@@ -653,10 +574,9 @@ export default function GulfHurricane() {
             satellite below. Tap Refresh to retry.
           </div>
         ) : status === "loading" ? (
-          /* Before the first answer arrives there is nothing to be reassured
-           * about yet. HoustonHeadline reads a missing item as "nothing within
-           * reach of Houston", which is true once the feed has answered and a
-           * guess before it has. */
+          /* Before the first answer arrives, say so. The "no named storms" panel
+           * below is gated on the feed having actually answered for the same
+           * reason: an empty list is only calm once it is known to be empty. */
           <div
             style={{
               margin: "4px 0 16px",
@@ -670,32 +590,6 @@ export default function GulfHurricane() {
             }}>
             Checking the latest advisories…
           </div>
-        ) : (
-          <HoustonHeadline item={headline} />
-        )}
-
-        {/* The map. Rendered whenever the feed answered — with nothing active it
-            is still a Gulf with Houston on it, which is the right "all clear". */}
-        {status !== "error" ? (
-          <Suspense
-            fallback={
-              <div
-                style={{
-                  height: 420,
-                  borderRadius: 14,
-                  border: "1px solid #1e2a44",
-                  background: "#0d1526",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#606a85",
-                  fontSize: 13,
-                }}>
-                Loading map…
-              </div>
-            }>
-            <StormMap storms={storms} disturbances={disturbances} focus={focusId} />
-          </Suspense>
         ) : null}
 
         {disturbances.length ? (
@@ -719,7 +613,12 @@ export default function GulfHurricane() {
               : "Active systems"}
             </SectionLabel>
             {storms.map((s) => (
-              <StormCard key={s.id} storm={s} bust={bust} />
+              <StormCard
+                key={s.id}
+                storm={s}
+                bust={bust}
+                defaultOpen={s.id === closestStormId}
+              />
             ))}
           </>
         ) : null}
