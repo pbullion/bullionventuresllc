@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /* Units & Caps — what every betting engine is allowed to stake, on one page.
  *
@@ -96,12 +96,23 @@ const chip = (color) => ({
   whiteSpace: "nowrap",
 });
 
+/* How the backend names a cap's basis, in words. Rendered from
+ * `headline.daily_cap_basis` rather than asserted by this page: the basis is
+ * NOT uniform across every row — the sports card's "CFB daily stake cap" bounds
+ * GROSS STAKE, not loss — so a blanket claim on the page would be false for it.
+ * Each row's own help text carries its own semantics. */
+const BASIS = { "net-loss": "net loss, CT day", stake: "gross stake, CT day" };
+
 /** The three numbers the page exists to answer, per engine. */
 function Headline({ headline }) {
   const cells = [
     { k: "Unit", v: fmtValue(headline.unit, "money") },
     { k: "Max / bet", v: fmtValue(headline.max_bet, "money") },
-    { k: "Daily cap", v: fmtValue(headline.daily_cap, "money") },
+    {
+      k: "Daily cap",
+      v: fmtValue(headline.daily_cap, "money"),
+      note: BASIS[headline.daily_cap_basis] || headline.daily_cap_basis || null,
+    },
   ];
   return (
     <div
@@ -134,6 +145,11 @@ function Headline({ headline }) {
           >
             {c.v}
           </div>
+          {c.note && (
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
+              {c.note}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -144,14 +160,27 @@ function LimitRow({ row }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{ borderTop: `1px solid ${C.border}`, padding: "9px 0" }}>
-      <div
+      {/* A real <button>, not a div+onClick — the Panel toggle on /crypto-value
+          is the pattern, and a screen reader gets nothing from the other one.
+          44px because reading these rows IS the page: up to a dozen per card,
+          and the "change →" link beside them already claims 44. */}
+      <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         style={{
           display: "flex",
           alignItems: "baseline",
           gap: 8,
           cursor: "pointer",
-          minHeight: 26,
+          minHeight: 44,
+          width: "100%",
+          background: "transparent",
+          border: "none",
+          color: C.text,
+          font: "inherit",
+          padding: 0,
+          textAlign: "left",
         }}
       >
         <span style={{ fontSize: 13, flex: 1, minWidth: 0 }}>
@@ -175,10 +204,10 @@ function LimitRow({ row }) {
         >
           {fmtValue(row.value, row.fmt)}
         </span>
-        <span style={{ color: C.muted, fontSize: 11, width: 10 }}>
+        <span style={{ color: C.muted, fontSize: 11, width: 10 }} aria-hidden>
           {open ? "−" : "+"}
         </span>
-      </div>
+      </button>
       {open && (
         <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, paddingTop: 4 }}>
           {row.help}
@@ -204,16 +233,23 @@ export default function EngineLimits() {
   const [err, setErr] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  /* Focus fires in bursts when you app-switch on a phone, so the answers can
+   * come back out of order. Only the newest request is allowed to write. */
+  const seq = useRef(0);
   const load = useCallback(async () => {
+    const mine = ++seq.current;
     try {
       const res = await fetch(API_BASE);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setData(await res.json());
+      const body = await res.json();
+      if (mine !== seq.current) return;
+      setData(body);
       setErr(null);
     } catch {
+      if (mine !== seq.current) return;
       setErr("backend unreachable");
     } finally {
-      setLoading(false);
+      if (mine === seq.current) setLoading(false);
     }
   }, []);
 
@@ -273,10 +309,12 @@ export default function EngineLimits() {
       </div>
       <div style={{ fontSize: 12.5, color: C.muted, margin: "6px 0 14px" }}>
         Every limit on all four engines, which all fund from the one Kalshi
-        account. <strong style={{ color: C.text }}>Daily caps count net
-        realized loss for the CT day, not stake</strong> — a day that finishes
-        up never touches one. Read-only: tap an engine to change a value behind
-        the PIN.
+        account. Each daily cap says its own basis underneath it —{" "}
+        <strong style={{ color: C.text }}>net loss</strong> means a day that
+        finishes up never touches it, while a{" "}
+        <strong style={{ color: C.text }}>stake</strong> cap counts gross money
+        put at risk, win or lose. Tap any row for what it does. Read-only: tap
+        an engine to change a value behind the PIN.
       </div>
 
       {loading && !data && (
@@ -309,6 +347,13 @@ export default function EngineLimits() {
           );
         }
         const mode = MODE[e.mode] || MODE.paper;
+        /* Neither of these is assumed present. There is no ErrorBoundary in
+         * this app, so one engine coming back with a stripped field would take
+         * the whole page to a blank screen rather than one bad card — and
+         * partially-stripped rows out of this backend are a thing that has
+         * actually happened (~3% of parlay legs, ~7.7% of weather rows). */
+        const headline = e.headline || {};
+        const limits = Array.isArray(e.limits) ? e.limits : [];
         return (
           <div
             key={e.engine}
@@ -319,6 +364,14 @@ export default function EngineLimits() {
                 <span aria-hidden>{skin.icon}</span> {e.label}
               </span>
               <span style={chip(mode.color)}>{mode.label}</span>
+              {/* `mode: "off"` collapses two different situations. Which one it
+                  is decides whether clearing the kill resumes REAL MONEY or
+                  paper, which is the thing worth knowing before you do it. */}
+              {e.mode === "off" && (
+                <span style={chip(e.enabled_env ? C.amber : C.muted)}>
+                  {e.enabled_env ? "resumes live" : "resumes paper"}
+                </span>
+              )}
               <a
                 href={skin.href}
                 style={{
@@ -335,14 +388,18 @@ export default function EngineLimits() {
               </a>
             </div>
 
-            <Headline headline={e.headline} />
+            <Headline headline={headline} />
 
             <div style={{ fontSize: 10.5, color: C.muted, letterSpacing: 0.4 }}>
               EVERY LIMIT
             </div>
-            {e.limits.map((row) => (
-              <LimitRow key={row.key} row={row} />
-            ))}
+            {limits.length === 0 ? (
+              <div style={{ fontSize: 12.5, color: C.muted, paddingTop: 8 }}>
+                No limits reported for this engine.
+              </div>
+            ) : (
+              limits.map((row) => <LimitRow key={row.key} row={row} />)
+            )}
           </div>
         );
       })}
