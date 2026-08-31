@@ -66,6 +66,14 @@ const SATELLITE = [
  * so rather than open onto an empty box. */
 function Figure({ title, caption, url, bust, onFail }) {
   const [failed, setFailed] = useState(false);
+  /* A refresh is a retry. Without this a figure that 404s stays unmounted for
+   * the life of the card and never re-requests its image, so a graphic NHC
+   * posts an hour later never appears — and the parent clearing its failure
+   * count would then hide the explanation while the box stayed empty. Resetting
+   * the flag rather than remounting on a new key matters: the figures that DID
+   * load keep their <img>, and the browser swaps in the new src instead of
+   * blanking them every five minutes. */
+  useEffect(() => setFailed(false), [bust]);
   if (failed) return null;
   return (
     <figure
@@ -277,9 +285,12 @@ function StormCard({ storm, bust }) {
    * exists only once a storm threatens the US coast, and key_messages waits on
    * NHC issuing one, so a hidden figure is normal. All of them failing is not —
    * that is a disclosure that opens onto nothing and reads as a broken button,
-   * which is exactly how a wrong folder in the API went unnoticed. Keyed by
-   * graphic, and cleared on refresh so a recovered image is not held down by a
-   * stale failure. */
+   * which is exactly how a wrong folder in the API went unnoticed.
+   *
+   * Cleared on refresh, and that only tells the truth because Figure clears its
+   * own failure on the same `bust` and re-requests the image. Clearing this set
+   * alone would drop the explanation while every graphic stayed hidden — an
+   * empty box again, five minutes later. */
   const [failedGraphics, setFailedGraphics] = useState(() => new Set());
   useEffect(() => setFailedGraphics(new Set()), [bust]);
   const markGraphicFailed = (key) =>
@@ -420,6 +431,7 @@ function StormCard({ storm, bust }) {
               ))}
               {allGraphicsFailed ? (
                 <div
+                  role="status"
                   style={{
                     margin: "0 0 12px",
                     padding: "13px 14px",
@@ -511,7 +523,12 @@ export default function GulfHurricane() {
   const [showLoop, setShowLoop] = useState(false);
 
   const load = useCallback(async () => {
-    setStatus("loading");
+    /* Deliberately NOT setStatus("loading") here. "loading" is not "error", and
+     * an empty storm list with no error reads as calm — so re-entering it on the
+     * five-minute interval put the green all-clear back on screen for the length
+     * of every retry of an ongoing outage, and for as long as a bad connection
+     * kept the fetch open. A refresh keeps the last answer up until it has a new
+     * one; "loading" now means only "has never answered". */
     try {
       const res = await fetch(`${STORMS_API}?t=${Date.now()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -619,6 +636,24 @@ export default function GulfHurricane() {
             }}>
             Couldn&apos;t reach the live storm feed right now — showing the tropical outlooks and
             satellite below. Tap Refresh to retry.
+          </div>
+        ) : status === "loading" ? (
+          /* Before the first answer arrives there is nothing to be reassured
+           * about yet. HoustonHeadline reads a missing item as "nothing within
+           * reach of Houston", which is true once the feed has answered and a
+           * guess before it has. */
+          <div
+            style={{
+              margin: "4px 0 16px",
+              padding: "18px 16px",
+              background: "#0d1526",
+              border: "1px solid #1e2a44",
+              borderRadius: 14,
+              color: "#8892b0",
+              fontSize: 14,
+              fontWeight: 600,
+            }}>
+            Checking the latest advisories…
           </div>
         ) : (
           <HoustonHeadline item={headline} />
