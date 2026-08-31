@@ -296,6 +296,53 @@ see or change a task does not belong on this page.
   3003) — `api.js` points at localhost automatically when served from localhost,
   so a UI experiment can't reorder the live board.
 
+## `/gulf-hurricane` — the storm tracker
+
+Rebuilt 2026-08-31 (Patrick: "more like tropicaltidbits.com/storminfo — the fact
+I can see the one close to me in Houston"). The page leads with a
+**Houston-anchored Leaflet map** — `StormMap.jsx`, lazy-loaded like
+`drive/Radar.jsx` so leaflet stays out of the main bundle — carrying Houston,
+every active system with its forecast track and cone, and NHC's disturbance
+areas. Above it sits one headline: the nearest system and how close it is
+forecast to come.
+
+- **Disturbances (invests) are the point of the rebuild, not a bonus.** A system
+  is absent from `CurrentStorms.json` until NHC *names* it, so the old page said
+  "✓ No active tropical cyclones" while an invest sat in the Gulf — the exact
+  situation it exists to warn about. They come from the graphical tropical
+  weather outlook via the backend; see `routes/nhc.js` there for how that URL is
+  discovered rather than hardcoded.
+- **A disturbance card deliberately shows less than a storm card**: an area, two
+  formation percentages, and a sentence saying no forecast track exists yet.
+  Don't give it a track, a cone, or an intensity — NHC does not publish those
+  for an undesignated system and inventing them would be the worst kind of wrong
+  on this page.
+- **Everything Houston-relative is computed in the BACKEND** (`services/
+  stormGeo.js`), not here, so the numbers on the map, the headline and the cards
+  cannot disagree. `storms.js` holds only presentation — colours, labels,
+  phrasings — and both the map and the cards read from it for the same reason.
+- **Distances are STATUTE MILES**, matching the NHC public advisory and how a
+  Houston reader thinks. Nautical miles are the meteorological convention and
+  are the wrong unit here.
+- **Closest approach is sampled ALONG each forecast leg, not at its vertices.**
+  NHC publishes positions 12–24 h apart, so a storm passing offshore makes its
+  nearest pass between two of them; reporting the nearest vertex overstates the
+  miss badly. That, and the compass/haversine maths, are covered by
+  `test/stormGeo.test.js` in the backend repo.
+- **The map's "Near me" view frames only what is within ~1,200 mi of Houston**,
+  with a ~520 mi floor. Fitting every active system pulls the zoom out to an
+  ocean-wide view in which the storm you care about is four pixels across —
+  which is what makes most storm maps useless from here. "All systems" is the
+  other button for when something matters three days out.
+- **Tiles are Esri, not CARTO** — same reason as `/drive`, and note Esri serves
+  `{z}/{y}/{x}`, row before column. `.leaflet-container` is repainted dark
+  because Leaflet's default `#ddd` makes a slow tile server look broken rather
+  than loading.
+- **The six NHC graphics per storm are collapsed behind a tap now.** They are
+  the heaviest thing on the page and the map plus the forecast table answer what
+  most visits are here for. Expanding is one tap; downloading several megabytes
+  on every open was not a choice anyone was making deliberately.
+
 ## `/drive` — the in-car dashboard
 
 `src/pages/drive/` renders a full-bleed board for the **Tesla browser**

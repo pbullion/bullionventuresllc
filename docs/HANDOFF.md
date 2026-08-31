@@ -32,7 +32,8 @@ What works today:
   sports widgets, and an odds screen, designed for the car browser. Older code
   (mixed axios, MUI, CSS files); works, but it's the messiest corner.
 - **Gulf Hurricane** (`/gulf-hurricane`) — NHC storm data via the backend
-  proxy + direct NOAA imagery. Added July 2026, seasonal.
+  proxy + direct NOAA imagery. Added July 2026, seasonal. Rebuilt around a
+  Houston-anchored Leaflet map in Aug 2026 (see the CLAUDE.md section).
 - **Elite Edge Advisors** (`/elite-edge-advisors`) — ported from the separate
   `elite_edge_vip`-adjacent web repo on 2026-07-17 ("Port Elite Edge Advisors
   bet board"). The bet board plus the MyBookie-JSON input modal
@@ -89,7 +90,7 @@ silently at runtime.
 | `/totals-value` | `/kalshi` | `GET /totals-value?min_edge=`, `/totals-value/performance`, `/auto-bets` + `/status` `/activity` `/scenarios` `/review`; `POST /auto-bets/daily-cap`, `/auto-bets/kill\|enable`, `/auto-bets/segments` — 30s poll; writes are PIN-gated |
 | `/crypto-value` | `/kalshi-crypto` | `GET /scan`, `/performance`, `/combo-quotes`, `/auto-bets` + `/status` `/activity`; `POST /auto-bets/kill\|enable` — 15s poll; enable is PIN-gated. Data model: backend `docs/crypto-engine-spec.md` |
 | `/elite-edge-advisors` | `/elite-edge-advisors`, `/odds`, `/parlays` | `GET /get-all-bets`, `/odds/all-odds`; `POST /unhide-all-bets`, per-bet `/:id`; the InputBets modal saves to `/elite-edge-advisors` and `/parlays` |
-| `/gulf-hurricane` | `/nhc` | `GET /current-storms` (backend proxies NHC's CurrentStorms.json because that feed has no CORS; the graphics load straight from nhc.noaa.gov) |
+| `/gulf-hurricane` | `/nhc` | `GET /current-storms` (backend proxies NHC's CurrentStorms.json because that feed has no CORS, and on top of it parses the forecast-track/cone KMZs, the tropical weather outlook's disturbance areas, and each system's distance + closest forecast approach to Houston; the graphics load straight from nhc.noaa.gov) |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` | `GET /patrick/tesla-dashboard-weather?lat&lon` (Apple WeatherKit proxy), `/patrick/all-data-2/mancavedisplaysllc@gmail.com` (hardcoded user), `/odds-screen/check-subscription/:email`, `/odds-screen/tracking/:user` |
 
 | `/hrw` | `/hrw` | `GET /reviews` (counts + averages for every place, one request for the whole list page), `GET /reviews/:place`, `POST /reviews`, `DELETE /reviews/:id`. Reader reviews **only** — all 385 restaurants and 9,127 dishes come from a static file, see the next section |
@@ -333,6 +334,10 @@ backend's config; it is not in this repo.
   no CORS headers (hence the backend proxy), but their PNG/JPG imagery allows
   cross-origin `<img>` loads (hence direct URLs). Don't "simplify" by
   proxying the images — they're large and the Heroku dyno doesn't need that.
+  The KMZ geometry (tracks, cones, outlook areas) is the same story in reverse:
+  it is parsed **server-side** because it is zipped XML, and shipping a zip
+  reader plus three archive downloads to a phone to draw one map would be a
+  worse trade than the four-minute cache on the dyno.
 - **Do not re-enable the recurring push crons** in the backend's
   `bullion_ventures.js` — they are commented out on purpose, twice over (see
   above). The auto-bettor's own pushes replaced them.
