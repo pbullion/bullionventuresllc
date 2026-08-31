@@ -64,8 +64,6 @@ export function chanceColor(pct) {
   return "#eab308";
 }
 
-
-
 export function disturbanceTitle(area) {
   if (area.invest) return `Invest ${area.invest}`;
   return area.name || "Disturbance";

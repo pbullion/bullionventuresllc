@@ -28,7 +28,6 @@ import {
  * in the Gulf — the exact situation it exists to warn about. */
 const STORMS_API = "https://sheline-art-website-api.herokuapp.com/nhc/current-storms";
 
-/* Leaflet only loads for whoever actually opens this page. */
 
 // Always-on NOAA imagery — works even when no storm is active and even if the
 // storms API is unreachable.
@@ -336,14 +335,16 @@ function StormCard({ storm, bust, defaultOpen = false }) {
         <ForecastTable track={storm.forecast} />
       </div>
 
-      {/* The NOAA graphics are the heaviest thing on the page — six full-width
-          PNGs per storm — and the map plus the table above now answer the
-          question most visits are here for. Collapsed by default so opening the
-          page during a storm is not a multi-megabyte download. */}
+      {/* The NOAA graphics are what this page is for, and also the heaviest
+          thing on it — six full-width PNGs per storm. So the nearest storm's
+          set opens itself (`defaultOpen`) and every other storm costs a tap,
+          which keeps a quiet day with four active systems from being a
+          multi-megabyte download nobody asked for. */}
       {graphics.length ? (
         <div style={{ borderTop: "1px solid #1e2a44" }}>
           <button
             onClick={() => setOverride(!openGraphics)}
+            aria-expanded={openGraphics}
             style={{
               width: "100%",
               padding: "13px 16px",
