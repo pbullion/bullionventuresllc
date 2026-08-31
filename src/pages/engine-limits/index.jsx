@@ -275,10 +275,10 @@ export default function EngineLimits() {
   const engines = (data && data.engines) || [];
 
   return (
-    /* safeArea: this page is read on a phone more than anything else here, and
-       it predated the shared shell with the notch insets already hand-written.
-       780px because the cards are a reading column, not a data grid. */
-    <EnginePage mainWidth="780px" safeArea>
+    /* 780px because the cards are a reading column, not a data grid. The notch
+       insets this page has always had are the shell's default now, so it no
+       longer asks for them by name. */
+    <EnginePage mainWidth="780px">
       <EngineHeader title="🧮 Units & Caps" self="limits" err={err}>
         {/* Refetched on FOCUS, not on a timer — these values change when
             Patrick changes one, on another tab or on the phone, not on a

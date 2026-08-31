@@ -15,7 +15,7 @@ export default function EnginePage({
   mainWidth = "960px",
   css,
   rail,
-  safeArea = false,
+  safeArea = true,
   children,
 }) {
   return (
@@ -26,10 +26,14 @@ export default function EnginePage({
         color: C.text,
         fontFamily:
           "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        /* `safeArea` opts into the notch/home-indicator insets. Off by default
-         * only because turning it on for the other five would change their
-         * padding, and this shell was extracted after they shipped — it is
-         * strictly better on an iPhone and they should follow. */
+        /* Notch and home-indicator insets, on by default (2026-08-31). These
+         * pages are read on a phone more than anywhere else, and without the
+         * insets the header sits under the notch in landscape and the last row
+         * of the deepest table sits under the home indicator. /engine-limits
+         * had them hand-written from the start; the rest inherited a flat
+         * 16/12/40 and were the odd ones out. `max()` and `calc()` mean a
+         * device with no insets — every desktop browser — gets exactly the
+         * padding it had before, so this is a no-op off a phone. */
         padding: safeArea
           ? "max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))"
           : "16px 12px 40px",

@@ -210,12 +210,21 @@ const S = {
     color: C.text,
     fontFamily:
       "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    padding: "0 0 56px",
+    /* The home indicator overlaps the bottom of the last bet card without
+       this. my-bets keeps its own shell (a full-bleed top bar, not the
+       centered column EnginePage draws), so it carries the insets itself
+       rather than inheriting them — the other five get the same treatment from
+       EnginePage's `safeArea` default. calc() with no inset is the old 56px,
+       so nothing moves off a phone. */
+    padding: "0 0 calc(56px + env(safe-area-inset-bottom))",
     boxSizing: "border-box",
   },
   topbar: {
     borderBottom: `1px solid ${C.border}`,
-    padding: "16px 20px",
+    /* Full-bleed, so in landscape the brand and the Refresh button land under
+       the notch on either side without the horizontal insets. */
+    padding:
+      "max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 16px max(20px, env(safe-area-inset-left))",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
