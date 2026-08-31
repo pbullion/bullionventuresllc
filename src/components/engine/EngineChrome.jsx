@@ -52,7 +52,18 @@ export function EngineNav({ self, children }) {
  * only from an engine whose status really carries the boolean; left out, a
  * not-killed, not-enabled engine is PAPER, which is what weather and gas have
  * always shown. */
-export function EnginePill({ status, paper }) {
+export function EnginePill({ status, paper, mode }) {
+  /* /engine-limits reads a different shape: GET /kalshi-limits reports one
+   * `mode` string per engine rather than the {killed, enabled} pair the status
+   * endpoints send. Mapping it here keeps the vocabulary in ONE place — that
+   * page used to render its own map where a killed engine said KILLED but a
+   * paper one said lowercase "paper" and a live one said "LIVE MONEY". */
+  if (mode)
+    return (
+      <EnginePill
+        status={{ killed: mode === "off", enabled: mode === "live" }}
+      />
+    );
   if (!status) return null;
   if (status.killed) return <span style={chip(C.redSoft, C.red)}>KILLED</span>;
   if (status.enabled)
@@ -173,8 +184,13 @@ export function EngineHeader({
             scanMinutes={scanMinutes}
           />
         )}
+        {/* AMBER, not red. On every one of these pages `err` means the last
+            poll failed while the numbers already on screen stayed — they are
+            stale, not gone. Red says "this is broken"; the figures beside it
+            are still the real ones from a minute ago. /engine-limits had this
+            right and the other five did not. */}
         {err ? (
-          <span style={{ fontSize: 11, color: C.red }}>{String(err)}</span>
+          <span style={{ fontSize: 11, color: C.amber }}>{String(err)}</span>
         ) : null}
       </div>
       <EngineNav self={self}>{children}</EngineNav>

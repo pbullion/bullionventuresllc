@@ -15,6 +15,7 @@ export default function EnginePage({
   mainWidth = "960px",
   css,
   rail,
+  safeArea = false,
   children,
 }) {
   return (
@@ -25,7 +26,14 @@ export default function EnginePage({
         color: C.text,
         fontFamily:
           "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        padding: "16px 12px 40px",
+        /* `safeArea` opts into the notch/home-indicator insets. Off by default
+         * only because turning it on for the other five would change their
+         * padding, and this shell was extracted after they shipped — it is
+         * strictly better on an iPhone and they should follow. */
+        padding: safeArea
+          ? "max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))"
+          : "16px 12px 40px",
+        WebkitTextSizeAdjust: "100%",
         /* App.jsx wraps every route in a column flex container, so this div is
          * a flex item — and a flex item's `min-width: auto` refuses to shrink
          * below min-content. The wide tables inside made that ~600px, so on a

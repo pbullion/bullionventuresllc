@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import EnginePage from "../../components/engine/EnginePage.jsx";
+import {
+  EngineHeader,
+  EnginePill,
+} from "../../components/engine/EngineChrome.jsx";
+import { C, panelStyle } from "../../components/engine/theme.js";
 
 /* Units & Caps — what every betting engine is allowed to stake, on one page.
  *
@@ -22,18 +28,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
  */
 const ROOT = "https://sheline-art-website-api.herokuapp.com";
 const API_BASE = `${ROOT}/kalshi-limits`;
-
-const C = {
-  bg: "#0b0e14",
-  panel: "#151a24",
-  border: "#252c3a",
-  text: "#e8eaed",
-  muted: "#8a93a6",
-  green: "#22c55e",
-  red: "#ef4444",
-  amber: "#eab308",
-  chipBg: "#1c2430",
-};
 
 /* The same accent-per-engine the Morning Review page uses, so a colour means
  * the same engine across the site. `href` is where a value can actually be
@@ -70,21 +64,15 @@ const fmtValue = (v, fmt) => {
   }
 };
 
-const MODE = {
-  live: { label: "LIVE MONEY", color: C.green },
-  paper: { label: "paper", color: C.muted },
-  off: { label: "KILLED", color: C.red },
-};
+/* panelStyle with this page's slightly larger radius and padding — the cards
+ * carry a 3px engine accent on the left edge, which needs the room. */
+const card = { ...panelStyle, borderRadius: 14, padding: 16, marginBottom: 12 };
 
-const card = {
-  background: C.panel,
-  border: `1px solid ${C.border}`,
-  borderRadius: 14,
-  padding: 16,
-  marginBottom: 12,
-};
-
-const chip = (color) => ({
+/* An outline badge — "override", "resumes live". Deliberately not the shared
+ * `chip` (a filled state pill): these qualify a row, they don't report a
+ * state, and two things that look identical would read as the same kind of
+ * claim. */
+const outlineChip = (color) => ({
   background: C.chipBg,
   border: `1px solid ${color}`,
   color,
@@ -188,7 +176,11 @@ function LimitRow({ row }) {
           {row.overridden && (
             <span
               title="Set from the app or the website, not from the server config. It stands until cleared."
-              style={{ ...chip(C.amber), marginLeft: 7, padding: "1px 7px" }}
+              style={{
+                ...outlineChip(C.amber),
+                marginLeft: 7,
+                padding: "1px 7px",
+              }}
             >
               override
             </span>
@@ -209,7 +201,14 @@ function LimitRow({ row }) {
         </span>
       </button>
       {open && (
-        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, paddingTop: 4 }}>
+        <div
+          style={{
+            fontSize: 12,
+            color: C.muted,
+            lineHeight: 1.5,
+            paddingTop: 4,
+          }}
+        >
           {row.help}
           {row.ceiling !== null && (
             <div style={{ marginTop: 4 }}>
@@ -218,7 +217,13 @@ function LimitRow({ row }) {
             </div>
           )}
           {row.env && (
-            <div style={{ marginTop: 4, fontFamily: "ui-monospace, monospace", fontSize: 11 }}>
+            <div
+              style={{
+                marginTop: 4,
+                fontFamily: "ui-monospace, monospace",
+                fontSize: 11,
+              }}
+            >
               {row.env}
             </div>
           )}
@@ -270,43 +275,33 @@ export default function EngineLimits() {
   const engines = (data && data.engines) || [];
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: C.bg,
-        color: C.text,
-        fontFamily:
-          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        padding:
-          "max(14px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))",
-        maxWidth: 780,
-        margin: "0 auto",
-        WebkitTextSizeAdjust: "100%",
-        overflowWrap: "anywhere",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-        <h1 style={{ margin: 0, fontSize: 21, fontWeight: 800 }}>
-          🧮 Units &amp; Caps
-        </h1>
-        {err && <span style={{ fontSize: 11, color: C.amber }}>{err}</span>}
+    /* safeArea: this page is read on a phone more than anything else here, and
+       it predated the shared shell with the notch insets already hand-written.
+       780px because the cards are a reading column, not a data grid. */
+    <EnginePage mainWidth="780px" safeArea>
+      <EngineHeader title="🧮 Units & Caps" self="limits" err={err}>
+        {/* Refetched on FOCUS, not on a timer — these values change when
+            Patrick changes one, on another tab or on the phone, not on a
+            clock. The button is the manual path, and it lives in the nav group
+            so the header reads the same as every other engine screen. */}
         <button
           onClick={load}
           style={{
-            marginLeft: "auto",
             background: C.chipBg,
             border: `1px solid ${C.border}`,
             color: C.muted,
-            borderRadius: 999,
-            padding: "6px 14px",
+            borderRadius: 8,
+            padding: "5px 12px",
             fontSize: 12,
+            fontWeight: 700,
             minHeight: 32,
             cursor: "pointer",
           }}
         >
           Refresh
         </button>
-      </div>
+      </EngineHeader>
+
       <div style={{ fontSize: 12.5, color: C.muted, margin: "6px 0 14px" }}>
         Every limit on all four engines, which all fund from the one Kalshi
         account. Each daily cap says its own basis underneath it —{" "}
@@ -346,7 +341,6 @@ export default function EngineLimits() {
             </div>
           );
         }
-        const mode = MODE[e.mode] || MODE.paper;
         /* Neither of these is assumed present. There is no ErrorBoundary in
          * this app, so one engine coming back with a stripped field would take
          * the whole page to a blank screen rather than one bad card — and
@@ -359,16 +353,27 @@ export default function EngineLimits() {
             key={e.engine}
             style={{ ...card, borderLeft: `3px solid ${skin.accent}` }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
               <span style={{ fontSize: 15, fontWeight: 800 }}>
                 <span aria-hidden>{skin.icon}</span> {e.label}
               </span>
-              <span style={chip(mode.color)}>{mode.label}</span>
+              {/* Same three words the engine's own page uses. This card used
+                  to say "LIVE MONEY" / lowercase "paper" / "KILLED" — three
+                  labels for the states everywhere else calls LIVE, PAPER and
+                  KILLED. */}
+              <EnginePill mode={e.mode} />
               {/* `mode: "off"` collapses two different situations. Which one it
                   is decides whether clearing the kill resumes REAL MONEY or
                   paper, which is the thing worth knowing before you do it. */}
               {e.mode === "off" && (
-                <span style={chip(e.enabled_env ? C.amber : C.muted)}>
+                <span style={outlineChip(e.enabled_env ? C.amber : C.muted)}>
                   {e.enabled_env ? "resumes live" : "resumes paper"}
                 </span>
               )}
@@ -405,7 +410,14 @@ export default function EngineLimits() {
       })}
 
       {data && data.as_of && (
-        <div style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: 6 }}>
+        <div
+          style={{
+            fontSize: 11,
+            color: C.muted,
+            textAlign: "center",
+            marginTop: 6,
+          }}
+        >
           as of{" "}
           {new Date(data.as_of).toLocaleTimeString("en-US", {
             timeZone: "America/Chicago",
@@ -415,6 +427,6 @@ export default function EngineLimits() {
           CT
         </div>
       )}
-    </div>
+    </EnginePage>
   );
 }

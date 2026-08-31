@@ -13,4 +13,9 @@ export const ENGINE_PAGES = [
   { key: "weather", href: "/weather-value", label: "🌡 weather" },
   { key: "gas", href: "/gas-value", label: "⛽ gas" },
   { key: "mybets", href: "/my-bets", label: "🎯 my bets" },
+  /* Not an engine — the read-only view of what all four are ALLOWED to stake.
+   * It sits in this list because it had no cross-nav at all: you could neither
+   * reach it nor leave it without typing the URL, which is the same failure as
+   * /gas-value's missing chip, just complete. */
+  { key: "limits", href: "/engine-limits", label: "🧮 limits" },
 ];
