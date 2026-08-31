@@ -300,17 +300,46 @@ see or change a task does not belong on this page.
 ## `/gulf-hurricane` — the storm tracker
 
 Rebuilt 2026-08-31 (Patrick: "more like tropicaltidbits.com/storminfo — the fact
-I can see the one close to me in Houston"). **The page is the cards, and the
-NHC graphics are the point of it.** It opens straight into the systems: a
-formation-area card for each disturbance, then a card per storm carrying the
-advisory line, the forecast table, and the six NHC graphics.
+I can see the one close to me in Houston"). **The radar map leads and the cards
+carry the detail.** In order: the radar-and-track map, a formation-area card for
+each disturbance, then a card per storm with the advisory line, the forecast
+table and the six NHC graphics.
 
-**The Leaflet map and the "closest to Houston" headline were both removed the
-same day they shipped** (Patrick, 2026-08-31, with them crossed out in a
-screenshot: "remove these two things"). `StormMap.jsx` is deleted — it is in git
-at f86cd79 if it is ever wanted back, and `leaflet` stays in `package.json`
-because `/drive` and `/hrw` still use it. Don't reintroduce a map here without
-asking; being asked for one is not the same as it having been missing.
+**A map is back, and it is a different map** (Patrick, 2026-08-31, later the
+same day, with a weather.com Houston radar screenshot: "like this weather.com
+radar that also has the latest hurricane track"). `RadarMap.jsx` leads the page:
+animated RainViewer rain radar UNDER NHC's cone, forecast track and formation
+areas, with a play/pause timeline. The cards and the NHC graphics below it are
+unchanged.
+
+Read that against what was removed earlier the same day, because the two are
+easy to confuse:
+
+- **Removed, and staying removed: `StormMap.jsx` and the "closest to Houston"
+  headline** (Patrick, 2026-08-31, both crossed out in a screenshot: "remove
+  these two things"). That map drew the track over an empty basemap — it
+  answered "where is the storm", which the cards already answer in words. It is
+  in git at f86cd79. **Don't put the headline back**, and don't re-add its
+  closest-approach line from Houston to the track.
+- **What earns the new one its place is the RADAR.** Rain is the one thing on
+  this page a picture can say and a card cannot. A map here that is not radar-led
+  is the map that was already rejected.
+- **The timeline is not decoration.** RainViewer's frames run ~80 minutes back
+  and up to ~30 forward (`nowcast`), and observed radar and a nowcast look
+  identical on a map. The stamp, the "forecast" label and the divider on the
+  scrubber are what keep them apart. `nowcast` is often an EMPTY array — the
+  component has to render a loop with no forecast frames at all.
+- **The cone is `interactive: false` on purpose.** It is a ~900-point polygon
+  covering much of the frame; making it clickable swallows every tap meant for
+  the track or the radar underneath.
+- **The map re-fits only when the framing actually changes** (`appliedFitRef`),
+  keyed on which systems are present plus the extent rounded to a degree. The
+  page refetches every five minutes and hands the component a new array each
+  time; re-fitting on that would yank the view out from under a reader who had
+  panned. A storm crawling a few miles between advisories must not re-frame.
+- `leaflet` is lazy-loaded here (`React.lazy` in `index.jsx`), as it is in
+  `/drive` and `/hrw` — it is ~150 KB and has no business in the bundle a home
+  page visitor downloads. Keep it that way.
 
 - **The nearest storm's graphics open on their own** (`closestStormId` in
   `index.jsx`). Storms only — a disturbance is often closer, but NHC publishes
@@ -386,6 +415,11 @@ Four things are load-bearing and easy to undo by accident:
   across its free tiles while still returning HTTP 200, so it fails by looking
   broken rather than by erroring. Note Esri serves `{z}/{y}/{x}` — row before
   column. `src/pages/hrw/` still uses CARTO and still shows the watermark.
+- **The RainViewer frame index is shared, not this page's** — it moved to
+  `src/lib/rainviewer.js` on 2026-08-31 when `/gulf-hurricane` needed the same
+  loop. `data.js` re-exports `fetchRadarFrames` so nothing here changed, and the
+  two probed tile-server limits (zoom 7 max, /512/ is retina) are documented
+  once, there. Don't re-inline it.
 
 The Kalshi card is **read-only and has no controls of any kind**. It shows live
 balances on a public unauthenticated route, which was Patrick's explicit call

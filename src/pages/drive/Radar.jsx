@@ -20,10 +20,11 @@ import { useEffect, useRef, useState } from "react";
 import Card from "./Card";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+// One copy of the zoom-7 limit, shared with /gulf-hurricane. See the header
+// comment in src/lib/rainviewer.js for why it exists.
+import { RADAR_MAX_NATIVE_ZOOM } from "../../lib/rainviewer.js";
 
 const FRAME_MS = 480;
-/* RainViewer serves radar up to zoom 7 and an error image above it. */
-const RADAR_MAX_NATIVE_ZOOM = 7;
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas";
 // Esri serves these {z}/{y}/{x} — the row before the column, unlike most schemes.
 const BASEMAP = `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`;

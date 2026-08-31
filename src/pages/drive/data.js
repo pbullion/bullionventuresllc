@@ -481,29 +481,11 @@ export async function fetchKalshi() {
 
 /* ------------------------------------------------------------------ radar */
 
-/* RainViewer publishes an index of recent radar composites; the frames are
- * plain tile URLs, so the loop is animated client-side by swapping layers.
- *
- * TWO LIMITS, both found by probing rather than from the docs:
- *   - Past zoom 7 the tile server stops returning radar and starts returning a
- *     constant-size "Zoom Level Not Supported" image, with a 200. It does not
- *     404, so Leaflet happily paints the error across the map — which is what
- *     the full-screen view did at zoom 8. Radar layers are pinned with
- *     maxNativeZoom (see Radar.jsx) so Leaflet upscales z7 instead.
- *   - The /512/ endpoint is a RETINA tile, not a bigger-area one: same z/x/y as
- *     /256/, twice the pixels. So it pairs with Leaflet's default 256 tileSize
- *     and no zoomOffset, and it is what makes the upscaled frames legible. */
-export async function fetchRadarFrames() {
-  const data = await get("https://api.rainviewer.com/public/weather-maps.json", 10000);
-  if (!data?.host || !data?.radar?.past?.length) return null;
-  const past = data.radar.past.slice(-8);
-  const nowcast = (data.radar.nowcast || []).slice(0, 3);
-  return [...past, ...nowcast].map((f) => ({
-    time: f.time,
-    url: `${data.host}${f.path}/512/{z}/{x}/{y}/4/1_1.png`,
-    forecast: !past.includes(f),
-  }));
-}
+/* Re-exported, not implemented here. `/gulf-hurricane` draws the same animated
+ * RainViewer loop under a hurricane's cone, so the frame index — and the two
+ * probed tile-server limits that make it usable — live in `src/lib/rainviewer.js`
+ * where both pages read the one copy. Radar.jsx imports this name; keep it. */
+export { fetchRadarFrames } from "../../lib/rainviewer.js";
 
 /* ----------------------------------------------------------------- stocks */
 
