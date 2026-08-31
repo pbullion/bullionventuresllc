@@ -64,16 +64,18 @@ const SATELLITE = [
  * Hiding alone is right for one missing graphic — NHC does not post all six for
  * every advisory — but when every one fails the section it lives in has to say
  * so rather than open onto an empty box. */
-function Figure({ title, caption, url, bust, onFail }) {
-  const [failed, setFailed] = useState(false);
-  /* A refresh is a retry. Without this a figure that 404s stays unmounted for
-   * the life of the card and never re-requests its image, so a graphic NHC
-   * posts an hour later never appears — and the parent clearing its failure
-   * count would then hide the explanation while the box stayed empty. Resetting
-   * the flag rather than remounting on a new key matters: the figures that DID
-   * load keep their <img>, and the browser swaps in the new src instead of
-   * blanking them every five minutes. */
-  useEffect(() => setFailed(false), [bust]);
+function Figure({ title, caption, url, bust, onFail, onLoaded }) {
+  /* WHICH refresh this image failed on, not whether it has ever failed. A new
+   * `bust` is a new src, so the failure simply stops applying and the <img>
+   * mounts again — that is what makes a refresh a retry, and it is why a graphic
+   * NHC posts an hour later turns up on its own. Storing a boolean instead meant
+   * a figure that 404ed stayed hidden for the life of the card while the parent
+   * forgot why, which is the empty box this whole change is about.
+   *
+   * Derived rather than synced in an effect: no cascading render, and no
+   * react-hooks/set-state-in-effect error in a repo that keeps lint at zero. */
+  const [failedAt, setFailedAt] = useState(null);
+  const failed = failedAt === bust;
   if (failed) return null;
   return (
     <figure
@@ -95,8 +97,11 @@ function Figure({ title, caption, url, bust, onFail }) {
         alt={title}
         loading="lazy"
         onError={() => {
-          setFailed(true);
+          setFailedAt(bust);
           if (onFail) onFail();
+        }}
+        onLoad={() => {
+          if (onLoaded) onLoaded();
         }}
         style={{ display: "block", width: "100%", height: "auto", background: "#0b0f19" }}
       />
@@ -291,15 +296,24 @@ function StormCard({ storm, bust }) {
    * own failure on the same `bust` and re-requests the image. Clearing this set
    * alone would drop the explanation while every graphic stayed hidden — an
    * empty box again, five minutes later. */
-  const [failedGraphics, setFailedGraphics] = useState(() => new Set());
-  useEffect(() => setFailedGraphics(new Set()), [bust]);
-  const markGraphicFailed = (key) =>
+  const [failedGraphics, setFailedGraphics] = useState(() => ({ bust, keys: new Set() }));
+  // Failures belong to the refresh that produced them, so a new bust discards
+  // them without an effect — the same derivation Figure uses, kept in step with
+  // it on purpose. A key is also dropped when its image later loads: collapsing
+  // and reopening the section remounts every Figure, so a graphic NHC posted in
+  // the meantime can come back 200 with no refresh at all, and the card must not
+  // keep insisting nothing was posted while it sits visible above the sentence.
+  const failedCount = failedGraphics.bust === bust ? failedGraphics.keys.size : 0;
+  const markGraphic = (key, failed) =>
     setFailedGraphics((prev) => {
-      const next = new Set(prev);
-      next.add(key);
-      return next;
+      const stale = prev.bust !== bust;
+      if (!stale && prev.keys.has(key) === failed) return prev;
+      const keys = stale ? new Set() : new Set(prev.keys);
+      if (failed) keys.add(key);
+      else keys.delete(key);
+      return { bust, keys };
     });
-  const allGraphicsFailed = graphics.length > 0 && failedGraphics.size >= graphics.length;
+  const allGraphicsFailed = graphics.length > 0 && failedCount >= graphics.length;
   const mph = ktToMph(storm.intensityKt);
   const cat = storm.classification === "HU" ? category(mph) : null;
   const accent = classColor(storm.classification, mph);
@@ -426,7 +440,8 @@ function StormCard({ storm, bust }) {
                   title={g.title}
                   url={g.url}
                   bust={bust}
-                  onFail={() => markGraphicFailed(g.key)}
+                  onFail={() => markGraphic(g.key, true)}
+                  onLoaded={() => markGraphic(g.key, false)}
                 />
               ))}
               {allGraphicsFailed ? (
