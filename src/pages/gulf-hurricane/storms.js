@@ -64,22 +64,6 @@ export function chanceColor(pct) {
   return "#eab308";
 }
 
-export function chanceLabel(pct) {
-  if (pct == null) return "unknown";
-  if (pct >= 60) return "high";
-  if (pct >= 40) return "medium";
-  return "low";
-}
-
-/* A storm's one-line name for the map and the headline. */
-export function stormTitle(storm) {
-  const mph = ktToMph(storm.intensityKt);
-  const cat = storm.classification === "HU" ? category(mph) : null;
-  if (cat) return `Cat ${cat} ${storm.name}`;
-  const label = CLASS_LABEL[storm.classification] || storm.classification || "System";
-  return `${label} ${storm.name}`;
-}
-
 export function disturbanceTitle(area) {
   if (area.invest) return `Invest ${area.invest}`;
   return area.name || "Disturbance";
@@ -120,6 +104,8 @@ export function houstonPhrase(rel, { edge = false } = {}) {
  * major hurricane forecast to pass 100 miles offshore in two days — so an
  * active storm's score uses its FORECAST closest approach when it has one, and
  * a disturbance is discounted by how unlikely it is to become anything. */
+/* Also the one thing that still ranks systems now that the map and the headline
+ * are gone: index.jsx uses it to decide which storm card opens its graphics. */
 export function houstonScore(item) {
   const rel = item.houston;
   if (!rel) return Infinity;
