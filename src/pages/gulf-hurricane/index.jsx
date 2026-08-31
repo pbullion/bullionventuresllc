@@ -60,8 +60,22 @@ const SATELLITE = [
   },
 ];
 
-function Figure({ title, caption, url, bust }) {
-  const [failed, setFailed] = useState(false);
+/* A figure that hides itself when its image 404s, and TELLS ITS PARENT it did.
+ * Hiding alone is right for one missing graphic — NHC does not post all six for
+ * every advisory — but when every one fails the section it lives in has to say
+ * so rather than open onto an empty box. */
+function Figure({ title, caption, url, bust, onFail, onLoaded }) {
+  /* WHICH refresh this image failed on, not whether it has ever failed. A new
+   * `bust` is a new src, so the failure simply stops applying and the <img>
+   * mounts again — that is what makes a refresh a retry, and it is why a graphic
+   * NHC posts an hour later turns up on its own. Storing a boolean instead meant
+   * a figure that 404ed stayed hidden for the life of the card while the parent
+   * forgot why, which is the empty box this whole change is about.
+   *
+   * Derived rather than synced in an effect: no cascading render, and no
+   * react-hooks/set-state-in-effect error in a repo that keeps lint at zero. */
+  const [failedAt, setFailedAt] = useState(null);
+  const failed = failedAt === bust;
   if (failed) return null;
   return (
     <figure
@@ -82,7 +96,13 @@ function Figure({ title, caption, url, bust }) {
         src={`${url}${url.includes("?") ? "&" : "?"}t=${bust}`}
         alt={title}
         loading="lazy"
-        onError={() => setFailed(true)}
+        onError={() => {
+          setFailedAt(bust);
+          if (onFail) onFail();
+        }}
+        onLoad={() => {
+          if (onLoaded) onLoaded();
+        }}
         style={{ display: "block", width: "100%", height: "auto", background: "#0b0f19" }}
       />
     </figure>
@@ -264,6 +284,36 @@ function ForecastTable({ track }) {
 
 function StormCard({ storm, bust }) {
   const [openGraphics, setOpenGraphics] = useState(false);
+  const graphics = storm.graphics || [];
+
+  /* Which of this storm's graphics came back 404. Some always will: peak_surge
+   * exists only once a storm threatens the US coast, and key_messages waits on
+   * NHC issuing one, so a hidden figure is normal. All of them failing is not —
+   * that is a disclosure that opens onto nothing and reads as a broken button,
+   * which is exactly how a wrong folder in the API went unnoticed.
+   *
+   * Cleared on refresh, and that only tells the truth because Figure clears its
+   * own failure on the same `bust` and re-requests the image. Clearing this set
+   * alone would drop the explanation while every graphic stayed hidden — an
+   * empty box again, five minutes later. */
+  const [failedGraphics, setFailedGraphics] = useState(() => ({ bust, keys: new Set() }));
+  // Failures belong to the refresh that produced them, so a new bust discards
+  // them without an effect — the same derivation Figure uses, kept in step with
+  // it on purpose. A key is also dropped when its image later loads: collapsing
+  // and reopening the section remounts every Figure, so a graphic NHC posted in
+  // the meantime can come back 200 with no refresh at all, and the card must not
+  // keep insisting nothing was posted while it sits visible above the sentence.
+  const failedCount = failedGraphics.bust === bust ? failedGraphics.keys.size : 0;
+  const markGraphic = (key, failed) =>
+    setFailedGraphics((prev) => {
+      const stale = prev.bust !== bust;
+      if (!stale && prev.keys.has(key) === failed) return prev;
+      const keys = stale ? new Set() : new Set(prev.keys);
+      if (failed) keys.add(key);
+      else keys.delete(key);
+      return { bust, keys };
+    });
+  const allGraphicsFailed = graphics.length > 0 && failedCount >= graphics.length;
   const mph = ktToMph(storm.intensityKt);
   const cat = storm.classification === "HU" ? category(mph) : null;
   const accent = classColor(storm.classification, mph);
@@ -365,7 +415,7 @@ function StormCard({ storm, bust }) {
           PNGs per storm — and the map plus the table above now answer the
           question most visits are here for. Collapsed by default so opening the
           page during a storm is not a multi-megabyte download. */}
-      {(storm.graphics || []).length ? (
+      {graphics.length ? (
         <div style={{ borderTop: "1px solid #1e2a44" }}>
           <button
             onClick={() => setOpenGraphics((v) => !v)}
@@ -384,17 +434,45 @@ function StormCard({ storm, bust }) {
           </button>
           {openGraphics ? (
             <div style={{ padding: "0 12px 4px" }}>
-              {storm.graphics.map((g) => (
-                // Upgrade any "_sm" thumbnail URL to the full-resolution graphic
-                // so it stays crisp at full phone width (defensive — backend now
-                // emits full-res too).
+              {graphics.map((g) => (
                 <Figure
                   key={g.key}
                   title={g.title}
-                  url={g.url.replace("_sm+png/", "+png/")}
+                  url={g.url}
                   bust={bust}
+                  onFail={() => markGraphic(g.key, true)}
+                  onLoaded={() => markGraphic(g.key, false)}
                 />
               ))}
+              {allGraphicsFailed ? (
+                <div
+                  role="status"
+                  style={{
+                    margin: "0 0 12px",
+                    padding: "13px 14px",
+                    background: "#111827",
+                    border: "1px solid #1e2a44",
+                    borderRadius: 14,
+                    color: "#8892b0",
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                  }}>
+                  NHC has not posted graphics for advisory {storm.advNum || "this advisory"} yet.
+                  {storm.graphicsPageUrl ? (
+                    <>
+                      {" "}
+                      <a
+                        href={storm.graphicsPageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: "#7aa2ff", fontWeight: 600 }}>
+                        Check the storm&apos;s page on nhc.noaa.gov
+                      </a>
+                      .
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -460,11 +538,23 @@ export default function GulfHurricane() {
   const [showLoop, setShowLoop] = useState(false);
 
   const load = useCallback(async () => {
-    setStatus("loading");
+    /* Deliberately NOT setStatus("loading") here. "loading" is not "error", and
+     * an empty storm list with no error reads as calm — so re-entering it on the
+     * five-minute interval put the green all-clear back on screen for the length
+     * of every retry of an ongoing outage, and for as long as a bad connection
+     * kept the fetch open. A refresh keeps the last answer up until it has a new
+     * one; "loading" now means only "has never answered". */
     try {
       const res = await fetch(`${STORMS_API}?t=${Date.now()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      /* The route answers HTTP 200 with {error, storms: [], disturbances: []}
+       * when an upstream product is unreachable — deliberately, so this page can
+       * fall back to the static outlooks. Reading only res.ok turned that into
+       * "✓ No named storms and no formation areas. All quiet in the Atlantic &
+       * Gulf.", which is the one answer this page must never give when it does
+       * not actually know. */
+      if (data.error) throw new Error(String(data.error));
       setStorms(Array.isArray(data.storms) ? data.storms : []);
       setDisturbances(Array.isArray(data.disturbances) ? data.disturbances : []);
       setStatus("ok");
@@ -561,6 +651,24 @@ export default function GulfHurricane() {
             }}>
             Couldn&apos;t reach the live storm feed right now — showing the tropical outlooks and
             satellite below. Tap Refresh to retry.
+          </div>
+        ) : status === "loading" ? (
+          /* Before the first answer arrives there is nothing to be reassured
+           * about yet. HoustonHeadline reads a missing item as "nothing within
+           * reach of Houston", which is true once the feed has answered and a
+           * guess before it has. */
+          <div
+            style={{
+              margin: "4px 0 16px",
+              padding: "18px 16px",
+              background: "#0d1526",
+              border: "1px solid #1e2a44",
+              borderRadius: 14,
+              color: "#8892b0",
+              fontSize: 14,
+              fontWeight: 600,
+            }}>
+            Checking the latest advisories…
           </div>
         ) : (
           <HoustonHeadline item={headline} />
