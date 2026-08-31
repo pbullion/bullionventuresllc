@@ -78,6 +78,12 @@ const GROUPS = [
         tagline: "AAA gas-price markets — paper engine",
       },
       {
+        emoji: "🧮",
+        name: "Units & Caps",
+        path: "/engine-limits",
+        tagline: "Every engine's unit, max bet and caps on one page",
+      },
+      {
         emoji: "☕",
         name: "Morning Review",
         path: "/morning-review",
