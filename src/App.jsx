@@ -49,6 +49,7 @@ import CryptoValue from "./pages/crypto-value/index.jsx";
 import WeatherValue from "./pages/weather-value/index.jsx";
 import GasValue from "./pages/gas-value/index.jsx";
 import MorningReview from "./pages/morning-review/index.jsx";
+import EngineLimits from "./pages/engine-limits/index.jsx";
 import Briefing from "./pages/briefing/index.jsx";
 import GulfHurricane from "./pages/gulf-hurricane/index.jsx";
 import TripPlannerHome from "./pages/trip-planner/index.jsx";
@@ -88,6 +89,7 @@ export default function App() {
   const isWeatherValue = location.pathname.startsWith("/weather-value");
   const isGasValue = location.pathname.startsWith("/gas-value");
   const isMorningReview = location.pathname.startsWith("/morning-review");
+  const isEngineLimits = location.pathname.startsWith("/engine-limits");
   const isBriefing = location.pathname.startsWith("/briefing");
   const isEliteEdge = location.pathname.startsWith("/elite-edge-advisors");
   const isZargle = location.pathname.startsWith("/zargle");
@@ -119,6 +121,7 @@ export default function App() {
     isWeatherValue ||
     isGasValue ||
     isMorningReview ||
+    isEngineLimits ||
     isBriefing ||
     isEliteEdge ||
     isGulfHurricane ||
@@ -196,6 +199,9 @@ export default function App() {
           <Route path="/weather-value" element={<WeatherValue />} />
           <Route path="/gas-value" element={<GasValue />} />
           <Route path="/morning-review" element={<MorningReview />} />
+          {/* Cardless and unlisted like every betting screen — it is in
+              PRIVATE_TOOLS, not on the home page. */}
+          <Route path="/engine-limits" element={<EngineLimits />} />
           <Route path="/briefing" element={<Briefing />} />
           <Route path="/gulf-hurricane" element={<GulfHurricane />} />
           <Route path="/tripplanner" element={<TripPlannerHome />} />

@@ -81,7 +81,7 @@ When you add a new tool/page, do **all** of these, not just the route:
      call — it is read-only and has no controls that can move money. See its own
      section below.
    - **Everything unlisted goes somewhere else.** The pages kept off the public
-     home page — the six Kalshi/betting screens (Patrick, 2026-07-30) plus
+     home page — the seven Kalshi/betting screens (Patrick, 2026-07-30) plus
      `/patrick`, `/ffdraft`, `/ashley` and `/prospects` (2026-08-26) — live in
      `GROUPS` in `src/components/PrivateTools.jsx`. Add an unlisted page to the
      right group there instead of to `apps`/`tools`, and note that hiding it is
@@ -165,6 +165,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/weather-value` | `/kalshi-weather` |
 | `/gas-value` | `/kalshi-gas` |
 | `/morning-review` | `/kalshi/morning-report` + all four engines' `/auto-bets/status` |
+| `/engine-limits` | `/kalshi-limits` (one call — all four engines' units and caps) |
 | `/elite-edge-advisors` | `/elite-edge-advisors`, `/odds`, `/parlays` |
 | `/gulf-hurricane` | `/nhc` |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` |
@@ -415,6 +416,15 @@ per-user iCal feeds are unrelated and untouched.)
   once on 401. Changed 2026-07-27 at Patrick's request; before that kill was
   open and only loosening prompted. Note the tradeoff this accepted: the
   emergency stop now needs the PIN on a browser that has never used it.
+- **`/engine-limits` is READ-ONLY on purpose.** It shows every engine's unit,
+  max bet and caps in one place (`GET /kalshi-limits`, one call, rendered
+  verbatim — the selection and ordering of the rows is `LIMIT_RANK` in the
+  backend's `services/engineOverrides.js`, not a list in this repo). It has no
+  controls at all: a page built to put twelve money limits on one screen is the
+  wrong place to be one mis-tap from raising one, so each card links to the
+  engine's own PIN-gated screen instead. Keep it that way. kalshi-live's Limits
+  tab renders the same payload — add a knob to the backend map and it appears
+  on both with no deploy here.
 - **Do not re-enable the recurring push crons** in the backend's
   `routes/bullion_ventures.js` — hard-disabled 2026-07-22 (commented out, not
   env-gated) because the auto-bettor's per-bet pushes made them redundant
