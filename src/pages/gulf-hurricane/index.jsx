@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import {
   CLASS_LABEL,
   category,
@@ -27,6 +27,16 @@ import {
  * the outlook this page said "no active tropical cyclones" while an invest sat
  * in the Gulf — the exact situation it exists to warn about. */
 const STORMS_API = "https://sheline-art-website-api.herokuapp.com/nhc/current-storms";
+
+/* Radar under the cone — the one thing on this page that is a picture of the
+ * weather rather than a picture of the forecast. Asked for on 2026-08-31 with a
+ * weather.com radar screenshot; see the header comment in RadarMap.jsx for how
+ * it differs from the Houston-anchored map removed earlier the same day.
+ *
+ * LAZY, and it has to stay that way. It pulls in leaflet, which is ~150 KB and
+ * has no business in the bundle a visitor to the home page downloads. Same shape
+ * as /drive's Radar.jsx and /hrw's MapView.jsx. */
+const RadarMap = lazy(() => import("./RadarMap.jsx"));
 
 
 // Always-on NOAA imagery — works even when no storm is active and even if the
@@ -592,6 +602,31 @@ export default function GulfHurricane() {
             Checking the latest advisories…
           </div>
         ) : null}
+
+        {/* The map leads, because "is it raining on it yet, and is it pointed at
+            me" is one question and this is the only thing on the page that can
+            answer it. The cards and the NHC graphics still follow it unchanged —
+            they are what the map is read against. */}
+        <SectionLabel>Radar &amp; Track</SectionLabel>
+        <Suspense
+          fallback={
+            <div
+              style={{
+                height: 360,
+                background: "#111827",
+                border: "1px solid #1e2a44",
+                borderRadius: 14,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#8892b0",
+                fontSize: 13,
+              }}>
+              Loading map…
+            </div>
+          }>
+          <RadarMap storms={storms} disturbances={disturbances} />
+        </Suspense>
 
         {disturbances.length ? (
           <>
