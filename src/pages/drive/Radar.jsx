@@ -93,7 +93,7 @@ function Radar({ coords, frames, interactive = false, onExpand }) {
 
     layersRef.current.forEach((l) => map.removeLayer(l));
     layersRef.current = frames.map((f) =>
-      // maxNativeZoom 7 — see the note on fetchRadarFrames in data.js.
+      // maxNativeZoom 7 — see the note on RADAR_MAX_NATIVE_ZOOM in src/lib/rainviewer.js.
       L.tileLayer(f.url, {
         opacity: 0,
         maxZoom: 12,

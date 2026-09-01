@@ -63,7 +63,12 @@ export async function fetchRadarFrames(timeout = 10000) {
       url: `${data.host}${f.path}/512/{z}/{x}/{y}/4/1_1.png`,
       forecast: !past.includes(f),
     }));
-  } catch {
+  } catch (err) {
+    /* Logged, not swallowed. /drive runs unattended in a car for hours, and
+     * "the radar card is empty" with nothing in the console is the shape of
+     * problem that gets misdiagnosed as the tile server. This warning is the
+     * one it used to carry before this moved out of drive/data.js. */
+    console.warn("[radar] frame index failed:", err?.message || err);
     return null;
   } finally {
     clearTimeout(timer);
