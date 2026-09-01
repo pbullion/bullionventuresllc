@@ -135,14 +135,18 @@ export default function GasValue() {
   );
 
   const betRow = (b, isPaper) => {
-    // WON when the market's outcome equals the side held; a real row the
-    // cash-out monitor sold carries the literal 'cashed_out' instead.
+    /* WON when the market's outcome equals the side held; a real row the
+     * cash-out monitor sold carries the literal 'cashed_out' instead — and
+     * that is a WIN too as of 2026-09-01, so it is green like any other. The
+     * label stays SOLD because a win taken at >=90% of max payout is worth
+     * telling apart from one that ran to settlement. */
     const res = b.result
-      ? b.result === b.side
-        ? { color: C.green, label: "WON" }
-        : b.result === "cashed_out"
-          ? { color: C.amber, label: "SOLD" }
-          : { color: C.red, label: "LOST" }
+      ? b.result === b.side || b.result === "cashed_out"
+        ? {
+            color: C.green,
+            label: b.result === "cashed_out" ? "SOLD" : "WON",
+          }
+        : { color: C.red, label: "LOST" }
       : null;
     const price = isPaper ? b.price : (b.fill_price ?? b.intended_price);
     const pnl = isPaper ? b.pnl : b.pnl_dollars;
@@ -200,10 +204,12 @@ export default function GasValue() {
 
       <EngineBlockedBanner blocked={status && status.blocked} engine="Gas" />
 
-      {/* The two ledgers, numbers first. Wins, losses and sold-early are three
-          separate counts (the cash-out monitor sells winners before they
-          settle, stamping the literal 'cashed_out') — blending them printed
-          "0 wins" over green days on both other engines. */}
+      {/* The two ledgers, numbers first. A cash-out counts as a WIN as of
+          2026-09-01 — the backend folds it into `won`, so won-lost adds up on
+          its own and `sold early` is a detail about the wins, not a third
+          outcome. Reading a raw row's result as a win by comparing it to
+          `side` still misses every sold row, which printed "0 wins" over green
+          days on both other engines. */}
       <LedgerTiles
         tiles={[
           {

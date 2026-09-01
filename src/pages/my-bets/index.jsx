@@ -394,20 +394,6 @@ const S = {
     color: won ? C.green : C.red,
     backgroundColor: won ? C.greenSoft : C.redSoft,
   }),
-  /* Sold before the market resolved — a third outcome, not a shade of the
-   * other two, so it gets its own color rather than borrowing won/lost. */
-  cashedPill: {
-    flexShrink: 0,
-    fontSize: 12,
-    fontWeight: 800,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    padding: "4px 10px",
-    borderRadius: 999,
-    color: C.amber,
-    backgroundColor: "rgba(234, 179, 8, 0.14)",
-    whiteSpace: "nowrap",
-  },
   histSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
   histLegs: {
     marginTop: 14,
@@ -1706,8 +1692,13 @@ function HistoryCard({ item, isOpen, onToggle }) {
             <span style={S.betTitle}>{title}</span>
           </div>
           <div
-            style={cashed ? S.cashedPill : S.resultPill(item.outcome === "won")}
+            style={
+              cashed ? S.resultPill(true) : S.resultPill(item.outcome === "won")
+            }
           >
+            {/* A cash-out is a win, so it takes the win pill — but it keeps its
+                own words, because a position sold at >=90% of max payout is
+                worth telling apart from one that ran to settlement. */}
             {cashed ? "💰 Cashed out" : item.outcome === "won" ? "Won" : "Lost"}
           </div>
         </div>
@@ -2789,12 +2780,18 @@ export default function MyBets() {
   });
   hist.sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
-  // Record across the merged list. A cash-out is its own outcome — folding it
-  // into the losses is what made the old record read 0-for-everything on days
-  // the monitor was busy.
-  const histWins = hist.filter((h) => h.outcome === "won").length;
-  const histLosses = hist.filter((h) => h.outcome === "lost").length;
+  /* Record across the merged list. A CASH-OUT COUNTS AS A WIN (2026-09-01):
+     the monitor only sells at >=90% of max payout, so it is a win taken early.
+     It is still counted separately as well, and still shown, because "24W 8L,
+     6 sold" says more than "24W 8L" — but it is no longer a third outcome
+     sitting outside the record.
+
+     What it must never be folded into is LOSSES. That is what made the old
+     record read 0-for-everything on days the monitor was busy. */
   const histCashed = hist.filter((h) => h.outcome === "cashed").length;
+  const histWins =
+    hist.filter((h) => h.outcome === "won").length + histCashed;
+  const histLosses = hist.filter((h) => h.outcome === "lost").length;
   const histPnl = hist.reduce((acc, h) => acc + (Number(h.pnl) || 0), 0);
 
   // Portfolio = cash + the live mark of open positions. (This mark is distinct

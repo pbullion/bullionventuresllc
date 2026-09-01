@@ -31,9 +31,22 @@ import {
  * about weather is still here; nothing generic is. */
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/kalshi-weather";
 
-const RESULT_STYLE = {
-  won: { color: C.green, label: "WON" },
-  lost: { color: C.red, label: "LOST" },
+/* One row's verdict.
+ *
+ * A weather result is the MARKET's outcome ('yes' / 'no'), so a win is
+ * `result === side`. This used to be a RESULT_STYLE lookup keyed on
+ * 'won' / 'lost' — words this ledger never writes — so it never matched, and
+ * every resolved row fell through to an amber "YES" / "NO" that said nothing
+ * about whether the bet came in.
+ *
+ * A CASH-OUT IS A WIN (2026-09-01), green like any other, and still labelled
+ * SOLD: the monitor only sells at >=90% of max payout, so it is a win taken
+ * early, and how it was taken is worth seeing on the row. */
+const verdict = (b) => {
+  if (!b.result) return null;
+  if (b.result === "cashed_out") return { color: C.green, label: "SOLD" };
+  if (b.result === b.side) return { color: C.green, label: "WON" };
+  return { color: C.red, label: "LOST" };
 };
 
 export default function WeatherValue() {
@@ -122,12 +135,17 @@ export default function WeatherValue() {
   const byExit = (status && status.live_by_exit) || {};
   const byLead = (status && status.live_by_lead) || {};
 
-  /* THE RECORD NEEDS ALL THREE COUNTS. The auto cash-out monitor sells at >=90%
-     of max payout, i.e. it sells winners shortly before they would settle as
-     wins, so a sold row's result is the literal 'cashed_out' and never 'yes' or
-     'no'. Reading wins alone printed "0 wins on 34 fills" on 2026-08-20 over a
-     ledger where 8 of 14 resolved positions had MADE money. Wins, losses and
-     sold-early are three separate counts that add up to resolved. */
+  /* A CASH-OUT IS A WIN (2026-09-01), and the backend now counts it in `won` —
+     so `won` and `lost` add up to resolved on their own, and `cashed` says how
+     many of those wins the monitor sold early rather than being a third
+     outcome. Don't add it back in: that would double-count.
+
+     What must not come back is reading a raw ledger row's `result` as a win by
+     comparing it to `side`. The monitor sells at >=90% of max payout, i.e. it
+     sells winners shortly before they settle, and a sold row's result is the
+     literal 'cashed_out' — never 'yes' or 'no'. That printed "0 wins on 34
+     fills" here on 2026-08-20 over a ledger where 8 of 14 resolved positions
+     had MADE money. */
   const record = (l) => {
     if (!l) return null;
     const w = Number(l.won || 0),
@@ -138,11 +156,7 @@ export default function WeatherValue() {
   };
 
   const betRow = (b, isPaper) => {
-    const res =
-      RESULT_STYLE[b.result] ||
-      (b.result
-        ? { color: C.amber, label: String(b.result).toUpperCase() }
-        : null);
+    const res = verdict(b);
     const price = isPaper ? b.price : (b.fill_price ?? b.intended_price);
     const pnl = isPaper ? b.pnl : b.pnl_dollars;
     return (
