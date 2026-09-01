@@ -345,8 +345,11 @@ easy to confuse:
   page refetches every five minutes and hands the component a new array each
   time; re-fitting on that would yank the view out from under a reader who had
   panned. A storm crawling a few miles between advisories must not re-frame.
-- **Both of this page's backend bugs were fixed on 2026-08-31** — the entry
-  here used to say they were outstanding, so read it as history:
+- **Both of this page's backend bugs are fixed in `shelineArtWebsiteAPI` PR #6.**
+  Written against that PR rather than against a date, because it is a shared
+  backend and the merge is not this repo's to make — until it lands,
+  `forecast[].type` is still null in production and the Stage column is still an
+  em dash. What the fix does:
   - **`forecast[].type` was null on every point**, which is why the Stage column
     was an em dash on every row and the map tooltip never showed a stage. NHC's
     TRACK placemarks carry no stage in their ExtendedData *or* their

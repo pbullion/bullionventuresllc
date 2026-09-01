@@ -491,11 +491,12 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
      * "whichever area is most likely right now" rather than a system — which is
      * why this keys on the area's own position instead.
      *
-     * THE BACKEND FIXED THAT on 2026-08-31 (`outlookId` in `routes/nhc.js`): an
-     * id is now the invest label, or the centre rounded to a degree. This stays
-     * on `center` anyway — it is the same information without depending on the
-     * backend's rounding, and it keeps working against a dyno still serving the
-     * old format for the few minutes after a deploy. */
+     * `shelineArtWebsiteAPI` PR #6 fixes that (`outlookId` in `routes/nhc.js`):
+     * an id becomes the invest label, or the centre rounded to a degree. This
+     * stays on `center` either way — it is the same information without
+     * depending on the backend's rounding, so it is correct before that PR
+     * lands, after it lands, and during the deploy window when the dyno may
+     * still be serving the old format. */
     const ids = [
       ...storms.map((s) => s.id),
       ...disturbances.map((d) =>
