@@ -32,10 +32,16 @@ What works today:
   sports widgets, and an odds screen, designed for the car browser. Older code
   (mixed axios, MUI, CSS files); works, but it's the messiest corner.
 - **Gulf Hurricane** (`/gulf-hurricane`) — NHC storm data via the backend
-  proxy + direct NOAA imagery. Added July 2026, seasonal. Rebuilt around a
-  Houston-anchored Leaflet map in Aug 2026, then stripped back to storm cards
-  plus NHC graphics on 2026-08-31 when Patrick removed the map and the headline
-  (see the CLAUDE.md section).
+  proxy + direct NOAA imagery. Added July 2026, seasonal. Three shapes in three
+  weeks, and the order matters: rebuilt around a Houston-anchored Leaflet map in
+  Aug 2026; stripped back to storm cards plus NHC graphics on 2026-08-31 when
+  Patrick removed that map and the "closest to Houston" headline; then, later
+  the same day, given a **different** map — `RadarMap.jsx`, animated RainViewer
+  rain radar under the NHC cone and forecast track, asked for against a
+  weather.com screenshot. So the page today is: radar map, disturbance cards,
+  storm cards. The headline stays gone. Read the CLAUDE.md section before
+  touching any of it — the distinction between the two maps is the whole
+  history.
 - **Elite Edge Advisors** (`/elite-edge-advisors`) — ported from the separate
   `elite_edge_vip`-adjacent web repo on 2026-07-17 ("Port Elite Edge Advisors
   bet board"). The bet board plus the MyBookie-JSON input modal

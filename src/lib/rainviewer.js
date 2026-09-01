@@ -8,10 +8,8 @@
  *   1. The frame list is a manifest fetch, not a tile URL. `weather-maps.json`
  *      hands back a host plus a path per frame; the frame paths change every
  *      ten minutes, so nothing may hardcode one.
- *   2. RADAR IS ONLY SERVED TO ZOOM 7. Above that RainViewer returns an error
- *      image rather than a 404 — a tile that looks like broken radar instead of
- *      absent radar — so every consumer must pass `maxNativeZoom: 7` and let
- *      Leaflet upscale.
+ *   2. RADAR IS ONLY SERVED TO ZOOM 7 — see RADAR_MAX_NATIVE_ZOOM below, which
+ *      carries the two limits found by probing rather than from the docs.
  *   3. `nowcast` frames are a FORECAST. They are appended to the past frames
  *      because a radar loop that stops at "now" is half a loop, but a caller
  *      that presents them as observed radar is lying, hence the `forecast` flag
@@ -22,8 +20,7 @@
  */
 
 /* RainViewer serves radar composites up to zoom 7 and an error image above it.
- *
- * Both of the limits below were found by probing, not from the docs:
+ * Both limits below were found by probing, not from the docs:
  *   - Past zoom 7 the tile server stops returning radar and starts returning a
  *     constant-size "Zoom Level Not Supported" image, WITH A 200. It does not
  *     404, so Leaflet happily paints the error across the map — which is what

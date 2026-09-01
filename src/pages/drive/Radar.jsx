@@ -23,12 +23,9 @@ import "leaflet/dist/leaflet.css";
 // One copy of the zoom-7 limit, shared with /gulf-hurricane. See the header
 // comment in src/lib/rainviewer.js for why it exists.
 import { RADAR_MAX_NATIVE_ZOOM } from "../../lib/rainviewer.js";
+import { BASEMAP_URL, LABELS_URL } from "../../lib/basemap.js";
 
 const FRAME_MS = 480;
-const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas";
-// Esri serves these {z}/{y}/{x} — the row before the column, unlike most schemes.
-const BASEMAP = `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
-const LABELS = `${ESRI}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`;
 
 /* `interactive` is off on the board and on in the expanded view. On the board a
  * pannable map is a trap — a stray finger moves it off the car's position and
@@ -59,8 +56,8 @@ function Radar({ coords, frames, interactive = false, onExpand }) {
       fadeAnimation: false,
     });
     if (interactive) L.control.zoom({ position: "bottomright" }).addTo(map);
-    L.tileLayer(BASEMAP, { maxZoom: 12 }).addTo(map);
-    L.tileLayer(LABELS, { maxZoom: 12, opacity: 0.62, zIndex: 500 }).addTo(map);
+    L.tileLayer(BASEMAP_URL, { maxZoom: 12 }).addTo(map);
+    L.tileLayer(LABELS_URL, { maxZoom: 12, opacity: 0.62, zIndex: 500 }).addTo(map);
     mapRef.current = map;
 
     /* Leaflet caches the container size at construction and does not notice it

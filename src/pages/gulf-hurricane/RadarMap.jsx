@@ -23,16 +23,16 @@
  * index.jsx — the same shape /drive's Radar.jsx uses — so leaflet stays out of
  * the bundle every bullionventuresllc.com visitor downloads.
  *
- * Tiles are Esri, NOT CARTO: cartocdn now serves its free tiles with "API KEY
- * REQUIRED" printed across them at HTTP 200, so it fails by looking broken
- * rather than by erroring. Note Esri's tile path is {z}/{y}/{x} — row before
- * column, unlike most schemes.
+ * The basemap and the radar frame index are both shared with /drive — see
+ * src/lib/basemap.js and src/lib/rainviewer.js for the tile-server traps each
+ * of them encodes.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { RADAR_MAX_NATIVE_ZOOM, fetchRadarFrames } from "../../lib/rainviewer.js";
+import { BASEMAP_URL, LABELS_URL } from "../../lib/basemap.js";
 import {
   CLASS_LABEL,
   HOUSTON,
@@ -42,10 +42,6 @@ import {
   disturbanceTitle,
   ktToMph,
 } from "./storms";
-
-const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas";
-const BASEMAP = `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
-const LABELS = `${ESRI}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`;
 
 // Slower than /drive's 480ms. That loop plays under a driver's glance; this one
 // is read against a cone, and a frame you cannot follow to the next is not a
@@ -71,6 +67,12 @@ const FIT = { padding: [30, 30], maxZoom: 8 };
 // pixels across, which is what makes most storm maps useless from here. It is
 // also what keeps an East Pacific hurricane (there were two on the day this was
 // written) from zooming Houston off the screen.
+//
+// DELIBERATELY NOT the backend's NEARBY_MI (900, routes/nhc.js), which counts
+// systems for a headline this page no longer has. A framing radius wants to be
+// generous — a storm just outside it is a storm you cannot see at all — where a
+// count wants to be conservative. If a "N systems near you" line ever comes
+// back, it must not quote one number next to a map drawn with the other.
 const NEAR_RADIUS_MI = 1200;
 // ...and a floor, so a storm sitting on top of Houston doesn't zoom in past the
 // coastline it has to be placed against.
@@ -178,7 +180,15 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
   const stormLayerRef = useRef(null);
-  const radarLayersRef = useRef([]);
+  /* frame.time -> tile layer. A Map rather than an array because a refresh
+   * mostly hands back frames we already have: RainViewer's path for a given
+   * timestamp never changes, so keying on the timestamp lets a refresh add the
+   * one new frame and drop the one that aged out instead of tearing down and
+   * refetching all eleven. */
+  const radarLayersRef = useRef(new Map());
+  /* The timestamp currently on screen, so the frame survives a refresh even
+   * though its INDEX moves when the window slides. */
+  const shownTimeRef = useRef(null);
 
   const [frames, setFrames] = useState(null);
   // null = still asking, false = asked and RainViewer had nothing for us.
@@ -189,8 +199,18 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
 
   /* ------------------------------------------------------------------ data */
 
+  const aliveRef = useRef(true);
+  useEffect(
+    () => () => {
+      aliveRef.current = false;
+    },
+    [],
+  );
+
   const loadFrames = useCallback(async () => {
     const next = await fetchRadarFrames();
+    // A 10-second fetch can outlive the page it was started from.
+    if (!aliveRef.current) return;
     /* A refresh that fails keeps the frames already on screen. Radar an hour
      * old with the timestamp saying so beats an empty map, and RainViewer's
      * index is the one upstream here that is not behind our own backend. */
@@ -218,6 +238,9 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
   useEffect(() => {
     if (!hostRef.current || mapRef.current) return undefined;
 
+    // Captured for the cleanup below: the Map is never reassigned, only
+    // mutated, but reading a ref from a teardown is what the lint rule is for.
+    const layers = radarLayersRef.current;
     const map = L.map(hostRef.current, {
       center: [HOUSTON.lat, HOUSTON.lon],
       zoom: 6,
@@ -231,11 +254,11 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
       worldCopyJump: true,
       fadeAnimation: false,
     });
-    L.tileLayer(BASEMAP, { maxZoom: 12 }).addTo(map);
+    L.tileLayer(BASEMAP_URL, { maxZoom: 12 }).addTo(map);
     // zIndex only orders within the tile pane, which is where both of these and
     // the radar live — so labels sit above the radar, and the cone and track
     // (vectors, in the overlay pane) sit above all three.
-    L.tileLayer(LABELS, { maxZoom: 12, opacity: 0.62, zIndex: 500 }).addTo(map);
+    L.tileLayer(LABELS_URL, { maxZoom: 12, opacity: 0.62, zIndex: 500 }).addTo(map);
     stormLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
@@ -250,39 +273,61 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
       map.remove();
       mapRef.current = null;
       stormLayerRef.current = null;
-      radarLayersRef.current = [];
+      // map.remove() takes its layers with it; this just drops our handles.
+      layers.clear();
     };
   }, []);
 
-  /* All frames are added up front at zero opacity and then cross-faded. Adding
-   * and removing a tile layer per frame makes the loop stutter while each new
-   * layer fetches its tiles; pre-loading trades a little memory for a smooth
-   * animation, which is the whole value of a radar loop. */
+  /* Every frame is on the map at zero opacity and the loop cross-fades between
+   * them. Adding and removing a tile layer per frame makes the loop stutter
+   * while each new layer fetches its tiles; keeping them all mounted trades a
+   * little memory for a smooth animation, which is the whole value of a loop.
+   *
+   * A REFRESH IS A DIFF, NOT A REBUILD — of the layers and of the play head.
+   * Rebuilding both is the obvious thing and it is wrong twice over: it
+   * refetches ~11 frames of tiles that have not changed, and it throws away the
+   * frame the reader had scrubbed to. Someone comparing 40-minute-old radar
+   * against the cone would have the map jump back to "now" under them every
+   * five minutes, which is the same failure the map framing guards against
+   * below. */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !frames?.length) return undefined;
 
-    radarLayersRef.current.forEach((l) => map.removeLayer(l));
-    radarLayersRef.current = frames.map((f) =>
-      L.tileLayer(f.url, {
-        opacity: 0,
-        maxZoom: 12,
-        // Zoom 7 is all RainViewer serves; above it the tile server returns an
-        // error IMAGE at HTTP 200. See src/lib/rainviewer.js.
-        maxNativeZoom: RADAR_MAX_NATIVE_ZOOM,
-        zIndex: 400,
-      }).addTo(map),
-    );
-    /* Open on the most recent OBSERVED frame, not on frame zero and not on the
-     * last nowcast: "now" is what a person opening a radar map is asking about,
-     * and the loop runs forward from there on its own. */
-    const lastObserved = frames.reduce((best, f, i) => (f.forecast ? best : i), 0);
-    setFrameIdx(lastObserved);
+    const layers = radarLayersRef.current;
+    const wanted = new Set(frames.map((f) => f.time));
+    for (const [time, layer] of layers) {
+      if (wanted.has(time)) continue;
+      map.removeLayer(layer);
+      layers.delete(time);
+    }
+    for (const f of frames) {
+      if (layers.has(f.time)) continue;
+      layers.set(
+        f.time,
+        L.tileLayer(f.url, {
+          opacity: 0,
+          maxZoom: 12,
+          // Zoom 7 is all RainViewer serves; above it the tile server returns
+          // an error IMAGE at HTTP 200. See src/lib/rainviewer.js.
+          maxNativeZoom: RADAR_MAX_NATIVE_ZOOM,
+          zIndex: 400,
+        }).addTo(map),
+      );
+    }
 
-    return () => {
-      radarLayersRef.current.forEach((l) => map.removeLayer(l));
-      radarLayersRef.current = [];
-    };
+    setFrameIdx(() => {
+      // Same timestamp, new position in a slid window: stay on it.
+      const held = frames.findIndex((f) => f.time === shownTimeRef.current);
+      if (held >= 0) return held;
+      /* First load, or the frame we were on has aged out of the window. Open on
+       * the most recent OBSERVED frame — not frame zero and not the last
+       * nowcast: "now" is what someone opening a radar map is asking about, and
+       * the loop runs forward from there on its own. */
+      return frames.reduce((best, f, i) => (f.forecast ? best : i), 0);
+    });
+
+    return undefined;
   }, [frames]);
 
   useEffect(() => {
@@ -291,11 +336,14 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
     return () => clearInterval(id);
   }, [playing, frames]);
 
+  const frame = frames?.[frameIdx] ?? null;
+
   useEffect(() => {
-    radarLayersRef.current.forEach((layer, i) =>
-      layer.setOpacity(i === frameIdx ? RADAR_OPACITY : 0),
-    );
-  }, [frameIdx, frames]);
+    if (!frame) return;
+    shownTimeRef.current = frame.time;
+    const layers = radarLayersRef.current;
+    frames.forEach((f, i) => layers.get(f.time)?.setOpacity(i === frameIdx ? RADAR_OPACITY : 0));
+  }, [frame, frameIdx, frames]);
 
   /* ------------------------------------------- storms, tracks and cones */
 
@@ -438,7 +486,19 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
         nearBounds(points)
       : points.reduce((b, p) => b.extend(p), L.latLngBounds(home, home));
 
-    const ids = [...storms.map((s) => s.id), ...disturbances.map((d) => d.id)].sort().join(",");
+    /* Storm ids are NHC's (al052026) and stable. A disturbance's `id` is NOT —
+     * the backend mints it as an array index and then re-sorts, so `two-1` means
+     * "whichever area currently has the best odds", not a particular system.
+     * Keyed on the area's own position instead, so the outlook swapping one area
+     * for another re-frames the map rather than looking unchanged. */
+    const ids = [
+      ...storms.map((s) => s.id),
+      ...disturbances.map((d) =>
+        d.center ? `two:${d.center.lat.toFixed(1)},${d.center.lon.toFixed(1)}` : `two:${d.id}`,
+      ),
+    ]
+      .sort()
+      .join(",");
     const key = [
       scope,
       ids,
@@ -454,7 +514,6 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
 
   /* ------------------------------------------------------------------- ui */
 
-  const frame = frames?.[frameIdx];
   const stamp = frame ? clockTime(frame.time) : null;
   const nowIdx = frames ? frames.findIndex((f) => f.forecast) : -1;
 
@@ -605,7 +664,11 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
                   {clockTime(frames[0].time)} → {clockTime(frames[frames.length - 1].time)}
                 </span>
               </div>
-              <div style={{ display: "flex", alignItems: "stretch", gap: 3, height: 22 }}>
+              {/* 36px tall, not the 22px the bar looks like: this is the one
+                  control on the card whose whole job is picking one frame out
+                  of eleven, and on a phone each is only ~28px wide. The visible
+                  bar is an inner div so the target can be bigger than it. */}
+              <div style={{ display: "flex", alignItems: "stretch", gap: 3, height: 36 }}>
                 {frames.map((f, i) => (
                   <button
                     key={f.time}
@@ -620,20 +683,26 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
                     style={{
                       flex: 1,
                       minWidth: 0,
-                      padding: 0,
+                      padding: "7px 0",
                       cursor: "pointer",
-                      borderRadius: 3,
+                      background: "transparent",
                       // The divider between observed radar and nowcast. Weather
                       // that has happened and weather that is predicted must not
                       // look like one continuous strip.
                       border: "none",
                       borderLeft: i === nowIdx && nowIdx > 0 ? "2px solid #8892b0" : "none",
-                      background:
-                        i === frameIdx ? (f.forecast ? "#a78bfa" : "#38bdf8")
-                        : f.forecast ? "#2f2a4d"
-                        : "#1e2a44",
-                    }}
-                  />
+                    }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        borderRadius: 3,
+                        background:
+                          i === frameIdx ? (f.forecast ? "#a78bfa" : "#38bdf8")
+                          : f.forecast ? "#2f2a4d"
+                          : "#1e2a44",
+                      }}
+                    />
+                  </button>
                 ))}
               </div>
             </>
