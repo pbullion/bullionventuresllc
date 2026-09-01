@@ -55,9 +55,14 @@ export async function fetchRadarFrames(timeout = 10000) {
 
     const past = data.radar.past.slice(-PAST_FRAMES);
     const nowcast = (data.radar.nowcast || []).slice(0, NOWCAST_FRAMES);
-    /* Colour scheme 4 (Universal Blue), smoothed, no snow overlay — the 512px
-     * variant, because a 256px composite upscaled from zoom 7 to zoom 9 is
-     * mush. `1_1` is smooth + snow; see RainViewer's tile docs. */
+    /* `/{size}/{z}/{x}/{y}/{scheme}/{smooth}_{snow}.png`, so this is colour
+     * scheme 4 (Universal Blue) with smoothing ON and the snow overlay ON.
+     *
+     * The 512px variant is the retina tile — same z/x/y, twice the pixels —
+     * because a 256px composite upscaled from zoom 7 to zoom 9 is mush. Note
+     * whiparound-firetv deliberately requests /256/ from this same scheme: it
+     * draws every tile at double size on a stick with a phone's memory, so it
+     * spends the heap rather than the sharpness. */
     return [...past, ...nowcast].map((f) => ({
       time: f.time,
       url: `${data.host}${f.path}/512/{z}/{x}/{y}/4/1_1.png`,
