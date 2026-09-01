@@ -31,6 +31,16 @@ export function category(mph) {
   return null;
 }
 
+/* NHC's classification codes, spelled out.
+ *
+ * KEEP THIS IN STEP WITH `STAGE_BY_CLASS` in the backend's
+ * `services/nhcTrack.js`. The two tables describe the same storm from two
+ * fields: this one labels `storm.classification` (still a code on the wire),
+ * that one produces `forecast[].type` (already prose). A code present in one
+ * and missing from the other makes a single card contradict itself — `LO` did
+ * exactly that the day the Stage column started rendering, reading "LO" in the
+ * pill, "System" in the map tooltip and "Low" in the forecast table, all for
+ * one storm on one screen. */
 export const CLASS_LABEL = {
   TD: "Tropical Depression",
   TS: "Tropical Storm",
@@ -39,6 +49,7 @@ export const CLASS_LABEL = {
   STS: "Subtropical Storm",
   PTC: "Potential Tropical Cyclone",
   RM: "Remnants",
+  LO: "Low",
 };
 
 export function classColor(c, mph) {

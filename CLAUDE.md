@@ -345,14 +345,28 @@ easy to confuse:
   page refetches every five minutes and hands the component a new array each
   time; re-fitting on that would yank the view out from under a reader who had
   panned. A storm crawling a few miles between advisories must not re-frame.
-- **A disturbance's `id` is not stable identity.** The backend mints it as an
-  array index (`two-1`) and then re-sorts by formation chance, so `two-1` means
-  "whichever area currently has the best odds". Anything keying on a disturbance
-  across refreshes must use its `center` instead — `RadarMap.jsx`'s fit key
-  does. Same reason its `forecast[].type` is always null today, so the Stage
-  column and the forecast tooltip's stage line never render: NHC's TRACK
-  placemarks carry no stage and the route has nothing to fall back to. Both are
-  backend fixes in `routes/nhc.js`, not frontend ones.
+- **Both of this page's backend bugs are fixed in `shelineArtWebsiteAPI` PR #6.**
+  Written against that PR rather than against a date, because it is a shared
+  backend and the merge is not this repo's to make — until it lands,
+  `forecast[].type` is still null in production and the Stage column is still an
+  em dash. What the fix does:
+  - **`forecast[].type` was null on every point**, which is why the Stage column
+    was an em dash on every row and the map tooltip never showed a stage. NHC's
+    TRACK placemarks carry no stage in their ExtendedData *or* their
+    description; it is only in the point's `<styleUrl>` icon. The route reads
+    that now and emits **prose** ("Tropical Storm", "Post-Tropical Depression"),
+    not a code — so **do not pass `forecast[].type` through `CLASS_LABEL`**, it
+    is already spelled out. `storm.classification` is still a code and still
+    needs the table.
+  - **A disturbance's `id` was an array index** minted before a re-sort, so
+    `two-1` meant "whichever area has the best odds". It is now the invest label
+    or the area's rounded centre. `RadarMap.jsx`'s fit key stays on `center`
+    regardless — same information, no dependency on the backend's rounding.
+  - **`CLASS_LABEL` in `storms.js` must stay in step with `STAGE_BY_CLASS` in
+    the backend's `services/nhcTrack.js`.** A code in one and not the other makes
+    one card contradict itself: the day the Stage column started rendering, an
+    `LO` system read "LO" in the pill, "System" in the map tooltip and "Low" in
+    the forecast table.
 - `leaflet` is lazy-loaded here (`React.lazy` in `index.jsx`), as it is in
   `/drive` and `/hrw` — it is ~150 KB and has no business in the bundle a home
   page visitor downloads. Keep it that way.

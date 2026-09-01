@@ -486,11 +486,17 @@ export default function RadarMap({ storms = [], disturbances = [] }) {
         nearBounds(points)
       : points.reduce((b, p) => b.extend(p), L.latLngBounds(home, home));
 
-    /* Storm ids are NHC's (al052026) and stable. A disturbance's `id` is NOT —
-     * the backend mints it as an array index and then re-sorts, so `two-1` means
-     * "whichever area currently has the best odds", not a particular system.
-     * Keyed on the area's own position instead, so the outlook swapping one area
-     * for another re-frames the map rather than looking unchanged. */
+    /* Storm ids are NHC's (al052026). Disturbance ids used to be an array index
+     * minted before the backend re-sorted by formation odds, so `two-1` meant
+     * "whichever area is most likely right now" rather than a system — which is
+     * why this keys on the area's own position instead.
+     *
+     * `shelineArtWebsiteAPI` PR #6 fixes that (`outlookId` in `routes/nhc.js`):
+     * an id becomes the invest label, or the centre rounded to a degree. This
+     * stays on `center` either way — it is the same information without
+     * depending on the backend's rounding, so it is correct before that PR
+     * lands, after it lands, and during the deploy window when the dyno may
+     * still be serving the old format. */
     const ids = [
       ...storms.map((s) => s.id),
       ...disturbances.map((d) =>
