@@ -197,11 +197,16 @@ const S = {
   },
   /* auto-fill rather than auto-fit: a group with one row (none today, but
      Banking is two) keeps a card-width tile instead of stretching it across
-     the whole 940px shell. */
+     the whole 940px shell.
+     min(290px, 100%) rather than a bare 290px, which is the same fix
+     /my-bets already carries (see its `gameList`): a bare fixed floor is the
+     track's minimum contribution and is NOT clamped to the container, so
+     anything under ~326px — a 320px phone, or a split-screen pane on a tablet
+     or foldable — pans the whole page sideways instead of wrapping. */
   grid: {
     display: "grid",
     gap: 10,
-    gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(min(290px, 100%), 1fr))",
   },
   tile: {
     width: 42,
@@ -227,13 +232,18 @@ const S = {
     color: "#83839a",
     marginTop: 1,
   },
+  /* Deliberately NOT the group label's #5f5f74, which is 3.0:1 on this card and
+     fails AA. That colour is fine for a heading you skim; the path is the one
+     string on the page you might have to read a character at a time and then
+     type into another device, so it gets 4.7:1 — still dimmer than the tagline
+     above it, so the hierarchy survives. */
   path: {
     display: "block",
     marginTop: 3,
     fontFamily:
       "ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace",
-    fontSize: 11,
-    color: "#5f5f74",
+    fontSize: 11.5,
+    color: "#7a7a92",
   },
   arrow: {
     marginLeft: "auto",
