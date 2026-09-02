@@ -193,9 +193,21 @@ export default function PnlChart({
   const points = useMemo(() => data?.points || [], [data]);
   const equity = useMemo(() => (data?.equity || []).filter((e) => e.value != null), [data]);
 
+  /* The endpoint's `cumulative_pnl` is the LIFETIME running total, so inside a
+   * short window it draws a nearly flat line parked hundreds of dollars off
+   * zero — an account-balance curve wearing a P&L label. Rebase every point on
+   * the P&L banked before the window opened so the curve starts at $0 and its
+   * height IS what this window made or lost. (Patrick, 2026-09-02: "i dont want
+   * to see balance here, i want to see p and l for these charts.") */
+  const base = data?.starting_cumulative_pnl ?? 0;
+  const series = useMemo(
+    () => points.map((p) => ({ ...p, cum: Math.round((p.cumulative_pnl - base) * 100) / 100 })),
+    [points, base],
+  );
+
   const geom = useMemo(() => {
-    if (!points.length) return null;
-    const cums = points.map((p) => p.cumulative_pnl);
+    if (!series.length) return null;
+    const cums = series.map((p) => p.cum);
     const { lo, hi } = niceBounds(Math.min(0, ...cums), Math.max(0, ...cums));
     const plotH = H_LINE - PAD.t - PAD.b;
     const x = (i) => PAD.l + (points.length === 1 ? PLOT_W / 2 : (i / (points.length - 1)) * PLOT_W);
@@ -211,7 +223,7 @@ export default function PnlChart({
     const barW = Math.max(2, Math.min(26, slot - 2));
 
     return { lo, hi, x, y, bb, by, slot, barW, plotH, barPlotH };
-  }, [points]);
+  }, [points, series]);
 
   const equityGeom = useMemo(() => {
     if (equity.length < 2) return null;
@@ -235,7 +247,10 @@ export default function PnlChart({
   };
 
   const summary = data?.summary;
-  const endCum = points.length ? points[points.length - 1].cumulative_pnl : (data?.starting_cumulative_pnl ?? 0);
+  // What the curve draws is the WINDOW's P&L; the lifetime total is a separate
+  // stat so the headline number can never disagree with the chart under it.
+  const endCum = series.length ? series[series.length - 1].cum : 0;
+  const lifetimeCum = points.length ? points[points.length - 1].cumulative_pnl : base;
   const curveColor = endCum >= 0 ? K.up : K.down;
 
   // Gridline values for the cumulative chart.
@@ -243,7 +258,7 @@ export default function PnlChart({
   // Show at most ~6 x labels so they never collide.
   const labelEvery = points.length ? Math.max(1, Math.ceil(points.length / 6)) : 1;
 
-  const hp = hover != null ? points[hover] : null;
+  const hp = hover != null ? series[hover] : null;
 
   return (
     <section
@@ -270,11 +285,12 @@ export default function PnlChart({
 
       {summary && (
         <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 12 }}>
-          <Stat label="Net P&L" value={signedUsd(endCum)} color={curveColor} />
+          <Stat label={`P&L (${days}d)`} value={signedUsd(endCum)} color={curveColor} />
           <Stat label="Staked" value={usd(summary.staked)} />
           <Stat label="ROI" value={summary.roi == null ? "—" : `${summary.roi > 0 ? "+" : ""}${summary.roi}%`} color={summary.roi == null ? undefined : summary.roi >= 0 ? K.up : K.down} />
           <Stat label="Win rate" value={summary.win_rate == null ? "—" : `${summary.win_rate}%`} />
           <Stat label="Settled" value={`${summary.settled}`} />
+          <Stat label="Lifetime" value={signedUsd(lifetimeCum)} color={lifetimeCum >= 0 ? K.up : K.down} />
         </div>
       )}
 
@@ -288,7 +304,10 @@ export default function PnlChart({
         <div ref={wrapRef} style={{ position: "relative", marginTop: 12 }}>
           {/* ── Cumulative P&L ── */}
           <div style={{ fontSize: 11, color: K.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 2 }}>
-            Cumulative P&L
+            P&L this window{" "}
+            <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
+              — last {days} {days === 1 ? "day" : "days"}, from $0
+            </span>
           </div>
           <svg
             viewBox={`0 0 ${W} ${H_LINE}`}
@@ -298,7 +317,7 @@ export default function PnlChart({
             onTouchMove={(e) => e.touches[0] && onMove(e.touches[0])}
             onTouchEnd={() => setHover(null)}
             role="img"
-            aria-label={`Cumulative profit and loss, ${bucket}ly. Currently ${signedUsd(endCum)}.`}
+            aria-label={`Profit and loss over the last ${days} days, ${bucket}ly, starting from zero. Window total ${signedUsd(endCum)}.`}
           >
             {gridVals.map((v, i) => (
               <g key={i}>
@@ -313,15 +332,15 @@ export default function PnlChart({
               <line x1={PAD.l} x2={W - PAD.r} y1={geom.y(0)} y2={geom.y(0)} stroke={K.muted} strokeWidth="1" strokeDasharray="3 3" opacity="0.7" />
             )}
             <path
-              d={`M ${geom.x(0)} ${geom.y(points[0].cumulative_pnl)} ${points
-                .map((p, i) => `L ${geom.x(i)} ${geom.y(p.cumulative_pnl)}`)
-                .join(" ")} L ${geom.x(points.length - 1)} ${geom.y(geom.lo < 0 && geom.hi > 0 ? 0 : geom.lo)} L ${geom.x(0)} ${geom.y(geom.lo < 0 && geom.hi > 0 ? 0 : geom.lo)} Z`}
+              d={`M ${geom.x(0)} ${geom.y(series[0].cum)} ${series
+                .map((p, i) => `L ${geom.x(i)} ${geom.y(p.cum)}`)
+                .join(" ")} L ${geom.x(series.length - 1)} ${geom.y(geom.lo < 0 && geom.hi > 0 ? 0 : geom.lo)} L ${geom.x(0)} ${geom.y(geom.lo < 0 && geom.hi > 0 ? 0 : geom.lo)} Z`}
               fill={curveColor}
               opacity="0.13"
             />
             <path
-              d={`M ${geom.x(0)} ${geom.y(points[0].cumulative_pnl)} ${points
-                .map((p, i) => `L ${geom.x(i)} ${geom.y(p.cumulative_pnl)}`)
+              d={`M ${geom.x(0)} ${geom.y(series[0].cum)} ${series
+                .map((p, i) => `L ${geom.x(i)} ${geom.y(p.cum)}`)
                 .join(" ")}`}
               fill="none"
               stroke={curveColor}
@@ -330,11 +349,11 @@ export default function PnlChart({
               strokeLinecap="round"
             />
             {/* Final value, direct-labelled — no number on every point. */}
-            <circle cx={geom.x(points.length - 1)} cy={geom.y(endCum)} r="4" fill={curveColor} stroke={K.panel} strokeWidth="2" />
+            <circle cx={geom.x(series.length - 1)} cy={geom.y(endCum)} r="4" fill={curveColor} stroke={K.panel} strokeWidth="2" />
             {hover != null && (
               <g>
                 <line x1={geom.x(hover)} x2={geom.x(hover)} y1={PAD.t} y2={H_LINE - PAD.b} stroke={K.muted} strokeWidth="1" opacity="0.55" />
-                <circle cx={geom.x(hover)} cy={geom.y(points[hover].cumulative_pnl)} r="4.5" fill={curveColor} stroke={K.panel} strokeWidth="2" />
+                <circle cx={geom.x(hover)} cy={geom.y(series[hover].cum)} r="4.5" fill={curveColor} stroke={K.panel} strokeWidth="2" />
               </g>
             )}
             {points.map((p, i) =>
@@ -455,7 +474,10 @@ export default function PnlChart({
                 <span style={{ color: K.muted }}> this {bucket}</span>
               </div>
               <div style={{ color: K.muted }}>
-                Running: <span style={{ color: hp.cumulative_pnl >= 0 ? K.up : K.down, fontWeight: 700 }}>{signedUsd(hp.cumulative_pnl)}</span>
+                Window: <span style={{ color: hp.cum >= 0 ? K.up : K.down, fontWeight: 700 }}>{signedUsd(hp.cum)}</span>
+              </div>
+              <div style={{ color: K.muted }}>
+                Lifetime: <span style={{ color: hp.cumulative_pnl >= 0 ? K.up : K.down, fontWeight: 700 }}>{signedUsd(hp.cumulative_pnl)}</span>
               </div>
               <div style={{ color: K.muted }}>
                 {hp.wins}W–{hp.losses}L · {usd(hp.staked)} staked
@@ -480,17 +502,17 @@ export default function PnlChart({
                   <tr style={{ color: K.muted, textAlign: "right" }}>
                     <th style={{ textAlign: "left", padding: "4px 8px" }}>Period</th>
                     <th style={{ padding: "4px 8px" }}>P&L</th>
-                    <th style={{ padding: "4px 8px" }}>Running</th>
+                    <th style={{ padding: "4px 8px" }}>Window</th>
                     <th style={{ padding: "4px 8px" }}>Staked</th>
                     <th style={{ padding: "4px 8px" }}>W–L</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...points].reverse().map((p) => (
+                  {[...series].reverse().map((p) => (
                     <tr key={p.ts} style={{ borderTop: `1px solid ${K.border}`, textAlign: "right" }}>
                       <td style={{ textAlign: "left", padding: "4px 8px", color: K.muted }}>{fullLabel(p.ts, bucket)}</td>
                       <td style={{ padding: "4px 8px", color: p.pnl >= 0 ? K.up : K.down, fontWeight: 700 }}>{signedUsd(p.pnl)}</td>
-                      <td style={{ padding: "4px 8px" }}>{signedUsd(p.cumulative_pnl)}</td>
+                      <td style={{ padding: "4px 8px" }}>{signedUsd(p.cum)}</td>
                       <td style={{ padding: "4px 8px" }}>{usd(p.staked)}</td>
                       <td style={{ padding: "4px 8px" }}>{p.wins}–{p.losses}</td>
                     </tr>
