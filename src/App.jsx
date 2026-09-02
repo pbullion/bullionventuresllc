@@ -71,6 +71,7 @@ import DaycareMemoryVaultSupport from "./pages/daycare-memory-vault/Support.jsx"
 import Ashley from "./pages/ashley/index.jsx";
 import Prospects from "./pages/prospects/index.jsx";
 import PatrickBoard from "./pages/patrick/index.jsx";
+import Jump from "./pages/jump/index.jsx";
 import Drive from "./pages/drive";
 import Hrw from "./pages/hrw/index.jsx";
 import HrwRestaurant from "./pages/hrw/Restaurant.jsx";
@@ -213,6 +214,9 @@ export default function App() {
           <Route path="/prospects/:slug" element={<Prospects />} />
           {/* Cardless and unlisted on purpose — reached by typing the URL. */}
           <Route path="/patrick" element={<PatrickBoard />} />
+          {/* The press-and-hold modal's list as a bookmarkable page. Keeps the
+              site chrome, unlike the full-screen tools above it. */}
+          <Route path="/jump" element={<Jump />} />
           <Route path="/drive" element={<Drive />} />
           <Route path="/hrw" element={<Hrw />} />
           <Route path="/hrw/:slug" element={<HrwRestaurant />} />

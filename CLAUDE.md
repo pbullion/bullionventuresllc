@@ -80,18 +80,37 @@ When you add a new tool/page, do **all** of these, not just the route:
      balances on a public unauthenticated route, which was Patrick's explicit
      call — it is read-only and has no controls that can move money. See its own
      section below.
+   - **`/jump` is cardless AND unlisted too** (2026-09-02). It renders the
+     press-and-hold list as a bookmarkable page — see its own section below.
    - **Everything unlisted goes somewhere else.** The pages kept off the public
      home page — the seven Kalshi/betting screens (Patrick, 2026-07-30) plus
-     `/patrick`, `/ffdraft`, `/ashley` and `/prospects` (2026-08-26) — live in
-     `GROUPS` in `src/components/PrivateTools.jsx`. Add an unlisted page to the
-     right group there instead of to `apps`/`tools`, and note that hiding it is
-     obscurity only: every route but `/ashley` stays public and unauthenticated.
+     `/patrick`, `/ffdraft`, `/ashley` and `/prospects` (2026-08-26) and `/jump`
+     (2026-09-02) — live in `PRIVATE_GROUPS` in **`src/lib/privatePages.js`**.
+     Add an unlisted page to the right group there instead of to `apps`/`tools`,
+     and note that hiding it is obscurity only: every route but `/ashley` stays
+     public and unauthenticated.
+
+### The unlisted-pages list (`PRIVATE_GROUPS`)
+
+**`src/lib/privatePages.js` is the single source of truth** for what is unlisted
+— one array, grouped **Patrick / Betting / Banking**, with an `emoji`, `name`,
+`path` and `tagline` per row. Two things render it and neither owns it:
+
+| Surface | File | What it is |
+|---|---|---|
+| the press-and-hold modal | `src/components/PrivateTools.jsx` | the fast path, over whatever page you are on |
+| the `/jump` page | `src/pages/jump/index.jsx` | the same list at a bookmarkable URL |
+
+Add a page in **one** place: `privatePages.js`. It was inlined in
+`PrivateTools.jsx` until 2026-09-02 (with a comment explaining it could not be
+exported from there — a constant beside a component breaks Fast Refresh under
+`react-refresh/only-export-components`); a module in `src/lib/` is what that
+constraint was actually asking for.
 
 ### The press-and-hold menu (`PrivateTools`)
 
-`src/components/PrivateTools.jsx` renders one modal listing every unlisted page,
-grouped **Patrick / Betting / Banking**. It has **two** triggers, both a 550ms
-press-and-hold:
+`src/components/PrivateTools.jsx` renders the list above as one modal. It has
+**two** triggers, both a 550ms press-and-hold:
 
 - the navbar wordmark (`src/components/Navbar.jsx`), on every page with chrome;
 - the gold `Bullion Ventures LLC` badge in the home page hero
@@ -110,6 +129,30 @@ encodes and a new trigger must respect:
 The hero badge is deliberately a `<span>`, not a `<button>`: no pointer cursor,
 no tab stop, no keyboard path. It stays a decorative badge for everyone who
 isn't looking for the gesture, which is the whole point.
+
+### `/jump` — the list as a page
+
+`src/pages/jump/index.jsx` renders `PRIVATE_GROUPS` full-screen at
+bullionventuresllc.com/jump. Same rows, same source of truth; what it adds is
+what a modal cannot be — a URL to bookmark or pin to a phone home screen, a
+back-button entry, more than one column on a desktop, and **the path printed
+under each name**, which is what you want when you are about to type the URL on
+a device that has never seen the gesture.
+
+Three things about it are deliberate and easy to undo by accident:
+
+- **It keeps the site nav and footer.** Unlike `/patrick`, `/drive`,
+  `/prospects` and the betting screens, it is not in the `hideChrome` list in
+  `src/App.jsx` — it is a directory, not an instrument, and the navbar's Home
+  link and long-press wordmark are the right neighbours for it.
+- **It drops its own row.** `/jump` is in `PRIVATE_GROUPS` (that is how the
+  convention above makes it discoverable from the modal), and the page filters
+  out whatever row matches the current `pathname` so it never links to itself.
+- **It injects `<meta name="robots" content="noindex, nofollow">` on mount and
+  removes it on unmount.** One SPA, one document head: a static tag in
+  `index.html` would de-index the whole site. This page is a real, if small,
+  widening of exposure — one public URL that now lists every other unlisted
+  path — and the meta tag is the only thing pushing back on that. Keep it.
 
 ## The one page with build-time data (`/hrw`)
 
