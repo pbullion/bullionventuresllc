@@ -59,7 +59,7 @@ When you add a new tool/page, do **all** of these, not just the route:
    - **`/ashley` is cardless AND unlisted, on purpose.** Ashley's client
      transition tracker (`src/pages/ashley/`) is not on the home page — it isn't
      a tool for site visitors, it's one person's book of commercial-banking
-     client relationships. It is in `PRIVATE_TOOLS` (added 2026-08-26) so
+     client relationships. It is in `PRIVATE_GROUPS` (added 2026-08-26) so
      Patrick can reach it without typing the URL. Unlike every other page here,
      it is **genuinely protected**: real
      email/password login, JWT in `localStorage["ash_token"]`, and
@@ -68,15 +68,15 @@ When you add a new tool/page, do **all** of these, not just the route:
    - **`/ffdraft` is cardless AND unlisted too** (Patrick, 2026-08-21).
      Fantasy football draft war room (`src/pages/ffdraft/`) synced to his
      private ESPN league via sheline `/ffdraft`. Personal tool — do not add a
-     home page card; it's in `PRIVATE_TOOLS` instead.
+     home page card; it's in `PRIVATE_GROUPS` instead.
    - **`/patrick` is cardless AND unlisted too.** Patrick's own project board
      (`src/pages/patrick/`) — one mini todo board per app he is still finishing.
-     Not on the home page, no login. It's the first row of `PRIVATE_TOOLS`
+     Not on the home page, no login. It's the first row of `PRIVATE_GROUPS`
      (2026-08-26) so the todo wall is one press-and-hold away. See its own
      section below.
    - **`/drive` is cardless too** (Patrick, 2026-08-26). The in-car dashboard
      (`src/pages/drive/`) is typed into the Tesla browser and left running; it
-     is in `PRIVATE_TOOLS` but not on the home page. It shows live Kalshi
+     is in `PRIVATE_GROUPS` but not on the home page. It shows live Kalshi
      balances on a public unauthenticated route, which was Patrick's explicit
      call — it is read-only and has no controls that can move money. See its own
      section below.
@@ -151,9 +151,14 @@ Three things about it are deliberate and easy to undo by accident:
   out whatever row matches the current `pathname` so it never links to itself.
 - **It injects `<meta name="robots" content="noindex, nofollow">` on mount and
   removes it on unmount.** One SPA, one document head: a static tag in
-  `index.html` would de-index the whole site. This page is a real, if small,
-  widening of exposure — one public URL that now lists every other unlisted
-  path — and the meta tag is the only thing pushing back on that. Keep it.
+  `index.html` would de-index the whole site. Be precise about what this is
+  guarding: `privatePages.js` is statically imported by `Navbar.jsx` and
+  `Home.jsx` into the single un-split bundle, so the whole list — `/ashley` and
+  `/prospects` included — has always been in the JS every visitor downloads,
+  readable from view-source without the gesture. What `/jump` adds is a
+  *crawlable, human-readable* copy at a guessable URL, and there is no
+  site-wide `robots.txt`, so this meta tag is the only thing pushing back. Keep
+  it.
 
 ## The one page with build-time data (`/hrw`)
 
@@ -240,7 +245,7 @@ what do I know before I dial". Routes are `/prospects` and `/prospects/:slug`,
 both rendering `index.jsx`, so one company is bookmarkable.
 
 - **Cardless AND unlisted, like `/ashley`** — not on the home page, not in
-  `PRIVATE_TOOLS`. Reached by typing the URL.
+  `PRIVATE_GROUPS`. Reached by typing the URL.
 - **Unlike `/ashley`, there is NO LOGIN** (Patrick, 2026-08-13). Anyone who
   reaches the URL can read, edit and delete the whole book. The seeded catalog is
   public information; the overlay of statuses, notes and contacts is not. Setting
@@ -463,7 +468,7 @@ easy to confuse:
 reports as **~771x601 CSS px at devicePixelRatio 1.53**): clock, current
 conditions and a six-day forecast at the car's own position, an animated rain
 radar, live/next games for the Astros, Cowboys, Rockets and both Baylor teams,
-tappable AI and sports headlines, and the live Kalshi portfolio. Cardless; in `PRIVATE_TOOLS`; typed into the car by
+tappable AI and sports headlines, and the live Kalshi portfolio. Cardless; in `PRIVATE_GROUPS`; typed into the car by
 hand. `drive.css` derives every dimension from one `--u` viewport unit, so
 retuning it for a different car screen is one `clamp()`.
 

@@ -201,7 +201,7 @@ export default function App() {
           <Route path="/gas-value" element={<GasValue />} />
           <Route path="/morning-review" element={<MorningReview />} />
           {/* Cardless and unlisted like every betting screen — it is in
-              PRIVATE_TOOLS, not on the home page. */}
+              PRIVATE_GROUPS, not on the home page. */}
           <Route path="/engine-limits" element={<EngineLimits />} />
           <Route path="/briefing" element={<Briefing />} />
           <Route path="/gulf-hurricane" element={<GulfHurricane />} />

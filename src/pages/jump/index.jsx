@@ -20,10 +20,14 @@ import { PRIVATE_GROUPS } from "../../lib/privatePages.js";
  *
  * Unlisted and cardless like everything it lists, and — say it again, because a
  * page that says PRIVATE at the top invites the opposite reading — that is
- * obscurity, not access control. /jump is a public unauthenticated route, and
- * putting every other unlisted path on one crawlable page is a real (small)
- * widening of that exposure: one URL now leaks the whole list instead of one
- * entry. `robots` below keeps it out of the indexes that honour it. If any of
+ * obscurity, not access control. /jump is a public unauthenticated route.
+ *
+ * Be precise about how much this page actually changes, though: privatePages.js
+ * is statically imported by Navbar.jsx and Home.jsx into the one un-split
+ * bundle, so the entire list has always shipped to every visitor and has always
+ * been readable from view-source without the gesture. What is new is a
+ * CRAWLABLE, human-readable copy at a guessable URL — which is what the
+ * `robots` tag below is for, since there is no site-wide robots.txt. If any of
  * this ever needs to be genuinely private, the fix is auth on the routes and on
  * the backend endpoints they read, not a quieter list. */
 export default function Jump() {
