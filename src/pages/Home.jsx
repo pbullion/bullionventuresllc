@@ -111,9 +111,12 @@ const apps = [
 ];
 
 /* The betting screens and Patrick's own unlisted pages are deliberately NOT here
- * — they live in src/components/PrivateTools.jsx and are reachable only by
- * pressing and holding the navbar wordmark or the hero badge below (Patrick,
- * 2026-07-30). Adding one back to this array puts it on the public home page. */
+ * — they live in src/lib/privatePages.js (Patrick, 2026-07-30). Adding one back
+ * to this array puts it on the public home page.
+ *
+ * That list has TWO surfaces, so "unlisted" no longer means "gesture only": the
+ * press-and-hold modal on the navbar wordmark or the hero badge below, and the
+ * page at /jump, which is a URL anyone can type or bookmark (2026-09-02). */
 const tools = [
   {
     emoji: "🍽️",

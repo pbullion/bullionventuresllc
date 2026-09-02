@@ -59,7 +59,7 @@ When you add a new tool/page, do **all** of these, not just the route:
    - **`/ashley` is cardless AND unlisted, on purpose.** Ashley's client
      transition tracker (`src/pages/ashley/`) is not on the home page — it isn't
      a tool for site visitors, it's one person's book of commercial-banking
-     client relationships. It is in `PRIVATE_TOOLS` (added 2026-08-26) so
+     client relationships. It is in `PRIVATE_GROUPS` (added 2026-08-26) so
      Patrick can reach it without typing the URL. Unlike every other page here,
      it is **genuinely protected**: real
      email/password login, JWT in `localStorage["ash_token"]`, and
@@ -68,30 +68,50 @@ When you add a new tool/page, do **all** of these, not just the route:
    - **`/ffdraft` is cardless AND unlisted too** (Patrick, 2026-08-21).
      Fantasy football draft war room (`src/pages/ffdraft/`) synced to his
      private ESPN league via sheline `/ffdraft`. Personal tool — do not add a
-     home page card; it's in `PRIVATE_TOOLS` instead.
+     home page card; it's in `PRIVATE_GROUPS` instead.
    - **`/patrick` is cardless AND unlisted too.** Patrick's own project board
      (`src/pages/patrick/`) — one mini todo board per app he is still finishing.
-     Not on the home page, no login. It's the first row of `PRIVATE_TOOLS`
+     Not on the home page, no login. It's the first row of `PRIVATE_GROUPS`
      (2026-08-26) so the todo wall is one press-and-hold away. See its own
      section below.
    - **`/drive` is cardless too** (Patrick, 2026-08-26). The in-car dashboard
      (`src/pages/drive/`) is typed into the Tesla browser and left running; it
-     is in `PRIVATE_TOOLS` but not on the home page. It shows live Kalshi
+     is in `PRIVATE_GROUPS` but not on the home page. It shows live Kalshi
      balances on a public unauthenticated route, which was Patrick's explicit
      call — it is read-only and has no controls that can move money. See its own
      section below.
+   - **`/jump` is cardless AND unlisted too** (2026-09-02). It renders the
+     press-and-hold list as a bookmarkable page — see its own section below.
    - **Everything unlisted goes somewhere else.** The pages kept off the public
-     home page — the seven Kalshi/betting screens (Patrick, 2026-07-30) plus
-     `/patrick`, `/ffdraft`, `/ashley` and `/prospects` (2026-08-26) — live in
-     `GROUPS` in `src/components/PrivateTools.jsx`. Add an unlisted page to the
-     right group there instead of to `apps`/`tools`, and note that hiding it is
-     obscurity only: every route but `/ashley` stays public and unauthenticated.
+     home page — the Kalshi/betting screens (nine of them now; there were seven
+     when Patrick made the call on 2026-07-30) plus `/patrick`, `/ffdraft`,
+     `/ashley` and `/prospects` (2026-08-26) and `/jump` (2026-09-02) — live in
+     `PRIVATE_GROUPS` in **`src/lib/privatePages.js`**.
+     Add an unlisted page to the right group there instead of to `apps`/`tools`,
+     and note that hiding it is obscurity only: every route but `/ashley` stays
+     public and unauthenticated.
+
+### The unlisted-pages list (`PRIVATE_GROUPS`)
+
+**`src/lib/privatePages.js` is the single source of truth** for what is unlisted
+— one array, grouped **Patrick / Betting / Banking**, with an `emoji`, `name`,
+`path` and `tagline` per row. Two things render it and neither owns it:
+
+| Surface | File | What it is |
+|---|---|---|
+| the press-and-hold modal | `src/components/PrivateTools.jsx` | the fast path, over whatever page you are on |
+| the `/jump` page | `src/pages/jump/index.jsx` | the same list at a bookmarkable URL |
+
+Add a page in **one** place: `privatePages.js`. It was inlined in
+`PrivateTools.jsx` until 2026-09-02 (with a comment explaining it could not be
+exported from there — a constant beside a component breaks Fast Refresh under
+`react-refresh/only-export-components`); a module in `src/lib/` is what that
+constraint was actually asking for.
 
 ### The press-and-hold menu (`PrivateTools`)
 
-`src/components/PrivateTools.jsx` renders one modal listing every unlisted page,
-grouped **Patrick / Betting / Banking**. It has **two** triggers, both a 550ms
-press-and-hold:
+`src/components/PrivateTools.jsx` renders the list above as one modal. It has
+**two** triggers, both a 550ms press-and-hold:
 
 - the navbar wordmark (`src/components/Navbar.jsx`), on every page with chrome;
 - the gold `Bullion Ventures LLC` badge in the home page hero
@@ -110,6 +130,35 @@ encodes and a new trigger must respect:
 The hero badge is deliberately a `<span>`, not a `<button>`: no pointer cursor,
 no tab stop, no keyboard path. It stays a decorative badge for everyone who
 isn't looking for the gesture, which is the whole point.
+
+### `/jump` — the list as a page
+
+`src/pages/jump/index.jsx` renders `PRIVATE_GROUPS` full-screen at
+bullionventuresllc.com/jump. Same rows, same source of truth; what it adds is
+what a modal cannot be — a URL to bookmark or pin to a phone home screen, a
+back-button entry, more than one column on a desktop, and **the path printed
+under each name**, which is what you want when you are about to type the URL on
+a device that has never seen the gesture.
+
+Three things about it are deliberate and easy to undo by accident:
+
+- **It keeps the site nav and footer.** Unlike `/patrick`, `/drive`,
+  `/prospects` and the betting screens, it is not in the `hideChrome` list in
+  `src/App.jsx` — it is a directory, not an instrument, and the navbar's Home
+  link and long-press wordmark are the right neighbours for it.
+- **It drops its own row.** `/jump` is in `PRIVATE_GROUPS` (that is how the
+  convention above makes it discoverable from the modal), and the page filters
+  out whatever row matches the current `pathname` so it never links to itself.
+- **It injects `<meta name="robots" content="noindex, nofollow">` on mount and
+  removes it on unmount.** One SPA, one document head: a static tag in
+  `index.html` would de-index the whole site. Be precise about what this is
+  guarding: `privatePages.js` is statically imported by `Navbar.jsx` and
+  `Home.jsx` into the single un-split bundle, so the whole list — `/ashley` and
+  `/prospects` included — has always been in the JS every visitor downloads,
+  readable from view-source without the gesture. What `/jump` adds is a
+  *crawlable, human-readable* copy at a guessable URL, and there is no
+  site-wide `robots.txt`, so this meta tag is the only thing pushing back. Keep
+  it.
 
 ## The one page with build-time data (`/hrw`)
 
@@ -196,7 +245,7 @@ what do I know before I dial". Routes are `/prospects` and `/prospects/:slug`,
 both rendering `index.jsx`, so one company is bookmarkable.
 
 - **Cardless AND unlisted, like `/ashley`** — not on the home page, not in
-  `PRIVATE_TOOLS`. Reached by typing the URL.
+  `PRIVATE_GROUPS`. Reached by typing the URL.
 - **Unlike `/ashley`, there is NO LOGIN** (Patrick, 2026-08-13). Anyone who
   reaches the URL can read, edit and delete the whole book. The seeded catalog is
   public information; the overlay of statuses, notes and contacts is not. Setting
@@ -419,7 +468,7 @@ easy to confuse:
 reports as **~771x601 CSS px at devicePixelRatio 1.53**): clock, current
 conditions and a six-day forecast at the car's own position, an animated rain
 radar, live/next games for the Astros, Cowboys, Rockets and both Baylor teams,
-tappable AI and sports headlines, and the live Kalshi portfolio. Cardless; in `PRIVATE_TOOLS`; typed into the car by
+tappable AI and sports headlines, and the live Kalshi portfolio. Cardless; in `PRIVATE_GROUPS`; typed into the car by
 hand. `drive.css` derives every dimension from one `--u` viewport unit, so
 retuning it for a different car screen is one `clamp()`.
 

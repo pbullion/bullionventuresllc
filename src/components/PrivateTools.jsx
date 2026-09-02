@@ -2,128 +2,15 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 
-/* Everything on this site that is deliberately NOT on the public home page,
- * reachable by pressing and holding either the navbar wordmark or the badge at
- * the top of the home page hero (Patrick, 2026-07-30; extended past the betting
- * screens to his own unlisted pages 2026-08-26).
+import { PRIVATE_GROUPS } from "../lib/privatePages.js";
+
+/* The press-and-hold modal listing every unlisted page — the list itself is
+ * src/lib/privatePages.js, shared with the /jump page that renders the same
+ * groups full-screen. Add a page there, not here.
  *
- * IMPORTANT — this is obscurity, not access control. Every path here is still an
- * open route: anyone who knows or guesses the URL can load it, and so can a
- * crawler that finds it linked anywhere. Nothing here is a permission check.
- * /ashley is the one exception and it is the backend, not this list, that
- * protects it — see routes/ashley.js. If the rest genuinely need to be private,
- * they need auth on the routes (and on the backend endpoints they read, which
- * are public too).
- *
- * When a page belongs here rather than on the home page, add it to a group below
- * INSTEAD of the `apps`/`tools` arrays in src/pages/Home.jsx — see CLAUDE.md,
- * which requires every new page to be discoverable from one of the two. */
-/* Not exported: only the modal below reads it, and exporting a constant beside a
- * component breaks Fast Refresh (react-refresh/only-export-components). */
-const GROUPS = [
-  {
-    label: "Patrick",
-    items: [
-      {
-        emoji: "✅",
-        name: "Project Board",
-        path: "/patrick",
-        tagline: "The todo wall — one board per app",
-      },
-      {
-        emoji: "🏈",
-        name: "FF Draft War Room",
-        path: "/ffdraft",
-        tagline: "Live ESPN draft assistant",
-      },
-      {
-        emoji: "🚗",
-        name: "Drive",
-        path: "/drive",
-        tagline: "In-car dashboard for the Tesla browser",
-      },
-    ],
-  },
-  {
-    label: "Betting",
-    items: [
-      {
-        emoji: "🎯",
-        name: "My Bets",
-        path: "/my-bets",
-        tagline: "Every open position, live",
-      },
-      {
-        emoji: "📈",
-        name: "Totals Value",
-        path: "/totals-value",
-        tagline: "Sports over/unders — model vs market",
-      },
-      {
-        emoji: "🪙",
-        name: "Crypto Value",
-        path: "/crypto-value",
-        tagline: "15-minute and hourly crypto windows",
-      },
-      {
-        emoji: "🌡",
-        name: "Weather Value",
-        path: "/weather-value",
-        tagline: "Daily city-high temperature markets",
-      },
-      {
-        emoji: "⛽",
-        name: "Gas Value",
-        path: "/gas-value",
-        tagline: "AAA gas-price markets — paper engine",
-      },
-      {
-        emoji: "🧮",
-        name: "Units & Caps",
-        path: "/engine-limits",
-        tagline: "Every engine's unit, max bet and caps on one page",
-      },
-      {
-        emoji: "☕",
-        name: "Morning Review",
-        path: "/morning-review",
-        tagline: "The 7am engine report",
-      },
-      {
-        emoji: "📋",
-        name: "Morning Briefing",
-        path: "/briefing",
-        tagline: "Revenue, signups, support, calendar",
-      },
-      {
-        emoji: "🏆",
-        name: "Elite Edge Advisors",
-        path: "/elite-edge-advisors",
-        tagline: "The tracked bet board",
-      },
-    ],
-  },
-  {
-    /* Ashley's two pages. They are hers, not tools for site visitors — they are
-     * here so Patrick can reach them without typing the URL, which is the only
-     * reason this group exists. */
-    label: "Banking",
-    items: [
-      {
-        emoji: "🏦",
-        name: "Client Tracker",
-        path: "/ashley",
-        tagline: "Ashley's transition book — real login",
-      },
-      {
-        emoji: "📇",
-        name: "Prospects",
-        path: "/prospects",
-        tagline: "Houston C&I calling list",
-      },
-    ],
-  },
-];
+ * Reminder, because it is easy to read this modal as a gate: it is obscurity
+ * only. Every path in the list is a public, unauthenticated route; /ashley is
+ * the sole exception and it is routes/ashley.js that protects it, not this. */
 
 const MODAL_CSS = `
 @keyframes bv-modal-in {
@@ -209,7 +96,7 @@ export default function PrivateToolsModal({ open, onClose }) {
           </button>
         </div>
         <p style={S.note}>Unlisted — none of these are on the home page.</p>
-        {GROUPS.map((group) => (
+        {PRIVATE_GROUPS.map((group) => (
           <div key={group.label} style={S.group}>
             <div style={S.groupLabel}>{group.label}</div>
             <div style={S.list}>
