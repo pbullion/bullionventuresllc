@@ -56,8 +56,27 @@ function Radar({ coords, frames, interactive = false, onExpand }) {
       fadeAnimation: false,
     });
     if (interactive) L.control.zoom({ position: "bottomright" }).addTo(map);
-    L.tileLayer(BASEMAP_URL, { maxZoom: 12 }).addTo(map);
-    L.tileLayer(LABELS_URL, { maxZoom: 12, opacity: 0.62, zIndex: 500 }).addTo(map);
+    /* detectRetina on the basemap, and only on the basemap. It asks one
+       question — is a CSS pixel more than one device pixel? — and fetches the
+       next zoom level's tiles when it is, which is the right answer whether the
+       ratio comes from a retina panel or from the Tesla browser's raised
+       default zoom (dpr 1.53 since the 2026.26 summer update, on the same
+       pane). Without it the dark canvas and especially its labels are upscaled
+       ~1.5x in the car and read as soft. One extra ring of tiles, once, on a
+       card that already fetches eleven radar frames a pass.
+
+       The RADAR layers below must NOT have it: they are pinned to
+       maxNativeZoom 7 because zoom 8 returns a "not supported" IMAGE at HTTP
+       200, and detectRetina is a zoomOffset — it would ask for exactly that.
+       They get their resolution from the /512/ retina path in the frame URL
+       instead. */
+    L.tileLayer(BASEMAP_URL, { maxZoom: 12, detectRetina: true }).addTo(map);
+    L.tileLayer(LABELS_URL, {
+      maxZoom: 12,
+      detectRetina: true,
+      opacity: 0.62,
+      zIndex: 500,
+    }).addTo(map);
     mapRef.current = map;
 
     /* Leaflet caches the container size at construction and does not notice it

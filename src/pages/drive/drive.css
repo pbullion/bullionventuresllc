@@ -1,9 +1,24 @@
 /* /drive — in-car dashboard.
  *
- * Sized for the Tesla browser (~1180x919 on a Model 3/Y), but every dimension
- * is derived from --u, a viewport-relative unit, so the same page fills a
- * laptop or a phone without a second layout. Retuning the whole board for a
- * different car screen is one clamp() away.
+ * Sized for the Tesla browser, and note what that means NOW. The 2026.26 summer
+ * update raised the browser's default zoom: the same 1180x919 pane on a Model
+ * 3/Y that used to report 1180x919 CSS px at devicePixelRatio 1 now reports
+ * ~771x601 CSS px at dpr 1.53 — about 35% fewer CSS pixels per axis for an
+ * identical piece of glass. The car has no zoom control to put it back, and the
+ * page cannot read the zoom from CSS.
+ *
+ * TWO CONSEQUENCES RUN THROUGH THIS WHOLE FILE:
+ *
+ *   1. NOTHING may be gated on a CSS-pixel WIDTH. A max-width breakpoint asks
+ *      "how many CSS pixels?" when the question is "how big is the screen?",
+ *      and after the update those answers disagree by half. That is what turns
+ *      a car dashboard into a phone layout (and what put a tablet layout on X
+ *      and YouTube in the car). The stacking rules below therefore key on
+ *      ASPECT RATIO, which no amount of zoom changes.
+ *   2. Every dimension stays derived from --u, a viewport-relative unit, so the
+ *      board renders at the same PHYSICAL size at either zoom and still fills a
+ *      laptop or a phone without a second layout. The one thing that can break
+ *      that is a px floor on --u — see the clamp below.
  *
  * Dark only, on purpose: this is read at night through a windscreen, and a
  * light theme in a car is a mirror. */
@@ -12,8 +27,22 @@
   /* Base unit for every dimension on the board. Raised from 1.28vh after
      Patrick read it in the car: this is glanced at from arm's length, at an
      angle, sometimes in direct sun, by someone who is driving. Desk-legible is
-     not the bar. Retune the board's density here, not per-rule. */
-  --u: clamp(13px, 1.5vh, 19px);
+     not the bar. Retune the board's density here, not per-rule.
+
+     THE FLOOR MUST STAY BELOW WHAT THE CAR COMPUTES, and 8px is not a rounding
+     choice. 1.5vh is what holds the board's physical size constant across the
+     browser's zoom: 1.5% of 919px at dpr 1 and of 601px at dpr 1.53 are both
+     ~13.8 DEVICE pixels, and the board is ~66u tall and ~86u wide by
+     construction, so it fits exactly at either. The old 13px floor defeated
+     precisely that: at the car's 601px it held --u at 13px instead of 9px, 44%
+     too large, and a fixed-height grid that is 44% too big does not shrink — it
+     clips, taking the bottom row of cards off the bottom of the screen. (In the
+     car that never got seen, because the max-width rule further down caught the
+     narrower viewport first and stacked the whole board instead. Fixing one
+     without the other just swaps which way it breaks.) A board that must show
+     everything at a glance takes a zoom increase as fewer rows, never as bigger
+     type, so it renders at the size Patrick tuned. */
+  --u: clamp(8px, 1.5vh, 19px);
 
   --bg: #05070c;
   --card: rgba(255, 255, 255, 0.042);
@@ -64,7 +93,10 @@
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
-  filter: blur(90px);
+  /* In --u, not the 90px this used to be: the circles are sized in vw and so
+     scale with the zoom, and a blur that did not scale with them softened the
+     glow edge by half again in the car for no reason. */
+  filter: blur(calc(var(--u) * 6.5));
 }
 .drive::before {
   width: 46vw;
@@ -566,9 +598,11 @@
 /* auto-fit, not a hard 1fr 1fr: this card lost ~200px when Markets joined the
    bottom row, and a fixed two-column grid does not narrow — it clips the second
    column mid-word. Below ~two 14u columns it now drops to one and stays
-   legible, which is the property that matters at arm's length. The 820px
-   viewport rule below is still needed for the phone case, where the card is
-   wide but the page is not. */
+   legible, which is the property that matters at arm's length. Being in --u is
+   also what keeps it right in the car: it asks how many COLUMNS fit, which is
+   zoom-invariant, where a px minmax() would have dropped to one column the day
+   the browser's zoom went up. The stacked rule below is still needed for the
+   phone case, where the card is wide but the page is not. */
 .dnews {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 14), 1fr));
@@ -766,9 +800,28 @@
   to { transform: rotate(360deg); }
 }
 
-/* Narrow screens (a phone, or the Tesla in an odd orientation): stop trying to
- * be a three-column board and stack, letting the page scroll. */
-@media (max-width: 820px) {
+/* Stack — one column, page scrolls — when the viewport is the wrong SHAPE for a
+ * board, and never merely because it reports few CSS pixels.
+ *
+ * This used to be `max-width: 820px`, and the Tesla summer update walked
+ * straight into it: ~771 CSS px wide on the unchanged 1180px pane, so the car
+ * silently got the phone layout — a single scrolling column, which is the one
+ * thing a glance-only dashboard in a moving car cannot be. Every term here is
+ * either zoom-invariant or far enough below the car's numbers to survive
+ * another zoom bump:
+ *
+ *   - portrait: the car's pane is 1.28:1 landscape at ANY zoom, so it never
+ *     matches; a phone held upright always does.
+ *   - 520px: a genuinely tiny landscape window on a desk. Well under the car's
+ *     771, with room for the zoom to rise again before it bites.
+ *   - short AND very wide: a phone on its side (~2.2:1), which has the board's
+ *     shape but nowhere near its height. The car is 1.28:1, so it stays out.
+ *
+ * THE SECOND BLOCK OF THESE RULES — the tables and the forecast row, at the
+ * bottom of this file — must carry the SAME condition. */
+@media (orientation: portrait),
+  (max-width: 520px),
+  (max-height: 500px) and (min-aspect-ratio: 2 / 1) {
   .drive {
     position: static;
     height: auto;
@@ -1393,7 +1446,12 @@
   background: var(--accent);
 }
 
-@media (max-width: 820px) {
+/* Same condition as the layout block above — keep the two in step, or a phone
+ * stacks its cards while its tables stay in the wide arrangement that does not
+ * fit them. */
+@media (orientation: portrait),
+  (max-width: 520px),
+  (max-height: 500px) and (min-aspect-ratio: 2 / 1) {
   .dtable__row--pos,
   .dtable__row--grp {
     grid-template-columns: 1fr auto auto;

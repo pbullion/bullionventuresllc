@@ -414,11 +414,12 @@ easy to confuse:
 
 ## `/drive` — the in-car dashboard
 
-`src/pages/drive/` renders a full-bleed board for the **Tesla browser**
-(~1180x919 on a Model 3/Y): clock, current conditions and a six-day forecast at
-the car's own position, an animated rain radar, live/next games for the Astros,
-Cowboys, Rockets and both Baylor teams, tappable AI and sports headlines, and
-the live Kalshi portfolio. Cardless; in `PRIVATE_TOOLS`; typed into the car by
+`src/pages/drive/` renders a full-bleed board for the **Tesla browser** (a
+1180x919 pane on a Model 3/Y, which since the 2026.26 summer update the browser
+reports as **~771x601 CSS px at devicePixelRatio 1.53**): clock, current
+conditions and a six-day forecast at the car's own position, an animated rain
+radar, live/next games for the Astros, Cowboys, Rockets and both Baylor teams,
+tappable AI and sports headlines, and the live Kalshi portfolio. Cardless; in `PRIVATE_TOOLS`; typed into the car by
 hand. `drive.css` derives every dimension from one `--u` viewport unit, so
 retuning it for a different car screen is one `clamp()`.
 
@@ -427,8 +428,24 @@ the Sheline backend, ESPN for teams and sports headlines, HN Algolia for AI,
 RainViewer for radar, Esri for the basemap. That is deliberate: this page is
 left running in a car and must not be one expired key away from a blank screen.
 
-Four things are load-bearing and easy to undo by accident:
+These are load-bearing and easy to undo by accident:
 
+- **NOTHING on this page may be gated on a CSS-pixel width** — no
+  `max-width` breakpoint, no px `minmax()`, and no px floor on `--u`. The
+  2026.26 summer update raised the Tesla browser's default zoom (dpr 1 → 1.53)
+  on the same glass, so the car went from 1180x919 CSS px to ~771x601. That
+  tripped the old `@media (max-width: 820px)` rule and the car got the PHONE
+  layout: one column, `position: static`, a 1764px page scrolling inside a
+  601px window — the one thing a glance-only dashboard cannot be. It is the same
+  change that put tablet layouts on X and YouTube in the car, and there is no
+  zoom control to undo it. Fixed 2026-09-02 by keying the stacking rules on
+  **aspect ratio** (the pane is 1.28:1 landscape at any zoom) and dropping the
+  `--u` floor from 13px to 8px. `--u: 1.5vh` is what makes the board
+  zoom-invariant — 1.5% of 919 at dpr 1 and of 601 at dpr 1.53 are both 13.79
+  DEVICE px, and the board is ~66u by ~86u by construction, so it renders
+  pixel-identically at either. A px floor defeats that and a fixed-height grid
+  that is too big does not shrink, it clips. Both `@media` blocks in `drive.css`
+  carry that condition and must stay in step.
 - **Every ESPN scoreboard call passes `?dates=`.** The bare `/scoreboard` was
   still serving Aug 25 at 9:51am on Aug 26 — its idea of "today" rolls over
   late — so without the explicit date the board reports last night's final as
@@ -452,6 +469,12 @@ Four things are load-bearing and easy to undo by accident:
   limits — radar stops at zoom 7 and returns an error IMAGE at HTTP 200 above
   it; `/512/` is a retina tile, not a wider one). `data.js` re-exports
   `fetchRadarFrames` so callers here are unchanged. Don't re-inline either.
+- **The Esri layers ask for retina tiles (`detectRetina`), the radar layers must
+  not.** At the car's dpr 1.53 a 256px basemap tile is upscaled half again and
+  the dark canvas — its labels especially — reads soft. `detectRetina` is a
+  zoomOffset, though, and the radar is pinned to `maxNativeZoom: 7` because zoom
+  8 returns a "not supported" IMAGE at HTTP 200; radar sharpness comes from the
+  `/512/` retina path in the frame URL instead.
 
 The Kalshi card is **read-only and has no controls of any kind**. It shows live
 balances on a public unauthenticated route, which was Patrick's explicit call
