@@ -83,9 +83,10 @@ When you add a new tool/page, do **all** of these, not just the route:
    - **`/jump` is cardless AND unlisted too** (2026-09-02). It renders the
      press-and-hold list as a bookmarkable page — see its own section below.
    - **Everything unlisted goes somewhere else.** The pages kept off the public
-     home page — the seven Kalshi/betting screens (Patrick, 2026-07-30) plus
-     `/patrick`, `/ffdraft`, `/ashley` and `/prospects` (2026-08-26) and `/jump`
-     (2026-09-02) — live in `PRIVATE_GROUPS` in **`src/lib/privatePages.js`**.
+     home page — the Kalshi/betting screens (nine of them now; there were seven
+     when Patrick made the call on 2026-07-30) plus `/patrick`, `/ffdraft`,
+     `/ashley` and `/prospects` (2026-08-26) and `/jump` (2026-09-02) — live in
+     `PRIVATE_GROUPS` in **`src/lib/privatePages.js`**.
      Add an unlisted page to the right group there instead of to `apps`/`tools`,
      and note that hiding it is obscurity only: every route but `/ashley` stays
      public and unauthenticated.
