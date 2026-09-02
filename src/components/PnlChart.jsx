@@ -10,6 +10,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
  * Hand-rolled SVG on purpose: the bundle is already ~1.7MB and a charting
  * library would be the single biggest thing in it.
  *
+ * The endpoint also returns an `equity` series (cash + open positions). It is
+ * deliberately NOT drawn: this panel is about P&L, and an account-balance curve
+ * next to a P&L curve is exactly the confusion the rebasing above fixes.
+ * (Patrick, 2026-09-02: "i dont want to see balance here.")
+ *
  * Palette is validated for this dark surface (#151a24) with the dataviz
  * validator — blue/orange pass every check; the green/red pair sits in the
  * 6–8 CVD band, which is legal ONLY because the bars also encode sign by
@@ -28,8 +33,12 @@ const K = {
   chipBg: "#1c2430",
 };
 
+/* Hourly is deliberately ONE day, not the endpoint's 3-day default: the point
+ * of the hourly view is today's shape, and 72 bars of it read as noise.
+ * (Patrick, 2026-09-02.) The backend caps `days` at 30 for this bucket, so
+ * widening it here is safe if that ever changes back. */
 const BUCKETS = [
-  { key: "hour", label: "Hourly", days: 3 },
+  { key: "hour", label: "Hourly", days: 1 },
   { key: "day", label: "Daily", days: 60 },
   { key: "week", label: "Weekly", days: 365 },
 ];
@@ -191,8 +200,6 @@ export default function PnlChart({
   }, [load]);
 
   const points = useMemo(() => data?.points || [], [data]);
-  const equity = useMemo(() => (data?.equity || []).filter((e) => e.value != null), [data]);
-
   /* The endpoint's `cumulative_pnl` is the LIFETIME running total, so inside a
    * short window it draws a nearly flat line parked hundreds of dollars off
    * zero — an account-balance curve wearing a P&L label. Rebase every point on
@@ -224,16 +231,6 @@ export default function PnlChart({
 
     return { lo, hi, x, y, bb, by, slot, barW, plotH, barPlotH };
   }, [points, series]);
-
-  const equityGeom = useMemo(() => {
-    if (equity.length < 2) return null;
-    const vals = equity.map((e) => e.value);
-    const { lo, hi } = niceBounds(Math.min(...vals), Math.max(...vals));
-    const plotH = H_LINE - PAD.t - PAD.b;
-    const x = (i) => PAD.l + (equity.length === 1 ? PLOT_W / 2 : (i / (equity.length - 1)) * PLOT_W);
-    const y = (v) => PAD.t + plotH - ((v - lo) / (hi - lo || 1)) * plotH;
-    return { lo, hi, x, y };
-  }, [equity]);
 
   // Map a pointer position to the nearest data index.
   const onMove = (e) => {
@@ -285,7 +282,7 @@ export default function PnlChart({
 
       {summary && (
         <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 12 }}>
-          <Stat label={`P&L (${days}d)`} value={signedUsd(endCum)} color={curveColor} />
+          <Stat label={days === 1 ? "P&L (24h)" : `P&L (${days}d)`} value={signedUsd(endCum)} color={curveColor} />
           <Stat label="Staked" value={usd(summary.staked)} />
           <Stat label="ROI" value={summary.roi == null ? "—" : `${summary.roi > 0 ? "+" : ""}${summary.roi}%`} color={summary.roi == null ? undefined : summary.roi >= 0 ? K.up : K.down} />
           <Stat label="Win rate" value={summary.win_rate == null ? "—" : `${summary.win_rate}%`} />
@@ -306,7 +303,7 @@ export default function PnlChart({
           <div style={{ fontSize: 11, color: K.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 2 }}>
             P&L this window{" "}
             <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
-              — last {days} {days === 1 ? "day" : "days"}, from $0
+              — {days === 1 ? "last 24 hours" : `last ${days} days`}, from $0
             </span>
           </div>
           <svg
@@ -317,7 +314,7 @@ export default function PnlChart({
             onTouchMove={(e) => e.touches[0] && onMove(e.touches[0])}
             onTouchEnd={() => setHover(null)}
             role="img"
-            aria-label={`Profit and loss over the last ${days} days, ${bucket}ly, starting from zero. Window total ${signedUsd(endCum)}.`}
+            aria-label={`Profit and loss over the ${days === 1 ? "last 24 hours" : `last ${days} days`}, ${bucket}ly, starting from zero. Window total ${signedUsd(endCum)}.`}
           >
             {gridVals.map((v, i) => (
               <g key={i}>
@@ -413,43 +410,6 @@ export default function PnlChart({
             )}
           </svg>
 
-          {/* ── Account value (only once snapshots exist) ── */}
-          {equityGeom && (
-            <>
-              <div style={{ fontSize: 11, color: K.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6, margin: "8px 0 2px" }}>
-                Account value <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— cash + open positions</span>
-              </div>
-              <svg viewBox={`0 0 ${W} ${H_LINE}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Account value over time">
-                {[equityGeom.lo, (equityGeom.lo + equityGeom.hi) / 2, equityGeom.hi].map((v, i) => (
-                  <g key={i}>
-                    <line x1={PAD.l} x2={W - PAD.r} y1={equityGeom.y(v)} y2={equityGeom.y(v)} stroke={K.grid} strokeWidth="1" />
-                    <text x={PAD.l - 8} y={equityGeom.y(v) + 4} textAnchor="end" fontSize="11" fill={K.muted}>
-                      {usd(v)}
-                    </text>
-                  </g>
-                ))}
-                <path
-                  d={`M ${equityGeom.x(0)} ${equityGeom.y(equity[0].value)} ${equity
-                    .map((e, i) => `L ${equityGeom.x(i)} ${equityGeom.y(e.value)}`)
-                    .join(" ")}`}
-                  fill="none"
-                  stroke={K.value}
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-                <circle cx={equityGeom.x(equity.length - 1)} cy={equityGeom.y(equity[equity.length - 1].value)} r="4" fill={K.value} stroke={K.panel} strokeWidth="2" />
-                {equity.map((e, i) =>
-                  i % Math.max(1, Math.ceil(equity.length / 6)) === 0 || i === equity.length - 1 ? (
-                    <text key={i} x={equityGeom.x(i)} y={H_LINE - 6} textAnchor="middle" fontSize="11" fill={K.muted}>
-                      {tickLabel(e.ts, bucket)}
-                    </text>
-                  ) : null
-                )}
-              </svg>
-            </>
-          )}
-
           {hp && (
             <div
               style={{
@@ -527,7 +487,6 @@ export default function PnlChart({
       {data?.time_basis && (
         <div style={{ fontSize: 11, color: K.muted, marginTop: 8, lineHeight: 1.45 }}>
           {data.time_basis}.
-          {!equityGeom && " Account-value history starts from when snapshots began recording."}
         </div>
       )}
     </section>
