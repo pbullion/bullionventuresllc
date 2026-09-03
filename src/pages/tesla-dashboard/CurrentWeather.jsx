@@ -3,6 +3,7 @@ import axios from "axios";
 import { Card, CardContent, Typography, CircularProgress } from "@mui/material";
 import "./WeatherForecast.css";
 
+import { conditionName } from "../../lib/weatherConditions";
 const WeatherWidget = () => {
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -73,104 +74,6 @@ const WeatherWidget = () => {
     return () => clearInterval(intervalId);
   }, []);
 
-  function getConditionNames() {
-    const conditionCodes = [
-      "Clear",
-      "Cloudy",
-      "Dust",
-      "Fog",
-      "Haze",
-      "MostlyClear",
-      "MostlyCloudy",
-      "PartlyCloudy",
-      "ScatteredThunderstorms",
-      "Smoke",
-      "Breezy",
-      "Windy",
-      "Drizzle",
-      "HeavyRain",
-      "Rain",
-      "Showers",
-      "Flurries",
-      "HeavySnow",
-      "MixedRainAndSleet",
-      "MixedRainAndSnow",
-      "MixedRainfall",
-      "MixedSnowAndSleet",
-      "ScatteredShowers",
-      "ScatteredSnowShowers",
-      "Sleet",
-      "Snow",
-      "SnowShowers",
-      "Blizzard",
-      "BlowingSnow",
-      "FreezingDrizzle",
-      "FreezingRain",
-      "Frigid",
-      "Hail",
-      "Hot",
-      "Hurricane",
-      "IsolatedThunderstorms",
-      "SevereThunderstorm",
-      "Thunderstorm",
-      "Tornado",
-      "TropicalStorm",
-    ];
-
-    const conditionNames = [
-      "Clear",
-      "Cloudy",
-      "Dust",
-      "Fog",
-      "Haze",
-      "Mostly Clear",
-      "Mostly Cloudy",
-      "Partly Cloudy",
-      "Scattered Thunderstorms",
-      "Smoke",
-      "Breezy",
-      "Windy",
-      "Drizzle",
-      "Heavy Rain",
-      "Rain",
-      "Showers",
-      "Flurries",
-      "Heavy Snow",
-      "Mixed Rain & Sleet",
-      "Mixed Rain & Snow",
-      "Mixed Rainfall",
-      "Mixed Snow & Sleet",
-      "Scattered Showers",
-      "Scattered Snow Showers",
-      "Sleet",
-      "Snow",
-      "Snow Showers",
-      "Blizzard",
-      "Blowing Snow",
-      "Freezing Drizzle",
-      "Freezing Rain",
-      "Frigid",
-      "Hail",
-      "Hot",
-      "Hurricane",
-      "Isolated Thunderstorms",
-      "Severe Thunderstorm",
-      "Thunderstorm",
-      "Tornado",
-      "Tropical Storm",
-    ];
-
-    const conditionsWithSpaces = {};
-    for (let i = 0; i < conditionCodes.length; i++) {
-      conditionsWithSpaces[conditionCodes[i]] = conditionNames[i];
-    }
-
-    return conditionsWithSpaces;
-  }
-  function getConditionName(code) {
-    const conditionsWithSpaces = getConditionNames();
-    return conditionsWithSpaces[code] || "Unknown condition code";
-  }
   const currentWeather = weatherData?.currentWeather;
   const dailyForecasts = weatherData?.forecastDaily.days;
   if (loading) {
@@ -273,7 +176,7 @@ const WeatherWidget = () => {
                 textAlign: "center",
               }}
               variant="h5">
-              {getConditionName(currentWeather?.conditionCode)}
+              {conditionName(currentWeather?.conditionCode, "Unknown condition code")}
             </Typography>
             <Typography
               sx={{
