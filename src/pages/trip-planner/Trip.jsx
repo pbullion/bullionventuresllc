@@ -68,6 +68,20 @@ h2[id] { scroll-margin-top: 12px; }
 .tp-ing-row { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid #f6f3ec; font-size: 15px; }
 .tp-scale { border: 1px solid #d8d0c2; background: #fff; color: #6b7684; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .tp-scale.on { background: #e7f3f1; border-color: #2a9d8f; color: #1f7a6f; }
+/* The forecast strip. Each day is a button now — same face it had as a div, so
+   the strip doesn't suddenly look like a toolbar, but with a real hit target,
+   a focus ring and keyboard access. */
+.tp-wxcard { background: #fff; border: 1px solid #e4ddd0; border-radius: 12px; padding: 8px 12px; text-align: center; min-width: 86px; flex-shrink: 0; cursor: pointer; font: inherit; color: inherit; }
+.tp-wxcard:hover { border-color: #2a9d8f; }
+.tp-wxcard:focus-visible { outline: 2px solid #2a9d8f; outline-offset: 2px; }
+.tp-wxlabel { font-size: 12px; font-weight: 700; color: #6b7684; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.tp-wxchart { display: flex; align-items: flex-end; gap: 2px; }
+.tp-wxcol { flex: 1; min-width: 0; }
+.tp-wxbar-track { height: 58px; display: flex; align-items: flex-end; background: #faf8f2; border-radius: 3px; }
+.tp-wxbar { width: 100%; border-radius: 3px; }
+.tp-wxtick { font-size: 9px; color: #a8a094; text-align: center; height: 12px; line-height: 12px; white-space: nowrap; }
+.tp-wxhours { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.tp-wxhour { text-align: center; min-width: 52px; flex-shrink: 0; }
 `;
 
 // One color per family, assigned by position in trip.families.
@@ -227,6 +241,251 @@ function RecipeModal({ recipe, scale = 1, mealTitle, onClose }) {
             <a href={recipe.source_url} target="_blank" rel="noreferrer" style={{ color: "#1f7a6f" }}>
               Original recipe ↗
             </a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* The wettest stretch of a day, in words.
+ *
+ * A column chart answers "when" only if you read it carefully, and the reason
+ * anybody opens a day is to decide whether the morning on the water survives.
+ * So the chart gets a sentence over it.
+ *
+ * The threshold floats with the day instead of being fixed: a day peaking at
+ * 35% has a wettest stretch worth naming, and a fixed 50% would call it dry;
+ * a day peaking at 90% should not have its "likeliest" window include every
+ * hour that merely cleared 50.
+ *
+ * 60% of the peak, floored at 20, was picked against the real forecast rather
+ * than by taste. A stricter 70% cut turned a Sep 5 curve that sat between 22%
+ * and 36% from six in the morning to five in the evening into "8 AM to 9 AM",
+ * which is a true statement about the maximum and a false one about the day.
+ */
+function rainWindow(hours) {
+  const pts = hours.filter((h) => h.rainChance != null);
+  if (!pts.length) return null;
+  const peak = Math.max(...pts.map((h) => h.rainChance));
+  if (peak < 15) return { peak, run: null };
+
+  const thresh = Math.max(20, Math.round(peak * 0.6));
+  let best = null;
+  let cur = null;
+  const longer = (a, b) => !b || a.to.hour - a.from.hour > b.to.hour - b.from.hour;
+  for (const h of hours) {
+    if ((h.rainChance ?? 0) >= thresh) {
+      cur = cur ? { from: cur.from, to: h } : { from: h, to: h };
+    } else if (cur) {
+      if (longer(cur, best)) best = cur;
+      cur = null;
+    }
+  }
+  if (cur && longer(cur, best)) best = cur;
+  return { peak, run: best };
+}
+
+// A stat with its label, for the grid of daily figures.
+function WxStat({ label, value }) {
+  if (value == null || value === "") return null;
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#a8a094", textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, marginTop: 1 }}>{value}</div>
+    </div>
+  );
+}
+
+/* One day of the forecast, opened from its card in the strip.
+ *
+ * The strip can only ever say "58%", which is the same number for an afternoon
+ * of steady rain and a shower at 4am — and those are different days for a trip
+ * that is mostly outdoors. This is the hour-by-hour behind that number.
+ *
+ * Every block below renders only if its data is there. That is not defensive
+ * habit: the frontend deploys the moment it merges and the backend deploys
+ * separately, so between the two this modal is opening days that carry nothing
+ * but the six fields the strip already used. It has to be useful anyway.
+ */
+function WeatherDayModal({ day, place, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  if (!day) return null;
+
+  const hours = Array.isArray(day.hours) ? day.hours : [];
+  const rain = hours.length ? rainWindow(hours) : null;
+  const wet = (day.precipType && day.precipType !== "clear" ? day.precipType : "rain").toLowerCase();
+  const halves = [
+    { label: "Daytime", icon: "🌤️", block: day.daytime },
+    { label: "Overnight", icon: "🌙", block: day.overnight },
+  ].filter((h) => h.block);
+
+  /* Past hours are dimmed rather than dropped, and only on the day actually in
+   * progress. Dropping them would make one card in the strip start at 2PM while
+   * its neighbours start at midnight, and the chart would stop being comparable
+   * across days — which is most of what the strip is for. */
+  const todayKey = new Date().toLocaleDateString("en-CA");
+  const nowHour = day.date === todayKey ? new Date().getHours() : -1;
+
+  /* Filtered here rather than left to each WxStat's own null check, so a day
+   * with none of them renders no grid at all — an empty grid still takes its
+   * top margin, which left a dead gap above the "not available" line in exactly
+   * the state this modal is designed to handle. */
+  const stats = [
+    { label: "Sunrise", value: day.sunrise },
+    { label: "Sunset", value: day.sunset },
+    { label: wet === "snow" ? "Snowfall" : "Rainfall", value: day.precipAmount == null ? null : `${day.precipAmount}"` },
+    { label: "Wind", value: day.windMph == null ? null : `${day.windMph} mph` },
+    { label: "Gusts", value: day.windGustMph == null ? null : `${day.windGustMph} mph` },
+    { label: "UV index", value: day.uvIndex == null ? null : String(day.uvIndex) },
+  ].filter((st) => st.value != null && st.value !== "");
+
+  const detailed = hours.length > 0 || halves.length > 0 || stats.length > 0;
+
+  return (
+    <div
+      className="tp-modal-back"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Forecast for ${day.day} ${day.dateLabel}`}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="tp-modal">
+        <button className="tp-modal-x" onClick={onClose} aria-label="Close forecast">✕</button>
+        <h3>
+          {day.emoji} {day.day}, {day.dateLabel}
+        </h3>
+        <div style={{ fontSize: 13, color: "#6b7684", marginBottom: 14 }}>
+          {[place, day.condition && day.condition.replace(/([a-z])([A-Z])/g, "$1 $2")].filter(Boolean).join(" · ")}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 16 }}>
+          <span style={{ fontSize: 34, fontWeight: 700 }}>{day.high}°</span>
+          <span style={{ fontSize: 20, color: "#a8a094" }}>{day.low}°</span>
+          <span style={{ fontSize: 16, color: "#3d6a94", fontWeight: 600 }}>💧 {day.rainChance}%</span>
+        </div>
+
+        {hours.length > 0 && (
+          <>
+            <div className="tp-wxlabel">{wet === "snow" ? "Snow" : "Rain"} through the day</div>
+            {rain && (
+              <div style={{ fontSize: 14, color: "#26303a", margin: "0 0 10px" }}>
+                {rain.run
+                  ? `Likeliest ${rain.run.from.hour === rain.run.to.hour ? `around ${rain.run.from.time}` : `between ${rain.run.from.time} and ${rain.run.to.time}`} — up to ${rain.peak}% in any one hour.`
+                  : rain.peak === 0
+                    ? `No ${wet} in any hour of the day.`
+                    : `Nothing concentrated — no single hour above ${rain.peak}%.`}
+              </div>
+            )}
+            {/* The day figure is routinely far higher than every bar under it —
+                Sep 4 read 58% against a 22% hourly peak — because WeatherKit's
+                daily number is the chance of rain AT SOME POINT and each bar is
+                the chance within that hour. Both are right, and side by side
+                without this line they read as a bug in the page. Only shown
+                when they actually diverge. */}
+            {rain && day.rainChance != null && day.rainChance - rain.peak > 10 && (
+              <div style={{ fontSize: 12, color: "#a8a094", margin: "-4px 0 10px" }}>
+                The {day.rainChance}% above is the chance of {wet} at some point in the day; each bar is that one hour.
+              </div>
+            )}
+            <div
+              className="tp-wxchart"
+              role="img"
+              aria-label={
+                rain?.run
+                  ? `Hourly ${wet} chance, highest ${rain.peak} percent between ${rain.run.from.time} and ${rain.run.to.time}`
+                  : `Hourly ${wet} chance, peaking at ${rain?.peak ?? 0} percent`
+              }
+            >
+              {hours.map((h) => (
+                <div key={h.hour} className="tp-wxcol" title={`${h.time || ""} · ${h.rainChance ?? "—"}%${h.precipAmount ? ` · ${h.precipAmount}"` : ""}`}>
+                  <div className="tp-wxbar-track">
+                    <div
+                      className="tp-wxbar"
+                      style={{
+                        height: `${Math.max(2, h.rainChance ?? 0)}%`,
+                        // One hue, weight carrying the number — a rainbow ramp
+                        // would imply categories the forecast doesn't have.
+                        background: `rgba(61, 106, 148, ${0.2 + 0.8 * ((h.rainChance ?? 0) / 100)})`,
+                        opacity: h.hour < nowHour ? 0.35 : 1,
+                      }}
+                    />
+                  </div>
+                  {/* The only string op on a backend field in here. Guarded not
+                      because `time` is ever missing today — it is always set —
+                      but because this page has no ErrorBoundary above it, so a
+                      throw during render white-screens the whole trip, not the
+                      chart. */}
+                  <div className="tp-wxtick">{h.hour % 6 === 0 && h.time ? h.time.replace(" ", "").replace("M", "") : ""}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="tp-wxlabel" style={{ marginTop: 16 }}>Hour by hour</div>
+            <div className="tp-wxhours">
+              {hours.map((h) => (
+                <div key={h.hour} className="tp-wxhour" style={{ opacity: h.hour < nowHour ? 0.4 : 1 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7684" }}>{h.time}</div>
+                  <div style={{ fontSize: 17, margin: "1px 0" }}>{h.emoji}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{h.temp == null ? "—" : `${h.temp}°`}</div>
+                  <div style={{ fontSize: 11, color: "#3d6a94" }}>{h.rainChance == null ? "" : `💧${h.rainChance}%`}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {halves.length > 0 && (
+          <>
+            <div className="tp-wxlabel" style={{ marginTop: 18 }}>Split</div>
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${halves.length}, 1fr)`, gap: 10 }}>
+              {halves.map((h) => (
+                <div key={h.label} style={{ background: "#faf8f2", border: "1px solid #f0ebe0", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684" }}>{h.icon} {h.label}</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginTop: 4 }}>
+                    {h.block.high == null ? "—" : `${h.block.high}°`}{" "}
+                    <span style={{ color: "#a8a094", fontWeight: 400 }}>{h.block.low == null ? "" : `${h.block.low}°`}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "#3d6a94", marginTop: 2 }}>
+                    {h.block.rainChance == null ? "—" : `💧 ${h.block.rainChance}%`}
+                    {h.block.precipAmount ? ` · ${h.block.precipAmount}"` : ""}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#a8a094", marginTop: 2 }}>
+                    {[h.block.humidity != null && `${h.block.humidity}% humidity`, h.block.windMph != null && `${h.block.windMph} mph wind`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {stats.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))", gap: 12, marginTop: 18 }}>
+            {stats.map((st) => (
+              <WxStat key={st.label} label={st.label} value={st.value} />
+            ))}
+          </div>
+        )}
+
+        {!detailed && (
+          <div style={{ color: "#a8a094", fontSize: 14, marginTop: 8 }}>
+            Hour-by-hour detail isn't available for this day yet.
           </div>
         )}
       </div>
@@ -433,6 +692,7 @@ export default function TripPlanner() {
    * of full recipes this trip's meals actually use and arrives with the trip. */
   const [recipeCatalog, setRecipeCatalog] = useState([]);
   const [openRecipe, setOpenRecipe] = useState(null); // { recipe, scale, mealTitle }
+  const [openWxDay, setOpenWxDay] = useState(null); // a day off the forecast strip
   const [addingItem, setAddingItem] = useState(false);
   const [newBring, setNewBring] = useState({ name: "", assigned_to: "" });
   // One draft per family, keyed by name, so typing in one family's box doesn't
@@ -604,6 +864,12 @@ export default function TripPlanner() {
     setOpenRecipe({ recipe, scale: Number(scale) || 1, mealTitle });
     window.history.replaceState(null, "", `#recipe-${recipe.id}`);
   }, []);
+
+  /* Stable, like hideRecipe below, and for the same reason the recipe one is:
+   * the modal's Esc-and-scroll-lock effect keys on this, and the trip refetches
+   * on every tab focus — an inline arrow would tear that effect down and
+   * re-register it each time the page came back into view with the sheet open. */
+  const hideWxDay = useCallback(() => setOpenWxDay(null), []);
 
   const hideRecipe = useCallback(() => {
     setOpenRecipe(null);
@@ -1274,6 +1540,9 @@ export default function TripPlanner() {
   return (
     <div className="tp-root">
       <style>{TP_CSS}</style>
+      {openWxDay && (
+        <WeatherDayModal day={openWxDay} place={wx?.place || trip.location} onClose={hideWxDay} />
+      )}
       {openRecipe && (
         <RecipeModal
           recipe={openRecipe.recipe}
@@ -1417,12 +1686,17 @@ export default function TripPlanner() {
         {wx?.available && (
           <div style={{ display: "flex", gap: 8, overflowX: "auto", marginTop: 14, paddingBottom: 4 }}>
             {wx.days.map((d) => (
-              <div key={d.date} style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 12, padding: "8px 12px", textAlign: "center", minWidth: 86, flexShrink: 0 }}>
+              <button
+                key={d.date}
+                className="tp-wxcard"
+                onClick={() => setOpenWxDay(d)}
+                aria-label={`${d.day} ${d.dateLabel}: high ${d.high}, low ${d.low}, ${d.rainChance}% rain. Open hourly detail.`}
+              >
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684" }}>{d.day} {d.dateLabel}</div>
                 <div style={{ fontSize: 22, margin: "2px 0" }}>{d.emoji}</div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{d.high}° <span style={{ color: "#a8a094", fontWeight: 400 }}>{d.low}°</span></div>
                 <div style={{ fontSize: 11, color: "#3d6a94" }}>💧{d.rainChance}%</div>
-              </div>
+              </button>
             ))}
           </div>
         )}
