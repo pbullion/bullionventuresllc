@@ -1931,7 +1931,9 @@ export default function TripPlanner() {
                 <>
               {/* Groceries get aisle sub-headings so the trip is one pass through
                   the store; every other category is just sorted A-Z, because an
-                  aisle means nothing for beach chairs. */}
+                  aisle means nothing for beach chairs. Either way the bought
+                  rows sink to the bottom of their group — see byDoneThenName in
+                  groceryAisles.js. */}
               {/* Roll up FIRST, then file into aisles. The other order files each
                   meal's copy separately and a merged row would have to pick an
                   aisle from one of them — "Jimmy Dean Sausage" and "Breakfast
@@ -2237,10 +2239,11 @@ export default function TripPlanner() {
                 : `${bringFilter} hasn't claimed anything — pick Everyone to see the rest.`}
             </p>
           )}
-          {/* Grouped by family, A-Z inside each: the question this list answers
-              is "what goes in MY car", which reading down one family's rows
-              gives you and a claim-ordered list does not. The per-row chip is
-              dropped inside a group — the heading already says whose it is. */}
+          {/* Grouped by family, A-Z inside each with anything already loaded
+              sunk to the bottom of its group: the question this list answers is
+              "what goes in MY car", which reading down one family's rows gives
+              you and a claim-ordered list does not. The per-row chip is dropped
+              inside a group — the heading already says whose it is. */}
           {shownBringGroups.map((group) => (
             <div key={group.label}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0 2px" }}>
