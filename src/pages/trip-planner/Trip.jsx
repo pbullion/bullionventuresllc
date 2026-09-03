@@ -1520,15 +1520,28 @@ export default function TripPlanner() {
   const familyPacking = (() => {
     const matches = (who, family) =>
       String(who || "").toLowerCase().includes(String(family).toLowerCase());
-    return families.map((family) => ({
-      family,
-      shared: sortByName(bringItems.filter((i) => matches(i.assigned_to, family))),
-      own: sortByName(
-        trip.items.filter(
-          (i) => i.category === FAMILY_PACKING && matches(i.assigned_to, family)
-        )
-      ),
-    }));
+    return families.map((family) => {
+      const shared = bringItems.filter((i) => matches(i.assigned_to, family));
+      const own = trip.items.filter(
+        (i) => i.category === FAMILY_PACKING && matches(i.assigned_to, family)
+      );
+      /* ONE sorted list, not shared-then-own. The two render as an unbroken run
+       * of rows — the only thing marking a shared one is the tag on the line —
+       * so sorting them as two pools would leave a cooler you have already
+       * loaded sitting above a suitcase you have not packed, which is the exact
+       * thing the sink is here to stop. The progress count below has always
+       * treated them as one pool; now the order does too.
+       *
+       * The rows are the ORIGINAL item objects, not copies: deleteItem puts the
+       * object it was handed back into trip.items when a delete fails, so a
+       * copy carrying an extra flag would quietly pollute the trip state. Which
+       * rows are shared is carried alongside, by id. */
+      return {
+        family,
+        rows: sortByName([...shared, ...own]),
+        sharedIds: new Set(shared.map((i) => i.id)),
+      };
+    });
   })();
 
   const bringGroups = (() => {
@@ -2369,9 +2382,9 @@ export default function TripPlanner() {
               Add the families up by the trip name and each one gets its own list here.
             </p>
           )}
-          {familyPacking.map(({ family, shared, own }, idx) => {
-            const total = shared.length + own.length;
-            const packed = [...shared, ...own].filter((i) => i.checked).length;
+          {familyPacking.map(({ family, rows, sharedIds }, idx) => {
+            const total = rows.length;
+            const packed = rows.filter((i) => i.checked).length;
             const isOpen = expandedFams.has(family);
             return (
             <div
@@ -2407,30 +2420,30 @@ export default function TripPlanner() {
               {isOpen && (
                 <>
 
-              {/* Shared gear, pulled in from "Who's bringing what" so it can be
-                  ticked off while loading the car. No ✕ here on purpose: these
-                  are the same rows as the Bringing claims, and deleting shared
-                  gear from what looks like a personal list would surprise
+              {/* Shared gear is pulled in from "Who's bringing what" so it can
+                  be ticked off while loading the car, and sits in the same
+                  sorted list as the family's own additions — the tag on the line
+                  is what tells them apart. No ✕ on a shared row, on purpose:
+                  those are the same rows as the Bringing claims, and deleting
+                  shared gear from what looks like a personal list would surprise
                   whoever else was counting on it. Remove it up there instead. */}
-              {shared.map((item) => (
+              {rows.map((item) => {
+                const isShared = sharedIds.has(item.id);
+                return (
                 <div key={item.id} className="tp-item-row">
-                  <input type="checkbox" className="tp-check" title="Packed / loaded" checked={item.checked} onChange={() => toggleItem(item)} />
+                  <input type="checkbox" className="tp-check" title={isShared ? "Packed / loaded" : "Packed"} checked={item.checked} onChange={() => toggleItem(item)} />
                   <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
                     {item.name}
-                    <span style={{ fontSize: 12, color: "#a8a094", marginLeft: 6 }}>shared gear</span>
+                    {isShared && (
+                      <span style={{ fontSize: 12, color: "#a8a094", marginLeft: 6 }}>shared gear</span>
+                    )}
                   </span>
+                  {!isShared && (
+                    <button className="tp-del" title="Remove" onClick={() => deleteItem(item)}>✕</button>
+                  )}
                 </div>
-              ))}
-
-              {own.map((item) => (
-                <div key={item.id} className="tp-item-row">
-                  <input type="checkbox" className="tp-check" title="Packed" checked={item.checked} onChange={() => toggleItem(item)} />
-                  <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
-                    {item.name}
-                  </span>
-                  <button className="tp-del" title="Remove" onClick={() => deleteItem(item)}>✕</button>
-                </div>
-              ))}
+                );
+              })}
 
               <form onSubmit={(e) => addPack(e, family)} style={{ display: "flex", gap: 8, marginTop: 10 }}>
                 <input
