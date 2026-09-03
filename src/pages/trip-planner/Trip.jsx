@@ -420,6 +420,14 @@ export default function TripPlanner() {
    * the rows nobody has taken. Not persisted: a filter that survived a reload
    * would look like items had gone missing. */
   const [whoFilter, setWhoFilter] = useState("");
+  /* Same pair for "Who's bringing what": which family's rows are showing, and
+   * which claim is open for editing. Separate from the shopping list's — the
+   * two sections answer different questions and filtering one to Hays has no
+   * business hiding the other's groceries. */
+  const [bringFilter, setBringFilter] = useState("");
+  const [editingBring, setEditingBring] = useState(null); // tp_items id
+  const [bringDraft, setBringDraft] = useState({ name: "", assigned_to: "" });
+  const [savingBring, setSavingBring] = useState(false);
   /* The recipe CATALOGUE (id/title only) — every recipe that exists, for the
    * picker in the meal editor. Distinct from trip.recipes, which is the handful
    * of full recipes this trip's meals actually use and arrives with the trip. */
@@ -836,6 +844,40 @@ export default function TripPlanner() {
     }
   }
 
+  /* A claim is one row with no rollup behind it, so its editor is just the two
+   * fields that make it up: what it is, and whose car it goes in. Reassigning
+   * is the point — things get claimed in a group chat and swapped later, and
+   * before this the only way to move one was to delete it and retype it under
+   * the other family. */
+  function startEditBring(item) {
+    setEditingBring(item.id);
+    setBringDraft({ name: item.name || "", assigned_to: item.assigned_to || "" });
+  }
+
+  async function saveBringEdits() {
+    if (savingBring || !bringDraft.name.trim() || !bringDraft.assigned_to.trim()) return;
+    setSavingBring(true);
+    setError("");
+    try {
+      const res = await tripFetch(slug, `${API_BASE}/items/${editingBring}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: bringDraft.name.trim(),
+          assigned_to: bringDraft.assigned_to.trim(),
+        }),
+      });
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.error || "save failed");
+      setTrip((t) => ({ ...t, items: t.items.map((i) => (i.id === saved.id ? saved : i)) }));
+      setEditingBring(null);
+    } catch (err) {
+      setError(`Couldn't save that: ${err.message}`);
+    } finally {
+      setSavingBring(false);
+    }
+  }
+
   // "Bringing" entries reuse tp_items with a reserved category — the person is
   // required, and the section renders grouped by person instead of category.
   async function addBring(e) {
@@ -1208,6 +1250,14 @@ export default function TripPlanner() {
     ];
     return ordered.map((label) => ({ label, items: sortByName(buckets.get(label)) }));
   })();
+  const bringWhoOptions = bringGroups.map((g) => g.label);
+  /* Same guard as the shopping filter: moving the last claim off the family you
+   * are filtered to would otherwise take its pill with it and strand you on an
+   * empty list with no visible way back to Everyone. */
+  if (bringFilter && !bringWhoOptions.includes(bringFilter)) bringWhoOptions.push(bringFilter);
+  const shownBringGroups = bringFilter
+    ? bringGroups.filter((g) => g.label === bringFilter)
+    : bringGroups;
   const categorySuggestions = [...new Set(["Groceries", "Beach gear", "Kids", ...allCategories])];
   // Listing + address ride along in the header too — they're what everyone
   // reaches for on the drive down, and the cabin card is at the bottom.
@@ -1845,16 +1895,44 @@ export default function TripPlanner() {
 
         <h2 id="tp-bringing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Who's bringing what</h2>
         <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
+          {(bringWhoOptions.length > 0 || bringFilter) && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+              <button
+                type="button"
+                className={`tp-mealtoggle${bringFilter === "" ? " on" : ""}`}
+                onClick={() => setBringFilter("")}
+              >
+                Everyone
+              </button>
+              {bringWhoOptions.map((who) => (
+                <button
+                  key={who}
+                  type="button"
+                  className={`tp-mealtoggle${bringFilter === who ? " on" : ""}`}
+                  onClick={() => setBringFilter(bringFilter === who ? "" : who)}
+                >
+                  {who}
+                </button>
+              ))}
+            </div>
+          )}
           {bringItems.length === 0 && (
             <p style={{ color: "#6b7684", marginTop: 0 }}>
               Nothing claimed yet — pop-up canopy, beach cart, cooler, cornhole…
+            </p>
+          )}
+          {bringItems.length > 0 && shownBringGroups.length === 0 && (
+            <p style={{ color: "#6b7684", marginTop: 0 }}>
+              {bringFilter === "Unclaimed"
+                ? "Everything here has a family on it — pick Everyone to see the rest."
+                : `${bringFilter} hasn't claimed anything — pick Everyone to see the rest.`}
             </p>
           )}
           {/* Grouped by family, A-Z inside each: the question this list answers
               is "what goes in MY car", which reading down one family's rows
               gives you and a claim-ordered list does not. The per-row chip is
               dropped inside a group — the heading already says whose it is. */}
-          {bringGroups.map((group) => (
+          {shownBringGroups.map((group) => (
             <div key={group.label}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0 2px" }}>
                 <Chip color={colorFor(group.label)}>{group.label}</Chip>
@@ -1862,15 +1940,79 @@ export default function TripPlanner() {
                   {group.items.length} item{group.items.length === 1 ? "" : "s"}
                 </span>
               </div>
-              {group.items.map((item) => (
-                <div key={item.id} className="tp-item-row">
-                  <input type="checkbox" className="tp-check" title="Packed / loaded" checked={item.checked} onChange={() => toggleItem(item)} />
-                  <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
-                    {item.name}
-                  </span>
-                  <button className="tp-del" title="Remove" onClick={() => deleteItem(item)}>✕</button>
-                </div>
-              ))}
+              {group.items.map((item) =>
+                editingBring === item.id ? (
+                  <div key={item.id} className="tp-editrow">
+                    <div className="tp-editpart">
+                      <input
+                        className="tp-input"
+                        style={{ flex: "2 1 160px", marginBottom: 0 }}
+                        value={bringDraft.name}
+                        onChange={(e) => setBringDraft((d) => ({ ...d, name: e.target.value }))}
+                        placeholder="I'm bringing…"
+                        aria-label="Item"
+                      />
+                      {families.length > 0 ? (
+                        <select
+                          className="tp-input"
+                          style={{ flex: "1 1 120px", marginBottom: 0 }}
+                          value={bringDraft.assigned_to}
+                          onChange={(e) => setBringDraft((d) => ({ ...d, assigned_to: e.target.value }))}
+                          aria-label="Which family"
+                        >
+                          <option value="">Family…</option>
+                          {families.map((f) => (
+                            <option key={f} value={f}>{f}</option>
+                          ))}
+                          {/* A claim made under a name that isn't on the families
+                              list — typed before the list existed, or since
+                              renamed — keeps its value selectable so opening the
+                              editor can't silently reassign it. */}
+                          {bringDraft.assigned_to && !families.includes(bringDraft.assigned_to) && (
+                            <option value={bringDraft.assigned_to}>{bringDraft.assigned_to}</option>
+                          )}
+                        </select>
+                      ) : (
+                        <input
+                          className="tp-input"
+                          style={{ flex: "1 1 120px", marginBottom: 0 }}
+                          value={bringDraft.assigned_to}
+                          onChange={(e) => setBringDraft((d) => ({ ...d, assigned_to: e.target.value }))}
+                          placeholder="Who"
+                          aria-label="Which family"
+                        />
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
+                      <button
+                        className="tp-btn"
+                        type="button"
+                        onClick={saveBringEdits}
+                        disabled={savingBring || !bringDraft.name.trim() || !bringDraft.assigned_to.trim()}
+                      >
+                        {savingBring ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="tp-btn-quiet"
+                        type="button"
+                        onClick={() => setEditingBring(null)}
+                        disabled={savingBring}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={item.id} className="tp-item-row">
+                    <input type="checkbox" className="tp-check" title="Packed / loaded" checked={item.checked} onChange={() => toggleItem(item)} />
+                    <span style={{ flex: 1, textDecoration: item.checked ? "line-through" : "none", color: item.checked ? "#a8a094" : "inherit" }}>
+                      {item.name}
+                    </span>
+                    <button className="tp-edit" title="Edit" onClick={() => startEditBring(item)}>✎</button>
+                    <button className="tp-del" title="Remove" onClick={() => deleteItem(item)}>✕</button>
+                  </div>
+                )
+              )}
             </div>
           ))}
           <form onSubmit={addBring} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
