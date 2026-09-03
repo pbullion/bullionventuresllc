@@ -4,8 +4,8 @@ import { eachDayOfInterval, format, parseISO } from "date-fns";
 import { deleteTripWithPin, setTripAccess, tripFetch, TRIP_DELETE_VISIBLE } from "./tripPin";
 import { groupByAisle, sortByName } from "./groceryAisles";
 import { formatAmount, rollUpItems } from "./rollup";
-
 import { conditionName } from "../../lib/weatherConditions";
+
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 
 // Per-trip planner at /tripplanner/<slug>: a day-by-day meal grid (breakfast /
@@ -158,6 +158,14 @@ function Chip({ children, color }) {
  * onClose must be referentially stable (both callers use useCallback), or the
  * effect tears down and re-pushes on every render and this layer jumps to the
  * top of the stack.
+ *
+ * One coupling to know about before adding a third dialog here: the layer that
+ * answers Escape is the last one MOUNTED, while the one that paints on top is
+ * whichever comes later in the JSX — both backdrops share z-index 50, so source
+ * order decides. Today those agree, because the only way to get two open is to
+ * tap a forecast day and have a #recipe-<id> link resolve afterwards. Reorder
+ * the JSX, or add a dialog that can open beneath an existing one, and Escape
+ * would start closing a layer the reader cannot see.
  */
 const modalStack = [];
 let savedOverflow = null;
