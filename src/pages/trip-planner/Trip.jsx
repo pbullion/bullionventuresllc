@@ -42,6 +42,10 @@ const TP_CSS = `
 .tp-item-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0ebe0; }
 .tp-del { background: none; border: none; color: #c2b8a6; cursor: pointer; font-size: 16px; padding: 2px 6px; }
 .tp-del:hover { color: #a33a2f; }
+.tp-edit { background: none; border: none; color: #c2b8a6; cursor: pointer; font-size: 14px; padding: 2px 6px; }
+.tp-edit:hover { color: #1f7a6f; }
+.tp-editrow { padding: 10px 0; border-bottom: 1px solid #f0ebe0; }
+.tp-editpart { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .tp-daymeals { background: none; border: none; color: #9fb3c8; cursor: pointer; font-size: 12px; padding: 2px 6px; font-weight: 600; }
 .tp-daymeals:hover { color: #fff; }
 .tp-mealtoggle { border: 1px solid #d8d0c2; background: #fff; color: #6b7684; border-radius: 999px; padding: 5px 11px; font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -404,6 +408,18 @@ export default function TripPlanner() {
   const [savingSlot, setSavingSlot] = useState(null);
   const [pickingDay, setPickingDay] = useState(null); // date whose meal-slot picker is open
   const [newItem, setNewItem] = useState({ name: "", category: "Groceries", assigned_to: "" });
+  /* Which shopping row is open for editing, as "<category>|<row key>" — the row
+   * key alone is the normalized NAME, which is only unique inside a category.
+   * `itemDraft` is one draft per underlying tp_items row, because a rolled-up
+   * line stands for every meal that wants that ingredient and each of those
+   * rows has its own amount and its own owner. */
+  const [editingItem, setEditingItem] = useState(null);
+  const [itemDraft, setItemDraft] = useState([]);
+  const [savingItem, setSavingItem] = useState(false);
+  /* Whose rows the shopping list is showing — "" is everyone, "Unclaimed" is
+   * the rows nobody has taken. Not persisted: a filter that survived a reload
+   * would look like items had gone missing. */
+  const [whoFilter, setWhoFilter] = useState("");
   /* The recipe CATALOGUE (id/title only) — every recipe that exists, for the
    * picker in the meal editor. Distinct from trip.recipes, which is the handful
    * of full recipes this trip's meals actually use and arrives with the trip. */
@@ -757,6 +773,69 @@ export default function TripPlanner() {
     }
   }
 
+  /* Opens one shopping row for editing. The draft is per underlying tp_items
+   * row, not per line: a rolled-up "2 lb sausage" is two rows on two different
+   * meals, and they can honestly disagree about the amount and about who is
+   * buying it, so each gets its own set of fields. A single-part row — nearly
+   * all of them — renders as one plain line of inputs. */
+  function startEditRow(rowId, row) {
+    setEditingItem(rowId);
+    setItemDraft(
+      row.parts.map((p) => ({
+        id: p.id,
+        name: p.name || "",
+        // Blank, not "0": the backend stores an absent quantity as NULL and a
+        // zero would drop the row out of the totals. See cleanQty server-side.
+        qty: p.qty == null ? "" : String(p.qty),
+        unit: p.unit || "",
+        assigned_to: p.assigned_to || "",
+        category: p.category || "",
+        meal_id: p.meal_id,
+        from_recipe: p.from_recipe,
+      }))
+    );
+  }
+
+  const updateDraft = (idx, patch) =>
+    setItemDraft((parts) => parts.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+
+  async function saveItemEdits() {
+    if (savingItem || itemDraft.some((d) => !d.name.trim())) return;
+    setSavingItem(true);
+    setError("");
+    try {
+      const saved = await Promise.all(
+        itemDraft.map(async (d) => {
+          const res = await tripFetch(slug, `${API_BASE}/items/${d.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: d.name.trim(),
+              category: d.category.trim() || "Groceries",
+              assigned_to: d.assigned_to.trim(),
+              // "" clears the quantity; the backend turns it back into NULL.
+              qty: d.qty.trim(),
+              unit: d.unit.trim(),
+            }),
+          });
+          const row = await res.json();
+          if (!res.ok) throw new Error(row.error || "save failed");
+          return row;
+        })
+      );
+      setTrip((t) => ({
+        ...t,
+        items: t.items.map((i) => saved.find((sv) => sv.id === i.id) || i),
+      }));
+      setEditingItem(null);
+      setItemDraft([]);
+    } catch (err) {
+      setError(`Couldn't save that item: ${err.message}`);
+    } finally {
+      setSavingItem(false);
+    }
+  }
+
   // "Bringing" entries reuse tp_items with a reserved category — the person is
   // required, and the section renders grouped by person instead of category.
   async function addBring(e) {
@@ -1035,7 +1114,7 @@ export default function TripPlanner() {
   const mealById = Object.fromEntries(trip.meals.map((m) => [m.id, m]));
   const recipeById = Object.fromEntries((trip.recipes || []).map((r) => [r.id, r]));
   const bringItems = trip.items.filter((i) => i.category === "Bringing");
-  const listItems = trip.items.filter(
+  const allListItems = trip.items.filter(
     (i) => i.category !== "Bringing" && i.category !== FAMILY_PACKING
   );
   const families = trip.families || [];
@@ -1045,13 +1124,43 @@ export default function TripPlanner() {
     const idx = families.findIndex((f) => name.toLowerCase().includes(f.toLowerCase()));
     return idx >= 0 ? FAMILY_COLORS[idx % FAMILY_COLORS.length] : undefined;
   };
+  /* Which bucket a row's owner falls in, for the filter and its pills. Same
+   * lenient family match as the chips — "Bullion family" and "the Bullions"
+   * both belong to Bullion — with everything unassigned under one label so
+   * "what has nobody taken yet" is answerable. */
+  const ownerKey = (item) => {
+    const who = String(item.assigned_to || "").trim();
+    if (!who) return "Unclaimed";
+    return families.find((f) => who.toLowerCase().includes(f.toLowerCase())) || who;
+  };
+  const ownerKeys = new Set(allListItems.map(ownerKey));
+  const whoOptions = [
+    ...families.filter((f) => ownerKeys.has(f)),
+    ...[...ownerKeys].filter((k) => !families.includes(k) && k !== "Unclaimed").sort(),
+    ...(ownerKeys.has("Unclaimed") ? ["Unclaimed"] : []),
+  ];
+  /* Reassigning the last row away from the family you are filtered to empties
+   * that bucket, and dropping its pill would leave the list looking empty with
+   * no visible way back to Everyone. The active filter always keeps a pill. */
+  if (whoFilter && !whoOptions.includes(whoFilter)) whoOptions.push(whoFilter);
+  /* Filtering the underlying rows rather than the rolled-up lines is deliberate:
+   * a 2 lb sausage line that is 1 lb yours and 1 lb theirs shows YOUR 1 lb under
+   * a filter, which is the number you are shopping to. Hiding whole lines would
+   * show a total you aren't buying. */
+  const listItems = whoFilter ? allListItems.filter((i) => ownerKey(i) === whoFilter) : allListItems;
   const categories = [...new Set(listItems.map((i) => i.category))];
+  const allCategories = [...new Set(allListItems.map((i) => i.category))];
   /* Counted over rolled-up ROWS, matching what the list renders. Counting raw
    * tp_items here instead told you "12 to go" above a list of 10 lines, because
-   * the two ingredient rows behind "2 lb sausage" are one thing to buy. */
+   * the two ingredient rows behind "2 lb sausage" are one thing to buy.
+   *
+   * Deliberately over the UNFILTERED list: this number rides in the jump nav at
+   * the top of the page, where it reads as "the trip still needs this much",
+   * and having it drop when someone filters to their own rows would read as
+   * items having been bought. */
   const shoppingLeft =
-    categories.reduce(
-      (n, cat) => n + rollUpItems(listItems.filter((i) => i.category === cat)).filter((r) => !r.checked).length,
+    allCategories.reduce(
+      (n, cat) => n + rollUpItems(allListItems.filter((i) => i.category === cat)).filter((r) => !r.checked).length,
       0
     ) + trip.items.filter((i) => i.category === FAMILY_PACKING && !i.checked).length;
   /* "Who's bringing what" grouped by family rather than by when it was claimed —
@@ -1099,7 +1208,7 @@ export default function TripPlanner() {
     ];
     return ordered.map((label) => ({ label, items: sortByName(buckets.get(label)) }));
   })();
-  const categorySuggestions = [...new Set(["Groceries", "Beach gear", "Kids", ...categories])];
+  const categorySuggestions = [...new Set(["Groceries", "Beach gear", "Kids", ...allCategories])];
   // Listing + address ride along in the header too — they're what everyone
   // reaches for on the drive down, and the cabin card is at the bottom.
   const cabin = trip.cabin || {};
@@ -1248,7 +1357,7 @@ export default function TripPlanner() {
 
         <nav className="tp-jump">
           <a href="#tp-meals">🍽️ Meals</a>
-          <a href="#tp-packing">🛒 Shopping{listItems.length + trip.items.filter((i) => i.category === FAMILY_PACKING).length > 0 ? ` (${shoppingLeft} to go)` : ""}</a>
+          <a href="#tp-packing">🛒 Shopping{allListItems.length + trip.items.filter((i) => i.category === FAMILY_PACKING).length > 0 ? ` (${shoppingLeft} to go)` : ""}</a>
           <a href="#tp-bringing">🏕️ Bringing</a>
           <a href="#tp-familypacking">🧳 Family packing</a>
           <a href="#tp-cabin">🏠 Cabin</a>
@@ -1402,8 +1511,35 @@ export default function TripPlanner() {
 
         <h2 id="tp-packing" style={{ fontSize: 19, margin: "28px 0 10px" }}>Shopping list</h2>
         <div style={{ background: "#fff", border: "1px solid #e4ddd0", borderRadius: 14, padding: 16, maxWidth: 640 }}>
+          {/* Who's responsible. Only worth showing once somebody has actually been
+              put on a row — before that every pill but "Everyone" is empty. */}
+          {(whoOptions.length > 0 || whoFilter) && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+              <button
+                type="button"
+                className={`tp-mealtoggle${whoFilter === "" ? " on" : ""}`}
+                onClick={() => setWhoFilter("")}
+              >
+                Everyone
+              </button>
+              {whoOptions.map((who) => (
+                <button
+                  key={who}
+                  type="button"
+                  className={`tp-mealtoggle${whoFilter === who ? " on" : ""}`}
+                  onClick={() => setWhoFilter(whoFilter === who ? "" : who)}
+                >
+                  {who}
+                </button>
+              ))}
+            </div>
+          )}
           {listItems.length === 0 && (
-            <p style={{ color: "#6b7684", marginTop: 0 }}>Nothing on the list yet — add the essentials below.</p>
+            <p style={{ color: "#6b7684", marginTop: 0 }}>
+              {whoFilter
+                ? `Nothing on ${whoFilter === "Unclaimed" ? "the unclaimed" : `${whoFilter}'s`} list — pick Everyone to see the rest.`
+                : "Nothing on the list yet — add the essentials below."}
+            </p>
           )}
           {categories.map((cat) => {
             const catRows = rollUpItems(listItems.filter((i) => i.category === cat));
@@ -1460,6 +1596,127 @@ export default function TripPlanner() {
                   const shared = row.parts.length > 1;
                   const soleMeal = !shared && row.parts[0].meal_id ? mealById[row.parts[0].meal_id] : null;
                   const owners = [...new Set(row.parts.map((p) => p.assigned_to).filter(Boolean))];
+                  /* Row key is the normalized name, which is only unique inside
+                     a category — "Ice" in Groceries and in Beach gear are two
+                     different lines and must not open each other. */
+                  const rowId = `${cat}|${row.key}`;
+                  if (editingItem === rowId) {
+                    return (
+                      <div key={row.key} className="tp-editrow">
+                        {itemDraft.map((d, idx) => {
+                          const m = d.meal_id ? mealById[d.meal_id] : null;
+                          return (
+                            <div key={d.id} style={{ marginBottom: 8 }}>
+                              {/* Only says which meal when there is more than one
+                                  to tell apart — on an ordinary row the label is
+                                  noise above a single line of inputs. */}
+                              {itemDraft.length > 1 && (
+                                <div style={{ fontSize: 12, color: "#a8a094", marginBottom: 3 }}>
+                                  {m ? `${format(parseISO(m.date), "EEE")} ${m.title || m.meal_type}` : "on the list"}
+                                </div>
+                              )}
+                              <div className="tp-editpart">
+                                <input
+                                  className="tp-input"
+                                  style={{ flex: "2 1 150px", marginBottom: 0 }}
+                                  value={d.name}
+                                  onChange={(e) => updateDraft(idx, { name: e.target.value })}
+                                  placeholder="Item"
+                                  aria-label="Item"
+                                />
+                                <input
+                                  className="tp-input"
+                                  style={{ flex: "0 1 68px", marginBottom: 0 }}
+                                  value={d.qty}
+                                  onChange={(e) => updateDraft(idx, { qty: e.target.value })}
+                                  placeholder="Qty"
+                                  inputMode="decimal"
+                                  aria-label="Quantity"
+                                />
+                                <input
+                                  className="tp-input"
+                                  style={{ flex: "0 1 88px", marginBottom: 0 }}
+                                  value={d.unit}
+                                  onChange={(e) => updateDraft(idx, { unit: e.target.value })}
+                                  placeholder="Unit"
+                                  list="tp-units"
+                                  aria-label="Unit"
+                                />
+                                {families.length > 0 ? (
+                                  <select
+                                    className="tp-input"
+                                    style={{ flex: "1 1 120px", marginBottom: 0 }}
+                                    value={d.assigned_to}
+                                    onChange={(e) => updateDraft(idx, { assigned_to: e.target.value })}
+                                    aria-label="Who's responsible"
+                                  >
+                                    <option value="">Nobody yet</option>
+                                    {families.map((f) => (
+                                      <option key={f} value={f}>{f}</option>
+                                    ))}
+                                    {/* A name typed in before the families list
+                                        existed (or since removed from it) is
+                                        still on the row — keep it selectable so
+                                        opening the editor can't silently blank
+                                        somebody out. */}
+                                    {d.assigned_to && !families.includes(d.assigned_to) && (
+                                      <option value={d.assigned_to}>{d.assigned_to}</option>
+                                    )}
+                                  </select>
+                                ) : (
+                                  <input
+                                    className="tp-input"
+                                    style={{ flex: "1 1 120px", marginBottom: 0 }}
+                                    value={d.assigned_to}
+                                    onChange={(e) => updateDraft(idx, { assigned_to: e.target.value })}
+                                    placeholder="Who"
+                                    aria-label="Who's responsible"
+                                  />
+                                )}
+                                <input
+                                  className="tp-input"
+                                  style={{ flex: "1 1 110px", marginBottom: 0 }}
+                                  value={d.category}
+                                  onChange={(e) => updateDraft(idx, { category: e.target.value })}
+                                  list="tp-categories"
+                                  placeholder="Category"
+                                  aria-label="Category"
+                                />
+                              </div>
+                              {/* Attaching or rescaling a recipe deletes and
+                                  rebuilds its ingredient rows, so an edit made
+                                  here goes with them. Say so rather than let the
+                                  change quietly disappear next time the meal is
+                                  touched. */}
+                              {d.from_recipe && (
+                                <div style={{ fontSize: 12, color: "#a8802a", marginTop: 4 }}>
+                                  Comes from the recipe on that meal — rescaling or re-picking the recipe rebuilds this row and overwrites these edits.
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+                          <button
+                            className="tp-btn"
+                            type="button"
+                            onClick={saveItemEdits}
+                            disabled={savingItem || itemDraft.some((d) => !d.name.trim())}
+                          >
+                            {savingItem ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            className="tp-btn-quiet"
+                            type="button"
+                            onClick={() => { setEditingItem(null); setItemDraft([]); }}
+                            disabled={savingItem}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
                   return (
                     <div key={row.key} className="tp-item-row">
                       <input type="checkbox" className="tp-check" checked={row.checked} onChange={() => toggleRow(row)} />
@@ -1511,6 +1768,7 @@ export default function TripPlanner() {
                       {owners.map((o) => (
                         <Chip key={o} color={colorFor(o)}>{o}</Chip>
                       ))}
+                      <button className="tp-edit" title="Edit item" onClick={() => startEditRow(rowId, row)}>✎</button>
                       <button className="tp-del" title="Remove item" onClick={() => deleteRow(row)}>✕</button>
                     </div>
                   );
@@ -1544,13 +1802,41 @@ export default function TripPlanner() {
                 <option key={c} value={c} />
               ))}
             </datalist>
-            <input
-              className="tp-input"
-              style={{ flex: "1 1 110px", marginBottom: 0 }}
-              value={newItem.assigned_to}
-              onChange={(e) => setNewItem((n) => ({ ...n, assigned_to: e.target.value }))}
-              placeholder="Who (optional)"
-            />
+            {/* The canonical spellings the backend stores. Two amounts only add
+                together when their units match exactly, so "lb" vs "pounds"
+                typed by two people is a rollup that silently stops totalling —
+                see cleanUnit in routes/tripPlanner.js. */}
+            <datalist id="tp-units">
+              {["lb", "oz", "cup", "tsp", "tbsp", "can", "pkg", "bottle", "bag", "box", "jar", "dozen", "ct", "qt", "gal"].map((u) => (
+                <option key={u} value={u} />
+              ))}
+            </datalist>
+            {/* Picked, not typed, once the trip knows its families: the chips,
+                the colour coding and the filter above all match on the family
+                NAME, and a free-typed "bullions" quietly lands in its own
+                bucket. Falls back to a text box on a trip with no families. */}
+            {families.length > 0 ? (
+              <select
+                className="tp-input"
+                style={{ flex: "1 1 130px", marginBottom: 0 }}
+                value={newItem.assigned_to}
+                onChange={(e) => setNewItem((n) => ({ ...n, assigned_to: e.target.value }))}
+                aria-label="Who's responsible"
+              >
+                <option value="">Who's responsible…</option>
+                {families.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className="tp-input"
+                style={{ flex: "1 1 110px", marginBottom: 0 }}
+                value={newItem.assigned_to}
+                onChange={(e) => setNewItem((n) => ({ ...n, assigned_to: e.target.value }))}
+                placeholder="Who (optional)"
+              />
+            )}
             <button className="tp-btn" type="submit" disabled={!newItem.name.trim() || addingItem}>
               {addingItem ? "Adding…" : "Add"}
             </button>
