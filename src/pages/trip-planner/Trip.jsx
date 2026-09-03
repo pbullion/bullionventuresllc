@@ -4,6 +4,7 @@ import { eachDayOfInterval, format, parseISO } from "date-fns";
 import { deleteTripWithPin, setTripAccess, tripFetch, TRIP_DELETE_VISIBLE } from "./tripPin";
 import { groupByAisle, sortByName } from "./groceryAisles";
 import { formatAmount, rollUpItems } from "./rollup";
+import { conditionName } from "../../lib/weatherConditions";
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/trip-planner";
 
@@ -141,6 +142,62 @@ function Chip({ children, color }) {
   );
 }
 
+/* One dialog layer: Escape to close, and the page behind frozen.
+ *
+ * Both modals on this page used to run this effect themselves, each adding its
+ * own document-level keydown listener with no idea the other existed. Two open
+ * at once — reachable, because a #recipe-<id> link opens the recipe as soon as
+ * the trip loads, which can land after you have already tapped a forecast day —
+ * and one Escape closed BOTH, because both listeners fired.
+ *
+ * The stack fixes that: only the top layer answers Escape. It also makes the
+ * scroll lock correct rather than accidentally correct — the first layer to
+ * open saves the page's real overflow and the last one out restores it, so a
+ * nested dialog can't save "hidden" as the value to go back to.
+ *
+ * onClose must be referentially stable (both callers use useCallback), or the
+ * effect tears down and re-pushes on every render and this layer jumps to the
+ * top of the stack.
+ *
+ * One coupling to know about before adding a third dialog here: the layer that
+ * answers Escape is the last one MOUNTED, while the one that paints on top is
+ * whichever comes later in the JSX — both backdrops share z-index 50, so source
+ * order decides. Today those agree, because the only way to get two open is to
+ * tap a forecast day and have a #recipe-<id> link resolve afterwards. Reorder
+ * the JSX, or add a dialog that can open beneath an existing one, and Escape
+ * would start closing a layer the reader cannot see.
+ */
+const modalStack = [];
+let savedOverflow = null;
+
+function useModalLayer(onClose) {
+  useEffect(() => {
+    const layer = {};
+    modalStack.push(layer);
+    if (modalStack.length === 1) {
+      savedOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
+
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (modalStack[modalStack.length - 1] !== layer) return;
+      onClose();
+    };
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      const i = modalStack.indexOf(layer);
+      if (i !== -1) modalStack.splice(i, 1);
+      if (modalStack.length === 0) {
+        document.body.style.overflow = savedOverflow ?? "";
+        savedOverflow = null;
+      }
+    };
+  }, [onClose]);
+}
+
 /* The recipe itself, over the page rather than on it.
  *
  * A modal and not a route: you open a recipe while standing at the stove with
@@ -156,18 +213,7 @@ function Chip({ children, color }) {
 function RecipeModal({ recipe, scale = 1, mealTitle, onClose }) {
   // Esc closes, and the page behind is frozen so a scroll gesture inside a long
   // recipe doesn't leak through to the trip and lose the reader's place.
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
+  useModalLayer(onClose);
 
   if (!recipe) return null;
   const ings = recipe.ingredients || [];
@@ -309,18 +355,7 @@ function WxStat({ label, value }) {
  * but the six fields the strip already used. It has to be useful anyway.
  */
 function WeatherDayModal({ day, place, onClose }) {
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
+  useModalLayer(onClose);
 
   if (!day) return null;
 
@@ -370,7 +405,7 @@ function WeatherDayModal({ day, place, onClose }) {
           {day.emoji} {day.day}, {day.dateLabel}
         </h3>
         <div style={{ fontSize: 13, color: "#6b7684", marginBottom: 14 }}>
-          {[place, day.condition && day.condition.replace(/([a-z])([A-Z])/g, "$1 $2")].filter(Boolean).join(" · ")}
+          {[place, conditionName(day.condition)].filter(Boolean).join(" · ")}
         </div>
 
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 16 }}>
