@@ -165,7 +165,12 @@ export function totalParts(parts) {
  *
  * Returns one entry per distinct ingredient, carrying every underlying tp_items
  * row so the UI can show the per-meal breakdown and tick them all off together.
- * Order is stable: first appearance wins, and the caller has already sorted.
+ *
+ * Order out is first-appearance order, which is the order the rows arrived in —
+ * callers roll up FIRST and sort the result (sortByName / groupByAisle), so
+ * nothing here needs to be sorted and the order this returns is not what ends
+ * up on screen. It only has to be deterministic, so a re-render doesn't shuffle
+ * two rows that sort equal.
  *
  * `parts.length === 1` is the ordinary case and should render exactly like the
  * list always has — the rollup is invisible until something actually overlaps.
