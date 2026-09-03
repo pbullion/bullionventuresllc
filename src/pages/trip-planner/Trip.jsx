@@ -339,7 +339,20 @@ function WeatherDayModal({ day, place, onClose }) {
   const todayKey = new Date().toLocaleDateString("en-CA");
   const nowHour = day.date === todayKey ? new Date().getHours() : -1;
 
-  const detailed = hours.length > 0 || halves.length > 0 || day.sunrise != null;
+  /* Filtered here rather than left to each WxStat's own null check, so a day
+   * with none of them renders no grid at all — an empty grid still takes its
+   * top margin, which left a dead gap above the "not available" line in exactly
+   * the state this modal is designed to handle. */
+  const stats = [
+    { label: "Sunrise", value: day.sunrise },
+    { label: "Sunset", value: day.sunset },
+    { label: wet === "snow" ? "Snowfall" : "Rainfall", value: day.precipAmount == null ? null : `${day.precipAmount}"` },
+    { label: "Wind", value: day.windMph == null ? null : `${day.windMph} mph` },
+    { label: "Gusts", value: day.windGustMph == null ? null : `${day.windGustMph} mph` },
+    { label: "UV index", value: day.uvIndex == null ? null : String(day.uvIndex) },
+  ].filter((st) => st.value != null && st.value !== "");
+
+  const detailed = hours.length > 0 || halves.length > 0 || stats.length > 0;
 
   return (
     <div
@@ -399,7 +412,7 @@ function WeatherDayModal({ day, place, onClose }) {
               }
             >
               {hours.map((h) => (
-                <div key={h.hour} className="tp-wxcol" title={`${h.time} · ${h.rainChance}%${h.precipAmount ? ` · ${h.precipAmount}"` : ""}`}>
+                <div key={h.hour} className="tp-wxcol" title={`${h.time || ""} · ${h.rainChance ?? "—"}%${h.precipAmount ? ` · ${h.precipAmount}"` : ""}`}>
                   <div className="tp-wxbar-track">
                     <div
                       className="tp-wxbar"
@@ -412,7 +425,12 @@ function WeatherDayModal({ day, place, onClose }) {
                       }}
                     />
                   </div>
-                  <div className="tp-wxtick">{h.hour % 6 === 0 ? h.time.replace(" ", "").replace("M", "") : ""}</div>
+                  {/* The only string op on a backend field in here. Guarded not
+                      because `time` is ever missing today — it is always set —
+                      but because this page has no ErrorBoundary above it, so a
+                      throw during render white-screens the whole trip, not the
+                      chart. */}
+                  <div className="tp-wxtick">{h.hour % 6 === 0 && h.time ? h.time.replace(" ", "").replace("M", "") : ""}</div>
                 </div>
               ))}
             </div>
@@ -423,8 +441,8 @@ function WeatherDayModal({ day, place, onClose }) {
                 <div key={h.hour} className="tp-wxhour" style={{ opacity: h.hour < nowHour ? 0.4 : 1 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7684" }}>{h.time}</div>
                   <div style={{ fontSize: 17, margin: "1px 0" }}>{h.emoji}</div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{h.temp}°</div>
-                  <div style={{ fontSize: 11, color: "#3d6a94" }}>💧{h.rainChance}%</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{h.temp == null ? "—" : `${h.temp}°`}</div>
+                  <div style={{ fontSize: 11, color: "#3d6a94" }}>{h.rainChance == null ? "" : `💧${h.rainChance}%`}</div>
                 </div>
               ))}
             </div>
@@ -439,10 +457,12 @@ function WeatherDayModal({ day, place, onClose }) {
                 <div key={h.label} style={{ background: "#faf8f2", border: "1px solid #f0ebe0", borderRadius: 10, padding: "10px 12px" }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684" }}>{h.icon} {h.label}</div>
                   <div style={{ fontSize: 15, fontWeight: 600, marginTop: 4 }}>
-                    {h.block.high}° <span style={{ color: "#a8a094", fontWeight: 400 }}>{h.block.low}°</span>
+                    {h.block.high == null ? "—" : `${h.block.high}°`}{" "}
+                    <span style={{ color: "#a8a094", fontWeight: 400 }}>{h.block.low == null ? "" : `${h.block.low}°`}</span>
                   </div>
                   <div style={{ fontSize: 13, color: "#3d6a94", marginTop: 2 }}>
-                    💧 {h.block.rainChance}%{h.block.precipAmount ? ` · ${h.block.precipAmount}"` : ""}
+                    {h.block.rainChance == null ? "—" : `💧 ${h.block.rainChance}%`}
+                    {h.block.precipAmount ? ` · ${h.block.precipAmount}"` : ""}
                   </div>
                   <div style={{ fontSize: 12, color: "#a8a094", marginTop: 2 }}>
                     {[h.block.humidity != null && `${h.block.humidity}% humidity`, h.block.windMph != null && `${h.block.windMph} mph wind`]
@@ -455,14 +475,13 @@ function WeatherDayModal({ day, place, onClose }) {
           </>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))", gap: 12, marginTop: 18 }}>
-          <WxStat label="Sunrise" value={day.sunrise} />
-          <WxStat label="Sunset" value={day.sunset} />
-          <WxStat label={wet === "snow" ? "Snowfall" : "Rainfall"} value={day.precipAmount == null ? null : `${day.precipAmount}"`} />
-          <WxStat label="Wind" value={day.windMph == null ? null : `${day.windMph} mph`} />
-          <WxStat label="Gusts" value={day.windGustMph == null ? null : `${day.windGustMph} mph`} />
-          <WxStat label="UV index" value={day.uvIndex == null ? null : String(day.uvIndex)} />
-        </div>
+        {stats.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))", gap: 12, marginTop: 18 }}>
+            {stats.map((st) => (
+              <WxStat key={st.label} label={st.label} value={st.value} />
+            ))}
+          </div>
+        )}
 
         {!detailed && (
           <div style={{ color: "#a8a094", fontSize: 14, marginTop: 8 }}>
@@ -1671,7 +1690,7 @@ export default function TripPlanner() {
                 key={d.date}
                 className="tp-wxcard"
                 onClick={() => setOpenWxDay(d)}
-                aria-label={`Forecast detail for ${d.day} ${d.dateLabel}`}
+                aria-label={`${d.day} ${d.dateLabel}: high ${d.high}, low ${d.low}, ${d.rainChance}% rain. Open hourly detail.`}
               >
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7684" }}>{d.day} {d.dateLabel}</div>
                 <div style={{ fontSize: 22, margin: "2px 0" }}>{d.emoji}</div>
