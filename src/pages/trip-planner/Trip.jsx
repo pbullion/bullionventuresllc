@@ -846,6 +846,12 @@ export default function TripPlanner() {
     window.history.replaceState(null, "", `#recipe-${recipe.id}`);
   }, []);
 
+  /* Stable, like hideRecipe below, and for the same reason the recipe one is:
+   * the modal's Esc-and-scroll-lock effect keys on this, and the trip refetches
+   * on every tab focus — an inline arrow would tear that effect down and
+   * re-register it each time the page came back into view with the sheet open. */
+  const hideWxDay = useCallback(() => setOpenWxDay(null), []);
+
   const hideRecipe = useCallback(() => {
     setOpenRecipe(null);
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -1516,7 +1522,7 @@ export default function TripPlanner() {
     <div className="tp-root">
       <style>{TP_CSS}</style>
       {openWxDay && (
-        <WeatherDayModal day={openWxDay} place={wx?.place || trip.location} onClose={() => setOpenWxDay(null)} />
+        <WeatherDayModal day={openWxDay} place={wx?.place || trip.location} onClose={hideWxDay} />
       )}
       {openRecipe && (
         <RecipeModal
