@@ -74,26 +74,38 @@ export function aisleFor(name) {
   return "Other";
 }
 
-/* Groups items into aisles and sorts A-Z inside each, returning them in
- * store-walk order with empty aisles dropped. Sorting is locale-aware and
- * case-insensitive so "Boudain" and "beans" interleave the way a person reads
- * them rather than uppercase-first. */
+/* Ticked rows sink. Every checklist on the trip page sorts through here, and
+ * they all answer the same question — what is still left to do — which an A-Z
+ * list stops answering the moment half of it is struck through and scattered
+ * among the rest. Checked rows go to the bottom of whatever group they are in
+ * (their aisle, their family) rather than to the bottom of the page, so the
+ * heading above a row still tells the truth about it.
+ *
+ * Sorting is locale-aware and case-insensitive so "Boudain" and "beans"
+ * interleave the way a person reads them rather than uppercase-first.
+ *
+ * `checked` is read the same way off a raw tp_items row and off a rolled-up
+ * shopping row — the rollup sets it only when every part is ticked, which is
+ * the same "this is done" the checkbox draws. A row with no `checked` field at
+ * all counts as unchecked and keeps its A-Z place. */
+function byDoneThenName(a, b) {
+  if (Boolean(a.checked) !== Boolean(b.checked)) return a.checked ? 1 : -1;
+  return String(a.name).localeCompare(String(b.name), "en", { sensitivity: "base" });
+}
+
+/* Groups items into aisles and sorts inside each, returning them in
+ * store-walk order with empty aisles dropped. */
 export function groupByAisle(items) {
   const buckets = new Map(AISLE_ORDER.map((label) => [label, []]));
   items.forEach((item) => buckets.get(aisleFor(item.name)).push(item));
   return AISLE_ORDER.map((label) => ({
     label,
-    items: buckets
-      .get(label)
-      .slice()
-      .sort((a, b) => String(a.name).localeCompare(String(b.name), "en", { sensitivity: "base" })),
+    items: buckets.get(label).slice().sort(byDoneThenName),
   })).filter((g) => g.items.length > 0);
 }
 
-/* Plain A-Z, for the non-grocery categories (Packing, Beach gear, Kids) where an
- * aisle means nothing. */
+/* Plain A-Z with the ticked rows underneath, for the non-grocery categories
+ * (Packing, Beach gear, Kids) where an aisle means nothing. */
 export function sortByName(items) {
-  return items
-    .slice()
-    .sort((a, b) => String(a.name).localeCompare(String(b.name), "en", { sensitivity: "base" }));
+  return items.slice().sort(byDoneThenName);
 }
