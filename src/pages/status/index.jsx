@@ -71,17 +71,30 @@ export default function Status() {
    * slow or timed-out check can never overlap the next one — which is the exact
    * stacking behaviour that caused the outage this page watches. */
   const timer = useRef(null);
-  const alive = useRef(true);
+  /* A generation counter, not an `alive` boolean.
+   *
+   * A single shared boolean is not enough under StrictMode's dev
+   * setup→cleanup→setup double-invoke: the first mount's fetch is still in
+   * flight when cleanup flips the flag, and the second mount flips it back to
+   * true before that fetch resolves — so the stray result lands anyway. Bumping
+   * a counter on teardown instead means each run compares against the value it
+   * started with, and a superseded run can never commit. */
+  const run = useRef(0);
+  const inFlight = useRef(null);
 
   const check = useCallback(async () => {
+    const myRun = run.current;
     setBusy(true);
     const startedAt = Date.now();
     let result;
+    const controller = new AbortController();
+    /* Held on a ref so unmount can actually abort it. Left as a local it was
+     * unreachable from cleanup, and a request against a struggling dyno kept
+     * running for up to TIMEOUT_MS after the user had navigated away. */
+    inFlight.current = controller;
+    const abort = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      const controller = new AbortController();
-      const abort = setTimeout(() => controller.abort(), TIMEOUT_MS);
       const res = await fetch(HEALTH_URL, { signal: controller.signal, cache: "no-store" });
-      clearTimeout(abort);
       const ms = Date.now() - startedAt;
       /* Heroku serves its own HTML error page with a 503 when the dyno is
        * crashed, so a non-JSON body is expected here, not exceptional — read it
@@ -94,13 +107,26 @@ export default function Status() {
       } catch {
         body = null;
       }
+      const up = res.ok && body?.ok === true;
+      /* Every failure gets a reason. Keying the note off `res.ok` alone left a
+       * whole class of failures explaining nothing: a captive-portal wifi login
+       * answers 200 with an HTML page, which is not ok:true and so reads as
+       * DOWN — and the banner rendered "Backend is DOWN" with no subline at
+       * all. A status page that says something is wrong without saying what is
+       * barely better than the blank screen it replaced. */
       result = {
         at: startedAt,
         ms,
         status: res.status,
-        up: res.ok && body?.ok === true,
+        up,
         body,
-        note: res.ok ? null : `HTTP ${res.status}`,
+        note: up
+          ? null
+          : !res.ok
+            ? `HTTP ${res.status}`
+            : body == null
+              ? `HTTP 200 but the body was not JSON — something between you and the backend answered instead`
+              : `HTTP 200 but the body did not say ok:true`,
       };
     } catch (err) {
       result = {
@@ -111,18 +137,21 @@ export default function Status() {
         body: null,
         note: err.name === "AbortError" ? `no answer in ${TIMEOUT_MS / 1000}s` : "unreachable",
       };
+    } finally {
+      clearTimeout(abort);
+      if (inFlight.current === controller) inFlight.current = null;
     }
-    if (!alive.current) return;
+    if (myRun !== run.current) return; // superseded by a teardown
     setChecks((prev) => [...prev, result].slice(-HISTORY));
     setBusy(false);
   }, []);
 
   useEffect(() => {
-    alive.current = true;
+    const myRun = run.current;
     let cancelled = false;
     const loop = async () => {
       await check();
-      if (cancelled) return;
+      if (cancelled || run.current !== myRun) return;
       timer.current = setTimeout(loop, POLL_MS);
     };
     loop();
@@ -133,7 +162,8 @@ export default function Status() {
     document.head.appendChild(meta);
     return () => {
       cancelled = true;
-      alive.current = false;
+      run.current += 1; // invalidate any result still in flight from this run
+      inFlight.current?.abort();
       clearTimeout(timer.current);
       document.title = "Bullion Ventures LLC";
       meta.remove();
@@ -190,16 +220,45 @@ export default function Status() {
   const heapTone = heapPct == null ? "idle" : heapPct >= 90 ? "bad" : heapPct >= 75 ? "warn" : "ok";
 
   const unstable = restarts > 0 || failures > 0;
-  const state = !latest ? "checking" : latest.up ? (unstable ? "flapping" : "up") : "down";
+
+  /* THE BANNER HAS TO KNOW ABOUT MEMORY.
+   *
+   * Derived from failures alone, this said "Backend is up — responding
+   * normally, memory inside its quota" while the RSS card directly beneath it
+   * read 104% and R14. That is the reassuring-but-wrong answer the whole page
+   * exists to avoid: the banner is the one thing a person actually reads, and
+   * on 2026-09-03 the dyno sat over quota for a long while BEFORE it started
+   * failing checks. Being over quota is the story, not the epilogue. */
+  const strain =
+    rssTone === "bad" || heapTone === "bad"
+      ? "bad"
+      : rssTone === "warn" || heapTone === "warn"
+        ? "warn"
+        : "ok";
+
+  const state = !latest
+    ? "checking"
+    : !latest.up
+      ? "down"
+      : unstable
+        ? "flapping"
+        : strain !== "ok"
+          ? "strained"
+          : "up";
   const headline = {
     checking: "Checking…",
     up: "Backend is up",
+    strained: strain === "bad" ? "Up, but over its memory quota" : "Up, but memory is climbing",
     flapping: "Up, but restarting",
     down: "Backend is DOWN",
   }[state];
   const subline = {
     checking: "Asking /health for the first time.",
     up: "Responding normally, memory inside its quota.",
+    strained:
+      `Answering every check, but RSS is ${rss} MB — ${rssPct}% of the ${QUOTA_MB} MB quota` +
+      (heapPct != null && heapTone !== "ok" ? `, and the heap is at ${heapPct}% of its cap` : "") +
+      `. ${strain === "bad" ? "Over quota is Heroku's R14." : "This is the climb that precedes a crash-loop."} Nothing has failed yet.`,
     flapping: `Answering right now, but not steadily: ${[
       restarts > 0 && `${restarts} restart${restarts === 1 ? "" : "s"}`,
       failures > 0 && `${failures} failed check${failures === 1 ? "" : "s"}`,
@@ -263,7 +322,10 @@ export default function Status() {
           <Stat
             label="Response time"
             value={latest ? `${latest.ms} ms` : "—"}
-            tone={!latest ? "idle" : latest.ms > 5000 ? "warn" : "ok"}
+            /* A failed check is not a fast success. Heroku's crashed-dyno
+               error page comes back in ~4s, under the 5s threshold, which
+               rendered this card green directly beneath a red DOWN banner. */
+            tone={!latest ? "idle" : !latest.up ? "bad" : latest.ms > 5000 ? "warn" : "ok"}
             foot={latest ? `HTTP ${latest.status || "—"} at ${fmtClock(latest.at)}` : "—"}
           />
           <Stat
@@ -299,7 +361,23 @@ export default function Status() {
             Oldest on the left. A run of red between greens is a crash-loop — the pattern a
             single status light hides.
           </p>
-          <div style={S.hist} role="img" aria-label={`Last ${checks.length} health checks`}>
+          {/* The label spells out the PATTERN, not just the count. This strip's
+              whole claim is that a run of red between greens is a crash-loop —
+              conveyed by bar colour and a hover-only tooltip, neither of which
+              a screen reader or a touch user gets. So the shape goes in words:
+              how many failed, and whether they were recent. */}
+          <div
+            style={S.hist}
+            role="img"
+            aria-label={
+              checks.length === 0
+                ? "No health checks yet"
+                : `Last ${checks.length} health checks: ${checks.length - failures} up, ${failures} failed` +
+                  (failures > 0
+                    ? `. Most recent check ${latest?.up ? "succeeded" : "failed"}${restarts > 0 ? `, and the backend restarted ${restarts} time${restarts === 1 ? "" : "s"}` : ""}.`
+                    : ". No failures.")
+            }
+          >
             {checks.length === 0 && <div style={S.histEmpty}>No checks yet.</div>}
             {checks.map((c) => (
               <div
@@ -349,6 +427,7 @@ const TONE = {
 const BANNER = {
   checking: { borderColor: "#24242e" },
   up: { borderColor: "rgba(74, 222, 128, .45)" },
+  strained: { borderColor: "rgba(224, 178, 76, .55)" },
   flapping: { borderColor: "rgba(224, 178, 76, .55)" },
   down: { borderColor: "rgba(248, 113, 113, .55)" },
 };
@@ -356,11 +435,11 @@ const BANNER = {
 const CSS = `
 .bv-dot { border-radius: 999px; flex-shrink: 0; }
 .bv-dot-up { background: #4ade80; }
-.bv-dot-flapping { background: #e0b24c; }
+.bv-dot-flapping, .bv-dot-strained { background: #e0b24c; }
 .bv-dot-down { background: #f87171; }
 .bv-dot-checking { background: #5f5f74; }
 /* The pulse is decoration on top of a colour and a word, never the only cue. */
-.bv-dot-down, .bv-dot-flapping { animation: bv-pulse 1.6s ease-in-out infinite; }
+.bv-dot-down, .bv-dot-flapping, .bv-dot-strained { animation: bv-pulse 1.6s ease-in-out infinite; }
 @keyframes bv-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 .bv-bar { border-radius: 2px; }
@@ -385,7 +464,7 @@ const CSS = `
 .bv-refresh:focus-visible { outline: 2px solid #e0b24c; outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .bv-dot-down, .bv-dot-flapping { animation: none; }
+  .bv-dot-down, .bv-dot-flapping, .bv-dot-strained { animation: none; }
   .bv-refresh { transition: none; }
 }
 `;
