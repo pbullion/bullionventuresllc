@@ -72,6 +72,7 @@ import Ashley from "./pages/ashley/index.jsx";
 import Prospects from "./pages/prospects/index.jsx";
 import PatrickBoard from "./pages/patrick/index.jsx";
 import Jump from "./pages/jump/index.jsx";
+import Status from "./pages/status/index.jsx";
 import Drive from "./pages/drive";
 import Hrw from "./pages/hrw/index.jsx";
 import HrwRestaurant from "./pages/hrw/Restaurant.jsx";
@@ -217,6 +218,7 @@ export default function App() {
           {/* The press-and-hold modal's list as a bookmarkable page. Keeps the
               site chrome, unlike the full-screen tools above it. */}
           <Route path="/jump" element={<Jump />} />
+          <Route path="/status" element={<Status />} />
           <Route path="/drive" element={<Drive />} />
           <Route path="/hrw" element={<Hrw />} />
           <Route path="/hrw/:slug" element={<HrwRestaurant />} />

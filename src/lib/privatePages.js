@@ -42,6 +42,12 @@ export const PRIVATE_GROUPS = [
         path: "/drive",
         tagline: "In-car dashboard for the Tesla browser",
       },
+      {
+        emoji: "🩺",
+        name: "Backend Status",
+        path: "/status",
+        tagline: "Is the shared API up — and is it restarting?",
+      },
       /* The page version of the modal this list also feeds. It is in the list
        * on purpose — that is how the convention above makes a new page
        * discoverable — and /jump drops its own row when it renders, so it never
