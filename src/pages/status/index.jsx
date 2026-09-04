@@ -80,7 +80,11 @@ export default function Status() {
    * a counter on teardown instead means each run compares against the value it
    * started with, and a superseded run can never commit. */
   const run = useRef(0);
-  const inFlight = useRef(null);
+  /* A Set, not a single ref. "Check now" can be pressed while the automatic
+   * poll already has a request out, and a single slot means the second
+   * controller overwrites the first — leaving one request unabortable, which is
+   * the very thing this ref exists to prevent. */
+  const inFlight = useRef(new Set());
 
   const check = useCallback(async () => {
     const myRun = run.current;
@@ -91,7 +95,7 @@ export default function Status() {
     /* Held on a ref so unmount can actually abort it. Left as a local it was
      * unreachable from cleanup, and a request against a struggling dyno kept
      * running for up to TIMEOUT_MS after the user had navigated away. */
-    inFlight.current = controller;
+    inFlight.current.add(controller);
     const abort = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const res = await fetch(HEALTH_URL, { signal: controller.signal, cache: "no-store" });
@@ -139,15 +143,27 @@ export default function Status() {
       };
     } finally {
       clearTimeout(abort);
-      if (inFlight.current === controller) inFlight.current = null;
+      inFlight.current.delete(controller);
     }
     if (myRun !== run.current) return; // superseded by a teardown
-    setChecks((prev) => [...prev, result].slice(-HISTORY));
+    /* Sorted by START time, not appended in resolution order.
+     *
+     * Two checks can be in flight at once (the button, plus the automatic
+     * poll), and the slower one resolves last regardless of which began first.
+     * Appending blind would put an older reading after a newer one — and both
+     * `latest` and the restart detector below read this array as chronological,
+     * so that shows a stale reading as current and can miscount restarts,
+     * during exactly the flapping conditions the page exists to surface. */
+    setChecks((prev) => [...prev, result].sort((a, b) => a.at - b.at).slice(-HISTORY));
     setBusy(false);
   }, []);
 
   useEffect(() => {
     const myRun = run.current;
+    /* Captured here rather than read as inFlight.current in the cleanup. The
+     * Set is created once and never reassigned, so the two are the same object
+     * — but the lint rule is right in general and the capture costs nothing. */
+    const controllers = inFlight.current;
     let cancelled = false;
     const loop = async () => {
       await check();
@@ -163,7 +179,8 @@ export default function Status() {
     return () => {
       cancelled = true;
       run.current += 1; // invalidate any result still in flight from this run
-      inFlight.current?.abort();
+      for (const c of controllers) c.abort();
+      controllers.clear();
       clearTimeout(timer.current);
       document.title = "Bullion Ventures LLC";
       meta.remove();
