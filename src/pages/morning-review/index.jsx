@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import BackendHealthStrip from "../../components/BackendHealthStrip.jsx";
 
 /* Morning Review — the three nightly review desks in one page.
  *
@@ -23,6 +24,11 @@ import { useCallback, useEffect, useState } from "react";
  * The live status strip is deliberately independent of whether any report
  * exists: on a morning when no agent ran, the page still answers "are the three
  * engines alive, and is one of them blocked?".
+ *
+ * Above it, BackendHealthStrip answers the question BEFORE that one. Every
+ * number here comes off the shared dyno, so on a morning when the desks filed
+ * nothing and every engine reads "unreachable", the backend strip is the only
+ * thing on the page that says why. It links through to /status.
  */
 const ROOT = "https://sheline-art-website-api.herokuapp.com";
 const API_BASE = `${ROOT}/kalshi`;
@@ -199,6 +205,10 @@ export default function MorningReview() {
         crypto 6:00, gas 6:15, college football 6:30 CT (its own desk, though it
         bets from the sports engine).
       </div>
+
+      {/* Is the thing all of this is read from alive? Asked first, because a
+        * silent morning is far more often the backend than the desks. */}
+      <BackendHealthStrip />
 
       {/* Live status strip — true regardless of which report you are reading. */}
       <div
