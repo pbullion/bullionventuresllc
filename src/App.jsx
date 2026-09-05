@@ -75,6 +75,8 @@ import Jump from "./pages/jump/index.jsx";
 import Status from "./pages/status/index.jsx";
 import Drive from "./pages/drive";
 import Hrw from "./pages/hrw/index.jsx";
+import Tasting from "./pages/tasting/index.jsx";
+import TastingResults from "./pages/tasting/Results.jsx";
 import HrwRestaurant from "./pages/hrw/Restaurant.jsx";
 
 export default function App() {
@@ -111,6 +113,9 @@ export default function App() {
   const isPatrickBoard = location.pathname.startsWith("/patrick");
   // In-car dashboard: full-bleed, no site nav or footer.
   const isDrive = location.pathname.startsWith("/drive");
+  // Blind wine tasting — a ballot on a phone and a slideshow on a television.
+  // Full-screen for both, and unlisted like the rest of the private pages.
+  const isTasting = location.pathname.startsWith("/tasting");
   const hideChrome =
     isTeslaDashboard ||
     isMothersDay ||
@@ -131,7 +136,8 @@ export default function App() {
     isAshley ||
     isProspects ||
     isPatrickBoard ||
-    isDrive;
+    isDrive ||
+    isTasting;
   return (
     <div
       style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
@@ -206,6 +212,9 @@ export default function App() {
           <Route path="/engine-limits" element={<EngineLimits />} />
           <Route path="/briefing" element={<Briefing />} />
           <Route path="/gulf-hurricane" element={<GulfHurricane />} />
+          <Route path="/tasting" element={<Tasting />} />
+          <Route path="/tasting/:code" element={<Tasting />} />
+          <Route path="/tasting/:code/results" element={<TastingResults />} />
           <Route path="/tripplanner" element={<TripPlannerHome />} />
           <Route path="/tripplanner/:slug" element={<TripPlanner />} />
           <Route path="/ashley" element={<Ashley />} />

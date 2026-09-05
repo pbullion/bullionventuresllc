@@ -1,0 +1,497 @@
+/* Blind tasting — ballot on a phone, results on a television.
+ *
+ * Its own stylesheet rather than inline styles because the slideshow needs
+ * keyframes and media queries, which style objects cannot express. Everything
+ * here is namespaced under .wt so it cannot leak into the rest of the site (this
+ * is one SPA with one document — see the /jump note in CLAUDE.md).
+ */
+
+.wt {
+  --wt-bg: #120a0e;
+  --wt-bg-2: #1c1015;
+  --wt-panel: #23151b;
+  --wt-line: #3d232c;
+  --wt-gold: #d8b26b;
+  --wt-gold-dim: #8d7141;
+  --wt-wine: #a8324f;
+  --wt-wine-deep: #6d1930;
+  --wt-text: #f5ebe6;
+  --wt-muted: #a99089;
+  --wt-good: #5fae7d;
+
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background:
+    radial-gradient(120% 80% at 50% -10%, #3a1626 0%, transparent 60%),
+    var(--wt-bg);
+  color: var(--wt-text);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wt * { box-sizing: border-box; }
+
+.wt-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px 18px 96px;
+}
+.wt-wrap--wide { max-width: 1100px; }
+
+/* ── Type ─────────────────────────────────────────────────────────────────── */
+
+.wt-eyebrow {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--wt-gold-dim);
+  margin: 0 0 8px;
+}
+.wt-title {
+  font-size: clamp(30px, 7vw, 46px);
+  line-height: 1.05;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+.wt-sub {
+  color: var(--wt-muted);
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+.wt-h2 {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+.wt-hint {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 12.5px;
+  color: var(--wt-muted);
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+.wt-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ── Panels, buttons, fields ──────────────────────────────────────────────── */
+
+.wt-panel {
+  background: linear-gradient(180deg, var(--wt-panel), var(--wt-bg-2));
+  border: 1px solid var(--wt-line);
+  border-radius: 16px;
+  padding: 18px;
+  margin: 0 0 16px;
+}
+
+.wt-btn {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--wt-line);
+  background: #2b1a21;
+  color: var(--wt-text);
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.wt-btn:active { transform: scale(0.98); }
+.wt-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.wt-btn--primary {
+  background: linear-gradient(180deg, var(--wt-wine), var(--wt-wine-deep));
+  border-color: #b9425e;
+  color: #fff;
+  width: 100%;
+  font-size: 17px;
+  padding: 17px 20px;
+}
+.wt-btn--ghost { background: transparent; }
+.wt-btn--gold {
+  background: linear-gradient(180deg, #e0bd7c, #b28c45);
+  border-color: #e6c88f;
+  color: #2a1a08;
+}
+.wt-btn--sm { padding: 9px 13px; font-size: 13px; border-radius: 9px; }
+
+.wt-field { display: block; margin: 0 0 12px; }
+.wt-label {
+  display: block;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--wt-gold-dim);
+  margin: 0 0 6px;
+}
+.wt-input {
+  width: 100%;
+  padding: 13px 14px;
+  font-size: 16px; /* 16px or iOS zooms the whole page on focus */
+  font-family: inherit;
+  color: var(--wt-text);
+  background: #180e13;
+  border: 1px solid var(--wt-line);
+  border-radius: 11px;
+}
+.wt-input:focus { outline: 2px solid var(--wt-gold-dim); outline-offset: 1px; }
+.wt-input::placeholder { color: #6d585a; }
+
+.wt-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.wt-row > * { flex: 1 1 0; min-width: 0; }
+
+.wt-error {
+  background: #3a1620;
+  border: 1px solid #8c3048;
+  color: #ffd6de;
+  border-radius: 11px;
+  padding: 12px 14px;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 0 0 14px;
+}
+
+/* ── The ballot: glass cards ──────────────────────────────────────────────── */
+
+.wt-glass {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 16px;
+  margin: 0 0 10px;
+  border-radius: 14px;
+  border: 1px solid var(--wt-line);
+  background: #1d1116;
+  color: var(--wt-text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease;
+}
+.wt-glass:active { transform: scale(0.99); }
+.wt-glass[data-rank] {
+  border-color: var(--wt-gold-dim);
+  background: linear-gradient(90deg, #2e1c22, #1d1116);
+}
+.wt-glass-no {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--wt-line);
+  background: #150c10;
+  font-size: 21px;
+}
+.wt-glass-body { flex: 1 1 auto; min-width: 0; }
+.wt-glass-name { font-size: 17px; }
+.wt-glass-state {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  color: var(--wt-muted);
+  margin-top: 2px;
+}
+.wt-rank-badge {
+  flex: 0 0 auto;
+  min-width: 62px;
+  text-align: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: linear-gradient(180deg, #e0bd7c, #b28c45);
+  color: #2a1a08;
+}
+.wt-rank-badge--empty {
+  background: transparent;
+  border: 1px dashed var(--wt-line);
+  color: #6d585a;
+  font-weight: 500;
+}
+
+/* 1-10 score buttons — a row of tap targets beats a slider with a glass in hand */
+.wt-scale { display: flex; gap: 5px; margin: 10px 0 0; }
+.wt-scale button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 11px 0;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--wt-line);
+  background: #180e13;
+  color: var(--wt-muted);
+  cursor: pointer;
+}
+.wt-scale button[data-on="1"] {
+  background: linear-gradient(180deg, var(--wt-wine), var(--wt-wine-deep));
+  border-color: #b9425e;
+  color: #fff;
+}
+
+.wt-pills { display: flex; gap: 8px; }
+.wt-pills button {
+  flex: 1 1 0;
+  padding: 14px 6px;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 11px;
+  border: 1px solid var(--wt-line);
+  background: #180e13;
+  color: var(--wt-muted);
+  cursor: pointer;
+}
+.wt-pills button[data-on="1"] {
+  background: linear-gradient(180deg, #e0bd7c, #b28c45);
+  border-color: #e6c88f;
+  color: #2a1a08;
+}
+
+/* ── Lobby ────────────────────────────────────────────────────────────────── */
+
+.wt-tasters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+.wt-chip {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13.5px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--wt-gold-dim);
+  background: #2b1a21;
+  color: var(--wt-text);
+}
+.wt-chip--me { background: linear-gradient(180deg, #e0bd7c, #b28c45); color: #2a1a08; font-weight: 700; }
+
+.wt-pulse {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--wt-good);
+  margin-right: 8px;
+  animation: wt-pulse 1.8s ease-in-out infinite;
+}
+@keyframes wt-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+/* ── Slideshow ────────────────────────────────────────────────────────────── */
+
+.wt-show {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 80% at 50% -10%, #3a1626 0%, transparent 60%),
+    var(--wt-bg);
+}
+.wt-slide {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px 24px;
+  animation: wt-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes wt-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+.wt-slide-inner { width: 100%; max-width: 940px; margin: 0 auto; }
+
+.wt-slide h1 {
+  font-size: clamp(32px, 6vw, 64px);
+  line-height: 1.02;
+  margin: 0 0 14px;
+  letter-spacing: -0.015em;
+}
+.wt-slide h2 {
+  font-size: clamp(22px, 3.4vw, 34px);
+  line-height: 1.15;
+  margin: 0 0 18px;
+}
+.wt-slide p { font-size: clamp(16px, 2vw, 21px); line-height: 1.55; color: var(--wt-muted); margin: 0 0 14px; }
+.wt-slide strong { color: var(--wt-text); }
+
+.wt-nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--wt-line);
+  background: rgba(10, 6, 8, 0.75);
+  backdrop-filter: blur(8px);
+}
+.wt-dots { flex: 1 1 auto; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.wt-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  background: #4a2c35;
+  cursor: pointer;
+}
+.wt-dot[data-on="1"] { background: var(--wt-gold); transform: scale(1.25); }
+
+/* Podium */
+.wt-place {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+}
+.wt-medal { font-size: clamp(44px, 9vw, 84px); line-height: 1; }
+.wt-bottle-name { font-size: clamp(26px, 4.6vw, 50px); line-height: 1.06; margin: 0 0 6px; }
+.wt-bottle-meta {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(14px, 1.8vw, 18px);
+  color: var(--wt-muted);
+  margin: 0 0 18px;
+}
+.wt-price { color: var(--wt-gold); font-weight: 700; }
+
+.wt-stats { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0 0; }
+.wt-stat {
+  flex: 1 1 130px;
+  background: var(--wt-panel);
+  border: 1px solid var(--wt-line);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.wt-stat-n {
+  font-size: clamp(26px, 4vw, 40px);
+  line-height: 1;
+  color: var(--wt-gold);
+  font-variant-numeric: tabular-nums;
+}
+.wt-stat-l {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--wt-muted);
+  margin-top: 7px;
+}
+
+/* Bars for the Borda totals */
+.wt-bar-row { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+.wt-bar-label {
+  flex: 0 0 auto;
+  width: clamp(120px, 26vw, 260px);
+  font-size: clamp(14px, 1.7vw, 19px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wt-bar-track { flex: 1 1 auto; height: 26px; background: #1d1116; border-radius: 999px; overflow: hidden; }
+.wt-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--wt-wine-deep), var(--wt-wine));
+  animation: wt-grow 0.9s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+.wt-bar-fill[data-first="1"] { background: linear-gradient(90deg, #b28c45, #e6c88f); }
+@keyframes wt-grow { from { width: 0 !important; } }
+.wt-bar-n { flex: 0 0 auto; width: 46px; text-align: right; font-variant-numeric: tabular-nums; color: var(--wt-gold); }
+
+/* The ballot grid */
+.wt-grid-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -6px; padding: 0 6px; }
+.wt-grid { border-collapse: collapse; width: 100%; min-width: 460px; }
+.wt-grid th, .wt-grid td {
+  padding: 11px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--wt-line);
+  font-size: 15px;
+}
+.wt-grid th {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--wt-gold-dim);
+  font-weight: 600;
+}
+.wt-cell-rank {
+  display: inline-block;
+  min-width: 30px;
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 7px;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+.wt-cell-rank[data-r="1"] { background: linear-gradient(180deg, #e0bd7c, #b28c45); color: #2a1a08; }
+.wt-cell-rank[data-r="2"] { background: #3b2630; color: var(--wt-text); }
+.wt-cell-rank[data-r="3"] { background: #241419; color: var(--wt-muted); }
+
+/* Awards + notes */
+.wt-award {
+  border: 1px solid var(--wt-line);
+  border-left: 3px solid var(--wt-gold);
+  background: var(--wt-panel);
+  border-radius: 12px;
+  padding: 15px 17px;
+  margin: 0 0 11px;
+}
+.wt-award-t {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--wt-gold-dim);
+  margin: 0 0 5px;
+}
+.wt-award-n { font-size: clamp(19px, 2.6vw, 27px); margin: 0 0 3px; }
+.wt-award-w {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13.5px;
+  color: var(--wt-muted);
+}
+
+.wt-note {
+  border-left: 2px solid var(--wt-wine);
+  padding: 3px 0 3px 14px;
+  margin: 0 0 12px;
+}
+.wt-note-q { font-size: clamp(15px, 1.9vw, 20px); line-height: 1.45; }
+.wt-note-a {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 12.5px;
+  color: var(--wt-gold-dim);
+  margin-top: 4px;
+}
+
+.wt-cols { display: grid; grid-template-columns: 1fr; gap: 22px; }
+@media (min-width: 760px) { .wt-cols { grid-template-columns: repeat(3, 1fr); } }
+
+.wt-confetti {
+  position: absolute;
+  top: -12px;
+  width: 9px;
+  height: 15px;
+  opacity: 0;
+  animation: wt-fall linear forwards;
+  pointer-events: none;
+}
+@keyframes wt-fall {
+  0% { opacity: 1; transform: translateY(-20px) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(105vh) rotate(720deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wt-confetti { display: none; }
+  .wt-slide, .wt-bar-fill { animation: none; }
+}

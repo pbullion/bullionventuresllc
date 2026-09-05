@@ -43,6 +43,12 @@ export const PRIVATE_GROUPS = [
         tagline: "In-car dashboard for the Tesla browser",
       },
       {
+        emoji: "🍷",
+        name: "Blind Tasting",
+        path: "/tasting",
+        tagline: "Rank the glasses, reveal the bottles",
+      },
+      {
         emoji: "🩺",
         name: "Backend Status",
         path: "/status",
