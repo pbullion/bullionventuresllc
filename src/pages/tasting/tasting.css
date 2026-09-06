@@ -550,3 +550,96 @@
   color: var(--wt-muted);
   background: transparent;
 }
+
+/* ── Instructions ─────────────────────────────────────────────────────────────
+ * The host checklist ticks itself off from the event's real state, so it is a
+ * status display as much as a set of instructions — "what still needs doing"
+ * is the question actually being asked twenty minutes before a pour. */
+
+.wt-steps { list-style: none; margin: 0; padding: 0; counter-reset: wt-step; }
+.wt-steps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--wt-line);
+}
+.wt-steps li:last-child { border-bottom: 0; }
+.wt-tick {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid var(--wt-line);
+  background: #180e13;
+  color: var(--wt-muted);
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wt-tick[data-done="1"] {
+  background: linear-gradient(180deg, #5fae7d, #3d7d57);
+  border-color: #6dc48d;
+  color: #08160f;
+}
+.wt-step-body { flex: 1 1 auto; min-width: 0; }
+.wt-step-t {
+  font-size: 15.5px;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-weight: 600;
+}
+.wt-step-d {
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 12.5px;
+  color: var(--wt-muted);
+  line-height: 1.5;
+  margin-top: 3px;
+}
+.wt-steps li[data-done="1"] .wt-step-t { color: var(--wt-muted); }
+
+.wt-warn {
+  border: 1px solid var(--wt-gold-dim);
+  background: #241a10;
+  border-radius: 12px;
+  padding: 13px 15px;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #f0dcb4;
+  margin: 0 0 14px;
+}
+
+.wt-howto { list-style: none; margin: 0; padding: 0; }
+.wt-howto li {
+  display: flex;
+  gap: 11px;
+  padding: 8px 0;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--wt-text);
+}
+.wt-howto li b {
+  flex: 0 0 auto;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11.5px;
+  background: #2e1c22;
+  border: 1px solid var(--wt-line);
+  color: var(--wt-gold);
+}
+
+.wt-details { border-top: 1px solid var(--wt-line); margin-top: 14px; padding-top: 12px; }
+.wt-details summary {
+  cursor: pointer;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: var(--wt-gold-dim);
+  letter-spacing: 0.04em;
+}

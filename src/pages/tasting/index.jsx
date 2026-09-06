@@ -55,6 +55,132 @@ function useNoIndex() {
   }, []);
 }
 
+/* What a taster needs to know, on the ballot itself. Written for someone
+ * holding a glass who has not read anything else. */
+function HowItWorks() {
+  return (
+    <div className="wt-panel">
+      <h2 className="wt-h2">How this works</h2>
+      <ol className="wt-howto">
+        <li>
+          <b>1</b>
+          <span>
+            Three glasses in front of you, numbered 1, 2 and 3. Everyone at the
+            table has the same three wines in the same numbered glasses.
+          </span>
+        </li>
+        <li>
+          <b>2</b>
+          <span>
+            Taste all three side by side and go back and forth — comparing is
+            the whole point, and memory is worse than you think. Water and plain
+            bread between. No cheese until the votes are in; it flatters tannin.
+          </span>
+        </li>
+        <li>
+          <b>3</b>
+          <span>
+            Rank them, favourite first. All three, no ties. Scores and notes are
+            optional — the ranking is what decides it.
+          </span>
+        </li>
+        <li>
+          <b>4</b>
+          <span>
+            Then two guesses: one of these bottles costs a fraction of the
+            others, and one is much older.
+          </span>
+        </li>
+        <li>
+          <b>5</b>
+          <span>
+            Keep it to yourself until everyone has voted. Nothing is revealed
+            until the host says so.
+          </span>
+        </li>
+      </ol>
+    </div>
+  );
+}
+
+/* The host's running order. Every step ticks itself off from the event's real
+ * state, so it doubles as "what still needs doing" — which is the question
+ * actually being asked twenty minutes before a pour. */
+function HostChecklist({ view }) {
+  const rosterDone = Boolean(view.roster && view.roster.length);
+  const winesDone = (view.wines || []).length === 3;
+  const pourDone = Boolean(view.pour_map);
+  const expected = rosterDone ? view.roster.length : null;
+  const allVoted = expected ? view.ballot_count >= expected : view.ballot_count > 0;
+
+  const steps = [
+    {
+      done: rosterDone,
+      title: "Guest list",
+      detail: rosterDone
+        ? `${view.roster.length} people — they pick their name instead of typing it.`
+        : "Add the names below so nobody arrives twice under two spellings.",
+    },
+    {
+      done: winesDone,
+      title: "Key 1 · decant into carafes A, B and C",
+      detail: winesDone
+        ? "Set. Whoever did this knows which carafe holds what — so they must NOT do Key 2."
+        : "Record which wine went into which carafe, below.",
+    },
+    {
+      done: pourDone,
+      title: "Key 2 · pour the carafes into glasses 1, 2 and 3",
+      detail: pourDone
+        ? "Set. Nobody who has seen both keys is tasting blind."
+        : "Hand the phone to someone who did NOT do Key 1. They hit Shuffle for me, save, and pour to match — without being told what the carafes hold.",
+    },
+    {
+      done: allVoted,
+      title: "Everyone votes",
+      detail: expected
+        ? `${view.ballot_count} of ${expected} ballots in.`
+        : `${view.ballot_count} ballots in.`,
+    },
+    {
+      done: view.phase === "locked" || view.phase === "revealed",
+      title: "Lock the ballots",
+      detail: "Before anyone starts talking. A ballot cast after the conversation isn't a blind one.",
+    },
+    {
+      done: view.phase === "revealed",
+      title: "Reveal, and put the results on the big screen",
+      detail: "There is no undo. Once the wines are out, they're out.",
+    },
+  ];
+
+  return (
+    <div className="wt-panel">
+      <h2 className="wt-h2">Running the night</h2>
+      <ol className="wt-steps">
+        {steps.map((step, i) => (
+          <li key={step.title} data-done={step.done ? "1" : "0"}>
+            <span className="wt-tick" data-done={step.done ? "1" : "0"}>
+              {step.done ? "✓" : i + 1}
+            </span>
+            <span className="wt-step-body">
+              <span className="wt-step-t">{step.title}</span>
+              <span className="wt-step-d">{step.detail}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      {!view.pin_required && (
+        <p className="wt-warn" style={{ marginTop: 14, marginBottom: 0 }}>
+          This tasting has no PIN, so anyone with the link can reach this screen
+          — including the Reveal button. That was deliberate; just know that a
+          curious guest tapping around can open the wines early.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Shell({ children, wide }) {
   return (
     <div className="wt">
@@ -603,6 +729,8 @@ function HostPanel({ code, onClose, onChanged }) {
         </div>
       )}
 
+      <HostChecklist view={view} />
+
       {/* The guest list. Above Key 1 because it is the first thing set up, and
         * because it is the only part of the panel that is not a secret. */}
       <div className="wt-panel">
@@ -810,6 +938,36 @@ function HostPanel({ code, onClose, onChanged }) {
           onClick={() => run(() => setPhase(code, pin, "revealed"), "Revealed.")}
         >
           {view.phase === "revealed" ? "Already revealed" : "Reveal the wines"}
+        </button>
+      </div>
+
+      {/* Start over. What makes a practice run worth doing: you can rehearse the
+        * whole thing, reveal included, and put it back to a blank tasting. */}
+      <div className="wt-panel">
+        <h2 className="wt-h2">Start over</h2>
+        <p className="wt-hint">
+          Deletes every ballot and reopens voting. The wines and the pour stay
+          as they are. Use it after a practice run.
+        </p>
+        <button
+          className="wt-btn"
+          disabled={busy || (view.ballot_count === 0 && view.phase === "tasting")}
+          onClick={() => {
+            if (
+              !window.confirm(
+                `Delete all ${view.ballot_count} ballots and reopen voting?`,
+              )
+            )
+              return;
+            run(async () => {
+              for (const row of view.ballot_rows || []) {
+                await deleteBallot(code, pin, row.id);
+              }
+              if (view.phase !== "tasting") await setPhase(code, pin, "tasting");
+            }, "Cleared — back to a blank tasting.");
+          }}
+        >
+          Clear every ballot and reopen voting
         </button>
       </div>
 
@@ -1066,6 +1224,7 @@ export default function Tasting() {
           has the same three wines in the same numbered glasses — and nobody
           knows which is which.
         </p>
+        {!editing && <HowItWorks />}
         <Ballot
           code={code}
           event={event}
