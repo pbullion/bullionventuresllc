@@ -615,7 +615,15 @@ function Ballot({ code, event, me, blank, onDone, onCancel }) {
 
 // ── Host panel ───────────────────────────────────────────────────────────────
 
-const EMPTY_WINE = { name: "", producer: "", vintage: "", region: "", price: "", blurb: "" };
+const EMPTY_WINE = {
+  name: "",
+  producer: "",
+  vintage: "",
+  region: "",
+  price: "",
+  priceSource: "",
+  blurb: "",
+};
 
 function HostPanel({ code, onClose, onChanged }) {
   const [pin, setPin] = useState(loadPin(code) || "");
@@ -649,6 +657,7 @@ function HostPanel({ code, onClose, onChanged }) {
                 vintage: found?.vintage || "",
                 region: found?.region || "",
                 price: found?.price ?? "",
+                priceSource: found?.priceSource || "",
                 blurb: found?.blurb || "",
               };
             }),
@@ -834,6 +843,17 @@ function HostPanel({ code, onClose, onChanged }) {
             <div style={{ height: 8 }} />
             <input
               className="wt-input"
+              value={w.priceSource}
+              placeholder="Where the price came from"
+              onChange={(e) => {
+                const next = [...wines];
+                next[i] = { ...w, priceSource: e.target.value };
+                setWinesState(next);
+              }}
+            />
+            <div style={{ height: 8 }} />
+            <input
+              className="wt-input"
               value={w.region}
               placeholder="Region"
               onChange={(e) => {
@@ -846,7 +866,9 @@ function HostPanel({ code, onClose, onChanged }) {
         ))}
         <p className="wt-hint">
           Vintage decides the “oldest” answer and price decides the “cheapest”
-          one — leave either blank and that guess simply isn't scored.
+          one — leave either blank and that guess simply isn't scored. Where the
+          price came from is for you, not the guests: it never leaves the host
+          panel, and it is what lets you check a figure months later.
         </p>
         <button
           className="wt-btn"
