@@ -395,7 +395,7 @@ function NamePicker({ roster, taken, mine, value, onChange }) {
   );
 }
 
-function Ballot({ code, event, me, onDone, onCancel }) {
+function Ballot({ code, event, me, blank, onDone, onCancel }) {
   const prior = me && me.ballot;
   const [name, setName] = useState((me && me.name) || "");
   const [ranking, setRanking] = useState((prior && prior.ranking) || []);
@@ -589,9 +589,13 @@ function Ballot({ code, event, me, onDone, onCancel }) {
           ? "Sending…"
           : ranking.length < GLASSES.length
             ? `Rank all three (${ranking.length}/3)`
-            : prior
-              ? "Update my ballot"
-              : "Lock in my ballot"}
+            : blank
+              ? name.trim()
+                ? `Add ${name.trim()}'s ballot`
+                : "Add this ballot"
+              : prior
+                ? "Update my ballot"
+                : "Lock in my ballot"}
       </button>
       {onCancel && (
         <>
@@ -1086,7 +1090,15 @@ export default function Tasting() {
   const [event, setEvent] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [me, setMe] = useState(() => (code ? loadMe(code) : null));
-  const [editing, setEditing] = useState(false);
+  /* null = not on the form. "edit" = correcting your own, pre-filled.
+   * "other" = a BLANK form for typing in someone else's paper ballot.
+   *
+   * Blank is the entire point of the distinction. Reusing the pre-filled edit
+   * form to enter a second person is how one person's ranking and scores end
+   * up silently attached to the next person's name — you change the name, miss
+   * a field, and nothing on screen looks wrong. */
+  const [mode, setMode] = useState(null);
+  const [flash, setFlash] = useState("");
   const [searchParams] = useSearchParams();
   /* Derived from the URL rather than captured at mount: creating a tasting
    * navigates from /tasting to /tasting/:code?host=1, and whether React Router
@@ -1231,37 +1243,63 @@ export default function Tasting() {
   }
 
   // phase === "tasting"
-  if (!submitted || editing) {
+  if (!submitted || mode) {
     return (
       <Shell>
         <p className="wt-eyebrow">{event.name}</p>
-        <h1 className="wt-title">{editing ? "Change your mind?" : "Your ballot"}</h1>
+        <h1 className="wt-title">
+          {mode === "other"
+            ? "Someone else's card"
+            : mode === "edit"
+              ? "Change your mind?"
+              : "Your ballot"}
+        </h1>
         <p className="wt-sub">
-          Three glasses in front of you, numbered 1 to 3. Everyone at the table
-          has the same three wines in the same numbered glasses — and nobody
-          knows which is which.
+          {mode === "other"
+            ? "A blank card. Pick whose it is, then copy their paper across — every field, from scratch."
+            : "Three glasses in front of you, numbered 1 to 3. Everyone at the table has the same three wines in the same numbered glasses — and nobody knows which is which."}
         </p>
-        {!editing && <HowItWorks />}
+        {!mode && <HowItWorks />}
         <Ballot
+          /* Remounted per mode, so switching from your own ballot to a blank
+           * one genuinely clears the fields instead of inheriting them. */
+          key={mode || "self"}
           code={code}
           event={event}
-          me={me}
+          /* No `me` on a blank form: that is what empties the name, the
+           * ranking, the scores and the notes, and what makes the ballot
+           * carry this device's own token rather than the last person's. */
+          me={mode === "other" ? null : me}
+          blank={mode === "other"}
           onDone={(saved) => {
-            setMe(saved);
-            setEditing(false);
+            if (mode === "other") {
+              setFlash(`${saved.name}'s ballot is in.`);
+            } else {
+              setMe(saved);
+            }
+            setMode(null);
             refresh();
           }}
-          onCancel={editing ? () => setEditing(false) : null}
+          onCancel={mode ? () => setMode(null) : null}
         />
         {hostLink}
       </Shell>
     );
   }
 
+  const outstanding = (event.roster || []).filter(
+    (n) => !event.tasters.some((t) => nameKey(t.name) === nameKey(n)),
+  );
+
   return (
     <Shell>
       <p className="wt-eyebrow">{event.name}</p>
       <h1 className="wt-title">You're in, {me.name}.</h1>
+      {flash && (
+        <div className="wt-panel" style={{ borderColor: "var(--wt-good)" }}>
+          {flash}
+        </div>
+      )}
       <p className="wt-sub">
         <span className="wt-pulse" />
         {event.ballot_count} ballot{event.ballot_count === 1 ? "" : "s"} so far.
@@ -1295,9 +1333,29 @@ export default function Tasting() {
         </div>
       </div>
 
-      <button className="wt-btn" style={{ width: "100%" }} onClick={() => setEditing(true)}>
+      <button className="wt-btn" style={{ width: "100%" }} onClick={() => setMode("edit")}>
         Change my ballot
       </button>
+
+      {/* One person entering everybody's paper cards is a normal way to run
+        * this, so it gets its own button and its own blank form rather than
+        * being improvised out of "Change my ballot". Hidden once the roster is
+        * complete, because then there is nobody left to enter. */}
+      {outstanding.length > 0 && (
+        <>
+          <div style={{ height: 10 }} />
+          <button
+            className="wt-btn wt-btn--gold"
+            style={{ width: "100%" }}
+            onClick={() => setMode("other")}
+          >
+            Enter someone else's card
+          </button>
+          <p className="wt-hint" style={{ marginTop: 10, marginBottom: 0 }}>
+            Still to come: {outstanding.join(", ")}.
+          </p>
+        </>
+      )}
       {hostLink}
     </Shell>
   );
