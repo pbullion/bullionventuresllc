@@ -760,6 +760,23 @@ function HostPanel({ code, onClose, onChanged }) {
             Save the pour
           </button>
         </div>
+        {view.pour_map && (
+          <>
+            <div style={{ height: 10 }} />
+            <button
+              className="wt-btn wt-btn--ghost wt-btn--sm"
+              disabled={busy}
+              onClick={() =>
+                run(
+                  () => setPour(code, pin, null),
+                  "Pour cleared — nobody can reveal until it is set again.",
+                )
+              }
+            >
+              Clear the pour
+            </button>
+          </>
+        )}
       </div>
 
       {/* Phases. */}
