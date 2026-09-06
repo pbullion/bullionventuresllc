@@ -495,3 +495,58 @@
   .wt-confetti { display: none; }
   .wt-slide, .wt-bar-fill { animation: none; }
 }
+
+/* ── Name picker ──────────────────────────────────────────────────────────────
+ * A grid of tap targets rather than a <select>: on a phone a native picker is a
+ * modal wheel that hides the list, and the list is the useful part — it shows
+ * who has already voted without anyone having to ask across the table. */
+
+.wt-namegrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+}
+@media (min-width: 520px) {
+  .wt-namegrid { grid-template-columns: repeat(3, 1fr); }
+}
+.wt-namegrid button {
+  padding: 15px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--wt-line);
+  background: #180e13;
+  color: var(--wt-text);
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.15s ease;
+  text-align: center;
+}
+.wt-namegrid button:active { transform: scale(0.97); }
+.wt-namegrid button[data-on="1"] {
+  background: linear-gradient(180deg, #e0bd7c, #b28c45);
+  border-color: #e6c88f;
+  color: #2a1a08;
+}
+.wt-namegrid button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #150c10;
+}
+.wt-namegrid .wt-voted {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--wt-good);
+  margin-top: 4px;
+}
+.wt-namegrid button[data-on="1"] .wt-voted { color: #2a1a08; }
+
+.wt-chip--waiting {
+  border-style: dashed;
+  border-color: var(--wt-line);
+  color: var(--wt-muted);
+  background: transparent;
+}

@@ -26,11 +26,17 @@ import {
   savePin,
   setPhase,
   setPour,
+  setRoster,
   setWines,
   submitBallot,
 } from "./api";
 
 const GLASSES = [1, 2, 3];
+
+/* Must agree with tasterKey() in the backend's routes/wineTasting.js — it is
+ * what decides that "Ashley" and "ashley" are one person. Two copies of one
+ * rule, so keep them together. */
+const nameKey = (n) => String(n || "").trim().toLowerCase().replace(/\s+/g, " ");
 const CARAFES = ["A", "B", "C"];
 const ORDINALS = ["1st", "2nd", "3rd"];
 const POLL_MS = 5000;
@@ -234,7 +240,34 @@ function GlassRanker({ ranking, onToggle }) {
   );
 }
 
-function Ballot({ code, me, onDone, onCancel }) {
+/* A grid of names rather than a <select>: a native picker on a phone is a modal
+ * wheel that hides the list, and the list is the useful part — it shows at a
+ * glance who has already voted. A name that is taken by somebody else is
+ * disabled; your own stays tappable so you can correct your ballot. */
+function NamePicker({ roster, taken, mine, value, onChange }) {
+  return (
+    <div className="wt-namegrid">
+      {roster.map((n) => {
+        const isMine = mine && nameKey(mine) === nameKey(n);
+        const isTaken = taken.has(nameKey(n)) && !isMine;
+        return (
+          <button
+            key={n}
+            type="button"
+            disabled={isTaken}
+            data-on={nameKey(value) === nameKey(n) ? "1" : "0"}
+            onClick={() => onChange(n)}
+          >
+            {n}
+            {taken.has(nameKey(n)) && <span className="wt-voted">voted</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Ballot({ code, event, me, onDone, onCancel }) {
   const prior = me && me.ballot;
   const [name, setName] = useState((me && me.name) || "");
   const [ranking, setRanking] = useState((prior && prior.ranking) || []);
@@ -244,6 +277,12 @@ function Ballot({ code, me, onDone, onCancel }) {
   const [oldest, setOldest] = useState((prior && prior.guess_oldest) || null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const roster = event && event.roster;
+  const taken = useMemo(
+    () => new Set(((event && event.tasters) || []).map((t) => nameKey(t.name))),
+    [event],
+  );
 
   function toggle(glass) {
     setRanking((cur) =>
@@ -284,17 +323,31 @@ function Ballot({ code, me, onDone, onCancel }) {
 
   return (
     <form onSubmit={submit}>
-      <label className="wt-field">
-        <span className="wt-label">Who's tasting</span>
-        <input
-          className="wt-input"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
-          maxLength={40}
-          required
-        />
-      </label>
+      {roster ? (
+        <div className="wt-panel">
+          <h2 className="wt-h2">Which one are you?</h2>
+          <p className="wt-hint">Tap your name. Greyed out means already voted.</p>
+          <NamePicker
+            roster={roster}
+            taken={taken}
+            mine={me && me.name}
+            value={name}
+            onChange={setName}
+          />
+        </div>
+      ) : (
+        <label className="wt-field">
+          <span className="wt-label">Who's tasting</span>
+          <input
+            className="wt-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+            maxLength={40}
+            required
+          />
+        </label>
+      )}
 
       {error && <div className="wt-error">{error}</div>}
 
@@ -423,6 +476,7 @@ function HostPanel({ code, onClose, onChanged }) {
     CARAFES.map((carafe) => ({ carafe, ...EMPTY_WINE })),
   );
   const [pourMap, setPourMap] = useState({ 1: "A", 2: "B", 3: "C" });
+  const [rosterText, setRosterText] = useState("");
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
   const [busy, setBusy] = useState(false);
@@ -452,6 +506,7 @@ function HostPanel({ code, onClose, onChanged }) {
           );
         }
         if (v.pour_map) setPourMap(v.pour_map);
+        if (v.roster) setRosterText(v.roster.join(", "));
       } catch (err) {
         setError(err.message);
         setView(null);
@@ -542,6 +597,39 @@ function HostPanel({ code, onClose, onChanged }) {
           {flash}
         </div>
       )}
+
+      {/* The guest list. Above Key 1 because it is the first thing set up, and
+        * because it is the only part of the panel that is not a secret. */}
+      <div className="wt-panel">
+        <h2 className="wt-h2">Who's tasting</h2>
+        <p className="wt-hint">
+          Names separated by commas. With a list, everyone picks their name
+          instead of typing it — which is what keeps one person from arriving
+          twice under two spellings. Leave it blank to let people type.
+        </p>
+        <input
+          className="wt-input"
+          value={rosterText}
+          onChange={(e) => setRosterText(e.target.value)}
+          placeholder="Ashley, Patrick, Judy…"
+          aria-label="Guest list"
+        />
+        <div style={{ height: 10 }} />
+        <button
+          className="wt-btn"
+          disabled={busy}
+          onClick={() =>
+            run(() => setRoster(code, pin, rosterText), "Guest list saved.")
+          }
+        >
+          Save the guest list
+        </button>
+        {view.roster && (
+          <p className="wt-hint" style={{ marginTop: 12 }}>
+            {view.roster.length} on the list · {view.ballot_count} voted
+          </p>
+        )}
+      </div>
 
       {/* Key 1 — carafe to wine. */}
       <div className="wt-panel">
@@ -878,11 +966,15 @@ export default function Tasting() {
           reveal.
         </p>
         <div className="wt-tasters">
-          {event.tasters.map((t) => (
-            <span key={t.name} className="wt-chip">
-              {t.name}
-            </span>
-          ))}
+          {(event.roster || event.tasters.map((t) => t.name)).map((n) => {
+            const voted = event.tasters.some((t) => nameKey(t.name) === nameKey(n));
+            return (
+              <span key={n} className={voted ? "wt-chip" : "wt-chip wt-chip--waiting"}>
+                {n}
+                {voted ? "" : " · never voted"}
+              </span>
+            );
+          })}
         </div>
         {hostLink}
       </Shell>
@@ -902,6 +994,7 @@ export default function Tasting() {
         </p>
         <Ballot
           code={code}
+          event={event}
           me={me}
           onDone={(saved) => {
             setMe(saved);
@@ -927,19 +1020,28 @@ export default function Tasting() {
 
       <div className="wt-panel">
         <h2 className="wt-h2">At the table</h2>
+        {/* With a guest list the interesting question is who we are still
+          * waiting on, so render the whole roster and mark the gaps. */}
         <div className="wt-tasters">
-          {event.tasters.map((t) => (
-            <span
-              key={t.name}
-              className={
-                t.name.trim().toLowerCase() === String(me.name).trim().toLowerCase()
-                  ? "wt-chip wt-chip--me"
-                  : "wt-chip"
-              }
-            >
-              {t.name}
-            </span>
-          ))}
+          {(event.roster || event.tasters.map((t) => t.name)).map((n) => {
+            const voted = event.tasters.some((t) => nameKey(t.name) === nameKey(n));
+            const isMe = nameKey(n) === nameKey(me.name);
+            return (
+              <span
+                key={n}
+                className={
+                  isMe
+                    ? "wt-chip wt-chip--me"
+                    : voted
+                      ? "wt-chip"
+                      : "wt-chip wt-chip--waiting"
+                }
+              >
+                {n}
+                {!voted && !isMe ? " · waiting" : ""}
+              </span>
+            );
+          })}
         </div>
       </div>
 
