@@ -4,31 +4,72 @@
 
 const API_BASE = "https://sheline-art-website-api.herokuapp.com/wine-tasting";
 
-async function call(path, { method = "GET", body, pin } = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: {
-      ...(body ? { "Content-Type": "application/json" } : {}),
-      ...(pin ? { "x-tasting-pin": pin } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+/* Every request is bounded and retried once.
+ *
+ * Both exist because of a real failure during setup on 2026-09-05: the shared
+ * dyno restarted at the exact moment a ballot was submitted, the POST never
+ * came back, and the button sat on "Sending…" forever with nothing to tell the
+ * person holding the phone. fetch() has NO default timeout — a request to a
+ * host that accepts the connection and then goes away is pending until the
+ * browser gives up, which can be minutes.
+ *
+ * The retry is safe on every endpoint here: reads are reads, and the two writes
+ * that matter are upserts keyed by something the caller supplies (the taster's
+ * name plus their own edit token, the event code), so doing one twice is
+ * indistinguishable from doing it once. Only network-shaped failures are
+ * retried — a 400 or a 409 is an answer, not a blip. */
+const TIMEOUT_MS = 12000;
 
-  let data = null;
+async function once(path, { method, body, pin }) {
+  const control = new AbortController();
+  const timer = setTimeout(() => control.abort(), TIMEOUT_MS);
   try {
-    data = await res.json();
-  } catch {
-    /* A gateway error page isn't JSON. Fall through to the status-based message. */
+    const res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: {
+        ...(body ? { "Content-Type": "application/json" } : {}),
+        ...(pin ? { "x-tasting-pin": pin } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: control.signal,
+    });
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      /* A gateway error page isn't JSON. Fall through to the status message. */
+    }
+    if (!res.ok) {
+      const err = new Error(
+        (data && data.error) || `The server said no (${res.status}).`,
+      );
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  } finally {
+    clearTimeout(timer);
   }
-  if (!res.ok) {
-    const err = new Error(
-      (data && data.error) || `Request failed (${res.status})`,
-    );
-    err.status = res.status;
-    err.data = data;
-    throw err;
+}
+
+async function call(path, { method = "GET", body, pin } = {}) {
+  try {
+    return await once(path, { method, body, pin });
+  } catch (err) {
+    // A response with a status is an answer — surface it, don't retry it.
+    if (err.status) throw err;
+    try {
+      return await once(path, { method, body, pin });
+    } catch (retryErr) {
+      if (retryErr.status) throw retryErr;
+      throw new Error(
+        "Couldn't reach the server — it may be restarting. Wait a few seconds and try again.",
+        { cause: retryErr },
+      );
+    }
   }
-  return data;
 }
 
 export const createEvent = (body) => call("/events", { method: "POST", body });
@@ -74,6 +115,19 @@ function safeSet(key, value) {
   } catch {
     /* out of quota, or private mode — carry on unsaved */
   }
+}
+
+/* Created before the FIRST submission, not after it, so that a retry carries the
+ * same token and lands on the same row. See the note on retries above. */
+export function editToken(code) {
+  const key = `wt_token_${code}`;
+  const existing = safeGet(key);
+  if (existing) return existing;
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  safeSet(key, token);
+  return token;
 }
 
 export const loadMe = (code) => safeGet(`wt_me_${code}`);

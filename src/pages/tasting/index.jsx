@@ -12,12 +12,13 @@
  * the only gate, and it guards exactly one thing worth guarding: the lineup.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import "./tasting.css";
 import {
   createEvent,
   deleteBallot,
+  editToken,
   getEvent,
   getHostView,
   loadMe,
@@ -404,6 +405,7 @@ function Ballot({ code, event, me, onDone, onCancel }) {
   const [oldest, setOldest] = useState((prior && prior.guess_oldest) || null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const errorRef = useRef(null);
 
   const roster = event && event.roster;
   const taken = useMemo(
@@ -431,7 +433,10 @@ function Ballot({ code, event, me, onDone, onCancel }) {
         notes,
         guess_cheapest: cheapest,
         guess_oldest: oldest,
-        edit_token: me && me.edit_token,
+        /* Ours if we have one, otherwise this device's own — generated before
+         * the request rather than after it, so a retry lands on the same row.
+         * See the retry note in api.js. */
+        edit_token: (me && me.edit_token) || editToken(code),
       };
       const res = await submitBallot(code, body);
       const saved = {
@@ -443,6 +448,11 @@ function Ballot({ code, event, me, onDone, onCancel }) {
       onDone(saved);
     } catch (err) {
       setError(err.message);
+      // Nothing below the fold is any use to someone who just watched a button
+      // do nothing.
+      requestAnimationFrame(() =>
+        errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }),
+      );
     } finally {
       setBusy(false);
     }
@@ -475,8 +485,6 @@ function Ballot({ code, event, me, onDone, onCancel }) {
           />
         </label>
       )}
-
-      {error && <div className="wt-error">{error}</div>}
 
       <div className="wt-panel">
         <h2 className="wt-h2">Rank them</h2>
@@ -566,6 +574,15 @@ function Ballot({ code, event, me, onDone, onCancel }) {
           ))}
         </div>
       </div>
+
+      {/* Beside the button that causes it. It used to sit at the top of a form
+        * three screens tall, so a failed submit looked exactly like nothing
+        * happening — which is precisely how it was reported. */}
+      {error && (
+        <div className="wt-error" ref={errorRef}>
+          {error}
+        </div>
+      )}
 
       <button className="wt-btn wt-btn--primary" disabled={!complete || busy}>
         {busy
