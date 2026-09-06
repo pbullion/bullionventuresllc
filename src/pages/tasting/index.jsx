@@ -24,6 +24,7 @@ import {
   loadPin,
   saveMe,
   savePin,
+  setHostPin,
   setPhase,
   setPour,
   setRoster,
@@ -477,18 +478,19 @@ function HostPanel({ code, onClose, onChanged }) {
   );
   const [pourMap, setPourMap] = useState({ 1: "A", 2: "B", 3: "C" });
   const [rosterText, setRosterText] = useState("");
+  const [newPin, setNewPin] = useState("");
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
   const [busy, setBusy] = useState(false);
 
   const unlock = useCallback(
-    async (candidate) => {
+    async (candidate, { silent = false } = {}) => {
       setError("");
       setBusy(true);
       try {
         const v = await getHostView(code, candidate);
         setView(v);
-        savePin(code, candidate);
+        if (candidate) savePin(code, candidate);
         if (v.wines && v.wines.length === CARAFES.length) {
           setWinesState(
             CARAFES.map((carafe) => {
@@ -508,7 +510,10 @@ function HostPanel({ code, onClose, onChanged }) {
         if (v.pour_map) setPourMap(v.pour_map);
         if (v.roster) setRosterText(v.roster.join(", "));
       } catch (err) {
-        setError(err.message);
+        // The opening attempt is silent: on an open tasting it succeeds, and on
+        // a locked one it is just how we discover a PIN is wanted. Showing its
+        // failure would greet the host with an error they did not cause.
+        if (!silent) setError(err.message);
         setView(null);
       } finally {
         setBusy(false);
@@ -518,14 +523,14 @@ function HostPanel({ code, onClose, onChanged }) {
   );
 
   useEffect(() => {
-    const saved = loadPin(code);
-    if (!saved) return;
-    /* Declared and awaited inside the effect rather than called straight out of
+    /* Try to walk straight in: an open tasting needs no PIN, and a remembered
+     * one gets us past a lock. Only if that fails is the PIN screen shown.
+     * Declared and awaited inside the effect rather than called straight out of
      * it — same shape as the poll loop in /status. */
-    const restore = async () => {
-      await unlock(saved);
+    const enter = async () => {
+      await unlock(loadPin(code) || "", { silent: true });
     };
-    restore();
+    enter();
   }, [code, unlock]);
 
   function say(msg) {
@@ -789,6 +794,58 @@ function HostPanel({ code, onClose, onChanged }) {
         >
           {view.phase === "revealed" ? "Already revealed" : "Reveal the wines"}
         </button>
+      </div>
+
+      {/* Access. */}
+      <div className="wt-panel">
+        <h2 className="wt-h2">Access</h2>
+        <p className="wt-hint">
+          {view.pin_required
+            ? "This tasting has a host PIN. Only someone who knows it can set the wines, lock or reveal."
+            : "Open — anyone with the link can set the wines, lock and reveal. Fine among friends; the one thing it allows is somebody revealing before you meant to."}
+        </p>
+        <div className="wt-row">
+          <input
+            className="wt-input"
+            value={newPin}
+            onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+            inputMode="numeric"
+            placeholder={view.pin_required ? "New PIN" : "Add a PIN"}
+            aria-label="New host PIN"
+          />
+          <button
+            className="wt-btn"
+            disabled={busy || newPin.length < 4}
+            onClick={() =>
+              run(async () => {
+                await setHostPin(code, pin, newPin);
+                setPin(newPin);
+                savePin(code, newPin);
+                setNewPin("");
+              }, "PIN set.")
+            }
+          >
+            {view.pin_required ? "Change it" : "Add it"}
+          </button>
+        </div>
+        {view.pin_required && (
+          <>
+            <div style={{ height: 10 }} />
+            <button
+              className="wt-btn wt-btn--ghost wt-btn--sm"
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await setHostPin(code, pin, "");
+                  setPin("");
+                  savePin(code, "");
+                }, "PIN removed — this tasting is open now.")
+              }
+            >
+              Remove the PIN
+            </button>
+          </>
+        )}
       </div>
 
       {/* Ballots. */}

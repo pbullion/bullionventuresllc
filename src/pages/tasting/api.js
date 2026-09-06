@@ -40,6 +40,8 @@ export const submitBallot = (code, body) =>
 export const getHostView = (code, pin) => call(`/events/${code}/host`, { pin });
 export const setWines = (code, pin, wines) =>
   call(`/events/${code}/wines`, { method: "POST", pin, body: { wines } });
+export const setHostPin = (code, pin, newPin) =>
+  call(`/events/${code}/pin`, { method: "POST", pin, body: { new_pin: newPin } });
 export const setRoster = (code, pin, roster) =>
   call(`/events/${code}/roster`, { method: "POST", pin, body: { roster } });
 export const setPour = (code, pin, pourMap) =>
