@@ -54,22 +54,32 @@ async function once(path, { method, body, pin }) {
   }
 }
 
+/* Backoff measured against the thing actually going wrong. On 2026-09-05 the
+ * shared dyno was sitting at ~1070MB against a 1088MB ceiling and cycling every
+ * few minutes; a restart drops in-flight requests and takes roughly ten to
+ * twenty seconds to answer again. One immediate retry lands inside that window
+ * and fails too, so the waits step out past it. Four attempts spanning ~17s,
+ * with each attempt itself bounded at 12s. */
+const BACKOFF_MS = [400, 2500, 8000];
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function call(path, { method = "GET", body, pin } = {}) {
-  try {
-    return await once(path, { method, body, pin });
-  } catch (err) {
-    // A response with a status is an answer — surface it, don't retry it.
-    if (err.status) throw err;
+  let last = null;
+  for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt++) {
     try {
       return await once(path, { method, body, pin });
-    } catch (retryErr) {
-      if (retryErr.status) throw retryErr;
-      throw new Error(
-        "Couldn't reach the server — it may be restarting. Wait a few seconds and try again.",
-        { cause: retryErr },
-      );
+    } catch (err) {
+      // A response with a status is an answer — surface it, don't retry it.
+      if (err.status) throw err;
+      last = err;
+      if (attempt < BACKOFF_MS.length) await sleep(BACKOFF_MS[attempt]);
     }
   }
+  throw new Error(
+    "Couldn't reach the server after a few tries — it may be restarting. Wait about half a minute and press the button again; nothing you typed is lost.",
+    { cause: last },
+  );
 }
 
 export const createEvent = (body) => call("/events", { method: "POST", body });
