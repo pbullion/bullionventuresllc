@@ -1,0 +1,728 @@
+{
+  "note": "Hand-maintained source of truth for /byob. Edit THIS file, then run `node scripts/build-byob-data.mjs` to regenerate public/data/byob-houston.json. Never edit the built file. Every entry needs a `sources` array — see the script header.",
+  "restaurants": [
+    {
+      "slug": "lucios-byob",
+      "name": "Lucio's BYOB & Grill",
+      "address": "905 Taft St, Houston, TX 77019",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "Fourth Ward",
+      "cuisines": ["Italian", "New American"],
+      "phone": "(713) 523-9958",
+      "website": "https://www.luciosbyob.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$5 per bottle",
+        "beer": null,
+        "from": 5,
+        "note": "Published fees have ranged from $5 to $8 depending on who wrote the guide — worth confirming when you book. Dinner only, closed Sunday and Monday."
+      },
+      "checked": "2026-09-07",
+      "sources": [
+        "https://www.luciosbyob.com/",
+        "https://corkagefee.com/restaurant/lucios-byob-and-grill-houston-tx-corkage-fee/"
+      ]
+    },
+    {
+      "slug": "tatemo",
+      "name": "Tatemó",
+      "address": "4740 Dacoma St, Ste F, Houston, TX 77092",
+      "city": "Houston",
+      "region": "North Houston & Spring Branch",
+      "area": "Oak Forest",
+      "cuisines": ["Mexican", "Tasting menu"],
+      "phone": null,
+      "website": "https://www.tatemohtx.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$20 first bottle, $40 each additional",
+        "beer": null,
+        "from": 20,
+        "note": "Reservation-only heirloom-corn tasting menu. The steepest corkage on this list, and the only one where a second bottle costs more than the first."
+      },
+      "checked": "2026-09-07",
+      "sources": [
+        "https://www.theinfatuation.com/houston/guides/byob-restaurants-houston",
+        "https://guide.michelin.com/us/en/texas/houston_2986624/restaurant/tatemo"
+      ]
+    },
+    {
+      "slug": "sao-lao-thai-cafe",
+      "name": "Sao Lao Thai Café",
+      "address": "5013 N Shepherd Dr, Houston, TX 77018",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "Garden Oaks / Northside",
+      "cuisines": ["Thai", "Laotian"],
+      "phone": null,
+      "website": null,
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$5 per bottle",
+        "beer": "No fee",
+        "from": 0,
+        "note": "Corkage is waived entirely on Mondays and Wednesdays. Beer is free any day."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonfoodfinder.com/featured/the-big-houston-food-finder-guide-to-byob-restaurants/"]
+    },
+    {
+      "slug": "huynh",
+      "name": "Huynh Restaurant",
+      "address": "912 St Emanuel St, Houston, TX 77003",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "EaDo",
+      "cuisines": ["Vietnamese"],
+      "phone": null,
+      "website": "https://huynhrestauranthouston.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$2.95 per person",
+        "beer": "$2.95 per person",
+        "from": 2.95,
+        "note": "One flat per-person charge covers whatever you bring, rather than a fee per bottle — the cheapest way on this list to open several bottles at one table."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonfoodfinder.com/featured/the-big-houston-food-finder-guide-to-byob-restaurants/"]
+    },
+    {
+      "slug": "collinas-heights",
+      "name": "Collina's Italian Cafe (Heights)",
+      "address": "502 W 19th St, Houston, TX 77008",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "The Heights",
+      "cuisines": ["Italian", "Pizza"],
+      "phone": "(713) 869-0492",
+      "website": "https://collinashtx.com/locations/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "About $2 per person",
+        "beer": "About $2 per person",
+        "from": 2,
+        "note": "Reported at $1–$2 a head by different sources; call if the exact number matters."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://collinashtx.com/locations/", "https://diningout.com/houston/byob-at-these-5-houston-restaurants/"]
+    },
+    {
+      "slug": "collinas-memorial",
+      "name": "Collina's Italian Cafe (Memorial)",
+      "address": "8800 Katy Fwy, Ste 109, Houston, TX 77024",
+      "city": "Houston",
+      "region": "West Houston",
+      "area": "Memorial",
+      "cuisines": ["Italian", "Pizza"],
+      "phone": "(713) 365-9497",
+      "website": "https://collinashtx.com/locations/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "About $2 per person",
+        "beer": "About $2 per person",
+        "from": 2,
+        "note": "Same policy as the Heights room."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://collinashtx.com/locations/"]
+    },
+    {
+      "slug": "pepper-twins-river-oaks",
+      "name": "Pepper Twins (River Oaks)",
+      "address": "1915 W Gray St, Houston, TX 77019",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "River Oaks",
+      "cuisines": ["Chinese", "Sichuan"],
+      "phone": null,
+      "website": "https://www.peppertwins.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$5 per bottle",
+        "beer": "$1",
+        "from": 1,
+        "note": "The policy is the same at every Pepper Twins location, not just this one."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonfoodfinder.com/featured/the-big-houston-food-finder-guide-to-byob-restaurants/"]
+    },
+    {
+      "slug": "mala-sichuan-chinatown",
+      "name": "Mala Sichuan Bistro (Chinatown)",
+      "address": "9348 Bellaire Blvd, Houston, TX 77036",
+      "city": "Houston",
+      "region": "Southwest Houston & Chinatown",
+      "area": "Chinatown",
+      "cuisines": ["Chinese", "Sichuan"],
+      "phone": null,
+      "website": "https://www.malasichuan.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$10 per bottle",
+        "beer": null,
+        "from": 10,
+        "note": "Unusual on this list: they hold a beer and wine licence and sell their own, and still let you bring a bottle."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://www.theinfatuation.com/houston/guides/byob-restaurants-houston"]
+    },
+    {
+      "slug": "himalaya",
+      "name": "Himalaya Restaurant",
+      "address": "6652 Southwest Fwy, Houston, TX 77074",
+      "city": "Houston",
+      "region": "Southwest Houston & Chinatown",
+      "area": "Mahatma Gandhi District",
+      "cuisines": ["Indian", "Pakistani"],
+      "phone": "(713) 532-2837",
+      "website": null,
+      "byob": {
+        "confirmed": true,
+        "free": true,
+        "wine": "No fee",
+        "beer": "No fee",
+        "from": 0,
+        "note": "No corkage at all, on the condition that everyone drinking orders an entrée."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonfoodfinder.com/featured/the-big-houston-food-finder-guide-to-byob-restaurants/"]
+    },
+    {
+      "slug": "aladdin-westheimer",
+      "name": "Aladdin Mediterranean Cuisine",
+      "address": "912 Westheimer Rd, Houston, TX 77006",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "Montrose",
+      "cuisines": ["Mediterranean", "Middle Eastern", "Halal"],
+      "phone": null,
+      "website": "https://aladdinshouston.com/",
+      "byob": {
+        "confirmed": true,
+        "free": true,
+        "wine": "No fee",
+        "beer": "No fee",
+        "from": 0,
+        "note": "Counter-service, so there is nobody to open the bottle for you — bring an opener."
+      },
+      "checked": "2026-09-07",
+      "sources": [
+        "https://corkagefee.com/restaurant/aladdins-mediterranean-cuisine-houston-tx-corkage-fee/",
+        "https://secrethouston.com/best-byob-houston/"
+      ]
+    },
+    {
+      "slug": "triolas-kitchen",
+      "name": "Triola's Kitchen",
+      "address": "4606 N Main St, Houston, TX 77009",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "Near Northside",
+      "cuisines": ["Italian"],
+      "phone": null,
+      "website": "https://www.toasttab.com/local/order/triolas-kitchen-4606-n-main-st",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$10 per bottle",
+        "beer": null,
+        "from": 10,
+        "note": null
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://www.opentable.com/r/triolas-kitchen-houston"]
+    },
+    {
+      "slug": "vieng-thai",
+      "name": "Vieng Thai",
+      "address": "6929 Long Point Rd, Houston, TX 77055",
+      "city": "Houston",
+      "region": "North Houston & Spring Branch",
+      "area": "Spring Branch",
+      "cuisines": ["Thai"],
+      "phone": null,
+      "website": "https://www.viengthai-htx.com/",
+      "byob": {
+        "confirmed": true,
+        "free": true,
+        "wine": "No fee",
+        "beer": "No fee",
+        "from": 0,
+        "note": "Closed Thursdays."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://corkagefee.com/restaurant/vieng-thai-houston-tx-corkage-fee/"]
+    },
+    {
+      "slug": "jennis-noodle-house-shepherd",
+      "name": "Jenni's Noodle House (Shepherd)",
+      "address": "3111 S Shepherd Dr, Houston, TX 77098",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "Montrose",
+      "cuisines": ["Vietnamese", "Noodles"],
+      "phone": null,
+      "website": "https://noodlesrule.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$4 per bottle, up to 10 bottles",
+        "beer": "Free up to a six-pack, then $4",
+        "from": 0,
+        "note": "Several Jenni's locations have closed over the years — this is the one still trading. Check before you drive to another."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonfoodfinder.com/featured/the-big-houston-food-finder-guide-to-byob-restaurants/"]
+    },
+    {
+      "slug": "pizzeria-solario",
+      "name": "Pizzeria Solario",
+      "address": "3333 Weslayan St, Ste 100, Houston, TX 77027",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "Greenway / Upper Kirby",
+      "cuisines": ["Pizza", "Italian"],
+      "phone": null,
+      "website": "http://www.pizzeriasolario.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$5 per table",
+        "beer": null,
+        "from": 5,
+        "note": "Charged once per table rather than per bottle."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://www.yelp.com/biz/pizzeria-solario-houston"]
+    },
+    {
+      "slug": "cooking-girl-holcombe",
+      "name": "Cooking Girl (Medical Center)",
+      "address": "2400 W Holcombe Blvd, Houston, TX 77030",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "Medical Center",
+      "cuisines": ["Chinese", "Sichuan"],
+      "phone": null,
+      "website": "https://www.cookinggirl2400tx.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$5 per bottle",
+        "beer": "$0.99",
+        "from": 0.99,
+        "note": "The fees are the ones published for the Sugar Land room; the whole group runs BYOB but the number can differ by location."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonmom.com/houston-byob-restaurants/"]
+    },
+    {
+      "slug": "cooking-girl-montrose",
+      "name": "Cooking Girl (Montrose)",
+      "address": "1717 Montrose Blvd, Houston, TX 77006",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "Montrose",
+      "cuisines": ["Chinese", "Sichuan"],
+      "phone": null,
+      "website": "https://www.cookinggirl2400tx.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$5 per bottle",
+        "beer": "$0.99",
+        "from": 0.99,
+        "note": "Fees as published for the group; confirm at this location."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonmom.com/houston-byob-restaurants/"]
+    },
+    {
+      "slug": "cooking-girl-downtown",
+      "name": "Cooking Girl (Downtown)",
+      "address": "414 Travis St, Houston, TX 77002",
+      "city": "Houston",
+      "region": "Central Houston",
+      "area": "Downtown",
+      "cuisines": ["Chinese", "Sichuan"],
+      "phone": null,
+      "website": "https://www.cookinggirl2400tx.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$5 per bottle",
+        "beer": "$0.99",
+        "from": 0.99,
+        "note": "Fees as published for the group; confirm at this location."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonmom.com/houston-byob-restaurants/"]
+    },
+    {
+      "slug": "cooking-girl-34th",
+      "name": "Cooking Girl (W 34th)",
+      "address": "1223 W 34th St, Houston, TX 77018",
+      "city": "Houston",
+      "region": "North Houston & Spring Branch",
+      "area": "Oak Forest",
+      "cuisines": ["Chinese", "Sichuan"],
+      "phone": null,
+      "website": "https://www.cookinggirl2400tx.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$5 per bottle",
+        "beer": "$0.99",
+        "from": 0.99,
+        "note": "Fees as published for the group; confirm at this location."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonmom.com/houston-byob-restaurants/"]
+    },
+    {
+      "slug": "cooking-girl-sugar-land",
+      "name": "Cooking Girl (Sugar Land)",
+      "address": "636 Highway 6, Sugar Land, TX 77478",
+      "city": "Sugar Land",
+      "region": "Sugar Land & Fort Bend",
+      "area": "Sugar Land",
+      "cuisines": ["Chinese", "Sichuan"],
+      "phone": null,
+      "website": "https://www.cookinggirl2400tx.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$5 per bottle",
+        "beer": "$0.99",
+        "from": 0.99,
+        "note": "The location the published fees were quoted for."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonmom.com/houston-byob-restaurants/"]
+    },
+    {
+      "slug": "chefs-table-vintage-park",
+      "name": "The Chef's Table – Vintage Park",
+      "address": "110 Vintage Park Blvd, Bldg J, Ste P, Houston, TX 77070",
+      "city": "Houston",
+      "region": "The Woodlands, Spring & Tomball",
+      "area": "Vintage Park",
+      "cuisines": ["New American"],
+      "phone": null,
+      "website": "https://www.chefstablehouston.com/",
+      "byob": {
+        "confirmed": false,
+        "free": false,
+        "wine": null,
+        "beer": null,
+        "from": null,
+        "note": "Listed as BYOB on restaurant directories, but the restaurant itself publishes no policy. Call before you bring anything."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://www.yelp.com/search?find_desc=Byob+Restaurants&find_loc=Houston%2C+TX"]
+    },
+    {
+      "slug": "portavino-the-woodlands",
+      "name": "Porta'Vino",
+      "address": "207 E Shore Dr, Ste 130, Spring, TX 77380",
+      "city": "The Woodlands",
+      "region": "The Woodlands, Spring & Tomball",
+      "area": "East Shore",
+      "cuisines": ["Italian", "Wine bar"],
+      "phone": null,
+      "website": "https://portavino.com/byob",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$12 first bottle, $1 less each bottle after, down to free",
+        "beer": null,
+        "from": 12,
+        "note": "The sliding scale is the point: a twelfth bottle is free. The only BYOB-first restaurant in The Woodlands that publishes its policy on its own site."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://portavino.com/byob", "https://www.visitthewoodlands.com/listing/portavino/2632/"]
+    },
+    {
+      "slug": "papa-amadeos",
+      "name": "Papa Amadeo's",
+      "address": "432 Sawdust Rd, Spring, TX 77380",
+      "city": "The Woodlands",
+      "region": "The Woodlands, Spring & Tomball",
+      "area": "Sawdust Rd",
+      "cuisines": ["Italian", "Tuscan"],
+      "phone": null,
+      "website": "https://www.facebook.com/papaamadeos/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$15 per bottle",
+        "beer": "Not permitted",
+        "from": 15,
+        "note": "Wine only — do not turn up with beer."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://www.yelp.com/biz/papa-amadeos-spring-2"]
+    },
+    {
+      "slug": "la-cocina-de-roberto-sawdust",
+      "name": "La Cocina de Roberto (Sawdust)",
+      "address": "3126 Sawdust Rd, The Woodlands, TX 77380",
+      "city": "The Woodlands",
+      "region": "The Woodlands, Spring & Tomball",
+      "area": "Timber Ridge",
+      "cuisines": ["Mexican"],
+      "phone": "(832) 299-6706",
+      "website": "https://www.lacocinaderoberto.net/",
+      "byob": {
+        "confirmed": true,
+        "free": true,
+        "wine": "No fee",
+        "beer": "No fee",
+        "from": 0,
+        "note": "Bring liquor as well as wine or beer — they will provide the setups. Closes at 8pm and closed Sundays, so this is an early dinner."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://twtx.co/rest-listing/roberto/", "https://www.lacocinaderoberto.net/location/la-cocina-de-roberto-sawdust/"]
+    },
+    {
+      "slug": "zaras-rayford",
+      "name": "Zara's Mediterranean Kitchen (Rayford)",
+      "address": "415 Rayford Rd, Ste 300, Spring, TX 77386",
+      "city": "The Woodlands",
+      "region": "The Woodlands, Spring & Tomball",
+      "area": "Rayford Rd",
+      "cuisines": ["Mediterranean", "Halal"],
+      "phone": "(713) 575-9272",
+      "website": "https://www.zarasmediterraneankitchen.com/",
+      "byob": {
+        "confirmed": false,
+        "free": false,
+        "wine": null,
+        "beer": null,
+        "from": null,
+        "note": "Appears on BYOB directory listings for The Woodlands; no published policy. Call first."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://www.yelp.com/search?find_desc=Byob+Restaurants&find_loc=The+Woodlands%2C+TX"]
+    },
+    {
+      "slug": "zaras-louetta",
+      "name": "Zara's Mediterranean Kitchen (Louetta)",
+      "address": "9001 Louetta Rd, Ste B, Spring, TX 77379",
+      "city": "Spring",
+      "region": "The Woodlands, Spring & Tomball",
+      "area": "Louetta Rd",
+      "cuisines": ["Mediterranean", "Halal"],
+      "phone": null,
+      "website": "https://www.zarasmediterraneankitchen.com/",
+      "byob": {
+        "confirmed": false,
+        "free": false,
+        "wine": null,
+        "beer": null,
+        "from": null,
+        "note": "Same caveat as the Rayford Rd location — directory listing only. Call first."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://www.yelp.com/search?find_desc=Byob+Restaurants&find_loc=The+Woodlands%2C+TX"]
+    },
+    {
+      "slug": "the-wheel-kitchen",
+      "name": "The Wheel Kitchen",
+      "address": "25510 Zion Lutheran Cemetery Rd, Tomball, TX 77375",
+      "city": "Tomball",
+      "region": "The Woodlands, Spring & Tomball",
+      "area": "Tomball",
+      "cuisines": ["Farm to table", "Café"],
+      "phone": null,
+      "website": "https://www.wheelkitchen.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "Small cork fee",
+        "beer": null,
+        "from": null,
+        "note": "BYOB with a small cork fee; the amount is not published."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://www.opentable.com/r/the-wheel-kitchen-tomball"]
+    },
+    {
+      "slug": "yucca-grill",
+      "name": "Yucca Grill",
+      "address": "9222 Louetta Rd, Ste 100, Spring, TX 77379",
+      "city": "Spring",
+      "region": "The Woodlands, Spring & Tomball",
+      "area": "Klein / Louetta",
+      "cuisines": ["Turkish", "Mediterranean"],
+      "phone": null,
+      "website": null,
+      "byob": {
+        "confirmed": false,
+        "free": false,
+        "wine": null,
+        "beer": null,
+        "from": null,
+        "note": "Appears on BYOB directory listings for the Tomball/Spring area; no published policy. Call first."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://www.yelp.com/search?find_desc=Byob+Restaurants&find_loc=Tomball%2C+TX+77375"]
+    },
+    {
+      "slug": "bolli-brothers-pizza",
+      "name": "Bolli Brothers Pizza",
+      "address": "2944 S Mason Rd, Katy, TX 77450",
+      "city": "Katy",
+      "region": "Katy & Cypress",
+      "area": "Katy",
+      "cuisines": ["Pizza", "Italian"],
+      "phone": null,
+      "website": null,
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "Bring your own",
+        "beer": "Bring your own",
+        "from": null,
+        "note": "Fee not published."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonmom.com/houston-byob-restaurants/"]
+    },
+    {
+      "slug": "cafe-asian-katy",
+      "name": "Cafe Asian",
+      "address": "532 S Mason Rd, Katy, TX 77450",
+      "city": "Katy",
+      "region": "Katy & Cypress",
+      "area": "Katy",
+      "cuisines": ["Asian", "Chinese"],
+      "phone": null,
+      "website": null,
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "Bring your own",
+        "beer": "Bring your own",
+        "from": null,
+        "note": "Fee not published."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonmom.com/houston-byob-restaurants/"]
+    },
+    {
+      "slug": "the-cravin-cajun",
+      "name": "The Cravin' Cajun",
+      "address": "2323 N Fry Rd, Katy, TX 77449",
+      "city": "Katy",
+      "region": "Katy & Cypress",
+      "area": "Katy",
+      "cuisines": ["Cajun", "Seafood"],
+      "phone": null,
+      "website": null,
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "Bring your own",
+        "beer": "Bring your own",
+        "from": null,
+        "note": "Crawfish season is when this one matters. Fee not published."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonmom.com/houston-byob-restaurants/"]
+    },
+    {
+      "slug": "mamak-malaysian-sugar-land",
+      "name": "Mamak Malaysian",
+      "address": "3412 Highway 6, Ste R, Sugar Land, TX 77478",
+      "city": "Sugar Land",
+      "region": "Sugar Land & Fort Bend",
+      "area": "Sugar Land",
+      "cuisines": ["Malaysian"],
+      "phone": null,
+      "website": "https://mamakmalaysian.com/",
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$10 per bottle",
+        "beer": null,
+        "from": 10,
+        "note": "Moved out of the old Bellaire Blvd Chinatown space — this is the current room."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://mamakmalaysian.com/", "https://www.houstonpress.com/restaurants/top-5-byob-places-in-houston-6437010"]
+    },
+    {
+      "slug": "malay-malay-league-city",
+      "name": "Malay Malay Malaysian",
+      "address": "2508 S Gulf Fwy, League City, TX 77573",
+      "city": "League City",
+      "region": "Pearland, Clear Lake & south",
+      "area": "League City",
+      "cuisines": ["Malaysian"],
+      "phone": null,
+      "website": null,
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$10 per bottle",
+        "beer": null,
+        "from": 10,
+        "note": "The Mamak family's League City room, same BYOB policy."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://www.instagram.com/p/DTBv8vEDsSI/"]
+    },
+    {
+      "slug": "santa-barbara-italian-cafe",
+      "name": "Santa Barbara Italian Café",
+      "address": "5020 Broadway St, Pearland, TX 77581",
+      "city": "Pearland",
+      "region": "Pearland, Clear Lake & south",
+      "area": "Pearland",
+      "cuisines": ["Italian"],
+      "phone": null,
+      "website": null,
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "$2.59 per person",
+        "beer": "$2.59 per person",
+        "from": 2.59,
+        "note": "Per person, not per bottle."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonmom.com/houston-byob-restaurants/"]
+    },
+    {
+      "slug": "central-texas-style-barbecue-pearland",
+      "name": "Central Texas Style Barbecue",
+      "address": "4110 W Broadway St, Pearland, TX 77581",
+      "city": "Pearland",
+      "region": "Pearland, Clear Lake & south",
+      "area": "Pearland",
+      "cuisines": ["Barbecue"],
+      "phone": null,
+      "website": null,
+      "byob": {
+        "confirmed": true,
+        "free": false,
+        "wine": "Bring your own",
+        "beer": "Bring your own",
+        "from": null,
+        "note": "Fee not published."
+      },
+      "checked": "2026-09-07",
+      "sources": ["https://houstonmom.com/houston-byob-restaurants/"]
+    }
+  ]
+}

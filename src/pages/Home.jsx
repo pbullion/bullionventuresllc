@@ -119,6 +119,14 @@ const apps = [
  * page at /jump, which is a URL anyone can type or bookmark (2026-09-02). */
 const tools = [
   {
+    emoji: "🍷",
+    name: "Houston BYOB",
+    path: "/byob",
+    tagline: "Where you can bring your own bottle",
+    description:
+      "Restaurants around Houston and The Woodlands that let you bring your own wine or beer, and exactly what each one charges to open it. Filter to the places with no corkage at all, sort by the cheapest fee, and see what's nearest you \u2014 with the source and the date behind every policy, because these change without notice.",
+  },
+  {
     emoji: "🍽️",
     name: "Houston Restaurant Weeks",
     path: "/hrw",

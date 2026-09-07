@@ -75,6 +75,8 @@ import Jump from "./pages/jump/index.jsx";
 import Status from "./pages/status/index.jsx";
 import Drive from "./pages/drive";
 import Hrw from "./pages/hrw/index.jsx";
+import Byob from "./pages/byob/index.jsx";
+import ByobRestaurant from "./pages/byob/Restaurant.jsx";
 import Tasting from "./pages/tasting/index.jsx";
 import TastingResults from "./pages/tasting/Results.jsx";
 import HrwRestaurant from "./pages/hrw/Restaurant.jsx";
@@ -231,6 +233,10 @@ export default function App() {
           <Route path="/drive" element={<Drive />} />
           <Route path="/hrw" element={<Hrw />} />
           <Route path="/hrw/:slug" element={<HrwRestaurant />} />
+          {/* Keeps the site chrome, like /hrw — it's a directory somebody
+              browses, not a full-screen instrument. */}
+          <Route path="/byob" element={<Byob />} />
+          <Route path="/byob/:slug" element={<ByobRestaurant />} />
           <Route
             path="/wnba-value"
             element={<Navigate to="/totals-value" replace />}

@@ -160,7 +160,7 @@ Three things about it are deliberate and easy to undo by accident:
   site-wide `robots.txt`, so this meta tag is the only thing pushing back. Keep
   it.
 
-## The one page with build-time data (`/hrw`)
+## The build-time-data pages (`/hrw`, and now `/byob`)
 
 Houston Restaurant Weeks gets all of its restaurant data without a backend.
 `scripts/build-hrw-data.mjs` reads a public Google Sheet, geocodes the addresses,
@@ -196,6 +196,66 @@ node scripts/build-hrw-data.mjs   # re-read the sheet, then commit the JSON
   **Fix a wrong grouping in that file's `OVERRIDES` map, keyed by slug — don't
   tune the regexes.** Changing how a key is computed orphans the reviews already
   stored under the old key.
+
+## `/byob` — where you can bring your own bottle
+
+Every restaurant around Houston and The Woodlands that lets you bring your own
+wine or beer, and what each one charges to open it (`src/pages/byob/`). Routes
+are `/byob` and `/byob/:slug`. Built 2026-09-07. It borrows /hrw's shell — same
+dark card grid, same sticky filter bar, same lazy Leaflet — and it is a
+different KIND of page underneath, which is the thing to understand before
+changing anything here.
+
+- **There is no source of truth to sync from, and there cannot be.** BYOB is the
+  ABSENCE of a licence, so nothing in TABC's records describes it, and the
+  aggregators disagree with each other and with the restaurants. Where /hrw
+  reads a spreadsheet somebody else maintains, this list is
+  **`scripts/byob-seed.json`, hand-maintained in this repo**, and
+  `node scripts/build-byob-data.mjs` geocodes it into the committed
+  `public/data/byob-houston.json`. Edit the seed, re-run, commit both.
+- **`byob.confirmed` is the page's most important field.** True means the policy
+  came from the restaurant or from a guide that quoted terms; false means a
+  directory listed the place as BYOB and said nothing more. A confirmed row
+  prints its fee; an unconfirmed one says "call ahead" and **must never be given
+  a number it does not have**. That distinction is the mint/gold/grey key on
+  every card, pin and detail page (`POLICY` in `data.js`), and flattening it
+  would be this page's central lie.
+- **Every row carries `sources` and a `checked` date, and the detail page prints
+  them.** On a subject where every guide contradicts the next one, "who says so,
+  and when" is part of the answer. The build refuses a row with no source.
+- **Don't add a restaurant you haven't found a policy statement for, and drop
+  one the moment it looks closed.** A closed BYOB restaurant is the worst kind of
+  wrong entry here. La Vista (Fountain View) and three of Jenni's four locations
+  were cut before the first commit for exactly that reason — same call as the
+  invented-revenue rule on `/prospects`.
+- **The caveat lives in the hero, not a footer.** Corkage changes without notice;
+  "call before you pack a bottle" is the first thing under the subtitle, and the
+  phone number is a first-class control — on the card, and spanning the row on a
+  phone — because the useful end of a visit here is a call.
+- **`from: 0` on a confirmed row is not "free".** It means the cheapest way in
+  costs nothing while the general case does not (beer under a six-pack at
+  Jenni's, wine on a Monday at Sao Lao), so the chip reads "Free in some cases"
+  and the note carries the terms. `free: true` is the real no-corkage flag.
+  Cheapest-first sorting puts unknown fees LAST, not first — an unknown is not a
+  zero.
+- **Geocoding is optional and the page proves it.** It is the only part of the
+  build that touches the network, a row that doesn't geocode gets `lat: null`,
+  and when the dataset has NO pins at all the map toggle and the nearest-me sort
+  hide themselves rather than opening an empty map. **The file was first
+  committed with zero pins** because the session that built it had no egress to
+  either geocoder — run `node scripts/build-byob-data.mjs` anywhere with normal
+  network access and commit the JSON to light the map up.
+- **A network failure must not be cached as a miss.** `scripts/byob-geocache.json`
+  records a genuine "neither geocoder knows this address" as `null` so re-runs
+  skip it — but a throw or a non-200 leaves the key ABSENT, because caching a
+  null on a 403 would poison the cache permanently and no number of re-runs
+  would ever pin that restaurant again.
+- Tiles come from `src/lib/basemap.js` (Esri, shared with `/drive` and
+  `/gulf-hurricane`) rather than the CARTO URLs still inlined in `src/pages/hrw/`.
+  `leaflet` is lazy-loaded in `MapView.jsx` and `MiniMap.jsx`; keep it out of the
+  main bundle.
+- It **keeps the site nav and footer** — like `/hrw` and `/jump`, it is a
+  directory somebody browses, not a full-screen instrument.
 
 ## Backend
 
