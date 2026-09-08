@@ -248,7 +248,7 @@ keeps prediction logging and closing-line capture running.
 | --- | --- |
 | Add/remove a route, change nav/footer visibility | [src/App.jsx](../src/App.jsx) (`hideChrome` at :55-65) |
 | Add a homepage card | `products` array in [src/pages/Home.jsx:3](../src/pages/Home.jsx) |
-| Change the My Bets cards/sorting/polling | [src/pages/my-bets/index.jsx](../src/pages/my-bets/index.jsx) (1,737 lines, single file; data load ~:1350-1410) |
+| Change the My Bets cards/sorting/polling | [src/pages/my-bets/index.jsx](../src/pages/my-bets/index.jsx) (3,426 lines, single file; data load is the `load()` function — grep it, the file moves constantly) |
 | Change the Totals Value scanner UI or Auto-Bet panel | [src/pages/totals-value/index.jsx](../src/pages/totals-value/index.jsx) (PIN flow ~:744-820) |
 | Fix MyBookie→ESPN team-name matching | `nameAliases` in [src/pages/elite-edge-advisors/InputBets.jsx](../src/pages/elite-edge-advisors/InputBets.jsx) |
 | Elite Edge bet board | [src/pages/elite-edge-advisors/index.jsx](../src/pages/elite-edge-advisors/index.jsx) (2,855 lines — the biggest file in the repo) |
@@ -395,7 +395,7 @@ backend's config; it is not in this repo.
    everywhere newer). New code should use `date-fns` and `fetch`; migrating
    old code is nice-to-have.
 4. **Two monolith page files**: `elite-edge-advisors/index.jsx` (2,855 lines)
-   and `my-bets/index.jsx` (1,737). Both work; both are unpleasant to edit.
+   and `my-bets/index.jsx` (3,426). Both work; both are unpleasant to edit.
 5. **`kentucky-derby/Tracker.jsx` is orphaned** — never routed. Delete it or
    wire it up next May.
 6. **Stale branch** `origin/elite-edge-migration` — superseded by the port
