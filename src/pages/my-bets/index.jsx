@@ -353,6 +353,16 @@ const S = {
     backgroundColor: C.border,
     margin: "0 2px",
   },
+  // Names the chip group that follows it, so a row of percentages can't be
+  // mistaken for more sort keys.
+  sortGroupLabel: {
+    color: C.muted,
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    whiteSpace: "nowrap",
+  },
   sortBtn: (active) => ({
     background: active ? C.greenSoft : C.chipBg,
     border: `1px solid ${active ? C.greenBorder : C.border}`,
@@ -993,6 +1003,31 @@ const SORTS = [
     },
   },
 ];
+
+/* The Win % sort's own metric, reachable no matter which key is active, as a
+ * percentage. The chance filter thresholds on exactly the number the Win %
+ * sort orders by, so "sorted by chance, showing 75%+" can never disagree with
+ * itself. Rounded before the comparison because the card prints a rounded
+ * chance: a 49.6% leg reads "50% chance", and a filter that then hid it would
+ * look broken. For a parlay the number is the joint probability — which is why
+ * a long slip drops out of even the 50%+ view: eleven 70% legs are a 2% bet,
+ * not a 70% one, and that is the honest figure to filter on. */
+const WIN_SORT = SORTS.find((s) => s.key === "win");
+const winPctOf = (b) => {
+  const d = b.display || {};
+  const legs = Array.isArray(d.legs) ? d.legs : [];
+  const m = WIN_SORT.metric(d, legs);
+  const n = Number(m);
+  return m == null || Number.isNaN(n) ? null : Math.round(n * 100);
+};
+
+/* Chance floors for the open grid. 0 is "All" — no filter. 75 is not an
+ * arbitrary round number: it's GREEN_AT, the point where a chance chip stops
+ * being amber and turns green, so "75%+" shows exactly the cards whose
+ * percentages read green. A position with no price at all has no chance to
+ * test, so it sinks out of every floor above 0 rather than being assumed safe. */
+const MIN_CHANCES = [0, 50, 75, 90];
+const MIN_CHANCE_STORAGE_KEY = "mb_min_chance";
 
 /* Bumped from "mb_sort" when the default became Win %-descending: a browser
  * still holding the old preference would otherwise keep overriding the new
@@ -2409,6 +2444,29 @@ export default function MyBets() {
       return next;
     });
 
+  /* Minimum chance to show a card, in percent; 0 = show everything. Persisted
+   * like the sort, but deliberately NOT defaulted above 0 — a floor that
+   * survived a refresh unnoticed would read as positions having vanished. The
+   * count of what it removes sits beside the chips for the same reason. */
+  const [minChance, setMinChance] = useState(() => {
+    try {
+      const raw = Number(localStorage.getItem(MIN_CHANCE_STORAGE_KEY));
+      if (MIN_CHANCES.includes(raw)) return raw;
+    } catch {
+      /* fall through to no filter */
+    }
+    return 0;
+  });
+  const pickMinChance = (pct) =>
+    setMinChance(() => {
+      try {
+        localStorage.setItem(MIN_CHANCE_STORAGE_KEY, String(pct));
+      } catch {
+        /* filtering still works this session */
+      }
+      return pct;
+    });
+
   /* Weather layout: false = one card per day, cities as sections inside it
    * (the default); true = a separate card per city. Eight city-day cards was
    * the original layout and was unreadable when every city had a position, but
@@ -2611,7 +2669,14 @@ export default function MyBets() {
   const hideable = allBets.filter(
     (b) => !ALWAYS_HIDDEN_TICKERS.has(b.ticker) && !isDecidedBet(b),
   );
-  const bets = hideable.filter((b) => !hidden.has(b.ticker));
+  const undismissed = hideable.filter((b) => !hidden.has(b.ticker));
+  // The chance floor is the last cut, so "N hidden · Show all" keeps counting
+  // only the user's own dismissals and doesn't absorb the filtered cards.
+  const bets =
+    minChance > 0
+      ? undismissed.filter((b) => (winPctOf(b) ?? -1) >= minChance)
+      : undismissed;
+  const belowChanceCount = undismissed.length - bets.length;
   // Reported, not silent. Suppressing nine cards with no trace of them is how
   // a filter turns into a bug report, so the count sits beside the sort row.
   const decidedCount = allBets.filter(isDecidedBet).length;
@@ -2624,10 +2689,18 @@ export default function MyBets() {
   /* wxByCity is in the deps because switching it changes how many cards the
      grid holds (one per day vs one per city-day), which the ResizeObserver
      alone wouldn't see as a repack trigger. */
-  useMasonry(gridRef, [bets.length, tab, sort.key, sort.dir, wxByCity]);
+  useMasonry(gridRef, [
+    bets.length,
+    tab,
+    sort.key,
+    sort.dir,
+    wxByCity,
+    minChance,
+  ]);
   // Counts only the user's own dismissals: "Show all" must not resurrect a
-  // permanently-hidden card, so those aren't part of this count either.
-  const hiddenCount = hideable.length - bets.length;
+  // permanently-hidden card, so those aren't part of this count either — nor a
+  // card the chance floor removed, which "Show all" wouldn't bring back.
+  const hiddenCount = hideable.length - undismissed.length;
   // Gates the weather layout toggle: nothing to group on a day with no
   // temperature positions, so the chip stays off the sort row entirely.
   const hasWeatherBets = bets.some((b) =>
@@ -2979,6 +3052,25 @@ export default function MyBets() {
                     {sort.key === s.key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}
                   </button>
                 ))}
+                {/* Chance floor — a filter, not a sort key, so it sits behind
+                    a divider under its own label. */}
+                <span style={S.sortDivider} aria-hidden="true" />
+                <span style={S.sortGroupLabel}>chance</span>
+                {MIN_CHANCES.map((pct) => (
+                  <button
+                    key={pct}
+                    style={S.sortBtn(minChance === pct)}
+                    onClick={() => pickMinChance(pct)}
+                    aria-pressed={minChance === pct}
+                    title={
+                      pct === 0
+                        ? "Show every open position"
+                        : `Show only positions at ${pct}% chance or better (a parlay is judged on its joint odds)`
+                    }
+                  >
+                    {pct === 0 ? "All" : `${pct}%+`}
+                  </button>
+                ))}
                 {/* Layout, not a sort key — hence the divider, so it doesn't
                     read as a sixth thing to sort by. */}
                 {hasWeatherBets ? (
@@ -2999,6 +3091,13 @@ export default function MyBets() {
                   </>
                 ) : null}
               </div>
+              {belowChanceCount > 0 ? (
+                <span style={S.muted}>
+                  {/* Same contract as the decided-count line: a filter that
+                      removes cards says how many, or it reads as data loss. */}
+                  {belowChanceCount} below {minChance}% not shown
+                </span>
+              ) : null}
               {decidedCount > 0 ? (
                 <span style={S.muted}>
                   {/* Names the kind of bet now that the rule only covers
@@ -3018,11 +3117,13 @@ export default function MyBets() {
               <div style={S.muted}>Loading your bets…</div>
             ) : bets.length === 0 ? (
               <div style={S.muted}>
-                {hiddenCount > 0
-                  ? "All positions hidden. Use “Show all” to bring them back."
-                  : decidedCount > 0
-                    ? `No open positions left to watch — all ${decidedCount} are high-temp bands decided at 1%.`
-                    : "No open positions."}
+                {belowChanceCount > 0
+                  ? `Nothing open at ${minChance}% or better — ${belowChanceCount} ${belowChanceCount === 1 ? "position is" : "positions are"} below it. Use “All” to bring them back.`
+                  : hiddenCount > 0
+                    ? "All positions hidden. Use “Show all” to bring them back."
+                    : decidedCount > 0
+                      ? `No open positions left to watch — all ${decidedCount} are high-temp bands decided at 1%.`
+                      : "No open positions."}
               </div>
             ) : (
               (() => {
