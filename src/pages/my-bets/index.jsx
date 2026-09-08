@@ -353,6 +353,16 @@ const S = {
     backgroundColor: C.border,
     margin: "0 2px",
   },
+  // Names the chip group that follows it, so a row of percentages can't be
+  // mistaken for more sort keys.
+  sortGroupLabel: {
+    color: C.muted,
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    whiteSpace: "nowrap",
+  },
   sortBtn: (active) => ({
     background: active ? C.greenSoft : C.chipBg,
     border: `1px solid ${active ? C.greenBorder : C.border}`,
@@ -425,6 +435,15 @@ const S = {
     fontWeight: 700,
     color: C.text,
     margin: "18px 4px 12px",
+  },
+  // An ACTIVE filter announcing itself. Deliberately louder than S.muted (which
+  // the decided-count line uses): that one reports a rule the reader never set,
+  // this one reports a choice they can undo and may have forgotten making.
+  filterNotice: {
+    color: C.amber,
+    fontSize: 13,
+    fontWeight: 700,
+    padding: "8px 4px",
   },
   showHiddenBtn: {
     background: "transparent",
@@ -647,6 +666,9 @@ const S = {
     lineHeight: 1.2,
   },
   gameLeague: { fontSize: 13, color: C.muted, fontWeight: 600 },
+  // The parlay's joint chance, sat beside the league label. Colour is set
+  // inline from chanceColor so it matches the leg chips' scale.
+  jointChance: { fontSize: 13, fontWeight: 800 },
   // League label and (for crypto) the window countdown share a line under the
   // title. Wraps rather than squeezing on a narrow card.
   gameSubRow: {
@@ -993,6 +1015,23 @@ const SORTS = [
     },
   },
 ];
+
+/* The Win % sort's own metric, reachable no matter which key is active, as a
+ * percentage. The chance filter thresholds on exactly the number the Win %
+ * sort orders by, so "sorted by chance, showing 75%+" can never disagree with
+ * itself. Rounded before the comparison because the card prints a rounded
+ * chance: a 49.6% leg reads "50% chance", and a filter that then hid it would
+ * look broken. For a parlay the number is the joint probability — which is why
+ * a long slip drops out of even the 50%+ view: eleven 70% legs are a 2% bet,
+ * not a 70% one, and that is the honest figure to filter on. */
+const WIN_SORT = SORTS.find((s) => s.key === "win");
+const winPctOf = (b) => {
+  const d = b.display || {};
+  const legs = Array.isArray(d.legs) ? d.legs : [];
+  const m = WIN_SORT.metric(d, legs);
+  const n = Number(m);
+  return m == null || Number.isNaN(n) ? null : Math.round(n * 100);
+};
 
 /* Bumped from "mb_sort" when the default became Win %-descending: a browser
  * still holding the old preference would otherwise keep overriding the new
@@ -1442,6 +1481,16 @@ const kalshiEventUrl = (eventTicker) =>
  * hsl(0,84%,60%) ≈ C.red), so a settled leg matches every green/red in the UI. */
 const GREEN_AT = 75; // strong favorite; below this is yellow, never green
 const RED_BELOW = 48; // not favored at all
+
+/* Chance floors for the open grid. 0 is "All" — no filter. The middle floor is
+ * GREEN_AT ITSELF, not a copy of its value: it's the point where a chance chip
+ * stops being amber and turns green, so that chip shows exactly the cards whose
+ * percentages read green, and retuning the colour retunes the filter with it. A
+ * literal 75 here would let the two drift apart silently — the claim is only
+ * true while it's the same binding. This sits below the colour constants purely
+ * so it can reference one; it's read in the component, far later. */
+const MIN_CHANCES = [0, 50, GREEN_AT, 90];
+const MIN_CHANCE_STORAGE_KEY = "mb_min_chance";
 const chanceColor = (pct) => {
   if (pct >= RED_BELOW && pct < GREEN_AT) return C.amber;
   const up = pct >= GREEN_AT;
@@ -2032,6 +2081,16 @@ function GameHeader({ grp, onHide }) {
             {grp.closeTime ? (
               <CloseCountdown closeTime={grp.closeTime} />
             ) : null}
+            {/* Coloured on the same scale as a leg chip, so a long slip's real
+                odds read red beside its green legs — which is the point. */}
+            {grp.jointPct != null ? (
+              <span
+                style={{ ...S.jointChance, color: chanceColor(grp.jointPct) }}
+                title="This parlay's own chance — every leg hitting. It is what the Win % sort and the chance filter use."
+              >
+                {grp.jointPct}% all legs
+              </span>
+            ) : null}
           </div>
         </div>
         <button
@@ -2409,6 +2468,33 @@ export default function MyBets() {
       return next;
     });
 
+  /* Minimum chance to show a card, in percent; 0 = show everything. Persisted
+   * like the sort, so a chosen floor survives a refresh — which is convenient
+   * and is also the one way this control can mislead: a floor set last week and
+   * forgotten makes a partial grid look like the whole book. Nothing about
+   * "it defaults to All" protects a browser that has already stored a 90. What
+   * protects it is that an active floor is always ANNOUNCED — the amber
+   * filtered-out line, the "N of M" open count, and the lit chip — so the state
+   * is visible without being remembered. Keep all three if you touch this. */
+  const [minChance, setMinChance] = useState(() => {
+    try {
+      const raw = Number(localStorage.getItem(MIN_CHANCE_STORAGE_KEY));
+      if (MIN_CHANCES.includes(raw)) return raw;
+    } catch {
+      /* fall through to no filter */
+    }
+    return 0;
+  });
+  const pickMinChance = (pct) =>
+    setMinChance(() => {
+      try {
+        localStorage.setItem(MIN_CHANCE_STORAGE_KEY, String(pct));
+      } catch {
+        /* filtering still works this session */
+      }
+      return pct;
+    });
+
   /* Weather layout: false = one card per day, cities as sections inside it
    * (the default); true = a separate card per city. Eight city-day cards was
    * the original layout and was unreadable when every city had a position, but
@@ -2611,7 +2697,25 @@ export default function MyBets() {
   const hideable = allBets.filter(
     (b) => !ALWAYS_HIDDEN_TICKERS.has(b.ticker) && !isDecidedBet(b),
   );
-  const bets = hideable.filter((b) => !hidden.has(b.ticker));
+  const undismissed = hideable.filter((b) => !hidden.has(b.ticker));
+  /* The chance floor is the last cut, so "N hidden · Show all" keeps counting
+   * only the user's own dismissals and doesn't absorb the filtered cards.
+   *
+   * A position with NO price survives every floor. The enrichment feed drops
+   * prices intermittently — ~3% of parlay legs and ~7.7% of weather rows come
+   * back stripped — so treating a missing chance as a low one would silently
+   * hide real money on the back of a known backend flake, and hide it in the
+   * one direction the reader can't audit. An unknown is not a zero (the same
+   * call /byob makes when it sorts unknown corkage last rather than cheapest);
+   * the card shows its dash and the reader decides. */
+  const bets =
+    minChance > 0
+      ? undismissed.filter((b) => {
+          const pct = winPctOf(b);
+          return pct == null || pct >= minChance;
+        })
+      : undismissed;
+  const belowChanceCount = undismissed.length - bets.length;
   // Reported, not silent. Suppressing nine cards with no trace of them is how
   // a filter turns into a bug report, so the count sits beside the sort row.
   const decidedCount = allBets.filter(isDecidedBet).length;
@@ -2624,10 +2728,23 @@ export default function MyBets() {
   /* wxByCity is in the deps because switching it changes how many cards the
      grid holds (one per day vs one per city-day), which the ResizeObserver
      alone wouldn't see as a repack trigger. */
-  useMasonry(gridRef, [bets.length, tab, sort.key, sort.dir, wxByCity]);
+  /* Card MEMBERSHIP, not card count. A length can't see a swap: on the 15s poll
+   * one position can settle out while another arrives, or — with a chance floor
+   * set — one can cross the threshold in each direction at once, leaving
+   * `bets.length` and `minChance` both unchanged. The effect then never re-runs,
+   * and while apply() does read `grid.children` live, the card that swapped in
+   * was never attached to the ResizeObserver and only gets a span if some other
+   * height change happens to fire a re-pack. When the two cards leave the grid
+   * the same total height, nothing fires: the new card keeps the default
+   * single-row span and its content overlaps whatever sits below it. Joining
+   * the tickers also covers reordering, which is why sort.key/sort.dir are
+   * belt-and-braces here rather than the actual trigger. */
+  const betsKey = bets.map((b) => b.ticker).join("|");
+  useMasonry(gridRef, [betsKey, tab, sort.key, sort.dir, wxByCity]);
   // Counts only the user's own dismissals: "Show all" must not resurrect a
-  // permanently-hidden card, so those aren't part of this count either.
-  const hiddenCount = hideable.length - bets.length;
+  // permanently-hidden card, so those aren't part of this count either — nor a
+  // card the chance floor removed, which "Show all" wouldn't bring back.
+  const hiddenCount = hideable.length - undismissed.length;
   // Gates the weather layout toggle: nothing to group on a day with no
   // temperature positions, so the chip stays off the sort row entirely.
   const hasWeatherBets = bets.some((b) =>
@@ -2952,13 +3069,22 @@ export default function MyBets() {
           <span style={{ ...S.heroMobileStat, color: pnlColor(totalPnl) }}>
             {pnlStr(totalPnl)}
           </span>
-          <span style={S.heroMobileStat}>{bets.length} open</span>
+          <span style={S.heroMobileStat}>
+            {bets.length} open
+            {belowChanceCount > 0 ? ` of ${undismissed.length}` : ""}
+          </span>
         </div>
 
         {/* Open / History tabs */}
         <div style={S.tabs}>
           <button style={S.tab(tab === "open")} onClick={() => setTab("open")}>
-            Open{bets.length ? ` (${bets.length})` : ""}
+            {/* "3 of 15" while a floor is set: a bare "Open (3)" beside the
+                unfiltered dollar totals in the hero reads as a discrepancy on a
+                money screen, not as a filter the reader chose. */}
+            Open
+            {bets.length || belowChanceCount
+              ? ` (${belowChanceCount > 0 ? `${bets.length} of ${undismissed.length}` : bets.length})`
+              : ""}
           </button>
           <button style={S.tab(tab === "history")} onClick={openHistory}>
             History
@@ -2977,6 +3103,25 @@ export default function MyBets() {
                   >
                     {s.label}
                     {sort.key === s.key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}
+                  </button>
+                ))}
+                {/* Chance floor — a filter, not a sort key, so it sits behind
+                    a divider under its own label. */}
+                <span style={S.sortDivider} aria-hidden="true" />
+                <span style={S.sortGroupLabel}>chance</span>
+                {MIN_CHANCES.map((pct) => (
+                  <button
+                    key={pct}
+                    style={S.sortBtn(minChance === pct)}
+                    onClick={() => pickMinChance(pct)}
+                    aria-pressed={minChance === pct}
+                    title={
+                      pct === 0
+                        ? "Show every open position"
+                        : `Show only positions at ${pct}% chance or better (a parlay is judged on its joint odds)`
+                    }
+                  >
+                    {pct === 0 ? "All" : `${pct}%+`}
                   </button>
                 ))}
                 {/* Layout, not a sort key — hence the divider, so it doesn't
@@ -2999,6 +3144,15 @@ export default function MyBets() {
                   </>
                 ) : null}
               </div>
+              {belowChanceCount > 0 ? (
+                /* Amber, not muted, and it says "filtered": the choice
+                   PERSISTS, so this line is what a reader opening the page days
+                   later has to notice before reading the grid as their whole
+                   book. A grey footnote is not enough weight for that. */
+                <span style={S.filterNotice}>
+                  {belowChanceCount} below {minChance}% filtered out
+                </span>
+              ) : null}
               {decidedCount > 0 ? (
                 <span style={S.muted}>
                   {/* Names the kind of bet now that the rule only covers
@@ -3018,11 +3172,13 @@ export default function MyBets() {
               <div style={S.muted}>Loading your bets…</div>
             ) : bets.length === 0 ? (
               <div style={S.muted}>
-                {hiddenCount > 0
-                  ? "All positions hidden. Use “Show all” to bring them back."
-                  : decidedCount > 0
-                    ? `No open positions left to watch — all ${decidedCount} are high-temp bands decided at 1%.`
-                    : "No open positions."}
+                {belowChanceCount > 0
+                  ? `Nothing open at ${minChance}% or better — the chance filter is hiding ${belowChanceCount === 1 ? "your 1 open position" : `all ${belowChanceCount} of your open positions`}. Use “All” to bring ${belowChanceCount === 1 ? "it" : "them"} back.`
+                  : hiddenCount > 0
+                    ? "All positions hidden. Use “Show all” to bring them back."
+                    : decidedCount > 0
+                      ? `No open positions left to watch — all ${decidedCount} are high-temp bands decided at 1%.`
+                      : "No open positions."}
               </div>
             ) : (
               (() => {
@@ -3058,6 +3214,16 @@ export default function MyBets() {
                       isWeather,
                       wxCity,
                       game: isCombo ? null : leg0.game,
+                      /* A parlay's own chance — the product of its legs, the
+                       * number Win % sorts on and the chance filter cuts on.
+                       * It is NOT derivable by eye from the leg chips: five
+                       * legs in the 56–76% band is a ~9% bet. Without it on the
+                       * card, a slip of green legs vanishing under a 50%+ floor
+                       * reads as a broken filter instead of as long odds.
+                       * Single-market cards don't need it — their one leg chip
+                       * already IS this number. */
+                      jointPct:
+                        isCombo && !isWeather ? winPctOf(b) : null,
                       // Normalised, because the backend's league differs by horizon:
                       // "Crypto" for a 15m market but the bare asset ("XRP") for an
                       // hourly one, so the grid showed two different subtitles for
