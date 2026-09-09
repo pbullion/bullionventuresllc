@@ -1239,14 +1239,18 @@ function AutoBetPanel({ games, status, onStatus }) {
                 rather than being asserted here. `undefined` means a backend
                 that predates that field, whose behaviour was lifetime — so
                 treating it as "no window" is both the safe default and the
-                accurate one. Do not hardcode this sentence again. */}
+                accurate one. Do not hardcode this sentence again.
+
+                Tested `> 0` rather than for truthiness, mirroring the guard
+                the backend applies to the env var it comes from
+                (`Number(x) > 0 ? Math.floor(...) : null`). A 0 can't arrive
+                today, and if one ever did, "their last 0 days" is not a
+                sentence worth rendering. */}
           {(status.segments_blocked || []).length > 0 && (
             <div style={{ color: C.amber, fontSize: 12, marginTop: 8 }}>
               ↓ Losing segments,{" "}
-              {(status.config || {}).segment_stats_window_days
-                ? `out until their last ${
-                    status.config.segment_stats_window_days
-                  } days clear the bar:`
+              {cfg.segment_stats_window_days > 0
+                ? `out until their last ${cfg.segment_stats_window_days} days clear the bar:`
                 : "out for good unless you move the ROI bar:"}{" "}
               {status.segments_blocked
                 .map((x) => `${x.segment} (${x.roi}% over ${x.n})`)
