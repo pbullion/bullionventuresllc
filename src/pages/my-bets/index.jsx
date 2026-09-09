@@ -3017,9 +3017,21 @@ export default function MyBets() {
               {pnlStr(totalPnl)}
             </span>
           </div>
+          {/* "4 of 11" while a floor is set, exactly as the tab and the mobile
+              strip already say it. Every other figure in this row is computed
+              from `allBets` — unfiltered, and including the dismissed and the
+              decided — so a bare filtered count sitting beside them reads as a
+              discrepancy in the money, not as a filter the reader chose. The
+              denominator is `undismissed` rather than `allBets.length` to match
+              the other two: the decided high-temps are reported on their own
+              line and were never part of this count. */}
           <div style={S.topStat}>
             <span style={S.topStatLabel}>Open</span>
-            <span style={S.topStatValue}>{bets.length}</span>
+            <span style={S.topStatValue}>
+              {belowChanceCount > 0
+                ? `${bets.length} of ${undismissed.length}`
+                : bets.length}
+            </span>
           </div>
         </div>
         <button
