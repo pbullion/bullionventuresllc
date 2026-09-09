@@ -688,10 +688,15 @@ const SKIP_REASON_TEXT = {
   "price-too-low": "long shot — model can't price these",
   "opposite-direction": "already bet the other way on this total",
   "segment-paused": "segment paused by hand",
-  // The standing segment gate (added 2026-08-21, replaced the nightly
-  // auto-pause). Says "for now" on purpose: unlike a pause it lifts itself
-  // when the segment's realized ROI climbs back over the bar.
-  "segment-roi": "segment losing money — off for now",
+  /* The standing segment gate (added 2026-08-21, replaced the nightly
+     auto-pause). This said "off for now" on purpose, on the belief that unlike
+     a pause it lifted itself once the segment's realized ROI climbed back over
+     the bar. It does not: unless the backend's segment-stats window is set the
+     gate reads the LIFETIME record, and a refused segment places nothing, so
+     that ROI cannot climb back. "For now" was the wrong tense — corrected
+     2026-09-09, along with the panel lower down and ten other copies of the
+     same claim across the backend. */
+  "segment-roi": "segment losing money — off until the ROI bar moves",
   "already-bet-today": "already bet this",
   "moneyline-mirror": "same bet, other side",
   "daily-cap": "daily limit reached",
@@ -1217,14 +1222,32 @@ function AutoBetPanel({ games, status, onStatus }) {
             </div>
           )}
           {/* Segments the STANDING gate is refusing (status.segments_blocked,
-                2026-08-21). Not a pause and not clickable: it lifts itself when
-                the ROI recovers, so there is nothing to resume. Shown because
-                otherwise a held segment looks exactly like one that simply
-                isn't finding edges — the confusion the old amber "paused" line
-                at least avoided. */}
+                2026-08-21). Not clickable, because the PIN'd resume applies to
+                `paused_segments` and these are not in it — the lever for a
+                gate-refused segment is `segment_min_roi`.
+
+                THIS USED TO READ "off until the ROI recovers", and said in its
+                own comment that the gate "lifts itself when the ROI recovers,
+                so there is nothing to resume". Both were false, and this was the
+                most user-facing of twelve copies of that claim (2026-09-09).
+                Unless the backend's segment-stats window is set, the gate reads
+                the segment's LIFETIME record — and a refused segment places
+                nothing, so that record can never recover. Refusal is permanent
+                until Patrick moves the bar.
+
+                So the wording comes from `config.segment_stats_window_days`
+                rather than being asserted here. `undefined` means a backend
+                that predates that field, whose behaviour was lifetime — so
+                treating it as "no window" is both the safe default and the
+                accurate one. Do not hardcode this sentence again. */}
           {(status.segments_blocked || []).length > 0 && (
             <div style={{ color: C.amber, fontSize: 12, marginTop: 8 }}>
-              ↓ Losing segments, off until the ROI recovers:{" "}
+              ↓ Losing segments,{" "}
+              {(status.config || {}).segment_stats_window_days
+                ? `out until their last ${
+                    status.config.segment_stats_window_days
+                  } days clear the bar:`
+                : "out for good unless you move the ROI bar:"}{" "}
               {status.segments_blocked
                 .map((x) => `${x.segment} (${x.roi}% over ${x.n})`)
                 .join(", ")}
