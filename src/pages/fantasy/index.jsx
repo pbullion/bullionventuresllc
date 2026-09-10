@@ -1,11 +1,22 @@
-/* Fantasy Leagues — SCREEN 1, STANDINGS. Route /fantasy.
+/* Fantasy Leagues — STANDINGS, the first of four tabs. Route /fantasy.
  *
  * Every league Patrick is in, both providers, one screen:
  *   GET https://sheline-art-website-api.herokuapp.com/fantasy-football/standings
  *
  * Cardless and unlisted like /ffdraft — reachable from the press-and-hold
- * PrivateTools modal, from /jump, or by typing the URL. Screen 2 (matchups) is
- * the other tab; both cover both providers, split by FUNCTION not by provider.
+ * PrivateTools modal, from /jump, or by typing the URL.
+ *
+ * THIS SCREEN IS UNCHANGED BY THE 2026-09-10 MATCHUP SPLIT and that is
+ * deliberate. The other three tabs (/fantasy/sleeper, /fantasy/espn,
+ * /fantasy/guillotine) each show one group of leagues and only Patrick's own
+ * game in each; this one is the only place all six leagues appear together,
+ * which is what it was asked for. Two consequences worth stating:
+ *   - it still uses the 900px S.main, not the wide Shell — a 5-column table
+ *     reads correctly at 900 and stretched at 1900;
+ *   - it still shows PRE-DRAFT leagues (TDMPFFL XIV). Patrick asked for that
+ *     card to go from the MATCHUP view, where it cannot have content; here it
+ *     carries real information, and five cards for six leagues would be an
+ *     absence rendering as calm (the /nhc lesson).
  *
  * PAYLOAD INVARIANTS this page leans on (see the backend's route header):
  *   body.leagues is ALWAYS an array; every league ALWAYS carries leagueId,
@@ -28,7 +39,14 @@
  *     entire site, not just this route — hence the defensive reads.
  */
 import { useMemo } from "react";
-import { C, S, fmtPts, fmtRecord, fmtAsOf } from "./theme.js";
+import {
+  C,
+  S,
+  fmtPts,
+  fmtRecord,
+  fmtAsOf,
+  orderGuillotine,
+} from "./theme.js";
 import { useFantasyFeed, asArray } from "./useFantasyFeed.js";
 import {
   Center,
@@ -41,18 +59,10 @@ import {
   RetryButton,
 } from "./ui.jsx";
 
-/* Guillotine ordering: the living, by rank; then the eliminated, most recently
- * cut first. The server already ranks by points for — this only makes sure a
- * cut team never sits above a team still playing. */
-function orderGuillotine(teams) {
-  return teams.slice().sort((a, b) => {
-    const aliveA = a.alive !== false;
-    const aliveB = b.alive !== false;
-    if (aliveA !== aliveB) return aliveA ? -1 : 1;
-    if (!aliveA) return (b.eliminatedWeek || 0) - (a.eliminatedWeek || 0);
-    return (a.rank || 0) - (b.rank || 0);
-  });
-}
+/* orderGuillotine moved to theme.js on 2026-09-10 and is now shared with
+ * /fantasy/guillotine. Both screens rank the same 18 teams, and two copies of
+ * that comparator is exactly how they would come to disagree about who is 1st.
+ * Do not re-inline it here. */
 
 function H2HTable({ teams }) {
   return (

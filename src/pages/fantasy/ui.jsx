@@ -2,13 +2,18 @@
  * formatter is in ./theme.js, because eslint's
  * react-refresh/only-export-components fails a file that exports both.
  *
- * LeagueCard is the ONE league shell used by both screens and both providers.
- * A Sleeper league and the ESPN league render through the same component; the
- * only thing `provider` decides is the text in a chip. Layout branches on
- * league.format ('h2h' | 'guillotine'), which is the thing that actually
- * changes the shape of the data.
+ * LeagueCard is the ONE league shell used by all four screens and both
+ * providers. A Sleeper league and the ESPN league render through the same
+ * component; the only thing `provider` decides INSIDE a card is the text in a
+ * chip. Layout branches on league.format ('h2h' | 'guillotine'), which is the
+ * thing that actually changes the shape of the data.
  *
- * LeagueCard also owns the two states that look identical on both screens —
+ * (Provider does now decide WHICH SCREEN a league appears on — that split is
+ * what Patrick asked for on 2026-09-10 and it is made server-side by
+ * /fantasy-football/matchups/:group. See the long note in theme.js. It has no
+ * effect in here: a card does not know or care which screen it is on.)
+ *
+ * LeagueCard also owns the two states that look identical on every screen —
  * status 'error' and status 'pre_draft' — so neither screen has to repeat
  * them. A card in either state still renders its NAME and provider chip: five
  * clean cards where there should be six would quietly imply there are five
@@ -61,25 +66,41 @@ export function RetryButton({ onClick, label }) {
   );
 }
 
-export function Shell({ children }) {
+/* `wide` drops the 900px cap for the three matchup screens. Standings stays
+ * capped — see the S.mainWide comment in theme.js. */
+export function Shell({ children, wide }) {
   return (
     <div style={S.shell}>
-      <div style={S.main}>{children}</div>
+      <div style={wide ? S.mainWide : S.main}>{children}</div>
     </div>
   );
 }
 
-/* The only navigation these two screens have — App.jsx hides the site Navbar
- * on /fantasy*, and only the standings row is listed in privatePages.js. */
+/* The only navigation these screens have — App.jsx hides the site Navbar on
+ * /fantasy*, which is deliberate: the Navbar is ~64px of a vertical budget
+ * that these screens exist to conserve. Every screen therefore has to be
+ * reachable from here.
+ *
+ * FANTASY_TABS is module-local and NOT EXPORTED on purpose. Exporting a
+ * constant from a file that also exports components is a
+ * react-refresh/only-export-components error — that rule is the entire reason
+ * theme.js exists — so the tab list lives beside the only component that
+ * renders it. */
+const FANTASY_TABS = [
+  { key: "standings", label: "Standings", path: "/fantasy" },
+  { key: "sleeper", label: "Sleeper", path: "/fantasy/sleeper" },
+  { key: "espn", label: "ESPN", path: "/fantasy/espn" },
+  { key: "guillotine", label: "Guillotine", path: "/fantasy/guillotine" },
+];
+
 export function TabStrip({ active }) {
   return (
     <nav style={S.tabs}>
-      <Link to="/fantasy" style={S.tab(active === "standings")}>
-        Standings
-      </Link>
-      <Link to="/fantasy/matchups" style={S.tab(active === "matchups")}>
-        Matchups
-      </Link>
+      {FANTASY_TABS.map((t) => (
+        <Link key={t.key} to={t.path} style={S.tab(active === t.key)}>
+          {t.label}
+        </Link>
+      ))}
     </nav>
   );
 }
@@ -145,7 +166,7 @@ function errorText(error) {
   return `Could not read this league: ${msg}`;
 }
 
-export function LeagueCard({ league, children }) {
+export function LeagueCard({ league, children, flush }) {
   const provider = PROVIDER_LABEL[league.provider] || league.provider || "—";
   const isGuillotine = league.format === "guillotine";
   const teamCount = league.totalTeams;
@@ -155,7 +176,16 @@ export function LeagueCard({ league, children }) {
     body = <StatePanel>{errorText(league.error)}</StatePanel>;
   } else if (league.status === "pre_draft") {
     /* TDMPFFL XIV today, and the ESPN league until it drafts. A clean
-     * "not started" card — never a crash, never twelve empty rows. */
+     * "not started" card — never a crash, never twelve empty rows.
+     *
+     * THIS BRANCH IS STANDINGS-ONLY NOW AND MUST STAY. The three matchup
+     * screens never reach it: /matchups/:group drops pre_draft leagues
+     * server-side, because Patrick pointed at exactly this card on the matchup
+     * view ("remove this one") — a card that CANNOT have content this week. On
+     * standings it still carries real information (the league exists, 12 teams,
+     * it has not drafted), and rendering five cards for six leagues would be
+     * the /nhc mistake above: an absence rendering as calm. Deleting this
+     * branch to "finish the cleanup" breaks /fantasy. */
     body = (
       <StatePanel>
         {league.note || "Draft has not happened yet."}
@@ -178,7 +208,7 @@ export function LeagueCard({ league, children }) {
   }
 
   return (
-    <section style={S.card}>
+    <section style={flush ? { ...S.card, ...S.cardFlush } : S.card}>
       <header style={S.cardHead}>
         <span style={S.cardTitle}>{league.name || "Unnamed league"}</span>
         <Chip>{provider}</Chip>
