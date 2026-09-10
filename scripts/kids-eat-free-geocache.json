@@ -1,0 +1,107 @@
+{
+  "2003 W 34th St, Houston, TX 77018": {
+    "lat": 29.817198497795,
+    "lon": -95.434789776975,
+    "precision": "rooftop"
+  },
+  "3452 Ella Blvd, Houston, TX 77018": {
+    "lat": 29.818417430484,
+    "lon": -95.429468834471,
+    "precision": "rooftop"
+  },
+  "3101 N Shepherd Dr, Houston, TX 77018": {
+    "lat": 29.815619622954,
+    "lon": -95.410451168006,
+    "precision": "rooftop"
+  },
+  "1014 Wirt Rd #220, Houston, TX 77055": {
+    "lat": 29.785486469831,
+    "lon": -95.484758309669,
+    "precision": "rooftop"
+  },
+  "1400 Shepherd Dr, Houston, TX 77007": {
+    "lat": 29.773457930927,
+    "lon": -95.409460159179,
+    "precision": "rooftop"
+  },
+  "1050 Yale St #100, Houston, TX 77008": {
+    "lat": 29.790086626007,
+    "lon": -95.398896754175,
+    "precision": "rooftop"
+  },
+  "705 E 11th St, Houston, TX 77008": {
+    "lat": 29.790854808185,
+    "lon": -95.38980686117,
+    "precision": "rooftop"
+  },
+  "1613 Shepherd Dr, Houston, TX 77007": {
+    "lat": 29.774979538817,
+    "lon": -95.409611673587,
+    "precision": "rooftop"
+  },
+  "181 Heights Blvd, Houston, TX 77007": {
+    "lat": 29.773410872134,
+    "lon": -95.397416531307,
+    "precision": "rooftop"
+  },
+  "174 Yale St, Houston, TX 77007": {
+    "lat": 29.773606459894,
+    "lon": -95.398579075767,
+    "precision": "rooftop"
+  },
+  "600 N Shepherd Dr, Houston, TX 77007": {
+    "lat": 29.781570364433,
+    "lon": -95.409129201391,
+    "precision": "rooftop"
+  },
+  "1111-05 Uptown Park Blvd, Houston, TX 77056": {
+    "lat": 29.75805672457,
+    "lon": -95.457436515594,
+    "precision": "rooftop"
+  },
+  "1923 Taylor St Suite F, Houston, TX 77007": {
+    "lat": 29.775328909655,
+    "lon": -95.381512540088,
+    "precision": "rooftop"
+  },
+  "8217 Long Point Rd, Houston, TX 77055": {
+    "lat": 29.802905637778,
+    "lon": -95.492551091176,
+    "precision": "rooftop"
+  },
+  "1725 Wirt Rd, Houston, TX 77055": {
+    "lat": 29.801052520796,
+    "lon": -95.484897492417,
+    "precision": "rooftop"
+  },
+  "9453 Jones Rd, Houston, TX 77065": {
+    "lat": 29.909317427419,
+    "lon": -95.584619949772,
+    "precision": "rooftop"
+  },
+  "13235 Jones Rd, Houston, TX 77070": {
+    "lat": 29.966611049869,
+    "lon": -95.585288516949,
+    "precision": "rooftop"
+  },
+  "2316 Southmore Blvd, Houston, TX 77004": {
+    "lat": 29.721694163855,
+    "lon": -95.37623083539,
+    "precision": "rooftop"
+  },
+  "7811 Main St, Houston, TX 77030": {
+    "lat": 29.695278237442,
+    "lon": -95.413652530711,
+    "precision": "rooftop"
+  },
+  "9999 Westheimer Rd, Houston, TX 77042": {
+    "lat": 29.736919712555,
+    "lon": -95.54830861933,
+    "precision": "rooftop"
+  },
+  "3522 Irvington Blvd, Houston, TX 77009": {
+    "lat": 29.7924808,
+    "lon": -95.3610388,
+    "precision": "street"
+  }
+}

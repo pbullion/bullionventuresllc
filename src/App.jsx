@@ -86,6 +86,7 @@ import ByobRestaurant from "./pages/byob/Restaurant.jsx";
 import Tasting from "./pages/tasting/index.jsx";
 import TastingResults from "./pages/tasting/Results.jsx";
 import HrwRestaurant from "./pages/hrw/Restaurant.jsx";
+import KidsEatFree from "./pages/kids-eat-free/index.jsx";
 
 export default function App() {
   const location = useLocation();
@@ -286,6 +287,9 @@ export default function App() {
               browses, not a full-screen instrument. */}
           <Route path="/byob" element={<Byob />} />
           <Route path="/byob/:slug" element={<ByobRestaurant />} />
+          {/* Keeps the site chrome, like /hrw and /byob — a directory, not a
+              full-screen instrument. */}
+          <Route path="/kids-eat-free" element={<KidsEatFree />} />
           <Route
             path="/wnba-value"
             element={<Navigate to="/totals-value" replace />}

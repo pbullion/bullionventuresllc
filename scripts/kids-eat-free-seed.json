@@ -1,0 +1,377 @@
+{
+  "note": "Hand-maintained source of truth for /kids-eat-free. Edit THIS file, then run `node scripts/build-kids-eat-free-data.mjs` to regenerate public/data/kids-eat-free-houston.json. Never edit the built file. Every entry needs a `sources` array — see the script header. `confirmed: true` means the day/terms came from a guide that quoted specific terms (not just a bare 'kids eat free' mention); `confirmed: false` means it only turned up in a search summary and hasn't been read off a full source page yet.",
+  "restaurants": [
+    {
+      "slug": "local-table-garden-oaks",
+      "name": "Local Table",
+      "address": "2003 W 34th St, Houston, TX 77018",
+      "city": "Houston",
+      "region": "Garden Oaks & Oak Forest",
+      "area": "Garden Oaks",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [1],
+      "confirmed": true,
+      "terms": "Kids eat free with any adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "union-kitchen-77018",
+      "name": "The Union Kitchen",
+      "address": "3452 Ella Blvd, Houston, TX 77018",
+      "city": "Houston",
+      "region": "Garden Oaks & Oak Forest",
+      "area": "Garden Oaks",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [1, 2],
+      "confirmed": true,
+      "terms": "One free kid's meal for every adult entrée purchased.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "gabbys-bbq",
+      "name": "Gabby's BBQ",
+      "address": "3101 N Shepherd Dr, Houston, TX 77018",
+      "city": "Houston",
+      "region": "Garden Oaks & Oak Forest",
+      "area": "Garden Oaks",
+      "cuisine": "BBQ",
+      "phone": null,
+      "daysOfWeek": [0],
+      "confirmed": false,
+      "terms": "Kids 12 and under reported to eat free on Sundays with an adult entrée purchase — call to confirm before you go, this hasn't been read off a page that quotes the exact terms.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.yelp.com/biz/gabbys-bbq-houston-3"
+      ]
+    },
+    {
+      "slug": "buff-burger",
+      "name": "Buff Burger",
+      "address": "1014 Wirt Rd #220, Houston, TX 77055",
+      "city": "Houston",
+      "region": "Spring Branch",
+      "area": "Spring Branch",
+      "cuisine": "Burgers",
+      "phone": null,
+      "daysOfWeek": [1, 2],
+      "confirmed": true,
+      "terms": "Purchase any adult meal Monday or Tuesday and the kid's meal is free. Valid all day, dine-in only.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "pluckers-wing-bar-shepherd",
+      "name": "Pluckers Wing Bar",
+      "address": "1400 Shepherd Dr, Houston, TX 77007",
+      "city": "Houston",
+      "region": "Houston Heights",
+      "area": "Houston Heights",
+      "cuisine": "Wings",
+      "phone": null,
+      "daysOfWeek": [2],
+      "confirmed": true,
+      "terms": "Kids 12 and under eat free all day Tuesday with an adult entrée purchase, dine-in.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "dish-society-yale",
+      "name": "Dish Society",
+      "address": "1050 Yale St #100, Houston, TX 77008",
+      "city": "Houston",
+      "region": "Houston Heights",
+      "area": "Houston Heights",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [2],
+      "confirmed": true,
+      "terms": "Kids 12 & under get a free kids' plate with every adult entrée, sandwich, or salad purchase.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "field-and-tides",
+      "name": "Field & Tides",
+      "address": "705 E 11th St, Houston, TX 77008",
+      "city": "Houston",
+      "region": "Houston Heights",
+      "area": "Houston Heights",
+      "cuisine": "Seafood",
+      "phone": null,
+      "daysOfWeek": [2],
+      "confirmed": true,
+      "terms": "Purchase an adult entrée and receive a complimentary kids' meal. Kids 12 and under, dine-in only 5–9pm.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "jax-grill-houston",
+      "name": "JAX Grill",
+      "address": "1613 Shepherd Dr, Houston, TX 77007",
+      "city": "Houston",
+      "region": "Houston Heights",
+      "area": "Houston Heights",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [0, 1, 2],
+      "confirmed": true,
+      "terms": "Kids eat free all day, Sunday through Tuesday.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "barnabys-cafe-heights",
+      "name": "Barnaby's Cafe",
+      "address": "181 Heights Blvd, Houston, TX 77007",
+      "city": "Houston",
+      "region": "Houston Heights",
+      "area": "Houston Heights",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [3],
+      "confirmed": true,
+      "terms": "One free kid's meal for each adult meal purchase of $14 or more, 4pm–closing. Dine-in only, kids 12 and under.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "smashburger-yale",
+      "name": "Smashburger",
+      "address": "174 Yale St, Houston, TX 77007",
+      "city": "Houston",
+      "region": "Houston Heights",
+      "area": "Houston Heights",
+      "cuisine": "Burgers",
+      "phone": null,
+      "daysOfWeek": [3],
+      "confirmed": true,
+      "terms": "Free kids meal with the purchase of an adult meal (entrée, side & drink). Kids 12 & under, in-store only.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "mendocino-farms-shepherd",
+      "name": "Mendocino Farms",
+      "address": "600 N Shepherd Dr, Houston, TX 77007",
+      "city": "Houston",
+      "region": "Houston Heights",
+      "area": "Houston Heights",
+      "cuisine": "Sandwiches",
+      "phone": null,
+      "daysOfWeek": [4],
+      "confirmed": true,
+      "terms": "Kids eat free Thursdays. Dine-in only, requires purchase of one regular-priced entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "mendocino-farms-uptown-park",
+      "name": "Mendocino Farms",
+      "address": "1111-05 Uptown Park Blvd, Houston, TX 77056",
+      "city": "Houston",
+      "region": "Uptown & Galleria",
+      "area": "Uptown Park",
+      "cuisine": "Sandwiches",
+      "phone": null,
+      "daysOfWeek": [4],
+      "confirmed": true,
+      "terms": "Kids eat free Thursdays. Dine-in only, requires purchase of one regular-priced entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
+      ]
+    },
+    {
+      "slug": "freebirds-taylor-st",
+      "name": "Freebirds World Burrito",
+      "address": "1923 Taylor St Suite F, Houston, TX 77007",
+      "city": "Houston",
+      "region": "Houston Heights",
+      "area": "Houston Heights",
+      "cuisine": "Mexican",
+      "phone": null,
+      "daysOfWeek": [0],
+      "confirmed": true,
+      "terms": "Free meal for kids under 12 with the purchase of an adult entrée. Max two free kids meals per order.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "fiesta-en-guadalajara",
+      "name": "Fiesta en Guadalajara",
+      "address": "3522 Irvington Blvd, Houston, TX 77009",
+      "city": "Houston",
+      "region": "Near Northside",
+      "area": "Near Northside",
+      "cuisine": "Mexican",
+      "phone": null,
+      "daysOfWeek": [1],
+      "confirmed": true,
+      "terms": "Kids eat free all day Monday, from the \"El Niño\" kids menu only.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
+      ]
+    },
+    {
+      "slug": "feges-bbq",
+      "name": "Feges BBQ",
+      "address": "8217 Long Point Rd, Houston, TX 77055",
+      "city": "Houston",
+      "region": "Spring Branch",
+      "area": "Spring Branch",
+      "cuisine": "BBQ",
+      "phone": null,
+      "daysOfWeek": [3],
+      "confirmed": true,
+      "terms": "Kids 12 and under eat a complimentary meal 5–9pm — one side dish and a cookie included.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "ragin-cajun-wirt",
+      "name": "Ragin' Cajun",
+      "address": "1725 Wirt Rd, Houston, TX 77055",
+      "city": "Houston",
+      "region": "Spring Branch",
+      "area": "Spring Branch",
+      "cuisine": "Cajun",
+      "phone": null,
+      "daysOfWeek": [3],
+      "confirmed": true,
+      "terms": "Adult entrée gets a complimentary Cajun kid's meal. Kids under 12, dine-in only.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "backyard-grill-jones-rd",
+      "name": "Backyard Grill",
+      "address": "9453 Jones Rd, Houston, TX 77065",
+      "city": "Houston",
+      "region": "Northwest Houston",
+      "area": "Jersey Village area",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [3],
+      "confirmed": true,
+      "terms": "Kids eat free from 4pm onward every Wednesday with one paid adult meal.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "del-pueblo-jones-rd",
+      "name": "Del Pueblo Restaurant",
+      "address": "13235 Jones Rd, Houston, TX 77070",
+      "city": "Houston",
+      "region": "Northwest Houston",
+      "area": "Jersey Village area",
+      "cuisine": "Mexican",
+      "phone": null,
+      "daysOfWeek": [1, 2],
+      "confirmed": true,
+      "terms": "Kids eat free after 4pm, Monday and Tuesday. One child aged 10 and under per adult entrée; drinks not included.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ]
+    },
+    {
+      "slug": "dennys-southmore",
+      "name": "Denny's",
+      "address": "2316 Southmore Blvd, Houston, TX 77004",
+      "city": "Houston",
+      "region": "Central Houston & Med Center",
+      "area": "Museum District",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [2],
+      "confirmed": true,
+      "terms": "Kids 10 and under get a free kids meal with an adult entrée of $6 or more, 4pm–10pm.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
+      ]
+    },
+    {
+      "slug": "smashburger-main-st",
+      "name": "Smashburger",
+      "address": "7811 Main St, Houston, TX 77030",
+      "city": "Houston",
+      "region": "Central Houston & Med Center",
+      "area": "Medical Center",
+      "cuisine": "Burgers",
+      "phone": null,
+      "daysOfWeek": [3],
+      "confirmed": true,
+      "terms": "Free kids meal with the purchase of an adult meal (entrée, side & drink). Kids 12 & under, in-store only.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
+      ]
+    },
+    {
+      "slug": "rio-ranch-westheimer",
+      "name": "Rio Ranch",
+      "address": "9999 Westheimer Rd, Houston, TX 77042",
+      "city": "Houston",
+      "region": "Uptown & Galleria",
+      "area": "Westchase",
+      "cuisine": "Tex-Mex",
+      "phone": null,
+      "daysOfWeek": [5, 6],
+      "confirmed": true,
+      "terms": "Kids eat free after 4pm, Friday and Saturday. Kids 12 and under, two free kids meals per adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
+      ]
+    }
+  ]
+}

@@ -127,6 +127,14 @@ const tools = [
       "Restaurants around Houston and The Woodlands that let you bring your own wine or beer, and exactly what each one charges to open it. Filter to the places with no corkage at all, sort by the cheapest fee, and see what's nearest you \u2014 with the source and the date behind every policy, because these change without notice.",
   },
   {
+    emoji: "🧒",
+    name: "Kids Eat Free",
+    path: "/kids-eat-free",
+    tagline: "Filtered to today, near you",
+    description:
+      "Restaurants around Houston with a recurring kids-eat-free deal — filtered to today's day of the week the moment the page loads, and sorted by distance from you. Closest picks skew toward Garden Oaks, Oak Forest and the Heights, with a map view and the source behind every listing.",
+  },
+  {
     emoji: "🍽️",
     name: "Houston Restaurant Weeks",
     path: "/hrw",
