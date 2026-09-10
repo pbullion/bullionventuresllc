@@ -73,6 +73,18 @@ export const PRIVATE_GROUPS = [
         tagline: "Both survivor leagues — who's on the block",
       },
       {
+        emoji: "🚨",
+        name: "Lineup Watch",
+        path: "/fantasy/lineup",
+        tagline: "Live injury/bye alerts — nothing left in your lineup by mistake",
+      },
+      {
+        emoji: "🧾",
+        name: "Waiver Desk",
+        path: "/fantasy/waivers",
+        tagline: "Who to pick up, who to drop, and how much FAAB to bid",
+      },
+      {
         emoji: "🚗",
         name: "Drive",
         path: "/drive",

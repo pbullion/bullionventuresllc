@@ -91,13 +91,15 @@ const FANTASY_TABS = [
   { key: "sleeper", label: "Sleeper", path: "/fantasy/sleeper" },
   { key: "espn", label: "ESPN", path: "/fantasy/espn" },
   { key: "guillotine", label: "Guillotine", path: "/fantasy/guillotine" },
+  { key: "lineup", label: "Lineup", path: "/fantasy/lineup" },
+  { key: "waivers", label: "Waivers", path: "/fantasy/waivers" },
 ];
 
 export function TabStrip({ active }) {
   return (
     <nav style={S.tabs}>
       {FANTASY_TABS.map((t) => (
-        <Link key={t.key} to={t.path} style={S.tab(active === t.key)}>
+        <Link key={t.key} to={t.path} style={{ ...S.tab(active === t.key), flexShrink: 0 }}>
           {t.label}
         </Link>
       ))}

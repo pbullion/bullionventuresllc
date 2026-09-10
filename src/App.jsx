@@ -48,6 +48,8 @@ import Fantasy from "./pages/fantasy/index.jsx";
 import FantasySleeper from "./pages/fantasy/Sleeper.jsx";
 import FantasyEspn from "./pages/fantasy/Espn.jsx";
 import FantasyGuillotine from "./pages/fantasy/Guillotine.jsx";
+import FantasyLineupWatch from "./pages/fantasy/LineupWatch.jsx";
+import FantasyWaivers from "./pages/fantasy/Waivers.jsx";
 import TotalsValue from "./pages/totals-value/index.jsx";
 import CryptoValue from "./pages/crypto-value/index.jsx";
 import WeatherValue from "./pages/weather-value/index.jsx";
@@ -221,13 +223,17 @@ export default function App() {
           <Route path="/my-bets" element={<MyBets />} />
           <Route path="/ffdraft" element={<FFDraft />} />
           <Route path="/ffdraft/guide" element={<FFDraftGuide />} />
-          {/* Four fantasy screens behind one tab strip. Standings covers all
-              six leagues; each matchup screen covers one league group and
-              shows only the game Patrick is in. */}
+          {/* Six fantasy screens behind one tab strip. Standings covers all
+              six leagues; Sleeper/ESPN/Guillotine each cover one league group
+              and show only the game Patrick is in; Lineup and Waivers (added
+              2026-09-10 by Fantasy Watch) read a different backend entirely
+              — see ui.jsx's FANTASY_TABS and this repo's CLAUDE.md. */}
           <Route path="/fantasy" element={<Fantasy />} />
           <Route path="/fantasy/sleeper" element={<FantasySleeper />} />
           <Route path="/fantasy/espn" element={<FantasyEspn />} />
           <Route path="/fantasy/guillotine" element={<FantasyGuillotine />} />
+          <Route path="/fantasy/lineup" element={<FantasyLineupWatch />} />
+          <Route path="/fantasy/waivers" element={<FantasyWaivers />} />
           {/* BOTH REDIRECTS ARE REQUIRED, and neither is a deletion.
               /fantasy/matchups was the single matchup screen until 2026-09-10;
               it is in Patrick's history and was in privatePages.js. This app
@@ -237,7 +243,7 @@ export default function App() {
               turns a stale bookmark or a typo into the standings screen
               instead. Same pattern as /wnba-value below.
               (React Router v6 ranks routes by specificity, not by source
-              order, so the wildcard cannot shadow the three static paths
+              order, so the wildcard cannot shadow the five static paths
               above — but keep it last anyway for readers.) */}
           <Route
             path="/fantasy/matchups"
