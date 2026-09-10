@@ -36,6 +36,23 @@ export const PRIVATE_GROUPS = [
         path: "/ffdraft",
         tagline: "Live ESPN draft assistant",
       },
+      /* BOTH screens are listed, at Patrick's explicit request (2026-09-09:
+       * "make sure and add links on the /jump route"). They share a tab strip,
+       * so either row reaches the other in one tap — but /jump is the page you
+       * open when you want to land directly on the one you meant, and printing
+       * both paths is the whole point of it over the modal. */
+      {
+        emoji: "🏆",
+        name: "Fantasy Standings",
+        path: "/fantasy",
+        tagline: "Records and points across all six leagues",
+      },
+      {
+        emoji: "⚔️",
+        name: "Fantasy Matchups",
+        path: "/fantasy/matchups",
+        tagline: "This week's games — and who's on the guillotine block",
+      },
       {
         emoji: "🚗",
         name: "Drive",

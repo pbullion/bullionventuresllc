@@ -44,6 +44,8 @@ import FarkleTracker from "./pages/farkle/index.jsx";
 import MyBets from "./pages/my-bets/index.jsx";
 import FFDraft from "./pages/ffdraft/index.jsx";
 import FFDraftGuide from "./pages/ffdraft/Guide.jsx";
+import Fantasy from "./pages/fantasy/index.jsx";
+import FantasyMatchups from "./pages/fantasy/Matchups.jsx";
 import TotalsValue from "./pages/totals-value/index.jsx";
 import CryptoValue from "./pages/crypto-value/index.jsx";
 import WeatherValue from "./pages/weather-value/index.jsx";
@@ -88,6 +90,10 @@ export default function App() {
   const isFarkle = location.pathname.startsWith("/farkle");
   const isMyBets = location.pathname.startsWith("/my-bets");
   const isFFDraft = location.pathname.startsWith("/ffdraft");
+  // Standings and matchups across every fantasy league Patrick is in, both
+  // Sleeper and ESPN. Full-screen and unlisted like /ffdraft — the two screens
+  // navigate between themselves with their own tab strip.
+  const isFantasy = location.pathname.startsWith("/fantasy");
   const isTotalsValue =
     location.pathname.startsWith("/totals-value") ||
     location.pathname.startsWith("/wnba-value");
@@ -125,6 +131,7 @@ export default function App() {
     isZargle ||
     isMyBets ||
     isFFDraft ||
+    isFantasy ||
     isTotalsValue ||
     isCryptoValue ||
     isWeatherValue ||
@@ -204,6 +211,8 @@ export default function App() {
           <Route path="/my-bets" element={<MyBets />} />
           <Route path="/ffdraft" element={<FFDraft />} />
           <Route path="/ffdraft/guide" element={<FFDraftGuide />} />
+          <Route path="/fantasy" element={<Fantasy />} />
+          <Route path="/fantasy/matchups" element={<FantasyMatchups />} />
           <Route path="/totals-value" element={<TotalsValue />} />
           <Route path="/crypto-value" element={<CryptoValue />} />
           <Route path="/weather-value" element={<WeatherValue />} />
