@@ -46,6 +46,8 @@ import FFDraft from "./pages/ffdraft/index.jsx";
 import FFDraftGuide from "./pages/ffdraft/Guide.jsx";
 import Fantasy from "./pages/fantasy/index.jsx";
 import FantasyMatchups from "./pages/fantasy/Matchups.jsx";
+import FantasyLineupWatch from "./pages/fantasy/LineupWatch.jsx";
+import FantasyWaivers from "./pages/fantasy/Waivers.jsx";
 import TotalsValue from "./pages/totals-value/index.jsx";
 import CryptoValue from "./pages/crypto-value/index.jsx";
 import WeatherValue from "./pages/weather-value/index.jsx";
@@ -213,6 +215,8 @@ export default function App() {
           <Route path="/ffdraft/guide" element={<FFDraftGuide />} />
           <Route path="/fantasy" element={<Fantasy />} />
           <Route path="/fantasy/matchups" element={<FantasyMatchups />} />
+          <Route path="/fantasy/lineup" element={<FantasyLineupWatch />} />
+          <Route path="/fantasy/waivers" element={<FantasyWaivers />} />
           <Route path="/totals-value" element={<TotalsValue />} />
           <Route path="/crypto-value" element={<CryptoValue />} />
           <Route path="/weather-value" element={<WeatherValue />} />

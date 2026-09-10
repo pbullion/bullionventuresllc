@@ -45,7 +45,7 @@ function errorText(error) {
   return error.message || error.code || "the feed reported an upstream failure";
 }
 
-export function useFantasyFeed(path) {
+export function useFantasyFeed(path, base) {
   const [body, setBody] = useState(null);
   const [err, setErr] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +55,7 @@ export function useFantasyFeed(path) {
   const load = useCallback(async () => {
     const mine = ++seq.current;
     try {
-      const res = await fetch(`${API_BASE}${path}`);
+      const res = await fetch(`${base || API_BASE}${path}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (mine !== seq.current) return;
@@ -80,7 +80,7 @@ export function useFantasyFeed(path) {
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [path]);
+  }, [path, base]);
 
   useEffect(() => {
     // Wrapped rather than called straight, so the first fetch is queued off

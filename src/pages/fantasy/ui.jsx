@@ -73,12 +73,21 @@ export function Shell({ children }) {
  * on /fantasy*, and only the standings row is listed in privatePages.js. */
 export function TabStrip({ active }) {
   return (
-    <nav style={S.tabs}>
-      <Link to="/fantasy" style={S.tab(active === "standings")}>
+    // overflowX: with Lineup + Waivers added 2026-09-10 this is 4 tabs; the
+    // scroller is a safety net on a narrow phone rather than a wrap, which
+    // would push the page content down by a variable amount tab-count to tab-count.
+    <nav style={{ ...S.tabs, overflowX: "auto", WebkitOverflowScrolling: "touch", flexWrap: "nowrap" }}>
+      <Link to="/fantasy" style={{ ...S.tab(active === "standings"), flexShrink: 0 }}>
         Standings
       </Link>
-      <Link to="/fantasy/matchups" style={S.tab(active === "matchups")}>
+      <Link to="/fantasy/matchups" style={{ ...S.tab(active === "matchups"), flexShrink: 0 }}>
         Matchups
+      </Link>
+      <Link to="/fantasy/lineup" style={{ ...S.tab(active === "lineup"), flexShrink: 0 }}>
+        Lineup
+      </Link>
+      <Link to="/fantasy/waivers" style={{ ...S.tab(active === "waivers"), flexShrink: 0 }}>
+        Waivers
       </Link>
     </nav>
   );

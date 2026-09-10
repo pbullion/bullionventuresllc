@@ -282,6 +282,8 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/ashley` | `/ashley` |
 | `/patrick` | `/patrick-board` (NOT `/patrick` — that prefix is the Tesla dashboard's feed) |
 | `/hrw` | `/hrw` (reviews only — restaurant data is the static `public/data/hrw-2026.json`, see above) |
+| `/fantasy`, `/fantasy/matchups` | `/fantasy-football` (added 2026-09-09; undocumented here until now) |
+| `/fantasy/lineup`, `/fantasy/waivers` | `/fantasy-watch` (added 2026-09-10 — see the section below) |
 
 - The site does **not** call `/bullion-ventures` (that backend route is
   push-notification plumbing, not a website API) and does **not** call
@@ -598,6 +600,62 @@ republish. Reviving Opportune calendar data here means Microsoft Graph with a
 registered app and tenant admin consent — do not wire another ICS URL. (The
 `/calendar` route on the backend was deleted in the same pass; Briefly's
 per-user iCal feeds are unrelated and untouched.)
+
+## `/fantasy/lineup` and `/fantasy/waivers` — Fantasy Watch
+
+Two more tabs on the `/fantasy` shell (added 2026-09-10, alongside the
+existing Standings and Matchups tabs — see `src/pages/fantasy/index.jsx` and
+`Matchups.jsx`, which this reuses rather than duplicates: `theme.js`'s `C`/`S`/
+formatters, `ui.jsx`'s `Shell`/`PageHeader`/`TabStrip`/`LeagueCard`/`Chip`/
+`StatePanel`/`Center`/`RetryButton`, and `useFantasyFeed.js`'s poll/focus/
+sequence-guard hook). Cardless and unlisted like every other fantasy screen —
+rows in `src/lib/privatePages.js`'s Patrick group, no `hideChrome` edit needed
+(`isFantasy` in `App.jsx` already matches on `startsWith("/fantasy")`).
+
+- **A different backend than Standings/Matchups.** Both new tabs read
+  `GET https://sheline-art-website-api.herokuapp.com/fantasy-watch/dashboard`
+  — ONE snapshot row, refreshed server-side every 15 minutes, not built fresh
+  per request. `useFantasyFeed(path, base)` grew an optional second argument
+  for this (defaults to the existing `/fantasy-football` base when omitted, so
+  every existing call site is unaffected) — see `src/pages/fantasy/roster.js`'s
+  `WATCH_BASE`.
+- **The payload contract is NOT uniform across a league's optional keys.** A
+  `leagues[]` entry always carries the base shell (`leagueId`, `provider`,
+  `name`, `format`, `status`, `totalTeams`, `error`, ...), but `lineup`/`faab`/
+  `market` are present ONLY on a successful in-season build — a `pre_draft` or
+  `error` league has `needs: {}`, `pickups: []`, `drops: []` and NO
+  `lineup`/`faab`/`market` key at all (`undefined`, not `null`). Every read in
+  `LineupWatch.jsx`/`Waivers.jsx` goes through `?.`/`??` for exactly this
+  reason — see those files' header comments for the full traced contract.
+- **Two different casing conventions on the SAME endpoint.** The top-level
+  `strip[]` (this cycle's lineup flags) is camelCase, built fresh by the
+  backend's pure engine; the top-level `alerts[]` (recent alert history) is a
+  raw `SELECT *` off a Postgres table and is snake_case (`kickoff_at`,
+  `player_name`, `league_id`). Do not assume one casing and read the wrong key
+  from the other array.
+- **`bid.low === bid.high === 0` is a real recommendation** ("claim him for
+  free"), not a missing value — `fmtBid()` in `roster.js` renders it as
+  "$0 · free claim" rather than the confusing "$0-$0".
+- **The action strip on `/fantasy/lineup` is the whole point.** One card per
+  open critical/high flag (a starter ruled Out/Doubtful/IR, on bye, or an
+  empty slot), sorted by severity then kickoff; an empty strip renders one
+  quiet line ("All lineups clean ✓") rather than nothing, so silence reads as
+  a checked state, not a broken one. Dismiss is optimistic (`Set` of hidden
+  keys) and, when the flag has a real alert id, POSTs
+  `/fantasy-watch/alerts/:id/dismiss` — a failed POST refetches rather than
+  trusting the optimistic hide, the same rule `/patrick` uses.
+- **`/fantasy/waivers`' cross-league "targets" strip is deliberately quiet
+  most of the time.** It only shows a player who helps TWO OR MORE leagues at
+  once (`targets[].leaguesNeeding.length >= 2`) — an empty strip early in a
+  season is correct, not a loading state.
+- **TabStrip grew from 2 tabs to 4** (`src/pages/fantasy/ui.jsx`) and picked
+  up a horizontal scroller (`overflowX: auto`) as a safety net on a narrow
+  phone rather than a wrap, which would push page content down by a variable
+  amount tab-count to tab-count.
+- Backend detail — env vars, the alert-severity/bid-style knobs, the pure
+  scoring/lineup/needs/recommend engine, the five Postgres tables — is
+  entirely in `sheline-art-website-api/CLAUDE.md`'s "Fantasy Football and
+  Fantasy Watch" section. This repo has no server-side logic to duplicate.
 
 ## Conventions
 
