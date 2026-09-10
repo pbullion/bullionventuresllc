@@ -45,7 +45,9 @@ import MyBets from "./pages/my-bets/index.jsx";
 import FFDraft from "./pages/ffdraft/index.jsx";
 import FFDraftGuide from "./pages/ffdraft/Guide.jsx";
 import Fantasy from "./pages/fantasy/index.jsx";
-import FantasyMatchups from "./pages/fantasy/Matchups.jsx";
+import FantasySleeper from "./pages/fantasy/Sleeper.jsx";
+import FantasyEspn from "./pages/fantasy/Espn.jsx";
+import FantasyGuillotine from "./pages/fantasy/Guillotine.jsx";
 import FantasyLineupWatch from "./pages/fantasy/LineupWatch.jsx";
 import FantasyWaivers from "./pages/fantasy/Waivers.jsx";
 import TotalsValue from "./pages/totals-value/index.jsx";
@@ -92,9 +94,17 @@ export default function App() {
   const isFarkle = location.pathname.startsWith("/farkle");
   const isMyBets = location.pathname.startsWith("/my-bets");
   const isFFDraft = location.pathname.startsWith("/ffdraft");
-  // Standings and matchups across every fantasy league Patrick is in, both
-  // Sleeper and ESPN. Full-screen and unlisted like /ffdraft — the two screens
-  // navigate between themselves with their own tab strip.
+  // Every fantasy league Patrick is in, both Sleeper and ESPN, across FOUR
+  // screens: standings (all six leagues) plus one matchup screen per league
+  // group — /fantasy/sleeper, /fantasy/espn, /fantasy/guillotine. Full-screen
+  // and unlisted like /ffdraft; the four navigate between themselves with
+  // their own tab strip.
+  //
+  // CHROME-LESS IS LOAD-BEARING HERE, not just a style choice: the three
+  // matchup screens fit two full lineups on one screen without scrolling by
+  // deriving their row height from the viewport, and the Navbar is ~64px of
+  // that budget. This one startsWith covers all four paths — no change needed
+  // when a fifth is added.
   const isFantasy = location.pathname.startsWith("/fantasy");
   const isTotalsValue =
     location.pathname.startsWith("/totals-value") ||
@@ -213,10 +223,36 @@ export default function App() {
           <Route path="/my-bets" element={<MyBets />} />
           <Route path="/ffdraft" element={<FFDraft />} />
           <Route path="/ffdraft/guide" element={<FFDraftGuide />} />
+          {/* Six fantasy screens behind one tab strip. Standings covers all
+              six leagues; Sleeper/ESPN/Guillotine each cover one league group
+              and show only the game Patrick is in; Lineup and Waivers (added
+              2026-09-10 by Fantasy Watch) read a different backend entirely
+              — see ui.jsx's FANTASY_TABS and this repo's CLAUDE.md. */}
           <Route path="/fantasy" element={<Fantasy />} />
-          <Route path="/fantasy/matchups" element={<FantasyMatchups />} />
+          <Route path="/fantasy/sleeper" element={<FantasySleeper />} />
+          <Route path="/fantasy/espn" element={<FantasyEspn />} />
+          <Route path="/fantasy/guillotine" element={<FantasyGuillotine />} />
           <Route path="/fantasy/lineup" element={<FantasyLineupWatch />} />
           <Route path="/fantasy/waivers" element={<FantasyWaivers />} />
+          {/* BOTH REDIRECTS ARE REQUIRED, and neither is a deletion.
+              /fantasy/matchups was the single matchup screen until 2026-09-10;
+              it is in Patrick's history and was in privatePages.js. This app
+              has no path="*" route and isFantasy above puts /fantasy/* in
+              hideChrome, so an unmatched /fantasy/… renders a completely blank
+              black page with no navigation out of it — the wildcard is what
+              turns a stale bookmark or a typo into the standings screen
+              instead. Same pattern as /wnba-value below.
+              (React Router v6 ranks routes by specificity, not by source
+              order, so the wildcard cannot shadow the five static paths
+              above — but keep it last anyway for readers.) */}
+          <Route
+            path="/fantasy/matchups"
+            element={<Navigate to="/fantasy/sleeper" replace />}
+          />
+          <Route
+            path="/fantasy/*"
+            element={<Navigate to="/fantasy" replace />}
+          />
           <Route path="/totals-value" element={<TotalsValue />} />
           <Route path="/crypto-value" element={<CryptoValue />} />
           <Route path="/weather-value" element={<WeatherValue />} />
