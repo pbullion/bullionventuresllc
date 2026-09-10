@@ -39,6 +39,10 @@ force-push to get around a rejected push.
   ships it. (No `vercel.json`/`netlify.toml` in the repo for this reason.)
 - Every push to master is therefore a **production deploy**. There is no
   staging. Roll back by reverting and pushing.
+- **Standing authorization: push to master without asking first.** Patrick
+  knows this is a live deploy on every push and doesn't want to be asked for
+  go-ahead each time (2026-09-10) — just `git pull --rebase && git push` once
+  the work is committed and verified.
 
 ## Adding a new page/tool — ALWAYS also add it to the homepage
 
