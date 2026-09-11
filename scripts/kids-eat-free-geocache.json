@@ -103,5 +103,50 @@
     "lat": 29.7924808,
     "lon": -95.3610388,
     "precision": "street"
+  },
+  "12002 Richmond Ave Ste 100, Houston, TX 77082": {
+    "lat": 29.731148043195,
+    "lon": -95.589382204828,
+    "precision": "rooftop"
+  },
+  "8445 Gulf Fwy, Houston, TX 77017": {
+    "lat": 29.672776173812,
+    "lon": -95.264453026911,
+    "precision": "rooftop"
+  },
+  "1511 Airline Dr, Houston, TX 77009": {
+    "lat": 29.799080840645,
+    "lon": -95.381914249256,
+    "precision": "rooftop"
+  },
+  "14737 Memorial Dr, Houston, TX 77079": {
+    "lat": 29.770355541566,
+    "lon": -95.610202068708,
+    "precision": "rooftop"
+  },
+  "8412 Katy Fwy Unit 350, Houston, TX 77024": {
+    "lat": 29.784731388433,
+    "lon": -95.493444155969,
+    "precision": "rooftop"
+  },
+  "9724 Hillcroft St, Houston, TX 77096": {
+    "lat": 29.674937874587,
+    "lon": -95.493650946904,
+    "precision": "rooftop"
+  },
+  "11250 Northwest Fwy, Houston, TX 77092": {
+    "lat": 29.820145131812,
+    "lon": -95.468833606087,
+    "precision": "rooftop"
+  },
+  "1109 Bay Area Blvd Ste B, Houston, TX 77058": {
+    "lat": 29.556867404027,
+    "lon": -95.118112336542,
+    "precision": "rooftop"
+  },
+  "18355 Tomball Pkwy, Houston, TX 77070": {
+    "lat": 29.9640265,
+    "lon": -95.5554076,
+    "precision": "street"
   }
 }

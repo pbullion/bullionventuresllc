@@ -47,6 +47,10 @@ const REGION_ORDER = [
   "Northwest Houston",
   "Central Houston & Med Center",
   "Uptown & Galleria",
+  "Southeast Houston",
+  "Memorial",
+  "Southwest Houston",
+  "Clear Lake / Bay Area",
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

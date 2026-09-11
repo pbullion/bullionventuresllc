@@ -1,7 +1,7 @@
 {
-  "built": "2026-09-10",
-  "count": 21,
-  "pinned": 21,
+  "built": "2026-09-11",
+  "count": 30,
+  "pinned": 30,
   "regions": [
     "Garden Oaks & Oak Forest",
     "Houston Heights",
@@ -9,20 +9,50 @@
     "Spring Branch",
     "Northwest Houston",
     "Central Houston & Med Center",
-    "Uptown & Galleria"
+    "Uptown & Galleria",
+    "Southeast Houston",
+    "Memorial",
+    "Southwest Houston",
+    "Clear Lake / Bay Area"
   ],
   "cuisines": [
     "American",
     "BBQ",
     "Burgers",
     "Cajun",
+    "Deli",
     "Mexican",
+    "Pizza",
     "Sandwiches",
     "Seafood",
     "Tex-Mex",
     "Wings"
   ],
   "restaurants": [
+    {
+      "slug": "alicias-mexican-grille-richmond",
+      "name": "Alicia's Mexican Grille",
+      "address": "12002 Richmond Ave Ste 100, Houston, TX 77082",
+      "city": "Houston",
+      "region": "Uptown & Galleria",
+      "area": "Westchase",
+      "cuisine": "Mexican",
+      "phone": null,
+      "daysOfWeek": [
+        1
+      ],
+      "confirmed": true,
+      "terms": "Kids eat free all day Monday with the purchase of one adult meal. Beef fajitas excluded, dine-in only.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the",
+        "https://aliciasmexicangrille.com/2024/02/16/kids-eat-free/"
+      ],
+      "lat": 29.731148043195,
+      "lon": -95.589382204828,
+      "precision": "rooftop"
+    },
     {
       "slug": "backyard-grill-jones-rd",
       "name": "Backyard Grill",
@@ -137,6 +167,28 @@
       ],
       "lat": 29.721694163855,
       "lon": -95.37623083539,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "dickeys-bbq-bay-area",
+      "name": "Dickey's Barbecue Pit",
+      "address": "1109 Bay Area Blvd Ste B, Houston, TX 77058",
+      "city": "Houston",
+      "region": "Clear Lake / Bay Area",
+      "area": "Clear Lake",
+      "cuisine": "BBQ",
+      "phone": null,
+      "daysOfWeek": [
+        0
+      ],
+      "confirmed": true,
+      "terms": "Kids eat free on Sundays with the purchase of an adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
+      ],
+      "lat": 29.556867404027,
+      "lon": -95.118112336542,
       "precision": "rooftop"
     },
     {
@@ -265,15 +317,38 @@
       "daysOfWeek": [
         0
       ],
-      "confirmed": false,
-      "terms": "Kids 12 and under reported to eat free on Sundays with an adult entrée purchase — call to confirm before you go, this hasn't been read off a page that quotes the exact terms.",
+      "confirmed": true,
+      "terms": "Kids eat free on Sundays — one free kids meal with each adult entrée purchase.",
       "checked": "2026-09-10",
       "sources": [
-        "https://www.yelp.com/biz/gabbys-bbq-houston-3"
+        "https://www.yelp.com/biz/gabbys-bbq-houston-3",
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
       ],
       "lat": 29.815619622954,
       "lon": -95.410451168006,
       "precision": "rooftop"
+    },
+    {
+      "slug": "itz-family-food-fun-tomball",
+      "name": "iT'Z Family Food & Fun",
+      "address": "18355 Tomball Pkwy, Houston, TX 77070",
+      "city": "Houston",
+      "region": "Northwest Houston",
+      "area": "Willowbrook",
+      "cuisine": "Pizza",
+      "phone": null,
+      "daysOfWeek": [
+        4
+      ],
+      "confirmed": true,
+      "terms": "One free personal pizza with the purchase of a regular adult meal. Limit one per adult meal, drinks not included, not valid with other offers.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
+      ],
+      "lat": 29.9640265,
+      "lon": -95.5554076,
+      "precision": "street"
     },
     {
       "slug": "jax-grill-houston",
@@ -301,6 +376,28 @@
       "precision": "rooftop"
     },
     {
+      "slug": "kps-kitchen-katy-fwy",
+      "name": "KP's Kitchen",
+      "address": "8412 Katy Fwy Unit 350, Houston, TX 77024",
+      "city": "Houston",
+      "region": "Memorial",
+      "area": "Spring Valley area",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [
+        2
+      ],
+      "confirmed": true,
+      "terms": "Kids eat free on Tuesdays with the purchase of an adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ],
+      "lat": 29.784731388433,
+      "lon": -95.493444155969,
+      "precision": "rooftop"
+    },
+    {
       "slug": "local-table-garden-oaks",
       "name": "Local Table",
       "address": "2003 W 34th St, Houston, TX 77018",
@@ -321,6 +418,53 @@
       ],
       "lat": 29.817198497795,
       "lon": -95.434789776975,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "lubys-northwest-fwy",
+      "name": "Luby's",
+      "address": "11250 Northwest Fwy, Houston, TX 77092",
+      "city": "Houston",
+      "region": "Garden Oaks & Oak Forest",
+      "area": "Oak Forest",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [
+        3,
+        6
+      ],
+      "confirmed": true,
+      "terms": "Kids' meals are free on Wednesdays and Saturdays.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://www.lubys.com/houston-hwy-290-west-34th-st"
+      ],
+      "lat": 29.820145131812,
+      "lon": -95.468833606087,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "maria-ritas-tex-mex",
+      "name": "Maria Rita's Tex-Mex",
+      "address": "8445 Gulf Fwy, Houston, TX 77017",
+      "city": "Houston",
+      "region": "Southeast Houston",
+      "area": "Southeast Houston",
+      "cuisine": "Tex-Mex",
+      "phone": null,
+      "daysOfWeek": [
+        1
+      ],
+      "confirmed": true,
+      "terms": "One free kid's meal per adult entrée purchased, every Monday. Dine-in only.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/",
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ],
+      "lat": 29.672776173812,
+      "lon": -95.264453026911,
       "precision": "rooftop"
     },
     {
@@ -366,6 +510,50 @@
       ],
       "lat": 29.75805672457,
       "lon": -95.457436515594,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "new-york-deli-hillcroft",
+      "name": "New York Deli & Coffee Shop",
+      "address": "9724 Hillcroft St, Houston, TX 77096",
+      "city": "Houston",
+      "region": "Southwest Houston",
+      "area": "Westbury",
+      "cuisine": "Deli",
+      "phone": null,
+      "daysOfWeek": [
+        3
+      ],
+      "confirmed": true,
+      "terms": "One free kid's meal with the purchase of an adult meal, every Wednesday.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ],
+      "lat": 29.674937874587,
+      "lon": -95.493650946904,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "ninfas-memorial",
+      "name": "Ninfa's Memorial",
+      "address": "14737 Memorial Dr, Houston, TX 77079",
+      "city": "Houston",
+      "region": "Memorial",
+      "area": "Memorial",
+      "cuisine": "Mexican",
+      "phone": null,
+      "daysOfWeek": [
+        1
+      ],
+      "confirmed": true,
+      "terms": "Kids eat free Mondays at the Memorial location with the purchase of an adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the"
+      ],
+      "lat": 29.770355541566,
+      "lon": -95.610202068708,
       "precision": "rooftop"
     },
     {
@@ -480,6 +668,29 @@
       ],
       "lat": 29.695278237442,
       "lon": -95.413652530711,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "teotihuacan-airline-dr",
+      "name": "Teotihuacan Mexican Cafe",
+      "address": "1511 Airline Dr, Houston, TX 77009",
+      "city": "Houston",
+      "region": "Near Northside",
+      "area": "Near Northside",
+      "cuisine": "Mexican",
+      "phone": null,
+      "daysOfWeek": [
+        1
+      ],
+      "confirmed": true,
+      "terms": "Kids 12 and under get a free kid's plate and a 12oz drink with an adult entrée purchase, after 4pm Mondays.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://mommypoppins.com/houston-kids/restaurants/restaurants-where-kids-eat-free-in-houston-free-meals-for-every-day-of-the",
+        "https://www.tripadvisor.com/ShowUserReviews-g56003-d8778749-r463333201-Teotihuacan_Mexican_Cafe-Houston_Texas.html"
+      ],
+      "lat": 29.799080840645,
+      "lon": -95.381914249256,
       "precision": "rooftop"
     },
     {
