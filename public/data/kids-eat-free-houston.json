@@ -1,7 +1,7 @@
 {
   "built": "2026-09-11",
-  "count": 39,
-  "pinned": 39,
+  "count": 41,
+  "pinned": 41,
   "regions": [
     "Garden Oaks & Oak Forest",
     "Houston Heights",
@@ -400,6 +400,28 @@
       ],
       "lat": 29.7924808,
       "lon": -95.3610388,
+      "precision": "street"
+    },
+    {
+      "slug": "firehouse-subs-meyerland",
+      "name": "Firehouse Subs",
+      "address": "170 Meyerland Plz, Houston, TX 77096",
+      "city": "Houston",
+      "region": "Southwest Houston",
+      "area": "Meyerland",
+      "cuisine": "Sandwiches",
+      "phone": null,
+      "daysOfWeek": [
+        0
+      ],
+      "confirmed": true,
+      "terms": "Free kids meal with the purchase of an adult meal, Sundays.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.littlesonthego.blog/kids-eat-free-deals-in-houston/"
+      ],
+      "lat": 29.6857351,
+      "lon": -95.4638807,
       "precision": "street"
     },
     {
@@ -884,6 +906,29 @@
       ],
       "lat": 29.799080840645,
       "lon": -95.381914249256,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "tamale-joint-tc-jester",
+      "name": "The Tamale Joint",
+      "address": "3352 E T C Jester Blvd, Houston, TX 77018",
+      "city": "Houston",
+      "region": "Garden Oaks & Oak Forest",
+      "area": "Oak Forest",
+      "cuisine": "Tex-Mex",
+      "phone": null,
+      "daysOfWeek": [
+        2,
+        4
+      ],
+      "confirmed": false,
+      "terms": "Reported kids eat free 4–6pm Tuesday and Thursday with an adult entrée purchase (choice of pork tamales, quesadillas, tacos, or enchiladas with beans and rice) — call to confirm, the restaurant's own site and Facebook page don't mention it and this hasn't been independently corroborated beyond one kids-eat-free directory site.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://kidseatfree.club/us/kids-eat-free/houston-tx"
+      ],
+      "lat": 29.816206773783,
+      "lon": -95.443486195161,
       "precision": "rooftop"
     },
     {

@@ -689,6 +689,40 @@
         "https://www.mendocinofarms.com/location-directory/houston/5510-morningside-drive-houston-tx-77005",
         "https://rice-village.com/event/mendocino-farms-free-kids-meal/"
       ]
+    },
+    {
+      "slug": "firehouse-subs-meyerland",
+      "name": "Firehouse Subs",
+      "address": "170 Meyerland Plz, Houston, TX 77096",
+      "city": "Houston",
+      "region": "Southwest Houston",
+      "area": "Meyerland",
+      "cuisine": "Sandwiches",
+      "phone": null,
+      "daysOfWeek": [0],
+      "confirmed": true,
+      "terms": "Free kids meal with the purchase of an adult meal, Sundays.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.littlesonthego.blog/kids-eat-free-deals-in-houston/"
+      ]
+    },
+    {
+      "slug": "tamale-joint-tc-jester",
+      "name": "The Tamale Joint",
+      "address": "3352 E T C Jester Blvd, Houston, TX 77018",
+      "city": "Houston",
+      "region": "Garden Oaks & Oak Forest",
+      "area": "Oak Forest",
+      "cuisine": "Tex-Mex",
+      "phone": null,
+      "daysOfWeek": [2, 4],
+      "confirmed": false,
+      "terms": "Reported kids eat free 4–6pm Tuesday and Thursday with an adult entrée purchase (choice of pork tamales, quesadillas, tacos, or enchiladas with beans and rice) — call to confirm, the restaurant's own site and Facebook page don't mention it and this hasn't been independently corroborated beyond one kids-eat-free directory site.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://kidseatfree.club/us/kids-eat-free/houston-tx"
+      ]
     }
   ]
 }
