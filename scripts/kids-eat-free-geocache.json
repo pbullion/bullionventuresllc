@@ -178,5 +178,20 @@
     "lat": 29.753988143639,
     "lon": -95.606745847664,
     "precision": "rooftop"
+  },
+  "14714 Memorial Dr, Houston, TX 77079": {
+    "lat": 29.770213157012,
+    "lon": -95.609305075125,
+    "precision": "rooftop"
+  },
+  "11550 Louetta Rd, Houston, TX 77070": {
+    "lat": 29.996700949894,
+    "lon": -95.592458504465,
+    "precision": "rooftop"
+  },
+  "5510 Morningside Dr Suite 120, Houston, TX 77005": {
+    "lat": 29.716543718726,
+    "lon": -95.415003620951,
+    "precision": "rooftop"
   }
 }

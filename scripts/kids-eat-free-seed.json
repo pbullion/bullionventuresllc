@@ -612,11 +612,12 @@
       "cuisine": "Tex-Mex",
       "phone": null,
       "daysOfWeek": [3],
-      "confirmed": false,
-      "terms": "Reported kids 10 and under eat free Wednesdays — call to confirm, this hasn't been read off a page that quotes the exact terms.",
+      "confirmed": true,
+      "terms": "Kids eat free Wednesdays with the purchase of an adult meal.",
       "checked": "2026-09-10",
       "sources": [
-        "https://www.yelp.com/biz/celayas-mexican-restaurant-and-cantina-houston"
+        "https://www.yelp.com/biz/celayas-mexican-restaurant-and-cantina-houston",
+        "https://texaslivingcompany.com/blog/places-kids-eat-free-in-houston"
       ]
     },
     {
@@ -635,6 +636,58 @@
       "sources": [
         "https://abc13.com/post/where-kids-can-eat-free-every-day-of-the-week/1936527/",
         "https://www.yelp.com/biz/ashiana-indian-restaurant-houston"
+      ]
+    },
+    {
+      "slug": "hungrys-memorial",
+      "name": "Hungry's Cafe & Bistro",
+      "address": "14714 Memorial Dr, Houston, TX 77079",
+      "city": "Houston",
+      "region": "Memorial",
+      "area": "Memorial",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [0, 1, 6],
+      "confirmed": true,
+      "terms": "Kids eat free with an adult entrée purchase — all day Monday, and 10am–noon Saturday and Sunday. One kids meal per adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://hungryscafe.com/specials/kids-eat-free/"
+      ]
+    },
+    {
+      "slug": "crust-pizza-louetta",
+      "name": "Crust Pizza Co.",
+      "address": "11550 Louetta Rd, Houston, TX 77070",
+      "city": "Houston",
+      "region": "Northwest Houston",
+      "area": "Louetta area",
+      "cuisine": "Pizza",
+      "phone": null,
+      "daysOfWeek": [2],
+      "confirmed": true,
+      "terms": "All day every Tuesday, kids meals are on the house with the purchase of any full-size adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.crustpizzaco.com/qr/home/TX/louetta"
+      ]
+    },
+    {
+      "slug": "mendocino-farms-rice-village",
+      "name": "Mendocino Farms",
+      "address": "5510 Morningside Dr Suite 120, Houston, TX 77005",
+      "city": "Houston",
+      "region": "Central Houston & Med Center",
+      "area": "Rice Village",
+      "cuisine": "Sandwiches",
+      "phone": null,
+      "daysOfWeek": [4],
+      "confirmed": true,
+      "terms": "Kids eat free Thursdays. Dine-in only, requires purchase of one regular-priced entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.mendocinofarms.com/location-directory/houston/5510-morningside-drive-houston-tx-77005",
+        "https://rice-village.com/event/mendocino-farms-free-kids-meal/"
       ]
     }
   ]

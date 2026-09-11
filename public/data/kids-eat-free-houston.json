@@ -1,7 +1,7 @@
 {
   "built": "2026-09-11",
-  "count": 36,
-  "pinned": 36,
+  "count": 39,
+  "pinned": 39,
   "regions": [
     "Garden Oaks & Oak Forest",
     "Houston Heights",
@@ -188,11 +188,12 @@
       "daysOfWeek": [
         3
       ],
-      "confirmed": false,
-      "terms": "Reported kids 10 and under eat free Wednesdays — call to confirm, this hasn't been read off a page that quotes the exact terms.",
+      "confirmed": true,
+      "terms": "Kids eat free Wednesdays with the purchase of an adult meal.",
       "checked": "2026-09-10",
       "sources": [
-        "https://www.yelp.com/biz/celayas-mexican-restaurant-and-cantina-houston"
+        "https://www.yelp.com/biz/celayas-mexican-restaurant-and-cantina-houston",
+        "https://texaslivingcompany.com/blog/places-kids-eat-free-in-houston"
       ],
       "lat": 29.947695166519,
       "lon": -95.564004881283,
@@ -218,6 +219,28 @@
       ],
       "lat": 29.792636561575,
       "lon": -95.411620930171,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "crust-pizza-louetta",
+      "name": "Crust Pizza Co.",
+      "address": "11550 Louetta Rd, Houston, TX 77070",
+      "city": "Houston",
+      "region": "Northwest Houston",
+      "area": "Louetta area",
+      "cuisine": "Pizza",
+      "phone": null,
+      "daysOfWeek": [
+        2
+      ],
+      "confirmed": true,
+      "terms": "All day every Tuesday, kids meals are on the house with the purchase of any full-size adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.crustpizzaco.com/qr/home/TX/louetta"
+      ],
+      "lat": 29.996700949894,
+      "lon": -95.592458504465,
       "precision": "rooftop"
     },
     {
@@ -452,6 +475,30 @@
       "precision": "rooftop"
     },
     {
+      "slug": "hungrys-memorial",
+      "name": "Hungry's Cafe & Bistro",
+      "address": "14714 Memorial Dr, Houston, TX 77079",
+      "city": "Houston",
+      "region": "Memorial",
+      "area": "Memorial",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [
+        0,
+        1,
+        6
+      ],
+      "confirmed": true,
+      "terms": "Kids eat free with an adult entrée purchase — all day Monday, and 10am–noon Saturday and Sunday. One kids meal per adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://hungryscafe.com/specials/kids-eat-free/"
+      ],
+      "lat": 29.770213157012,
+      "lon": -95.609305075125,
+      "precision": "rooftop"
+    },
+    {
       "slug": "itz-family-food-fun-tomball",
       "name": "iT'Z Family Food & Fun",
       "address": "18355 Tomball Pkwy, Houston, TX 77070",
@@ -633,6 +680,29 @@
       ],
       "lat": 29.75805672457,
       "lon": -95.457436515594,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "mendocino-farms-rice-village",
+      "name": "Mendocino Farms",
+      "address": "5510 Morningside Dr Suite 120, Houston, TX 77005",
+      "city": "Houston",
+      "region": "Central Houston & Med Center",
+      "area": "Rice Village",
+      "cuisine": "Sandwiches",
+      "phone": null,
+      "daysOfWeek": [
+        4
+      ],
+      "confirmed": true,
+      "terms": "Kids eat free Thursdays. Dine-in only, requires purchase of one regular-priced entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.mendocinofarms.com/location-directory/houston/5510-morningside-drive-houston-tx-77005",
+        "https://rice-village.com/event/mendocino-farms-free-kids-meal/"
+      ],
+      "lat": 29.716543718726,
+      "lon": -95.415003620951,
       "precision": "rooftop"
     },
     {
