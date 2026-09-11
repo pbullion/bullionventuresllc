@@ -203,5 +203,10 @@
     "lat": 29.6857351,
     "lon": -95.4638807,
     "precision": "street"
+  },
+  "4191 Bellaire Blvd Suite 150, Houston, TX 77025": {
+    "lat": 29.705877969826,
+    "lon": -95.443839957807,
+    "precision": "rooftop"
   }
 }

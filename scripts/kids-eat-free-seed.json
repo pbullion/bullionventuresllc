@@ -723,6 +723,24 @@
       "sources": [
         "https://kidseatfree.club/us/kids-eat-free/houston-tx"
       ]
+    },
+    {
+      "slug": "palace-social-bellaire",
+      "name": "Palace Social",
+      "address": "4191 Bellaire Blvd Suite 150, Houston, TX 77025",
+      "city": "Houston",
+      "region": "Southwest Houston",
+      "area": "West University area",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [2],
+      "confirmed": true,
+      "terms": "Kids 10 and under eat free with an adult entrée purchase, Tuesdays. Arcade games half-price the same day.",
+      "checked": "2026-09-11",
+      "sources": [
+        "https://houstonmom.com/got-hungry-kids-we-have-kids-eat-free-solutions/",
+        "https://www.htownpicks.com/picks/palace-social-bellaire-tx-guide"
+      ]
     }
   ]
 }
