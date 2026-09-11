@@ -1,7 +1,7 @@
 {
   "built": "2026-09-11",
-  "count": 30,
-  "pinned": 30,
+  "count": 36,
+  "pinned": 36,
   "regions": [
     "Garden Oaks & Oak Forest",
     "Houston Heights",
@@ -13,7 +13,8 @@
     "Southeast Houston",
     "Memorial",
     "Southwest Houston",
-    "Clear Lake / Bay Area"
+    "Clear Lake / Bay Area",
+    "West Houston"
   ],
   "cuisines": [
     "American",
@@ -21,6 +22,7 @@
     "Burgers",
     "Cajun",
     "Deli",
+    "Indian",
     "Mexican",
     "Pizza",
     "Sandwiches",
@@ -29,6 +31,28 @@
     "Wings"
   ],
   "restaurants": [
+    {
+      "slug": "abes-cajun-market",
+      "name": "Abe's Cajun Market & Café",
+      "address": "1080 Clear Lake City Blvd, Houston, TX 77062",
+      "city": "Houston",
+      "region": "Clear Lake / Bay Area",
+      "area": "Clear Lake",
+      "cuisine": "Cajun",
+      "phone": null,
+      "daysOfWeek": [
+        1
+      ],
+      "confirmed": true,
+      "terms": "One free kid's meal per paid adult meal, Mondays.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://abc13.com/post/where-kids-can-eat-free-every-day-of-the-week/1936527/"
+      ],
+      "lat": 29.581127613214,
+      "lon": -95.156085443406,
+      "precision": "rooftop"
+    },
     {
       "slug": "alicias-mexican-grille-richmond",
       "name": "Alicia's Mexican Grille",
@@ -51,6 +75,35 @@
       ],
       "lat": 29.731148043195,
       "lon": -95.589382204828,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "ashiana-indian-briar-forest",
+      "name": "Ashiana Indian Restaurant",
+      "address": "12610 Briar Forest Dr, Houston, TX 77077",
+      "city": "Houston",
+      "region": "West Houston",
+      "area": "Energy Corridor area",
+      "cuisine": "Indian",
+      "phone": null,
+      "daysOfWeek": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "confirmed": false,
+      "terms": "Sources disagree on the exact deal — one says kids under 6 get a free menu item with any regularly priced adult meal, daily after 5pm; another says it's a Sunday-only 5:30–10pm deal for a free kids' meal with an adult entrée. Call to confirm before you go.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://abc13.com/post/where-kids-can-eat-free-every-day-of-the-week/1936527/",
+        "https://www.yelp.com/biz/ashiana-indian-restaurant-houston"
+      ],
+      "lat": 29.753988143639,
+      "lon": -95.606745847664,
       "precision": "rooftop"
     },
     {
@@ -121,6 +174,50 @@
       ],
       "lat": 29.785486469831,
       "lon": -95.484758309669,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "celayas-mexican-perry-rd",
+      "name": "Celaya's Mexican Restaurant & Cantina",
+      "address": "12015 Perry Rd, Houston, TX 77070",
+      "city": "Houston",
+      "region": "Northwest Houston",
+      "area": "Perry Rd area",
+      "cuisine": "Tex-Mex",
+      "phone": null,
+      "daysOfWeek": [
+        3
+      ],
+      "confirmed": false,
+      "terms": "Reported kids 10 and under eat free Wednesdays — call to confirm, this hasn't been read off a page that quotes the exact terms.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.yelp.com/biz/celayas-mexican-restaurant-and-cantina-houston"
+      ],
+      "lat": 29.947695166519,
+      "lon": -95.564004881283,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "crust-pizza-heights",
+      "name": "Crust Pizza Co.",
+      "address": "1215 N Durham Dr, Houston, TX 77008",
+      "city": "Houston",
+      "region": "Houston Heights",
+      "area": "Houston Heights",
+      "cuisine": "Pizza",
+      "phone": null,
+      "daysOfWeek": [
+        2
+      ],
+      "confirmed": true,
+      "terms": "All day every Tuesday, kids meals are on the house with the purchase of any full-size adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.crustpizzaco.com/qr/home/TX/houston-heights"
+      ],
+      "lat": 29.792636561575,
+      "lon": -95.411620930171,
       "precision": "rooftop"
     },
     {
@@ -303,6 +400,32 @@
       ],
       "lat": 29.775328909655,
       "lon": -95.381512540088,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "french-quarter-cajun-seafood",
+      "name": "French Quarter Cajun Seafood",
+      "address": "7099 Highway 6 N, Houston, TX 77095",
+      "city": "Houston",
+      "region": "Northwest Houston",
+      "area": "Bear Creek area",
+      "cuisine": "Cajun",
+      "phone": null,
+      "daysOfWeek": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "confirmed": false,
+      "terms": "Reported kids 12 and under eat free Monday–Thursday, 4pm–close, with an adult entrée purchase — call to confirm, this hasn't been read off a page that quotes the exact terms.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.yelp.com/biz/french-quarter-cajun-seafood-houston",
+        "https://www.facebook.com/frenchquarter01/"
+      ],
+      "lat": 29.882240023921,
+      "lon": -95.64531424561,
       "precision": "rooftop"
     },
     {
@@ -715,6 +838,30 @@
       ],
       "lat": 29.818417430484,
       "lon": -95.429468834471,
+      "precision": "rooftop"
+    },
+    {
+      "slug": "union-kitchen-memorial",
+      "name": "The Union Kitchen",
+      "address": "12538 Memorial Dr Space 10, Houston, TX 77024",
+      "city": "Houston",
+      "region": "Memorial",
+      "area": "Memorial",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [
+        1,
+        2
+      ],
+      "confirmed": true,
+      "terms": "One free kids' meal per adult meal purchased, Monday and Tuesday.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://couriertexas.com/local/food-drink/feed-kids-free-restaurants-in-houston/",
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
+      ],
+      "lat": 29.766284065906,
+      "lon": -95.552815572657,
       "precision": "rooftop"
     }
   ]

@@ -531,6 +531,111 @@
       "sources": [
         "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
       ]
+    },
+    {
+      "slug": "crust-pizza-heights",
+      "name": "Crust Pizza Co.",
+      "address": "1215 N Durham Dr, Houston, TX 77008",
+      "city": "Houston",
+      "region": "Houston Heights",
+      "area": "Houston Heights",
+      "cuisine": "Pizza",
+      "phone": null,
+      "daysOfWeek": [2],
+      "confirmed": true,
+      "terms": "All day every Tuesday, kids meals are on the house with the purchase of any full-size adult entrée.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.crustpizzaco.com/qr/home/TX/houston-heights"
+      ]
+    },
+    {
+      "slug": "abes-cajun-market",
+      "name": "Abe's Cajun Market & Café",
+      "address": "1080 Clear Lake City Blvd, Houston, TX 77062",
+      "city": "Houston",
+      "region": "Clear Lake / Bay Area",
+      "area": "Clear Lake",
+      "cuisine": "Cajun",
+      "phone": null,
+      "daysOfWeek": [1],
+      "confirmed": true,
+      "terms": "One free kid's meal per paid adult meal, Mondays.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://abc13.com/post/where-kids-can-eat-free-every-day-of-the-week/1936527/"
+      ]
+    },
+    {
+      "slug": "union-kitchen-memorial",
+      "name": "The Union Kitchen",
+      "address": "12538 Memorial Dr Space 10, Houston, TX 77024",
+      "city": "Houston",
+      "region": "Memorial",
+      "area": "Memorial",
+      "cuisine": "American",
+      "phone": null,
+      "daysOfWeek": [1, 2],
+      "confirmed": true,
+      "terms": "One free kids' meal per adult meal purchased, Monday and Tuesday.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://couriertexas.com/local/food-drink/feed-kids-free-restaurants-in-houston/",
+        "https://www.houstononthecheap.com/kids-eat-free-houston-texas-today-every-day/"
+      ]
+    },
+    {
+      "slug": "french-quarter-cajun-seafood",
+      "name": "French Quarter Cajun Seafood",
+      "address": "7099 Highway 6 N, Houston, TX 77095",
+      "city": "Houston",
+      "region": "Northwest Houston",
+      "area": "Bear Creek area",
+      "cuisine": "Cajun",
+      "phone": null,
+      "daysOfWeek": [1, 2, 3, 4],
+      "confirmed": false,
+      "terms": "Reported kids 12 and under eat free Monday–Thursday, 4pm–close, with an adult entrée purchase — call to confirm, this hasn't been read off a page that quotes the exact terms.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.yelp.com/biz/french-quarter-cajun-seafood-houston",
+        "https://www.facebook.com/frenchquarter01/"
+      ]
+    },
+    {
+      "slug": "celayas-mexican-perry-rd",
+      "name": "Celaya's Mexican Restaurant & Cantina",
+      "address": "12015 Perry Rd, Houston, TX 77070",
+      "city": "Houston",
+      "region": "Northwest Houston",
+      "area": "Perry Rd area",
+      "cuisine": "Tex-Mex",
+      "phone": null,
+      "daysOfWeek": [3],
+      "confirmed": false,
+      "terms": "Reported kids 10 and under eat free Wednesdays — call to confirm, this hasn't been read off a page that quotes the exact terms.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://www.yelp.com/biz/celayas-mexican-restaurant-and-cantina-houston"
+      ]
+    },
+    {
+      "slug": "ashiana-indian-briar-forest",
+      "name": "Ashiana Indian Restaurant",
+      "address": "12610 Briar Forest Dr, Houston, TX 77077",
+      "city": "Houston",
+      "region": "West Houston",
+      "area": "Energy Corridor area",
+      "cuisine": "Indian",
+      "phone": null,
+      "daysOfWeek": [0, 1, 2, 3, 4, 5, 6],
+      "confirmed": false,
+      "terms": "Sources disagree on the exact deal — one says kids under 6 get a free menu item with any regularly priced adult meal, daily after 5pm; another says it's a Sunday-only 5:30–10pm deal for a free kids' meal with an adult entrée. Call to confirm before you go.",
+      "checked": "2026-09-10",
+      "sources": [
+        "https://abc13.com/post/where-kids-can-eat-free-every-day-of-the-week/1936527/",
+        "https://www.yelp.com/biz/ashiana-indian-restaurant-houston"
+      ]
     }
   ]
 }

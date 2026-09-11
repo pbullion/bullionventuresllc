@@ -51,6 +51,7 @@ const REGION_ORDER = [
   "Memorial",
   "Southwest Houston",
   "Clear Lake / Bay Area",
+  "West Houston",
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

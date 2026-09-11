@@ -148,5 +148,35 @@
     "lat": 29.9640265,
     "lon": -95.5554076,
     "precision": "street"
+  },
+  "1215 N Durham Dr, Houston, TX 77008": {
+    "lat": 29.792636561575,
+    "lon": -95.411620930171,
+    "precision": "rooftop"
+  },
+  "1080 Clear Lake City Blvd, Houston, TX 77062": {
+    "lat": 29.581127613214,
+    "lon": -95.156085443406,
+    "precision": "rooftop"
+  },
+  "12538 Memorial Dr Space 10, Houston, TX 77024": {
+    "lat": 29.766284065906,
+    "lon": -95.552815572657,
+    "precision": "rooftop"
+  },
+  "7099 Highway 6 N, Houston, TX 77095": {
+    "lat": 29.882240023921,
+    "lon": -95.64531424561,
+    "precision": "rooftop"
+  },
+  "12015 Perry Rd, Houston, TX 77070": {
+    "lat": 29.947695166519,
+    "lon": -95.564004881283,
+    "precision": "rooftop"
+  },
+  "12610 Briar Forest Dr, Houston, TX 77077": {
+    "lat": 29.753988143639,
+    "lon": -95.606745847664,
+    "precision": "rooftop"
   }
 }
