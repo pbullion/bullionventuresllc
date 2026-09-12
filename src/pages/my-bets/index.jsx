@@ -1205,19 +1205,27 @@ const marketLabel = (leg) => {
  * Virginia Tech" (no) — each already says who's being bet on, so the row
  * doesn't need a separate Yes/No badge in front of it (Patrick, 2026-09-12:
  * "i dont need to see 'Yes' before a team or bet. like Yes Virginia Tech,
- * should be just Virginia Tech ML"). Null for anything else — a prop's own
- * phrase ("Over 3.5 runs") and a weather bracket already read as a complete
- * pick too, but marketLabel() collapses BOTH their sides to the same string
- * on purpose (see its own comment), so those still need the badge to say
- * which one was bought. Only the two literal shapes buildPickLabel emits for
- * a team moneyline match here. */
+ * should be just Virginia Tech ML"). Null for anything else, including a
+ * total/prop/weather pick that ALSO carries the same "… to win"/"Not …" shape
+ * — the backend's buildPickLabel only avoids that phrasing when a market's
+ * no_sub_title is distinct from its yes_sub_title (`isProp`), and real data
+ * shows plenty that aren't: "New York M wins by over 3.5 runs to win", "Over
+ * 10.5 runs scored to win", "79° to 80° to win", "Not Over 12.5 runs scored",
+ * "Not 101° to 102°" all come back from /kalshi/positions today. Naively
+ * stripping "to win" off those would print "Over 10.5 runs scored ML", and
+ * stripping "Not " off "Not Over 12.5 runs scored" would show "Over 12.5 runs
+ * scored" — the wrong side of the bet. A real team name never carries a digit
+ * or a degree sign in this app's data (temperatures and stat lines always do),
+ * so that's the guard: only a bare-looking name gets the moneyline treatment,
+ * everything else keeps the badge exactly as before. */
+const PROP_HINT_RE = /[\d°]/;
 const moneylineLabel = (leg) => {
   const raw = String(leg.pick || "").trim();
   const toWin = /^(.*?)\s+to win$/i.exec(raw);
-  if (toWin) return `${toWin[1].trim()} ML`;
-  const not = /^not\s+(.+)$/i.exec(raw);
-  if (not) return `Not ${not[1].trim()}`;
-  return null;
+  const not = toWin ? null : /^not\s+(.+)$/i.exec(raw);
+  const team = toWin ? toWin[1].trim() : not ? not[1].trim() : null;
+  if (!team || PROP_HINT_RE.test(team)) return null;
+  return toWin ? `${team} ML` : `Not ${team}`;
 };
 
 // Stable grouping key for a single-leg position: the ESPN gameId (shared by
