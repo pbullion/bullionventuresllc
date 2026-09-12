@@ -148,7 +148,16 @@ export default function QuickBets() {
         body: JSON.stringify({ legs, stake_dollars: Number(stake) }),
       });
       const body = await res.json();
-      if (!res.ok || !body.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      if (!res.ok || !body.ok) {
+        const detail = body.detail
+          ? typeof body.detail === "string"
+            ? body.detail
+            : body.detail.message || JSON.stringify(body.detail)
+          : null;
+        throw new Error(
+          [body.error || `HTTP ${res.status}`, detail].filter(Boolean).join(" — "),
+        );
+      }
       setResult({ ok: true, ...body });
       // A filled bet is a new position — refresh candidates in case any leg's
       // event has since moved past the window.
