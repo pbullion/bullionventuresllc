@@ -21,6 +21,17 @@ const API_BASE = `${ROOT}/kalshi/quick-bets`;
 
 const card = { ...panelStyle, borderRadius: 14, padding: 16 };
 
+const chipBtnStyle = {
+  fontSize: 11.5,
+  fontWeight: 700,
+  color: C.text,
+  background: C.chipBg,
+  border: `1px solid ${C.border}`,
+  borderRadius: 8,
+  padding: "4px 10px",
+  cursor: "pointer",
+};
+
 const kickoffLabel = (iso) => {
   if (!iso) return "";
   const d = new Date(iso);
@@ -129,6 +140,17 @@ export default function QuickBets() {
   };
   const deselectAll = () => {
     setSelected(new Set());
+  };
+  // Fewer legs is the lever that actually matters for getting a fill — the
+  // combo's odds are the PRODUCT of every leg's probability, so a big
+  // all-favorites slate compounds down to almost nothing no matter how safe
+  // each individual pick looks. Top N by probability is the fast way to test
+  // a small slate without hand-picking through the list.
+  const selectTop = (n) => {
+    const sorted = [...(candidates || [])].sort(
+      (a, b) => b.probability_pct - a.probability_pct,
+    );
+    setSelected(new Set(sorted.slice(0, n).map((c) => c.market_ticker)));
   };
 
   const selectedCount = selected.size;
@@ -246,41 +268,30 @@ export default function QuickBets() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              flexWrap: "wrap",
+              gap: 8,
               marginBottom: 8,
             }}
           >
             <div style={{ fontSize: 11.5, color: C.muted }}>
               {selectedCount} of {candidates.length} selected
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={selectAll}
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  color: C.text,
-                  background: C.chipBg,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 8,
-                  padding: "4px 10px",
-                  cursor: "pointer",
-                }}
-              >
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {[3, 5, 10].map((n) =>
+                candidates.length > n ? (
+                  <button
+                    key={n}
+                    onClick={() => selectTop(n)}
+                    style={chipBtnStyle}
+                  >
+                    Top {n}
+                  </button>
+                ) : null,
+              )}
+              <button onClick={selectAll} style={chipBtnStyle}>
                 Select all
               </button>
-              <button
-                onClick={deselectAll}
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  color: C.text,
-                  background: C.chipBg,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 8,
-                  padding: "4px 10px",
-                  cursor: "pointer",
-                }}
-              >
+              <button onClick={deselectAll} style={chipBtnStyle}>
                 Deselect all
               </button>
             </div>
