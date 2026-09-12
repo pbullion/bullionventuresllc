@@ -64,7 +64,7 @@ function Row({ c, checked, onToggle }) {
           ) : null}
         </div>
         <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>
-          {kickoffLabel(c.close_time)}
+          {kickoffLabel(c.kickoff_time)}
         </div>
       </div>
       <div
