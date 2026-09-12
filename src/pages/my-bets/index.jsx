@@ -1201,6 +1201,25 @@ const marketLabel = (leg) => {
   return cleaned || raw;
 };
 
+/* A plain team moneyline, sportsbook-style: "Virginia Tech ML" (yes) or "Not
+ * Virginia Tech" (no) — each already says who's being bet on, so the row
+ * doesn't need a separate Yes/No badge in front of it (Patrick, 2026-09-12:
+ * "i dont need to see 'Yes' before a team or bet. like Yes Virginia Tech,
+ * should be just Virginia Tech ML"). Null for anything else — a prop's own
+ * phrase ("Over 3.5 runs") and a weather bracket already read as a complete
+ * pick too, but marketLabel() collapses BOTH their sides to the same string
+ * on purpose (see its own comment), so those still need the badge to say
+ * which one was bought. Only the two literal shapes buildPickLabel emits for
+ * a team moneyline match here. */
+const moneylineLabel = (leg) => {
+  const raw = String(leg.pick || "").trim();
+  const toWin = /^(.*?)\s+to win$/i.exec(raw);
+  if (toWin) return `${toWin[1].trim()} ML`;
+  const not = /^not\s+(.+)$/i.exec(raw);
+  if (not) return `Not ${not[1].trim()}`;
+  return null;
+};
+
 // Stable grouping key for a single-leg position: the ESPN gameId (shared by
 // every market on the same game) when we matched one, else the game portion of
 // the matchup ("Tampa Bay vs Toronto: Total Runs" -> "Tampa Bay vs Toronto"),
@@ -1805,9 +1824,10 @@ function HistoryCard({ item, isOpen, onToggle }) {
 /* The Yes/No side badge + market label that opens every position row, e.g.
  * "Yes · Over 8.5 runs scored" or "No · Toronto wins by over 1.5 runs". */
 function RowPick({ leg }) {
+  const moneylinePick = moneylineLabel(leg);
   return (
     <div style={S.rowPick}>
-      {leg.side ? (
+      {moneylinePick ? null : leg.side ? (
         <>
           <span style={leg.side === "yes" ? S.sideYes : S.sideNo}>
             {leg.side === "yes" ? "Yes" : "No"}
@@ -1815,7 +1835,7 @@ function RowPick({ leg }) {
           <span style={S.rowDot}>·</span>
         </>
       ) : null}
-      <span style={S.rowPickText}>{marketLabel(leg)}</span>
+      <span style={S.rowPickText}>{moneylinePick || marketLabel(leg)}</span>
     </div>
   );
 }
