@@ -124,6 +124,12 @@ export const PRIVATE_GROUPS = [
         tagline: "Every open position, live",
       },
       {
+        emoji: "⚡",
+        name: "Quick Bets",
+        path: "/quick-bets",
+        tagline: "NCAAF favorites ≥70% — one combo bet",
+      },
+      {
         emoji: "📈",
         name: "Totals Value",
         path: "/totals-value",

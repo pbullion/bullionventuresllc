@@ -51,6 +51,7 @@ import FantasyGuillotine from "./pages/fantasy/Guillotine.jsx";
 import FantasyLineupWatch from "./pages/fantasy/LineupWatch.jsx";
 import FantasyWaivers from "./pages/fantasy/Waivers.jsx";
 import TotalsValue from "./pages/totals-value/index.jsx";
+import QuickBets from "./pages/quick-bets/index.jsx";
 import CryptoValue from "./pages/crypto-value/index.jsx";
 import WeatherValue from "./pages/weather-value/index.jsx";
 import GasValue from "./pages/gas-value/index.jsx";
@@ -115,6 +116,7 @@ export default function App() {
   const isGasValue = location.pathname.startsWith("/gas-value");
   const isMorningReview = location.pathname.startsWith("/morning-review");
   const isEngineLimits = location.pathname.startsWith("/engine-limits");
+  const isQuickBets = location.pathname.startsWith("/quick-bets");
   const isBriefing = location.pathname.startsWith("/briefing");
   const isEliteEdge = location.pathname.startsWith("/elite-edge-advisors");
   const isZargle = location.pathname.startsWith("/zargle");
@@ -151,6 +153,7 @@ export default function App() {
     isGasValue ||
     isMorningReview ||
     isEngineLimits ||
+    isQuickBets ||
     isBriefing ||
     isEliteEdge ||
     isGulfHurricane ||
@@ -255,6 +258,7 @@ export default function App() {
             element={<Navigate to="/fantasy" replace />}
           />
           <Route path="/totals-value" element={<TotalsValue />} />
+          <Route path="/quick-bets" element={<QuickBets />} />
           <Route path="/crypto-value" element={<CryptoValue />} />
           <Route path="/weather-value" element={<WeatherValue />} />
           <Route path="/gas-value" element={<GasValue />} />
