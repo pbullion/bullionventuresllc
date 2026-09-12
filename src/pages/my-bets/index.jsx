@@ -2366,8 +2366,15 @@ function ParlayRows({ b }) {
               ) : (
                 ""
               )}
-              {!showSit && gameDetail(g) ? ` · ${gameDetail(g)}` : ""}
-              {link ? <span style={S.linkArrow}> ↗</span> : null}
+              {/* The clock/period and the link arrow have to move as one unit —
+                  wrapping split "0:43 -" from "1st ↗" onto its own orphaned
+                  line, which read as a rendering bug (Patrick, 2026-09-12). */}
+              {(!showSit && gameDetail(g)) || link ? (
+                <span style={{ whiteSpace: "nowrap" }}>
+                  {!showSit && gameDetail(g) ? ` · ${gameDetail(g)}` : ""}
+                  {link ? <span style={S.linkArrow}> ↗</span> : null}
+                </span>
+              ) : null}
             </div>
             <TotalPace leg={leg} />
             {showSit ? (
