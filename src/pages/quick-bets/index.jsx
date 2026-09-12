@@ -124,6 +124,13 @@ export default function QuickBets() {
     });
   };
 
+  const selectAll = () => {
+    setSelected(new Set((candidates || []).map((c) => c.market_ticker)));
+  };
+  const deselectAll = () => {
+    setSelected(new Set());
+  };
+
   const selectedCount = selected.size;
   const canCreate = selectedCount >= 2 && Number(stake) > 0 && !placing;
 
@@ -219,6 +226,53 @@ export default function QuickBets() {
         {!err && candidates && candidates.length === 0 ? (
           <div style={{ color: C.muted, fontSize: 13 }}>
             No NCAAF games are currently priced ≥70% to win.
+          </div>
+        ) : null}
+
+        {candidates && candidates.length > 0 ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <div style={{ fontSize: 11.5, color: C.muted }}>
+              {selectedCount} of {candidates.length} selected
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={selectAll}
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  color: C.text,
+                  background: C.chipBg,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                Select all
+              </button>
+              <button
+                onClick={deselectAll}
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  color: C.text,
+                  background: C.chipBg,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                Deselect all
+              </button>
+            </div>
           </div>
         ) : null}
 
