@@ -159,9 +159,11 @@ export default function QuickBets() {
         );
       }
       setResult({ ok: true, ...body });
-      // A filled bet is a new position — refresh candidates in case any leg's
-      // event has since moved past the window.
-      load();
+      // Only refresh (and re-select-all) when a bet actually filled — that's
+      // a new position, so a leg's event may have moved past the window. An
+      // unfilled attempt changed nothing, so leave the user's selection
+      // alone rather than resetting it back to "all" under them.
+      if (body.filled) load();
     } catch (e) {
       setResult({ ok: false, error: e.message });
     } finally {
