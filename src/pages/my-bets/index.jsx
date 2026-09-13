@@ -872,8 +872,29 @@ const S = {
     fontWeight: 700,
   },
   parlayFootItem: { color: C.muted, fontWeight: 600 },
+  // The fold holding a parlay's finished legs (see ParlayRows). Laid out like a
+  // leg row — full width, the same hairline above — so it reads as part of the
+  // slip, not a control floating on it. Border longhands only: a `border`
+  // shorthand beside `borderTop` is the mix React warns about.
+  finalsToggle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    padding: "14px 0",
+    background: "none",
+    borderWidth: "1px 0 0",
+    borderStyle: "solid",
+    borderColor: C.border,
+    color: C.muted,
+    fontFamily: "inherit",
+    fontSize: 13,
+    fontWeight: 700,
+    textAlign: "left",
+    cursor: "pointer",
+  },
 
-  muted: { color: C.muted, fontSize: 14, padding: "8px 4px" },
+  muted:{ color: C.muted, fontSize: 14, padding: "8px 4px" },
   error: {
     backgroundColor: C.redSoft,
     border: `1px solid ${C.red}`,
@@ -2552,11 +2573,84 @@ function LegScore({ g }) {
  * game/score beneath. Cost/payout are ticket-level, not per-leg. They lead the
  * card since 2026-09-13 (Patrick, arrowing the footer up to the header: "move
  * this there") — on an eleven-leg slip a footer is a scroll away from the
- * card it belongs to. */
+ * card it belongs to.
+ *
+ * Legs whose game is over fold away behind one toggle row, closed by default
+ * (Patrick, 2026-09-13: "hide the ones that are finals with a toggle, default
+ * closed") — on that day's eleven-leg slip, seven Final rows buried the four
+ * still being played. "Final" is exactly what the chip says, legGameOver, so a
+ * total already crossed mid-game stays in view: its game is still running. The
+ * toggle row counts how the folded legs went, a lost one in red, because a slip
+ * already busted must not look alive with its bust folded out of sight. Open or
+ * closed is per card and never stored — every visit starts closed. Web only:
+ * kalshi-live's ParlayLegs still lists every leg. */
 function ParlayRows({ b }) {
+  const [finalsOpen, setFinalsOpen] = useState(false);
   const d = b.display || {};
   const legs = sortLegs(Array.isArray(d.legs) ? d.legs : []);
+  // sortLegs already puts finished legs last, and a game-over leg is always a
+  // finished one, so both halves keep the slip's order.
+  const playingLegs = legs.filter((leg) => !legGameOver(leg));
+  const finalLegs = legs.filter(legGameOver);
+  // Same lean the hidden chips colour and arrow by, so the counts can't
+  // disagree with the rows they stand in for. A push counts toward neither.
+  const finalWon = finalLegs.filter((l) => legKind(l).lean === "win").length;
+  const finalLost = finalLegs.filter((l) => legKind(l).lean === "lose").length;
   const pnl = Number(d.total_pnl_dollars) || 0;
+  const legRow = (leg, i) => {
+    const g = leg.game;
+    // ESPN reports a scheduled game's competitors as 0, so a pre-game leg
+    // would read "· 0–0 ·" hours before tip-off. Suppress the score until
+    // the game starts and let the kickoff time carry the line instead —
+    // the same rule the single-game header uses (pre ? schedule : score).
+    const hasScore =
+      g && g.state !== "pre" && g.away_score != null && g.home_score != null;
+    // Live leg: show the base/count/outs block. It carries the inning, so
+    // the sub line drops the now-duplicated detail. Skipped once the leg is
+    // decided — a settled leg's live clock is noise.
+    const showSit = hasLiveSituation(leg) && !legIsFinished(leg);
+    // Clicking the leg opens its ESPN game page, or its Kalshi event page
+    // when there's no game behind it — a crypto leg inside a parlay only
+    // knows its own market ticker, so the event ticker is derived from that.
+    const link =
+      (g && g.link) || kalshiEventUrl(eventTickerOf(null, leg.market_ticker));
+    const Row = link ? "a" : "div";
+    const rowProps = link
+      ? {
+          href: link,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          className: "mb-poslink",
+        }
+      : {};
+    return (
+      <Row style={S.posRow} key={leg.market_ticker || i} {...rowProps}>
+        <div style={S.rowLine1}>
+          <RowPick leg={leg} />
+          <Chance leg={leg} />
+        </div>
+        <div style={S.rowSub}>
+          {/* Once there's a score the abbreviations name the game, so the
+              "Buffalo vs Houston" title gives way to it; before kickoff the
+              title and the start time carry the line. */}
+          {hasScore ? <LegScore g={g} /> : gameTitleOf(leg)}
+          {/* The clock/period and the link arrow have to move as one unit —
+              wrapping split "0:43 -" from "1st ↗" onto its own orphaned
+              line, which read as a rendering bug (Patrick, 2026-09-12). */}
+          {(!showSit && gameDetail(g)) || link ? (
+            <span style={{ whiteSpace: "nowrap" }}>
+              {!showSit && gameDetail(g) ? ` · ${gameDetail(g)}` : ""}
+              {link ? <span style={S.linkArrow}> ↗</span> : null}
+            </span>
+          ) : null}
+        </div>
+        <TotalPace leg={leg} />
+        {showSit ? (
+          <LiveSituation sit={g.situation} inning={g.detail} compact />
+        ) : null}
+      </Row>
+    );
+  };
   return (
     <>
       <div style={S.parlayFoot}>
@@ -2583,64 +2677,27 @@ function ParlayRows({ b }) {
         </span>
         <span style={{ color: pnlColor(pnl) }}>P&amp;L {pnlStr(pnl)}</span>
       </div>
-      {legs.map((leg, i) => {
-        const g = leg.game;
-        // ESPN reports a scheduled game's competitors as 0, so a pre-game leg
-        // would read "· 0–0 ·" hours before tip-off. Suppress the score until
-        // the game starts and let the kickoff time carry the line instead —
-        // the same rule the single-game header uses (pre ? schedule : score).
-        const hasScore =
-          g &&
-          g.state !== "pre" &&
-          g.away_score != null &&
-          g.home_score != null;
-        // Live leg: show the base/count/outs block. It carries the inning, so
-        // the sub line drops the now-duplicated detail. Skipped once the leg is
-        // decided — a settled leg's live clock is noise.
-        const showSit = hasLiveSituation(leg) && !legIsFinished(leg);
-        // Clicking the leg opens its ESPN game page, or its Kalshi event page
-        // when there's no game behind it — a crypto leg inside a parlay only
-        // knows its own market ticker, so the event ticker is derived from that.
-        const link =
-          (g && g.link) ||
-          kalshiEventUrl(eventTickerOf(null, leg.market_ticker));
-        const Row = link ? "a" : "div";
-        const rowProps = link
-          ? {
-              href: link,
-              target: "_blank",
-              rel: "noopener noreferrer",
-              className: "mb-poslink",
-            }
-          : {};
-        return (
-          <Row style={S.posRow} key={leg.market_ticker || i} {...rowProps}>
-            <div style={S.rowLine1}>
-              <RowPick leg={leg} />
-              <Chance leg={leg} />
-            </div>
-            <div style={S.rowSub}>
-              {/* Once there's a score the abbreviations name the game, so the
-                  "Buffalo vs Houston" title gives way to it; before kickoff the
-                  title and the start time carry the line. */}
-              {hasScore ? <LegScore g={g} /> : gameTitleOf(leg)}
-              {/* The clock/period and the link arrow have to move as one unit —
-                  wrapping split "0:43 -" from "1st ↗" onto its own orphaned
-                  line, which read as a rendering bug (Patrick, 2026-09-12). */}
-              {(!showSit && gameDetail(g)) || link ? (
-                <span style={{ whiteSpace: "nowrap" }}>
-                  {!showSit && gameDetail(g) ? ` · ${gameDetail(g)}` : ""}
-                  {link ? <span style={S.linkArrow}> ↗</span> : null}
-                </span>
-              ) : null}
-            </div>
-            <TotalPace leg={leg} />
-            {showSit ? (
-              <LiveSituation sit={g.situation} inning={g.detail} compact />
-            ) : null}
-          </Row>
-        );
-      })}
+      {playingLegs.map(legRow)}
+      {finalLegs.length ? (
+        <button
+          type="button"
+          style={S.finalsToggle}
+          onClick={() => setFinalsOpen((open) => !open)}
+          aria-expanded={finalsOpen}
+        >
+          <span style={S.chevron(finalsOpen)}>▶</span>
+          <span>
+            {finalLegs.length} final leg{finalLegs.length === 1 ? "" : "s"}
+          </span>
+          {finalWon ? (
+            <span style={{ color: C.green }}>{finalWon} won</span>
+          ) : null}
+          {finalLost ? (
+            <span style={{ color: C.red }}>{finalLost} lost</span>
+          ) : null}
+        </button>
+      ) : null}
+      {finalsOpen ? finalLegs.map(legRow) : null}
     </>
   );
 }
