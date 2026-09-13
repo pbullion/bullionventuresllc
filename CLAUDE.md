@@ -279,6 +279,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/gas-value` | `/kalshi-gas` |
 | `/morning-review` | `/kalshi/morning-report` + all four engines' `/auto-bets/status` |
 | `/engine-limits` | `/kalshi-limits` (one call — all four engines' units and caps) |
+| `/quick-bets` | `/kalshi/quick-bets/candidates` + `/kalshi/quick-bets/combo` (NCAAF, NFL, MLB — the league list comes from the backend's `QUICK_BET_LEAGUES`; kalshi-live builds from 2026-09-13 use the same two; builds installed before that use `/ncaaf` + `/ncaaf-combo`, which the backend keeps and serves pregame-only) |
 | `/elite-edge-advisors` | `/elite-edge-advisors`, `/odds`, `/parlays` |
 | `/gulf-hurricane` | `/nhc` |
 | `/tesla-dashboard` | `/patrick`, `/odds-screen` |

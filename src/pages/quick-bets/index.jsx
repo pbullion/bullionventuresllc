@@ -3,22 +3,46 @@ import EnginePage from "../../components/engine/EnginePage.jsx";
 import { EngineHeader } from "../../components/engine/EngineChrome.jsx";
 import { C, panelStyle, money } from "../../components/engine/theme.js";
 
-/* Quick Bets — one click, every NCAAF favorite ≥70% to win, one combo bet.
+/* Quick Bets — one click, every NCAAF/NFL/MLB favorite ≥70% to win, one
+ * combo bet.
  *
- * Backend: routes/kalshi.js, `GET /kalshi/quick-bets/ncaaf` (candidates) and
- * `POST /kalshi/quick-bets/ncaaf-combo` (places the order). Read that file's
- * header comment before changing anything here — the short version: the
- * combo ticket this mints (Kalshi's real KXMVECROSSCATEGORY-R multivariate
- * collection, not something this app invented) tries a plain resting-order
- * fill first, then falls back to Kalshi's RFQ negotiation. Either way a
- * fill needs a real counterparty on the other side, which a big
- * all-favorites slate makes unlikely — that's why leg count (not
- * probability) is the lever in the Top N buttons below. "Create Bet"
- * legitimately coming back unfilled is a normal outcome, not an error.
+ * Backend: routes/kalshi.js, `GET /kalshi/quick-bets/candidates` (every
+ * supported league at once) and `POST /kalshi/quick-bets/combo` (places the
+ * order). Read that file's header comment before changing anything here —
+ * the short version: the combo ticket this mints (Kalshi's real
+ * KXMVECROSSCATEGORY-R multivariate collection, not something this app
+ * invented) tries a plain resting-order fill first, then falls back to
+ * Kalshi's RFQ negotiation. Either way a fill needs a real counterparty on
+ * the other side, which a big all-favorites slate makes unlikely — that's
+ * why leg count (not probability) is the lever in the Top N buttons below.
+ * "Create Bet" legitimately coming back unfilled is a normal outcome, not an
+ * error.
+ *
+ * The league list is the BACKEND's (`supported_leagues` on the response), not
+ * a constant here — add a league there and its chip appears with no deploy of
+ * this repo. The chips only filter what's shown; a hidden league's games are
+ * never sent in a bet, even if they were checked before it was hidden. The
+ * hidden set is remembered per browser, as the leagues that are OFF, so a
+ * league added later starts out visible. Bulk actions (Top N, Select all,
+ * Deselect all) only rewrite the visible part of the selection.
+ *
+ * `unavailable_leagues` on the response names leagues the backend couldn't
+ * read from Kalshi this time. Their games are MISSING, not absent, and the
+ * page says so rather than letting the list read as "no favorites".
+ *
+ * Games already under way are listed too, with a LIVE tag, because their
+ * price is a live in-game price, not a pregame one (Patrick, 2026-09-13: show
+ * them, marked LIVE). They start UNCHECKED and Select all / Top N skip them,
+ * so a live game only goes into a combo when it's ticked by hand.
+ *
+ * kalshi-live builds from 2026-09-13 call these same two routes. Builds
+ * installed before that use `/quick-bets/ncaaf` + `/ncaaf-combo`, which the
+ * backend keeps (pregame games only, since those builds can't show LIVE).
  */
 
 const ROOT = "https://sheline-art-website-api.herokuapp.com";
 const API_BASE = `${ROOT}/kalshi/quick-bets`;
+const HIDDEN_LEAGUES_KEY = "bv_quickbets_hidden_leagues";
 
 const card = { ...panelStyle, borderRadius: 14, padding: 16 };
 
@@ -31,6 +55,24 @@ const chipBtnStyle = {
   borderRadius: 8,
   padding: "4px 10px",
   cursor: "pointer",
+};
+
+const readHiddenLeagues = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HIDDEN_LEAGUES_KEY) || "[]");
+    return new Set(Array.isArray(raw) ? raw : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const writeHiddenLeagues = (hidden) => {
+  try {
+    localStorage.setItem(HIDDEN_LEAGUES_KEY, JSON.stringify([...hidden]));
+  } catch {
+    // Storage blocked (private window, site data off) — the filter still
+    // works for this visit, it just isn't remembered.
+  }
 };
 
 const kickoffLabel = (iso) => {
@@ -46,6 +88,12 @@ const kickoffLabel = (iso) => {
     timeZone: "America/Chicago",
   }).format(d)} CT`;
 };
+
+// "NCAAF, NFL and MLB" — for the subtitle and the empty state.
+const joinLabels = (labels) =>
+  labels.length <= 1
+    ? labels.join("")
+    : `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
 
 function Row({ c, checked, onToggle }) {
   return (
@@ -76,6 +124,27 @@ function Row({ c, checked, onToggle }) {
           ) : null}
         </div>
         <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>
+          {c.started ? (
+            <span
+              style={{
+                fontWeight: 800,
+                color: C.red,
+                border: `1px solid ${C.redBorder}`,
+                borderRadius: 4,
+                padding: "0 4px",
+                marginRight: 6,
+              }}
+            >
+              LIVE
+            </span>
+          ) : null}
+          {c.league_label ? (
+            <span style={{ fontWeight: 700, color: C.text }}>
+              {c.league_label}
+              {" · "}
+            </span>
+          ) : null}
+          {c.started ? "started " : ""}
           {kickoffLabel(c.kickoff_time)}
         </div>
       </div>
@@ -95,6 +164,9 @@ function Row({ c, checked, onToggle }) {
 
 export default function QuickBets() {
   const [candidates, setCandidates] = useState(null);
+  const [leagues, setLeagues] = useState([]);
+  const [unavailable, setUnavailable] = useState([]);
+  const [hiddenLeagues, setHiddenLeagues] = useState(readHiddenLeagues);
   const [selected, setSelected] = useState(() => new Set());
   const [stake, setStake] = useState(10);
   const [loading, setLoading] = useState(true);
@@ -107,12 +179,23 @@ export default function QuickBets() {
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetch(`${API_BASE}/ncaaf${includeTomorrow ? "?days=2" : ""}`);
-      const body = await res.json();
+      const res = await fetch(
+        `${API_BASE}/candidates${includeTomorrow ? "?days=2" : ""}`,
+      );
+      // A non-JSON reply (an HTML 404 from a backend without this route, a
+      // Heroku error page) falls through to the HTTP status instead of
+      // surfacing a JSON parser message.
+      const body = await res.json().catch(() => ({}));
       if (!res.ok || !body.ok) throw new Error(body.error || `HTTP ${res.status}`);
       setCandidates(body.candidates);
-      // All selected by default.
-      setSelected(new Set(body.candidates.map((c) => c.market_ticker)));
+      setLeagues(body.supported_leagues || []);
+      setUnavailable(body.unavailable_leagues || []);
+      // Every pregame game selected by default; a live one waits to be ticked.
+      setSelected(
+        new Set(
+          body.candidates.filter((c) => !c.started).map((c) => c.market_ticker),
+        ),
+      );
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -129,6 +212,24 @@ export default function QuickBets() {
     })();
   }, [load]);
 
+  // Everything below works on the games in leagues that are switched ON. The
+  // selection Set can still hold a hidden league's tickers (so switching it
+  // back on restores what was checked), but those never count and never bet.
+  const visible = (candidates || []).filter((c) => !hiddenLeagues.has(c.league));
+  const selectedVisible = visible.filter((c) => selected.has(c.market_ticker));
+  // What Select all and Top N choose from — never a LIVE game.
+  const pregame = visible.filter((c) => !c.started);
+
+  const toggleLeague = (key) => {
+    setHiddenLeagues((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      writeHiddenLeagues(next);
+      return next;
+    });
+  };
+
   const toggle = (ticker) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -138,11 +239,20 @@ export default function QuickBets() {
     });
   };
 
+  // Rewrites only the visible part of the selection — checks in a hidden
+  // league are left as they were, for when it's switched back on.
+  const replaceVisibleSelection = (tickers) => {
+    const visibleTickers = new Set(visible.map((c) => c.market_ticker));
+    setSelected(
+      (prev) =>
+        new Set([...[...prev].filter((t) => !visibleTickers.has(t)), ...tickers]),
+    );
+  };
   const selectAll = () => {
-    setSelected(new Set((candidates || []).map((c) => c.market_ticker)));
+    replaceVisibleSelection(pregame.map((c) => c.market_ticker));
   };
   const deselectAll = () => {
-    setSelected(new Set());
+    replaceVisibleSelection([]);
   };
   // Fewer legs is the lever that actually matters for getting a fill — the
   // combo's odds are the PRODUCT of every leg's probability, so a big
@@ -150,29 +260,33 @@ export default function QuickBets() {
   // each individual pick looks. Top N by probability is the fast way to test
   // a small slate without hand-picking through the list.
   const selectTop = (n) => {
-    const sorted = [...(candidates || [])].sort(
+    const sorted = [...pregame].sort(
       (a, b) => b.probability_pct - a.probability_pct,
     );
-    setSelected(new Set(sorted.slice(0, n).map((c) => c.market_ticker)));
+    replaceVisibleSelection(sorted.slice(0, n).map((c) => c.market_ticker));
   };
 
-  const selectedCount = selected.size;
+  const selectedCount = selectedVisible.length;
   const canCreate = selectedCount >= 2 && Number(stake) > 0 && !placing;
+  const leagueNames = joinLabels(leagues.map((l) => l.label));
+  // Only the leagues that actually loaded — "no MLB favorites" is a claim the
+  // page can't make about a league it couldn't read.
+  const checkedNames = joinLabels(
+    leagues.filter((l) => !unavailable.includes(l.key)).map((l) => l.label),
+  );
 
   const createBet = async () => {
     if (!canCreate) return;
     setPlacing(true);
     setResult(null);
     try {
-      const legs = (candidates || [])
-        .filter((c) => selected.has(c.market_ticker))
-        .map((c) => ({ market_ticker: c.market_ticker }));
-      const res = await fetch(`${API_BASE}/ncaaf-combo`, {
+      const legs = selectedVisible.map((c) => ({ market_ticker: c.market_ticker }));
+      const res = await fetch(`${API_BASE}/combo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ legs, stake_dollars: Number(stake) }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       if (!res.ok || !body.ok) {
         const detail = body.detail
           ? typeof body.detail === "string"
@@ -200,7 +314,7 @@ export default function QuickBets() {
     <EnginePage mainWidth="640px">
       <EngineHeader
         title="⚡ Quick Bets"
-        subtitle="Every NCAAF favorite ≥70% to win — one combo bet"
+        subtitle={`Every ${leagueNames ? `${leagueNames} ` : ""}favorite ≥70% to win — one combo bet`}
         self="quickbets"
       />
 
@@ -265,6 +379,48 @@ export default function QuickBets() {
           </button>
         </div>
 
+        {leagues.length > 1 ? (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+            {leagues.map((l) => {
+              const on = !hiddenLeagues.has(l.key);
+              const count = (candidates || []).filter((c) => c.league === l.key).length;
+              return (
+                <button
+                  key={l.key}
+                  onClick={() => toggleLeague(l.key)}
+                  aria-pressed={on}
+                  style={{
+                    ...chipBtnStyle,
+                    // A notch bigger than the Top N chips: these change which
+                    // games can be bet, not just which are checked.
+                    fontSize: 12.5,
+                    padding: "6px 12px",
+                    background: on ? C.chipBg : "transparent",
+                    borderColor: on ? C.greenBorder : C.border,
+                    color: on ? C.text : C.muted,
+                    textDecoration: on ? "none" : "line-through",
+                  }}
+                >
+                  {l.label} · {count}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {!err && unavailable.length > 0 ? (
+          <div style={{ color: C.amber, fontSize: 12.5, marginBottom: 8 }}>
+            Couldn't load{" "}
+            {joinLabels(
+              unavailable.map(
+                (k) => leagues.find((l) => l.key === k)?.label || k.toUpperCase(),
+              ),
+            )}{" "}
+            from Kalshi just now, so those games aren't listed — Refresh to try
+            again.
+          </div>
+        ) : null}
+
         {err ? (
           <div style={{ color: C.red, fontSize: 13, marginBottom: 8 }}>
             {err}
@@ -273,11 +429,18 @@ export default function QuickBets() {
 
         {!err && candidates && candidates.length === 0 ? (
           <div style={{ color: C.muted, fontSize: 13 }}>
-            No NCAAF games are currently priced ≥70% to win.
+            No {checkedNames || "games"} {checkedNames ? "games are" : "are"}{" "}
+            currently priced ≥70% to win.
           </div>
         ) : null}
 
-        {candidates && candidates.length > 0 ? (
+        {!err && candidates && candidates.length > 0 && visible.length === 0 ? (
+          <div style={{ color: C.muted, fontSize: 13 }}>
+            Every qualifying game is in a league you've switched off.
+          </div>
+        ) : null}
+
+        {visible.length > 0 ? (
           <div
             style={{
               display: "flex",
@@ -289,11 +452,11 @@ export default function QuickBets() {
             }}
           >
             <div style={{ fontSize: 11.5, color: C.muted }}>
-              {selectedCount} of {candidates.length} selected
+              {selectedCount} of {visible.length} selected
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {[3, 5, 10].map((n) =>
-                candidates.length > n ? (
+                pregame.length > n ? (
                   <button
                     key={n}
                     onClick={() => selectTop(n)}
@@ -313,9 +476,9 @@ export default function QuickBets() {
           </div>
         ) : null}
 
-        {candidates && candidates.length > 0 ? (
+        {visible.length > 0 ? (
           <div style={{ maxHeight: 480, overflowY: "auto" }}>
-            {candidates.map((c) => (
+            {visible.map((c) => (
               <Row
                 key={c.market_ticker}
                 c={c}
@@ -395,8 +558,9 @@ export default function QuickBets() {
 
       <div style={{ color: C.muted, fontSize: 11.5, marginTop: 14, lineHeight: 1.5 }}>
         This places one real Kalshi combo order — win-the-game markets only,
-        favorites at 70%+ mid price. It pays out only if EVERY selected game
-        wins; one loss loses the whole stake. See{" "}
+        favorites at 70%+ mid price, and the games can come from different
+        leagues. It pays out only if EVERY selected game wins; one loss loses
+        the whole stake. See{" "}
         <a href="/my-bets" style={{ color: C.text }}>
           My Bets
         </a>{" "}
