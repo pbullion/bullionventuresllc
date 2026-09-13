@@ -363,6 +363,46 @@ const S = {
     letterSpacing: 0.4,
     whiteSpace: "nowrap",
   },
+  /* The filters — league, bet type, chance — on a row of their own under the
+     sort keys. Chance used to share the sort row when it was the only filter;
+     three chip groups there read as more things to sort by. */
+  filterRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px 18px",
+    flexWrap: "wrap",
+    margin: "-4px 0 16px",
+  },
+  /* One chip group — its label, All, and its chips. Its own wrapping box, so a
+     phone breaks the filter row BETWEEN groups: as one flat run of ~17 items a
+     label could end one line with its chips starting the next, reading as part
+     of the group before it. The outer gap replaces the hairline dividers,
+     which strand at a line end the same way. */
+  filterGroup: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  // One tap back to the whole book. Amber, like the notice beside it, because
+  // it undoes a choice that persists across visits.
+  clearFiltersBtn: {
+    background: "transparent",
+    border: `1px solid ${C.amber}`,
+    color: C.amber,
+    borderRadius: 999,
+    padding: "4px 11px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  // The count inside a league/type chip, quieter than the name it follows.
+  chipCount: {
+    marginLeft: 5,
+    opacity: 0.7,
+    fontVariantNumeric: "tabular-nums",
+  },
   sortBtn: (active) => ({
     background: active ? C.greenSoft : C.chipBg,
     border: `1px solid ${active ? C.greenBorder : C.border}`,
@@ -1518,6 +1558,103 @@ const RED_BELOW = 48; // not favored at all
  * so it can reference one; it's read in the component, far later. */
 const MIN_CHANCES = [0, 50, GREEN_AT, 90];
 const MIN_CHANCE_STORAGE_KEY = "mb_min_chance";
+
+/* League and bet-type filters for the open grid, beside the chance floor above
+ * (Patrick, 2026-09-13: "i want to be able to filter by league etc").
+ *
+ * A LEAGUE is the label the card already prints under its title, normalised the
+ * same way the grid normalises it — weather by ticker to "High Temperature",
+ * crypto by ticker to "Crypto" (leg.league is the bare asset on an hourly
+ * market) — so a chip never names something no card says. The list is read off
+ * the book, not written out here: the backend passes Kalshi's own event
+ * competition/category straight through, and a league this page has never seen
+ * still has to get a chip.
+ *
+ * A parlay belongs to EVERY league it has a leg in. A slip with four baseball
+ * legs and three football ones is money riding on both, and it must not vanish
+ * from a Pro Football view because its first leg is a ballgame. So the chip
+ * counts overlap: they count positions touching a league, and can sum past the
+ * open count.
+ *
+ * DUPLICATED in kalshi-live's src/screens/PositionsScreen.js under the same
+ * names (leaguesOf / betTypeOf) — the app's My Bets tab has the same two chip
+ * groups. No shared code between the repos, so change both. */
+const GAS_TICKER_RE = /^KXAAAGAS/;
+/* Every Kalshi combo is a multivariate event, KXMVE…. Tested alongside the leg
+ * count because a failed market lookup comes back with NO legs (the backend's
+ * leg_count is legs.length), and a parlay must not drop out of the Parlays
+ * view — or turn up under Winner — for the refresh that happened on. */
+const COMBO_TICKER_RE = /^KXMVE/;
+/* Daily-high AND daily-low temperature markets. Lows (KXLOWT…) are paper-only
+ * today and the rest of this page still keys weather on KXHIGH; this exists so
+ * a low-temp band promoted to live money never lands under "Winner". */
+const TEMP_TICKER_RE = /^KX(HIGH|LOWT)/;
+const OTHER_LEAGUE = "Other";
+const legLeagueOf = (leg) =>
+  isCryptoTicker(leg.market_ticker)
+    ? "Crypto"
+    : String(leg.league || "").trim();
+const leaguesOf = (b) => {
+  if (WEATHER_TICKER_RE.test(b.ticker || "")) return ["High Temperature"];
+  if (isCryptoTicker(b.ticker)) return ["Crypto"];
+  const legs = Array.isArray(b.display?.legs) ? b.display.legs : [];
+  const names = [...new Set(legs.map(legLeagueOf).filter(Boolean))];
+  return names.length ? names : [OTHER_LEAGUE];
+};
+
+/* Bet TYPE, read from the ticker exactly as the backend's legMarketType reads it
+ * (SPREAD, TOTAL, otherwise a winner market) — but only where that reading is
+ * true. Weather, crypto and gas singles all come out of that classifier as
+ * "moneyline", which a temperature band or a gas-price strike is not, so they
+ * have no type: pick one and they drop out, which is right (none of them is a
+ * total), and the League chips are how you ask for them. A parlay is its own
+ * type whatever its legs are — the same isCombo test the grid groups on. */
+const BET_TYPES = [
+  { key: "total", label: "Totals" },
+  { key: "spread", label: "Spreads" },
+  { key: "winner", label: "Winner" },
+  { key: "parlay", label: "Parlays" },
+];
+const betTypeOf = (b) => {
+  const t = String(b.ticker || "").toUpperCase();
+  if (TEMP_TICKER_RE.test(t)) return null;
+  const d = b.display || {};
+  const legs = Array.isArray(d.legs) ? d.legs : [];
+  if (COMBO_TICKER_RE.test(t) || legs.length > 1 || (d.leg_count || 0) > 1)
+    return "parlay";
+  if (isCryptoTicker(t) || GAS_TICKER_RE.test(t)) return null;
+  if (/SPREAD/.test(t)) return "spread";
+  if (/TOTAL/.test(t)) return "total";
+  return "winner";
+};
+
+/* Both filters persist as arrays of chosen values; empty is "All". A stored
+ * type key this build doesn't know is dropped on read — its chip would never
+ * render, so it would be a filter nobody could see or turn off. A stored league
+ * can't be checked that way (the list comes from the book), which is why the
+ * grid renders a chip for every SELECTED league even at a count of 0. */
+const LEAGUE_STORAGE_KEY = "mb_leagues";
+const TYPE_STORAGE_KEY = "mb_types";
+const readStoredSet = (key, allowed) => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(key) || "[]");
+    if (!Array.isArray(raw)) return new Set();
+    return new Set(
+      raw.filter(
+        (v) => typeof v === "string" && (!allowed || allowed.includes(v)),
+      ),
+    );
+  } catch {
+    return new Set();
+  }
+};
+const writeStoredSet = (key, set) => {
+  try {
+    localStorage.setItem(key, JSON.stringify([...set]));
+  } catch {
+    /* filtering still works this session */
+  }
+};
 const chanceColor = (pct) => {
   if (pct >= RED_BELOW && pct < GREEN_AT) return C.amber;
   const up = pct >= GREEN_AT;
@@ -2530,6 +2667,38 @@ export default function MyBets() {
       return pct;
     });
 
+  /* League and bet-type filters: sets of chosen values, EMPTY meaning All.
+   * Multi-select — "Pro Baseball and Pro Football, no weather" is two taps — and
+   * the groups AND together with each other and with the chance floor. Persisted
+   * and announced exactly like the floor above, for the same reason. */
+  const [leagueSel, setLeagueSel] = useState(() =>
+    readStoredSet(LEAGUE_STORAGE_KEY),
+  );
+  const [typeSel, setTypeSel] = useState(() =>
+    readStoredSet(
+      TYPE_STORAGE_KEY,
+      BET_TYPES.map((t) => t.key),
+    ),
+  );
+  // A chip toggles its own value; null (the group's "All" chip) clears it.
+  const toggleSel = (setter, storageKey) => (value) =>
+    setter((prev) => {
+      const next = new Set(value == null ? [] : prev);
+      if (value != null) {
+        if (next.has(value)) next.delete(value);
+        else next.add(value);
+      }
+      writeStoredSet(storageKey, next);
+      return next;
+    });
+  const pickLeague = toggleSel(setLeagueSel, LEAGUE_STORAGE_KEY);
+  const pickType = toggleSel(setTypeSel, TYPE_STORAGE_KEY);
+  const clearFilters = () => {
+    pickLeague(null);
+    pickType(null);
+    pickMinChance(0);
+  };
+
   /* Weather layout: false = one card per day, cities as sections inside it
    * (the default); true = a separate card per city. Eight city-day cards was
    * the original layout and was unreadable when every city had a position, but
@@ -2733,7 +2902,7 @@ export default function MyBets() {
     (b) => !ALWAYS_HIDDEN_TICKERS.has(b.ticker) && !isDecidedBet(b),
   );
   const undismissed = hideable.filter((b) => !hidden.has(b.ticker));
-  /* The chance floor is the last cut, so "N hidden · Show all" keeps counting
+  /* The filters are the last cut, so "N hidden · Show all" keeps counting
    * only the user's own dismissals and doesn't absorb the filtered cards.
    *
    * A position with NO price survives every floor. The enrichment feed drops
@@ -2743,14 +2912,60 @@ export default function MyBets() {
    * one direction the reader can't audit. An unknown is not a zero (the same
    * call /byob makes when it sorts unknown corkage last rather than cheapest);
    * the card shows its dash and the reader decides. */
-  const bets =
-    minChance > 0
-      ? undismissed.filter((b) => {
-          const pct = winPctOf(b);
-          return pct == null || pct >= minChance;
-        })
-      : undismissed;
-  const belowChanceCount = undismissed.length - bets.length;
+  const bets = undismissed.filter((b) => {
+    if (leagueSel.size && !leaguesOf(b).some((l) => leagueSel.has(l)))
+      return false;
+    if (typeSel.size && !typeSel.has(betTypeOf(b))) return false;
+    if (minChance > 0) {
+      const pct = winPctOf(b);
+      if (pct != null && pct < minChance) return false;
+    }
+    return true;
+  });
+  /* Everything the three filters removed, as ONE number: it drives the "N of M"
+   * counts and the amber notice, and the notice names which filters are on. */
+  const filteredCount = undismissed.length - bets.length;
+  const filtersActive = leagueSel.size > 0 || typeSel.size > 0 || minChance > 0;
+  const filterSummary = [
+    leagueSel.size ? [...leagueSel].join(" + ") : null,
+    typeSel.size
+      ? BET_TYPES.filter((t) => typeSel.has(t.key))
+          .map((t) => t.label)
+          .join(" + ")
+      : null,
+    minChance > 0 ? `${minChance}%+` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  /* Chip options, read off `undismissed` — the book the grid would show with no
+   * filter. Each chip counts on its own, ignoring the other groups, so its
+   * number doesn't jump as you tap its neighbours. Leagues are alphabetical, not
+   * by count: the 15s poll moves counts, and a chip that swaps places under a
+   * finger is worse than one that never moves. A SELECTED league with nothing
+   * left in the book (every football bet settled overnight) keeps its chip at
+   * 0, because a lit filter you can't see is a filter you can't turn off. */
+  const leagueCounts = new Map();
+  const typeCounts = new Map();
+  for (const b of undismissed) {
+    for (const l of leaguesOf(b))
+      leagueCounts.set(l, (leagueCounts.get(l) || 0) + 1);
+    const t = betTypeOf(b);
+    if (t) typeCounts.set(t, (typeCounts.get(t) || 0) + 1);
+  }
+  for (const l of leagueSel) if (!leagueCounts.has(l)) leagueCounts.set(l, 0);
+  const leagueOptions = [...leagueCounts.entries()].sort(
+    ([a], [b]) =>
+      (a === OTHER_LEAGUE) - (b === OTHER_LEAGUE) || a.localeCompare(b),
+  );
+  const typeOptions = BET_TYPES.filter(
+    (t) => typeCounts.has(t.key) || typeSel.has(t.key),
+  ).map((t) => ({ ...t, count: typeCounts.get(t.key) || 0 }));
+  // A group earns its row only when it can actually split the book (or is on).
+  const showLeagueChips = leagueOptions.length > 1 || leagueSel.size > 0;
+  const showTypeChips =
+    typeSel.size > 0 ||
+    typeOptions.length > 1 ||
+    (typeOptions.length === 1 && typeOptions[0].count < undismissed.length);
   // Reported, not silent. Suppressing nine cards with no trace of them is how
   // a filter turns into a bug report, so the count sits beside the sort row.
   const decidedCount = allBets.filter(isDecidedBet).length;
@@ -2778,7 +2993,7 @@ export default function MyBets() {
   useMasonry(gridRef, [betsKey, tab, sort.key, sort.dir, wxByCity]);
   // Counts only the user's own dismissals: "Show all" must not resurrect a
   // permanently-hidden card, so those aren't part of this count either — nor a
-  // card the chance floor removed, which "Show all" wouldn't bring back.
+  // card a filter removed, which "Show all" wouldn't bring back.
   const hiddenCount = hideable.length - undismissed.length;
   // Gates the weather layout toggle: nothing to group on a day with no
   // temperature positions, so the chip stays off the sort row entirely.
@@ -3052,7 +3267,7 @@ export default function MyBets() {
               {pnlStr(totalPnl)}
             </span>
           </div>
-          {/* "4 of 11" while a floor is set, exactly as the tab and the mobile
+          {/* "4 of 11" while a filter is set, exactly as the tab and the mobile
               strip already say it. Every other figure in this row is computed
               from `allBets` — unfiltered, and including the dismissed and the
               decided — so a bare filtered count sitting beside them reads as a
@@ -3063,7 +3278,7 @@ export default function MyBets() {
           <div style={S.topStat}>
             <span style={S.topStatLabel}>Open</span>
             <span style={S.topStatValue}>
-              {belowChanceCount > 0
+              {filteredCount > 0
                 ? `${bets.length} of ${undismissed.length}`
                 : bets.length}
             </span>
@@ -3118,19 +3333,19 @@ export default function MyBets() {
           </span>
           <span style={S.heroMobileStat}>
             {bets.length} open
-            {belowChanceCount > 0 ? ` of ${undismissed.length}` : ""}
+            {filteredCount > 0 ? ` of ${undismissed.length}` : ""}
           </span>
         </div>
 
         {/* Open / History tabs */}
         <div style={S.tabs}>
           <button style={S.tab(tab === "open")} onClick={() => setTab("open")}>
-            {/* "3 of 15" while a floor is set: a bare "Open (3)" beside the
+            {/* "3 of 15" while a filter is set: a bare "Open (3)" beside the
                 unfiltered dollar totals in the hero reads as a discrepancy on a
                 money screen, not as a filter the reader chose. */}
             Open
-            {bets.length || belowChanceCount
-              ? ` (${belowChanceCount > 0 ? `${bets.length} of ${undismissed.length}` : bets.length})`
+            {bets.length || filteredCount
+              ? ` (${filteredCount > 0 ? `${bets.length} of ${undismissed.length}` : bets.length})`
               : ""}
           </button>
           <button style={S.tab(tab === "history")} onClick={openHistory}>
@@ -3150,25 +3365,6 @@ export default function MyBets() {
                   >
                     {s.label}
                     {sort.key === s.key ? (sort.dir < 0 ? " ↓" : " ↑") : ""}
-                  </button>
-                ))}
-                {/* Chance floor — a filter, not a sort key, so it sits behind
-                    a divider under its own label. */}
-                <span style={S.sortDivider} aria-hidden="true" />
-                <span style={S.sortGroupLabel}>chance</span>
-                {MIN_CHANCES.map((pct) => (
-                  <button
-                    key={pct}
-                    style={S.sortBtn(minChance === pct)}
-                    onClick={() => pickMinChance(pct)}
-                    aria-pressed={minChance === pct}
-                    title={
-                      pct === 0
-                        ? "Show every open position"
-                        : `Show only positions at ${pct}% chance or better (a parlay is judged on its joint odds)`
-                    }
-                  >
-                    {pct === 0 ? "All" : `${pct}%+`}
                   </button>
                 ))}
                 {/* Layout, not a sort key — hence the divider, so it doesn't
@@ -3191,15 +3387,6 @@ export default function MyBets() {
                   </>
                 ) : null}
               </div>
-              {belowChanceCount > 0 ? (
-                /* Amber, not muted, and it says "filtered": the choice
-                   PERSISTS, so this line is what a reader opening the page days
-                   later has to notice before reading the grid as their whole
-                   book. A grey footnote is not enough weight for that. */
-                <span style={S.filterNotice}>
-                  {belowChanceCount} below {minChance}% filtered out
-                </span>
-              ) : null}
               {decidedCount > 0 ? (
                 <span style={S.muted}>
                   {/* Names the kind of bet now that the rule only covers
@@ -3215,12 +3402,105 @@ export default function MyBets() {
               ) : null}
             </div>
 
+            {/* Filters — league, bet type, chance — on their own row. They AND
+                together over the same book; see `bets`. */}
+            <div style={S.filterRow}>
+              {showLeagueChips ? (
+                <div style={S.filterGroup}>
+                  <span style={S.sortGroupLabel}>league</span>
+                  <button
+                    style={S.sortBtn(leagueSel.size === 0)}
+                    onClick={() => pickLeague(null)}
+                    aria-pressed={leagueSel.size === 0}
+                    title="Every league"
+                  >
+                    All
+                  </button>
+                  {leagueOptions.map(([name, n]) => (
+                    <button
+                      key={name}
+                      style={S.sortBtn(leagueSel.has(name))}
+                      onClick={() => pickLeague(name)}
+                      aria-pressed={leagueSel.has(name)}
+                      title={`${n} open position${n === 1 ? "" : "s"} in ${name}. A parlay counts toward every league it has a leg in. Tap more than one league to combine them.`}
+                    >
+                      {name}
+                      <span style={S.chipCount}>{n}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {showTypeChips ? (
+                <div style={S.filterGroup}>
+                  <span style={S.sortGroupLabel}>type</span>
+                  <button
+                    style={S.sortBtn(typeSel.size === 0)}
+                    onClick={() => pickType(null)}
+                    aria-pressed={typeSel.size === 0}
+                    title="Every kind of bet"
+                  >
+                    All
+                  </button>
+                  {typeOptions.map((t) => (
+                    <button
+                      key={t.key}
+                      style={S.sortBtn(typeSel.has(t.key))}
+                      onClick={() => pickType(t.key)}
+                      aria-pressed={typeSel.has(t.key)}
+                      title={
+                        t.key === "parlay"
+                          ? `${t.count} open parlay${t.count === 1 ? "" : "s"}`
+                          : `${t.count} open ${t.label.toLowerCase()} bet${t.count === 1 ? "" : "s"} (sports only — weather, crypto and gas have no type, so picking one hides them)`
+                      }
+                    >
+                      {t.label}
+                      <span style={S.chipCount}>{t.count}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div style={S.filterGroup}>
+                <span style={S.sortGroupLabel}>chance</span>
+                {MIN_CHANCES.map((pct) => (
+                  <button
+                    key={pct}
+                    style={S.sortBtn(minChance === pct)}
+                    onClick={() => pickMinChance(pct)}
+                    aria-pressed={minChance === pct}
+                    title={
+                      pct === 0
+                        ? "Show every open position"
+                        : `Show only positions at ${pct}% chance or better (a parlay is judged on its joint odds)`
+                    }
+                  >
+                    {pct === 0 ? "All" : `${pct}%+`}
+                  </button>
+                ))}
+              </div>
+              {filtersActive ? (
+                <div style={S.filterGroup}>
+                  <button style={S.clearFiltersBtn} onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                  {filteredCount > 0 ? (
+                    /* Amber, not muted, and it says "filtered": the choices
+                       PERSIST, so this line is what a reader opening the page
+                       days later has to notice before reading the grid as their
+                       whole book. A grey footnote is not enough weight for that. */
+                    <span style={S.filterNotice}>
+                      {filteredCount} filtered out · {filterSummary}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
             {loading && !positions ? (
               <div style={S.muted}>Loading your bets…</div>
             ) : bets.length === 0 ? (
               <div style={S.muted}>
-                {belowChanceCount > 0
-                  ? `Nothing open at ${minChance}% or better — the chance filter is hiding ${belowChanceCount === 1 ? "your 1 open position" : `all ${belowChanceCount} of your open positions`}. Use “All” to bring ${belowChanceCount === 1 ? "it" : "them"} back.`
+                {filteredCount > 0
+                  ? `Nothing open matches ${filterSummary} — the filters are hiding ${filteredCount === 1 ? "your 1 open position" : `all ${filteredCount} of your open positions`}. Use “Clear filters” to bring ${filteredCount === 1 ? "it" : "them"} back.`
                   : hiddenCount > 0
                     ? "All positions hidden. Use “Show all” to bring them back."
                     : decidedCount > 0
@@ -3278,11 +3558,19 @@ export default function MyBets() {
                       // — it's the category, matching how a sports card reads
                       // ("Pro Baseball", not the team), and the asset is already in
                       // the title on both ("XRP 15 min · …" / "XRP price at 5pm").
+                      //
+                      // A parlay names EVERY league it has a leg in, from the
+                      // same leaguesOf the league chips use: it is listed under
+                      // each of those chips, so the card has to say so.
                       league: isWeather
                         ? "High Temperature"
-                        : isCryptoTicker(leg0.market_ticker)
-                          ? "Crypto"
-                          : leg0.league || "",
+                        : isCombo
+                          ? leaguesOf(b)
+                              .filter((l) => l !== OTHER_LEAGUE)
+                              .join(" · ")
+                          : isCryptoTicker(leg0.market_ticker)
+                            ? "Crypto"
+                            : leg0.league || "",
                       // Crypto windows are 15m/1h, so a countdown to settlement is
                       // the useful clock. The TIME is read off the position's own
                       // market rather than parsed out of the ticker (verified they
