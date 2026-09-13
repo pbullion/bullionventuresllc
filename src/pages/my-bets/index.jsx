@@ -838,36 +838,15 @@ const S = {
   rowCashOutLine: { marginTop: 2, fontSize: 13, textAlign: "right" },
   // Parlay-only: the leg's game/matchup under the pick, and the ticket totals.
   rowSub: { fontSize: 12, color: C.muted, fontWeight: 600, marginTop: 6 },
-  // The live score inside that sub line. It used to be plain muted 12px text
-  // ("Arizona vs Boston · 5–5"), which lost the prominence contest to the 13px
-  // white count in the situation row right below it — so a 5–5 game read as a
-  // 3-1 game (Patrick, 2026-08-19: "I keep confusing the count with the
-  // score"). A bright bordered chip makes the score the loudest thing on the
-  // leg, and nothing else on the card wears this treatment.
-  rowScore: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 4,
-    fontSize: 15,
-    fontWeight: 800,
-    color: C.text,
-    letterSpacing: 0.2,
-    padding: "1px 7px",
-    borderRadius: 6,
-    backgroundColor: C.chipBg,
-    border: `1px solid ${C.border}`,
-    // The chip is taller than the 12px line it sits in; keep the text baselines
-    // aligned so the matchup words don't ride up.
-    verticalAlign: "middle",
-  },
-  // "SCORE" tag inside the chip. Tiny and muted — it's there to say which pair
-  // of numbers this is, not to compete with them.
-  rowScoreLabel: {
-    fontSize: 9,
-    fontWeight: 800,
-    color: C.muted,
-    letterSpacing: 0.6,
-  },
+  // The live score leading that sub line: "BUF 30  HOU 31" (LegScore). Plain
+  // muted 12px text ("Arizona vs Boston · 5–5") lost the prominence contest to
+  // the white count in the situation row below it, so a 5–5 game read as a 3-1
+  // game (Patrick, 2026-08-19: "I keep confusing the count with the score").
+  // The fix then was a bordered "SCORE 5–5" chip, which went on 2026-09-13
+  // because it never said whose number was whose. The prominence stays: 15px
+  // heavy figures, white for the leader, muted for the side behind.
+  legScoreTeam: { fontWeight: 800, letterSpacing: 0.3 },
+  legScoreNum: { fontSize: 15, fontWeight: 800 },
   /* A total bet's remaining-to-the-line + pace figures. Sits inside a position
      row, which already draws its own divider, so it carries no top border. */
   totalRow: { display: "flex", gap: 18, marginTop: 8, flexWrap: "wrap" },
@@ -1511,6 +1490,38 @@ const gameKeyOf = (leg) => {
     .split(":")[0]
     .trim();
   return game ? `m:${game}` : `t:${leg.market_ticker || Math.random()}`;
+};
+
+/* A parlay leg's score as two team-and-number pairs in scoreboard order, away
+ * first: "BUF 30  HOU 31". It was one "SCORE 30–31" chip beside "Buffalo vs
+ * Houston", which never said whose 30 it was (Patrick, 2026-09-13, boxing that
+ * chip: "i dont like the way the scores are displayed").
+ *
+ * The backend's abbreviations are pick-oriented, so pick_is_home puts them back
+ * on the right side. That flag only misleads when ESPN sends no home
+ * competitor, and then home_score is null and no score renders at all. A blank
+ * abbreviation falls back to the team's short name. `trailing` is what gets
+ * dimmed; a tie dims neither side. Duplicated as `scoreSides` in kalshi-live's
+ * src/legs.js — change one, change the other. */
+const scoreSides = (g) => {
+  const awayAbbr = g.pick_is_home ? g.opp_abbr : g.pick_abbr;
+  const homeAbbr = g.pick_is_home ? g.pick_abbr : g.opp_abbr;
+  const away = Number(g.away_score);
+  const home = Number(g.home_score);
+  return [
+    {
+      label: awayAbbr || g.away_team || "",
+      name: g.away_team,
+      score: g.away_score,
+      trailing: away < home,
+    },
+    {
+      label: homeAbbr || g.home_team || "",
+      name: g.home_team,
+      score: g.home_score,
+      trailing: home < away,
+    },
+  ];
 };
 
 // The game-card title: the two-team game name without the market suffix.
@@ -2474,6 +2485,33 @@ function SingleRow({ b, showWeather = true }) {
   );
 }
 
+/* The score half of a parlay leg's sub line — see scoreSides for the order and
+ * S.legScoreTeam for why the figures are the loudest thing on the leg. */
+function LegScore({ g }) {
+  const sides = scoreSides(g);
+  return (
+    // One unbreakable unit: a narrow phone may wrap the clock after it, but
+    // never "BUF 30" onto one line and "HOU 31" onto the next.
+    <span
+      style={{ whiteSpace: "nowrap" }}
+      aria-label={sides.map((t) => `${t.name || t.label} ${t.score}`).join(", ")}
+    >
+      {sides.map((t, i) => (
+        <span
+          key={i}
+          style={{
+            ...S.legScoreTeam,
+            marginRight: i === 0 ? 10 : 0,
+            color: t.trailing ? C.muted : C.text,
+          }}
+        >
+          {t.label} <span style={S.legScoreNum}>{t.score}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /* A parlay (multi-game ticket): the whole ticket's economics first, straight
  * under the header, then one row per leg — pick + chance, with the leg's own
  * game/score beneath. Cost/payout are ticket-level, not per-leg. They lead the
@@ -2547,21 +2585,10 @@ function ParlayRows({ b }) {
               <Chance leg={leg} />
             </div>
             <div style={S.rowSub}>
-              {gameTitleOf(leg)}
-              {hasScore ? (
-                <>
-                  {" "}
-                  <span
-                    style={S.rowScore}
-                    aria-label={`Score ${g.away_score} to ${g.home_score}`}
-                  >
-                    <span style={S.rowScoreLabel}>SCORE</span>
-                    {g.away_score}–{g.home_score}
-                  </span>
-                </>
-              ) : (
-                ""
-              )}
+              {/* Once there's a score the abbreviations name the game, so the
+                  "Buffalo vs Houston" title gives way to it; before kickoff the
+                  title and the start time carry the line. */}
+              {hasScore ? <LegScore g={g} /> : gameTitleOf(leg)}
               {/* The clock/period and the link arrow have to move as one unit —
                   wrapping split "0:43 -" from "1st ↗" onto its own orphaned
                   line, which read as a rendering bug (Patrick, 2026-09-12). */}
