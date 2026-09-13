@@ -7,13 +7,14 @@ import { C, panelStyle, money } from "../../components/engine/theme.js";
  *
  * Backend: routes/kalshi.js, `GET /kalshi/quick-bets/ncaaf` (candidates) and
  * `POST /kalshi/quick-bets/ncaaf-combo` (places the order). Read that file's
- * header comment before changing the pricing here — the short version: the
+ * header comment before changing anything here — the short version: the
  * combo ticket this mints (Kalshi's real KXMVECROSSCATEGORY-R multivariate
- * collection, not something this app invented) almost never has a live book,
- * so the backend prices its own limit order at the PRODUCT of the legs' own
- * mid prices and submits immediate-or-cancel. That means "Create Bet" can
- * legitimately come back unfilled — nobody was quoting the other side — and
- * that is reported as a normal outcome, not an error.
+ * collection, not something this app invented) tries a plain resting-order
+ * fill first, then falls back to Kalshi's RFQ negotiation. Either way a
+ * fill needs a real counterparty on the other side, which a big
+ * all-favorites slate makes unlikely — that's why leg count (not
+ * probability) is the lever in the Top N buttons below. "Create Bet"
+ * legitimately coming back unfilled is a normal outcome, not an error.
  */
 
 const ROOT = "https://sheline-art-website-api.herokuapp.com";
