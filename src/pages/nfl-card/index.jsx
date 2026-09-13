@@ -107,6 +107,16 @@ const writePlaced = (v) => {
   }
 };
 
+// Per ticket, the longer record wins. Used wherever state meets a storage
+// read, which comes back empty when storage is blocked.
+const mergePlaced = (a, b) => {
+  const out = { ...a };
+  for (const [k, v] of Object.entries(b || {})) {
+    if (!out[k] || (v || []).length > out[k].length) out[k] = v;
+  }
+  return out;
+};
+
 // A placement that went out but never came back with a certain answer: a
 // refresh or closed tab mid-click, or an unconfirmed fill. The server keeps
 // going either way, so the ticket carries a "check My Bets" warning until
@@ -438,23 +448,24 @@ export default function NflCard() {
   const resolvePending = (size, filled) => {
     const since = pending[size] || readPending()[size] || "";
     // A fill already recorded after this marker started is the same fill.
-    const alreadyRecorded = (readPlaced()[size] || []).some(
-      (p) => p.at >= since,
-    );
+    const alreadyRecorded = [
+      ...(readPlaced()[size] || []),
+      ...(placed[size] || []),
+    ].some((p) => p.at >= since);
     if (filled && !alreadyRecorded) {
-      const prior = readPlaced();
-      const next = {
-        ...prior,
-        [size]: [
-          ...(prior[size] || []),
-          { at: new Date().toISOString(), cost: null, confirmed_by_hand: true },
-        ],
+      const rec = {
+        at: new Date().toISOString(),
+        cost: null,
+        confirmed_by_hand: true,
       };
-      writePlaced(next);
-      setPlaced(next);
+      const prior = readPlaced();
+      writePlaced({ ...prior, [size]: [...(prior[size] || []), rec] });
+      // Merge into state: a blocked storage read is {} and would wipe the
+      // other tickets' records.
+      setPlaced((prev) => ({ ...prev, [size]: [...(prev[size] || []), rec] }));
     } else if (filled) {
       // Already recorded, possibly by a request this page never saw finish.
-      setPlaced(readPlaced());
+      setPlaced((prev) => mergePlaced(prev, readPlaced()));
     }
     dismissPending(size);
   };
@@ -469,8 +480,10 @@ export default function NflCard() {
         (s) => (p[s] || []).length > (placed[s] || []).length,
       ) || Object.keys(q).some((s) => !pending[s]);
     if (newer) {
-      setPlaced(p);
-      setPending(q);
+      // Merge, never replace: storage only adds here, and a write that
+      // failed must not take a state-only record with it.
+      setPlaced((prev) => mergePlaced(prev, p));
+      setPending((prev) => ({ ...prev, ...q }));
     }
     return newer;
   };
@@ -935,7 +948,7 @@ export default function NflCard() {
                     : timesPlaced > 0
                       ? `Placed ${timesPlaced}x · place again for ${money(stakeNum)}`
                       : againOk[t.size]
-                        ? `Already held · buy more for ${money(stakeNum)}`
+                        ? `Already bought · buy more for ${money(stakeNum)}`
                         : `Place ${t.size}-leg · ${money(stakeNum)}`}
             </button>
             {pending[t.size] && placing !== t.size ? (
