@@ -101,12 +101,13 @@ export default function QuickBets() {
   const [err, setErr] = useState(null);
   const [placing, setPlacing] = useState(false);
   const [result, setResult] = useState(null);
+  const [includeTomorrow, setIncludeTomorrow] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetch(`${API_BASE}/ncaaf`);
+      const res = await fetch(`${API_BASE}/ncaaf${includeTomorrow ? "?days=2" : ""}`);
       const body = await res.json();
       if (!res.ok || !body.ok) throw new Error(body.error || `HTTP ${res.status}`);
       setCandidates(body.candidates);
@@ -117,11 +118,12 @@ export default function QuickBets() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [includeTomorrow]);
 
   useEffect(() => {
     // Wrapped rather than called straight, so the first fetch is queued off
-    // the effect body instead of running inside the render pass.
+    // the effect body instead of running inside the render pass. Reruns
+    // whenever `load` changes identity, i.e. whenever includeTomorrow flips.
     (async () => {
       await load();
     })();
@@ -233,10 +235,22 @@ export default function QuickBets() {
             }}
           />
           <button
-            onClick={load}
+            onClick={() => setIncludeTomorrow((v) => !v)}
             disabled={loading}
             style={{
               marginLeft: "auto",
+              ...chipBtnStyle,
+              background: includeTomorrow ? C.green : C.chipBg,
+              color: includeTomorrow ? "#06210f" : C.text,
+              cursor: loading ? "default" : "pointer",
+            }}
+          >
+            {includeTomorrow ? "Today + Tomorrow" : "+ Tomorrow's games"}
+          </button>
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{
               fontSize: 12,
               fontWeight: 700,
               color: C.text,
