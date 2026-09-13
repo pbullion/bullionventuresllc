@@ -14,14 +14,32 @@ import { Footnote, LeadMark, Tag } from "./FantasyParts";
  * records, and a pip per starter (played muted at the outer edge, still to play
  * in the accent colour) — none of it invented.
  *
- * EVERY STATE RULE FROM THE ROW STILL HOLDS (they are rules about the payload):
- *   - `notStarted` INVERTS THE HIERARCHY: the projection takes the big number,
- *     each side says PROJECTED, the centre draws a level bar over NOT STARTED.
- *   - A REAL TIE is `realTie`, never the wire's `tied` (true of every 0-0).
+ * EVERY BIG NUMBER IS A PROJECTION (Patrick, 2026-09-13: "on all of the whip
+ * arounds, for fantasy, i want everything based off of projections, NOT the
+ * actual score"). When the envelope says `basis:"projected"` (`m.projectedBasis`)
+ * the backend's `leading`, `margin` and `tied` are on the projections, so the
+ * numbers they sit between are too: the projection is the big number before
+ * AND after kickoff, the projected trailer is dimmed, the centre says PROJECTED
+ * under the margin, and each side's actual moves down to the detail slot
+ * ("0-0 · SCORE 120.4", or NOT STARTED while it is a meaningless 0.0) — his
+ * BIGGER dynasty screen that day read 164.3 ▲ +34.5 against 129.8 while he was
+ * 9.4 behind on the scoreboard. WITHOUT THE FLAG THE SCREEN IS THE 2026-09-12
+ * SCREEN, branch for branch: an older or rolled-back backend's margin is on
+ * points, and drawing it between two projections would be wrong and believed.
+ *
+ * THE STATE RULES (they are rules about the payload):
+ *   - PROJECTED BASIS: nothing inverts — the big number is always `basis`.
+ *     LEVEL is `level`, not gated on kickoff; a level row nobody has played (a
+ *     projections outage, both on 0.0) says NOT STARTED in the centre, not
+ *     TIED, and a level row that has played says TIED over two bright numbers.
+ *   - LEGACY: `notStarted` INVERTS THE HIERARCHY: the projection takes the big
+ *     number, each side says PROJECTED, the centre draws a level bar over NOT
+ *     STARTED. A REAL TIE is `realTie`, never the wire's `tied` (true of every
+ *     0-0).
  *   - A BYE (`them: null`): nothing dimmed, nothing leads, no mark at all.
  *   - NO LOGOS: ESPN sends SVG, Sleeper webp, and half badges reads as broken.
- * The geometry is identical across all of those states, so the screen does not
- * jump when the first player scores.
+ * The geometry is identical across all of those states and both bases, so the
+ * screen does not jump when the first player scores or the backend deploys.
  *
  * THE HEIGHT ARITHMETIC (every line is its type x 1.171875 plus a few px):
  *   SIDE   = NAME 64 + SCORE 264 + DETAIL 56 + PIPS 28 + TO_PLAY 56 + 4 x 12 = 516
@@ -29,6 +47,12 @@ import { Footnote, LeadMark, Tag } from "./FantasyParts";
  *   946 screen - 76 head - 12 gap = 858 card, 810 inside its padding; less 53
  *   for the footnote and 59 for the MOCK/LEAGUE DOWN chip row = 698 at the
  *   tightest (the mock's first screen). 516 <= 698, so nothing clips.
+ * THE TAG LINE CARRIES "PROJECTED" ON EVERY PROJECTED-BASIS SCREEN since
+ * 2026-09-13, where it was empty on all but a multi-week one. None of that
+ * moves: the same 34px Tag on the same 41px line MULTI-WEEK already used, and a
+ * shorter word than NOT STARTED, which already fits the 360px centre one line
+ * up. The detail slot's new words ("0-0 · SCORE 129.8", "0-0 · NOT STARTED")
+ * are the same 44px Words as the old "0-0 · PROJ 174.9", and no longer.
  * WIDTH: 1872 - 36 x 2 = 1800 inside; the centre takes 360 and two 24px gaps,
  * leaving 696 a side against "174.9" at 220px (~560, measured on the stick). A
  * team name ellipsizes; 52px fits "Keith's 25 year old Scotch".
@@ -100,6 +124,9 @@ function MatchupHead({ fantasy, m, index }) {
 
 function MatchupCard({ m }) {
   const started = !m.notStarted;
+  // `basis:"projected"` on the envelope. Every projected branch below tests
+  // this; everything else is the legacy screen, unchanged. See the header.
+  const projected = m.projectedBasis;
   return (
     <div
       style={{
@@ -118,10 +145,23 @@ function MatchupCard({ m }) {
       <Side
         side={m.me}
         started={started}
-        /* Bright unless there is a leader and it is not him — never dimmed on a
-         * bye (nobody played him) or before kickoff (dimming would name a
-         * leader out of a 0-0). */
-        color={started && !m.bye ? sideColor(m.leading === true, m.realTie) : T.text}
+        projected={projected}
+        color={
+          projected
+            ? /* PROJECTED BASIS: the projected trailer is dimmed whether or not
+               * anybody has kicked off — a Tuesday's 130.8 against 174.9 is a
+               * real answer now, not a 0-0 to protect. Still never on a bye,
+               * and never when level. */
+              m.bye
+              ? T.text
+              : sideColor(m.leading === true, m.level)
+            : /* LEGACY: bright unless there is a leader and it is not him —
+               * never dimmed on a bye (nobody played him) or before kickoff
+               * (dimming would name a leader out of a 0-0). */
+              started && !m.bye
+              ? sideColor(m.leading === true, m.realTie)
+              : T.text
+        }
         end={false}
       />
       <Centre m={m} started={started} />
@@ -131,7 +171,14 @@ function MatchupCard({ m }) {
         <Side
           side={m.them}
           started={started}
-          color={started ? sideColor(m.leading === false, m.realTie) : T.text}
+          projected={projected}
+          color={
+            projected
+              ? sideColor(m.leading === false, m.level)
+              : started
+                ? sideColor(m.leading === false, m.realTie)
+                : T.text
+          }
           end
         />
       )}
@@ -141,7 +188,7 @@ function MatchupCard({ m }) {
 
 /* One team. `end` mirrors it for the right-hand side, so both scores sit at the
  * outer edges and the centre column owns the middle of the screen. */
-function Side({ side, started, color, end }) {
+function Side({ side, started, projected, color, end }) {
   const remaining = side?.remaining ?? null;
   const played = side?.played ?? null;
   const toPlay =
@@ -158,11 +205,13 @@ function Side({ side, started, color, end }) {
     <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: GAP }}>
       <Line text={side?.label ?? "—"} height={NAME} size={52} weight={W.bold} color={T.text} end={end} />
       <Aligned height={SCORE} end={end}>
-        {/* Before kickoff the big number is the PROJECTION — the score is zero
-            and says nothing. Ellipsized rather than clipped past the ~136px of
-            slack: clipped digits are a wrong score that is believed. */}
+        {/* PROJECTED BASIS: always the number the margin was measured on — the
+            projection, or the score when there is none. LEGACY: before kickoff
+            the big number is the PROJECTION — the score is zero and says
+            nothing. Ellipsized rather than clipped past the ~136px of slack:
+            clipped digits are a wrong score that is believed. */}
         <Text size={220} weight={W.black} color={color} lines={1}>
-          {fmtPoints(started ? side?.points : side?.projected)}
+          {fmtPoints(projected ? side?.basis : started ? side?.points : side?.projected)}
         </Text>
       </Aligned>
       <Aligned height={DETAIL} end={end}>
@@ -173,8 +222,19 @@ function Side({ side, started, color, end }) {
               <Words text="·" color={T.muted} />
             </>
           )}
-          {/* Says WHICH number is the big one, in the same slot either way. */}
-          {started ? (
+          {projected ? (
+            /* PROJECTED BASIS: the big number is always the projection, so this
+               slot carries the other one — the real score, once it is more
+               than a pre-kickoff 0.0. The centre's PROJECTED says which is
+               which. */
+            started ? (
+              <Words text={`SCORE ${fmtPoints(side?.points)}`} color={T.muted} />
+            ) : (
+              <Words text="NOT STARTED" color={T.amber} />
+            )
+          ) : /* LEGACY: says WHICH number is the big one, in the same slot
+               either way. */
+          started ? (
             <Words text={`PROJ ${fmtPoints(side?.projected)}`} color={T.muted} />
           ) : (
             <Words text="PROJECTED" color={T.amber} />
@@ -195,17 +255,21 @@ function Centre({ m, started }) {
   let state = null;
   if (m.bye) {
     // (nothing)
+  } else if (m.projectedBasis) {
+    /* PROJECTED BASIS. Level before kickoff is NOT a tie: two lineups that
+     * have not played only project level when the projections upstream has
+     * failed and left both on 0.0, and that says NOT STARTED — the words the
+     * legacy screen uses for every pre-kickoff row. */
+    if (m.level && !started) state = <Tag text="NOT STARTED" color={T.amber} />;
+    else if (m.level) state = <StateNumber text="TIED" color={T.text} />;
+    else state = <MarginNumber m={m} />;
   } else if (!started) {
+    // LEGACY from here.
     state = <Tag text="NOT STARTED" color={T.amber} />;
   } else if (m.realTie) {
     state = <StateNumber text="TIED" color={T.text} />;
   } else {
-    state = (
-      <StateNumber
-        text={fmtMargin(m.margin)}
-        color={m.leading === true ? T.up : m.leading === false ? T.down : T.muted}
-      />
-    );
+    state = <MarginNumber m={m} />;
   }
   return (
     <div
@@ -219,17 +283,45 @@ function Centre({ m, started }) {
       }}
     >
       <Centred height={MARK}>
-        {/* A bye has no mark at all: a level bar would say "tied". `realTie`,
-            not `tied` — the wire reports leading:false for equal scores, and an
-            unguarded mark draws a red triangle over two identical numbers. */}
-        {!m.bye && <LeadMark leading={started && !m.realTie ? m.leading : null} side={MARK} />}
+        {/* A bye has no mark at all: a level bar would say "tied". PROJECTED
+            BASIS: `level`, and a real leader before kickoff too — the
+            projections have one. LEGACY: `realTie`, not `tied` — the wire
+            reports leading:false for equal scores, and an unguarded mark draws
+            a red triangle over two identical numbers. */}
+        {!m.bye && (
+          <LeadMark
+            leading={
+              m.projectedBasis ? (m.level ? null : m.leading) : started && !m.realTie ? m.leading : null
+            }
+            side={MARK}
+          />
+        )}
       </Centred>
       <Centred height={STATE}>{state}</Centred>
       <Centred height={TAG}>
-        {/* Both totals are short of what the period will finish at. */}
-        {m.multiPeriod && <Tag text="MULTI-WEEK" color={T.amber} />}
+        {m.multiPeriod ? (
+          // Both totals are short of what the period will finish at.
+          <Tag text="MULTI-WEEK" color={T.amber} />
+        ) : m.projectedBasis ? (
+          /* THE ONE WORD saying the big numbers and the margin between them
+             are projections. Muted: on this basis it is on every screen, all
+             week — a label, not a warning — and amber is what NOT STARTED and
+             MULTI-WEEK use to say something is unusual. */
+          <Tag text="PROJECTED" color={T.muted} />
+        ) : null}
       </Centred>
     </div>
+  );
+}
+
+/// The margin, coloured by who leads. The same on both bases — what the margin
+/// is measured on is the backend's call, and the row carries which.
+function MarginNumber({ m }) {
+  return (
+    <StateNumber
+      text={fmtMargin(m.margin)}
+      color={m.leading === true ? T.up : m.leading === false ? T.down : T.muted}
+    />
   );
 }
 

@@ -31,8 +31,9 @@ export function Tag({ text, color }) {
 
 /* WHO IS AHEAD, DRAWN RATHER THAN TYPED. ▲ and ▼ are one font substitution away
  * from a tofu box, and a drawn mark carries the colour at a size no character
- * would. NULL IS A LEVEL BAR, NOT A TRIANGLE: before kickoff (or in a real tie)
- * a triangle pointing anywhere would invent a leader. */
+ * would. NULL IS A LEVEL BAR, NOT A TRIANGLE: on a level game (and, on the
+ * legacy points basis, before kickoff) a triangle pointing anywhere would
+ * invent a leader. */
 export function LeadMark({ leading, side = 48 }) {
   const w = side;
   const h = side;

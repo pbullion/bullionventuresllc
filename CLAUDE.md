@@ -663,6 +663,38 @@ so it stays out of the bundle every home-page visitor downloads.
   hidden it refetches every feed (the slow feeds' clocks stop while hidden). A
   200 whose body is not a JSON object is treated as a failure, so every feed
   keeps its last good copy.
+- **Fantasy is on the PROJECTION, not the score** (Patrick, 2026-09-13: *"on
+  all of the whip arounds, for fantasy, i want everything based off of
+  projections, NOT the actual score"*). A backend from that day sends
+  `basis:"projected"` on `/whiparound/fantasy`, and matchup `leading` /
+  `margin` / `tied` and guillotine `rank` / `on_the_block` / `margin` / `safe`
+  / `climb` / `field_level` are then on each side's projection (`points` only
+  where there is none — a projected FINAL, so it becomes the score by Monday
+  night).
+  - **THE FLAG IS READ, NEVER ASSUMED.** `parseFantasy` (`models/fantasy.js`)
+    reads it once and copies it onto every row as `projectedBasis`; the
+    screens read it off the row. **Absent, or any other value, renders exactly
+    the pre-change screens** — the legacy fields (`realTie`, `cutLabel`,
+    `detail`) and branches are untouched beside the new ones (`basis`,
+    `level`, `fieldLevel`, `projectedCutLabel`, `projectedDetail`). That let
+    this page ship before the backend deployed, and a backend rollback can
+    never draw a projected margin between two actual scores. Keep both paths.
+  - **Matchup, projected:** the big number is `basis` always, before and after
+    kickoff; the projected trailer is dimmed; the centre shows the margin (or
+    TIED, or NOT STARTED for a level row nobody has played — a projections
+    outage, not a tie) over a muted PROJECTED tag (MULTI-WEEK takes its
+    place); each side's detail slot is `0-0 · SCORE 120.4` once started,
+    `0-0 · NOT STARTED` in amber before.
+  - **Guillotine, projected:** big number `basis` always, hot only on the
+    alarm; a muted PROJECTED tag whenever no pill is up; TIED FOR LAST / LAST
+    in amber until the alarm makes it hot; the not-yet wording (NOBODY HAS
+    PLAYED / 8 OF 18 PLAYED) only when `field_level`; detail
+    `NEEDS · SCORE · TO PLAY`.
+  - **The alarm did not move:** `safe === false && field_started && !won`,
+    and `field_started` is still the actual-scores majority test — a timing
+    gate, not a scoring basis. The reasons, rule by rule, are in
+    `whiparound-firetv/CLAUDE.md`, and `MOCK_FANTASY` is still a verbatim copy
+    of `Mock.kt`'s fixture (which carries the flag).
 
 ## `/fantasy/lineup` and `/fantasy/waivers` — Fantasy Watch
 

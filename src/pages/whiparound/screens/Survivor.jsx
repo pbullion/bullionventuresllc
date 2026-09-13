@@ -15,13 +15,28 @@ import { Footnote, Tag } from "./FantasyParts";
  * teams are left (the rank's denominator, "8TH OF 18"). `climb` was added by
  * review — the distance out of the cut is the one number he can act on.
  *
- * THE TIE FOR THE CUT IS THE ALARM, AND IT IS NOT ALWAYS ONE. `safe` is strict,
- * so tied for last is never green; but before the field has played the whole
- * field is tied on 0.0, and a board that shouts every Sunday morning has trained
- * the room to ignore it by kickoff. THE ALARM IS `s.alarm` (safe == false &&
- * field_started, not while he has won), and the chip, the score colour and the
- * block line's colour all read it. Add nothing hot here without routing it
- * through `alarm`.
+ * EVERY NUMBER IS A PROJECTION NOW (Patrick, 2026-09-13: "on all of the whip
+ * arounds, for fantasy, i want everything based off of projections, NOT the
+ * actual score"). When the envelope says `basis:"projected"`
+ * (`s.projectedBasis`) the backend ranks the field on the projections — the
+ * rank, who is on the block, `margin`, `safe`, `climb` — and this row puts
+ * `s.basis` in the big slot ALWAYS, with his actual demoted to SCORE on the
+ * detail line. Without the flag the row is exactly the legacy one below (the
+ * points basis, the legacy branches, unchanged), so an undeployed or
+ * rolled-back backend can never produce a half-projected row.
+ *
+ * THE TIE FOR THE CUT IS THE ALARM, AND IT IS NOT ALWAYS ONE. `safe` is strict
+ * on the basis (the projections, or points on an older backend), so tied for
+ * last is never green; but before the field has played, being last means
+ * little — on points the whole field is tied on 0.0, on projections he may
+ * simply project last on a Tuesday — and a board that shouts every Sunday
+ * morning has trained the room to ignore it by kickoff. THE ALARM IS `s.alarm`
+ * (safe == false && field_started, not while he has won), unchanged on both
+ * bases, and the chip, the score colour and the block line's colour all read
+ * it. Add nothing hot here without routing it through `alarm`. On the projected
+ * basis the not-yet wording appears only when `field_level` (the whole field
+ * level on the projections — an outage); an ordinary early week says TIED FOR
+ * LAST or LAST in amber instead, because a projected standing is news.
  *
  * A WON LEAGUE READS AS A WIN: a green WINNER pill, WON THE LEAGUE, LAST TEAM
  * STANDING. NO LOGOS, for the half-SVG, half-webp reason in models/fantasy.js.
@@ -39,7 +54,9 @@ import { Footnote, Tag } from "./FantasyParts";
  *   3      287.3         269.7         267.7         250.1
  *   4      3 @ 268 +1    3 @ 250 +1    3 @ 248 +1    3 @ 231 +1
  *   5      3 @ 268 +2    3 @ 250 +2    3 @ 248 +2    3 @ 231 +2
- *   (* held at ROW_MAX and centred.) His real screen is two cards at 360.
+ *   6      3 @ 268 +3    3 @ 250 +3    3 @ 248 +3    3 @ 231 +3
+ *   (* held at ROW_MAX and centred.) His real screen is two cards at 360; the
+ *   mock carries six rows (five until 2026-09-13) and `?mock=1` draws three.
  */
 const HEAD = 44;
 /// A chip at the 34 floor is 51.8px tall (34 x 1.171875 + 6px padding twice);
@@ -157,34 +174,61 @@ function RowStack({ items, noun, min, renderRow }) {
   );
 }
 
-/* One guillotine league:
+/* One guillotine league. On the projected basis (2026-09-13), the alarm:
  *
  *   GUILLOTINE ─────────────────────────────  [ON THE BLOCK]
- *   0.0        8TH OF 18                            TIED FOR LAST
- *   ON THE BLOCK · YOU + 10 MORE ON 0.0    NEEDS 3.3 · PROJ 107.9 · 8 TO PLAY
+ *   107.9      17TH OF 18                           TIED FOR LAST
+ *   ON THE BLOCK · YOU + 1 MORE ON 107.9   NEEDS 3.3 · SCORE 22.6 · 8 TO PLAY
  *
- * and before half the field has kicked off — same geometry, no alarm anywhere:
+ * and the same standing before half the field has kicked off — same geometry,
+ * the words kept, no alarm anywhere on it:
  *
- *   GUILLOTINE ──────────────────────────────────────────────────
- *   0.0        8TH OF 18                           8 OF 18 PLAYED
- *   ON THE BLOCK · YOU + 10 MORE ON 0.0    NEEDS 3.3 · 8 TO PLAY
+ *   GUILLOTINE ───────────────────────────────────────  PROJECTED
+ *   107.9      17TH OF 18                           TIED FOR LAST   (amber)
+ *   ON THE BLOCK · YOU + 1 MORE ON 107.9   NEEDS 3.3 · 8 TO PLAY
+ *
+ * On the legacy points basis the big number is his score once his lineup has
+ * started (or whenever the alarm is on) and his projection before; the detail
+ * line carries PROJ instead of SCORE; and before half the field has kicked off
+ * the cut slot says "8 OF 18 PLAYED" rather than TIED FOR LAST.
  */
 function SurvivorRow({ s, height }) {
   const started = !s.notStarted;
+  // `basis:"projected"` on the envelope. Every projected branch below tests
+  // this; the rest is the legacy row, unchanged. See the header.
+  const projected = s.projectedBasis;
   const alarm = s.alarm;
-  /* Colour of the cut label, in the Kotlin's order: green for a win, amber
-   * while the field has not played enough for last place to mean anything
-   * (even when clear — a cushion against teams that have not played is not a
-   * cushion), muted when the field could not be read, hot only on the alarm. */
-  const cutColor = s.won
-    ? T.up
-    : s.fieldIdle
-      ? T.amber
-      : s.safe == null
-        ? T.muted
-        : s.safe === true
-          ? T.up
-          : T.hot;
+  const cutColor = projected
+    ? /* PROJECTED BASIS. Hot if and only if `alarm`, tested straight after the
+       * win so nothing below can pre-empt it. Amber for last-but-no-alarm (he
+       * projects last and the field has not played enough for the room to be
+       * told) and for a level field, whose words are `fieldLabel`. Green for a
+       * real cushion — on projections a +12.0 CLEAR on a Tuesday is a forecast
+       * like everything else on the screen. Muted when the field was not read. */
+      s.won
+      ? T.up
+      : alarm
+        ? T.hot
+        : s.safe == null
+          ? T.muted
+          : s.fieldLevel
+            ? T.amber
+            : s.safe === false
+              ? T.amber
+              : T.up
+    : /* LEGACY, in the Kotlin's order: green for a win, amber while the field
+       * has not played enough for last place to mean anything (even when clear
+       * — a cushion against teams that have not played is not a cushion),
+       * muted when the field could not be read, hot only on the alarm. */
+      s.won
+      ? T.up
+      : s.fieldIdle
+        ? T.amber
+        : s.safe == null
+          ? T.muted
+          : s.safe === true
+            ? T.up
+            : T.hot;
   return (
     <div
       style={{
@@ -201,10 +245,17 @@ function SurvivorRow({ s, height }) {
       }}
     >
       <LeagueLine league={s.league}>
-        {/* NOT WHILE THE ALARM IS ON. `alarm` is field-scoped and can fire while
-            his own lineup is still pre-game; the row then shows his actual 0.0,
-            and a PROJECTED tag beside it would contradict the number. */}
-        {!started && !alarm && <Tag text="PROJECTED" color={T.amber} />}
+        {projected
+          ? /* PROJECTED BASIS: the big number is ALWAYS the projection, so the
+               word shows whenever no pill is taking the line — the row still
+               carries at most one thing here. Muted, like the matchup screen's:
+               a label on every row all week, not a warning. */
+            !alarm && !s.won && <Tag text="PROJECTED" color={T.muted} />
+          : /* LEGACY, and NOT WHILE THE ALARM IS ON. `alarm` is field-scoped
+               and can fire while his own lineup is still pre-game; the row then
+               shows his actual 0.0, and a PROJECTED tag beside it would
+               contradict the number. */
+            !started && !alarm && <Tag text="PROJECTED" color={T.amber} />}
         {/* Mutually exclusive by construction (`alarm` is false while he has
             won), so the row carries AT MOST ONE pill — what LEAGUE_LINE_CHIP
             is measured for. A filled pill reads from the doorway. */}
@@ -225,12 +276,20 @@ function SurvivorRow({ s, height }) {
           gap: 24,
         }}
       >
-        {/* HIS ACTUAL WHENEVER THE ALARM IS ON, never the projection: on the
-            block, the zero is the whole answer. */}
-        <Big text={fmtPoints(started || alarm ? s.points : s.projected)} size={72} color={alarm ? T.hot : T.text} />
+        {/* PROJECTED BASIS: always the number he was ranked on, alarm or not —
+            the block line quotes the same units, so "107.9" beside "ON THE
+            BLOCK · YOU + 1 MORE ON 107.9" agrees with itself; his actual is on
+            the detail line. LEGACY: HIS ACTUAL WHENEVER THE ALARM IS ON, never
+            the projection: on the block on points, the zero is the whole
+            answer. */}
+        <Big
+          text={fmtPoints(projected ? s.basis : started || alarm ? s.points : s.projected)}
+          size={72}
+          color={alarm ? T.hot : T.text}
+        />
         <Big text={s.rankLabel ?? "—"} size={48} color={T.text} />
         <div style={{ flex: "1 1 0" }} />
-        <Big text={s.cutLabel} size={48} color={cutColor} />
+        <Big text={projected ? s.projectedCutLabel : s.cutLabel} size={48} color={cutColor} />
       </div>
 
       <SubLine
@@ -240,7 +299,9 @@ function SurvivorRow({ s, height }) {
          * on `mine` alone until 2026-09-10 and lit every Sunday morning on a row
          * whose chip and score were deliberately quiet. */
         leftColor={s.won ? T.up : alarm && s.block?.mine === true ? T.hot : T.muted}
-        right={s.detail}
+        // NEEDS · SCORE · TO PLAY on projections; NEEDS · PROJ · TO PLAY on the
+        // legacy basis. See `projectedDetail` / `detail`.
+        right={projected ? s.projectedDetail : s.detail}
       />
     </div>
   );
@@ -284,8 +345,9 @@ function Big({ text, size, color }) {
   );
 }
 
-/// The third line: who is on the block, and what he needs, what he is projected
-/// for and what is left to play. Both halves at the 34 floor — detail lives there.
+/// The third line: who is on the block, and what he needs, what he has scored
+/// (what he is projected for, on the legacy basis) and what is left to play.
+/// Both halves at the 34 floor — detail lives there.
 function SubLine({ left, leftColor, right }) {
   return (
     <div
