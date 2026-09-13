@@ -556,7 +556,9 @@ const S = {
     flexShrink: 0,
   }),
 
-  /* Live baseball situation: base diamond + count/outs */
+  /* Live situation rows: baseball's base diamond + count/outs, and football's
+     down & distance (FootballSituation), which sits in the same sitRow /
+     sitRowCompact and borrows sitInning and sitPlay so the two read as one. */
   // columnGap/rowGap rather than one `gap`: the last-play line wraps to its own
   // row inside this container, and a shared gap gave it 12px of separation on
   // top of its own margin — enough that it floated free of the count/inning it
@@ -666,6 +668,51 @@ const S = {
     minWidth: 0,
     overflow: "hidden",
     textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+
+  /* Live football situation (FootballSituation) — the pieces baseball's row
+     has no counterpart for. Each one is nowrap, so a ~300px parlay leg on a
+     phone wraps BETWEEN pieces and never through "2nd & Goal" or "5:59 - 3rd";
+     the last play still takes its own line via sitPlay. */
+  // Team with the ball. Its dot is the occupied-base green — on both sports
+  // that colour means "where the offence is".
+  fbPoss: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 12,
+    fontWeight: 800,
+    color: C.muted,
+    letterSpacing: 0.3,
+    whiteSpace: "nowrap",
+  },
+  fbPossDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: C.green,
+    flexShrink: 0,
+  },
+  // "3rd & 4" and "at GB 42" move as one unit: wrapped apart, a lone "at GB 42"
+  // opening the next line reads as a separate fact.
+  fbDownGroup: {
+    display: "inline-flex",
+    alignItems: "baseline",
+    gap: 5,
+    whiteSpace: "nowrap",
+  },
+  // The headline, so bright where the baseball count is muted. The count went
+  // muted because a bare white "3-1" beside a diamond read as a score; "3rd & 4"
+  // carries its own words and can't be mistaken for one.
+  fbDown: { fontSize: 13, fontWeight: 800, color: C.text },
+  fbSpot: { fontSize: 12, fontWeight: 600, color: C.muted },
+  fbRedZone: {
+    fontSize: 10,
+    fontWeight: 800,
+    color: C.red,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
     whiteSpace: "nowrap",
   },
 
@@ -1895,8 +1942,9 @@ const sortLegs = (legs) =>
     .map((x) => x.leg);
 
 /* Does the leg have a baseball situation row (count/outs/runners) that will
- * render? Baseball shows its inning there; every other live sport (basketball,
- * etc.) has no situation row, so its status must stay in the top-right label. */
+ * render? Baseball shows its inning there. Football has a row of its own
+ * (hasFootballSituation); every other live sport (basketball, etc.) has none,
+ * so its status must stay on the leg's sub line. */
 const hasLiveSituation = (leg) => {
   const g = leg.game;
   const sit = g && g.situation;
@@ -1907,6 +1955,29 @@ const hasLiveSituation = (leg) => {
     sit.on_first ||
     sit.on_second ||
     sit.on_third
+  );
+};
+
+/* Does the leg have a football situation row (down & distance, ball spot, who
+ * has the ball) that will render? NFL and college football arrive in the same
+ * ESPN shape through the same backend path, so this one rule covers both
+ * (Patrick, 2026-09-13: "show the game details for nfl and ncaa"). The backend
+ * sends `down_distance` only while a down is set — it is null between plays, on
+ * kickoffs and PATs, in timeouts and at the half — so the row drops out for a
+ * timeout and is back on the next snap, and in between (or against a backend
+ * from before these keys) the leg renders exactly as it did before: clock on
+ * the sub line. When true the row carries the clock, so the sub line drops it.
+ * Duplicated as hasFootballSituation in kalshi-live's src/legs.js — change one,
+ * change the other. */
+const hasFootballSituation = (leg) => {
+  const g = leg.game;
+  const sit = g && g.situation;
+  return !!(
+    g &&
+    g.state === "in" &&
+    sit &&
+    typeof sit.down_distance === "string" &&
+    sit.down_distance !== ""
   );
 };
 
@@ -1950,6 +2021,45 @@ function LiveSituation({ sit, inning, compact }) {
         </span>
       </div>
       {sit.last_play ? <div style={S.sitPlay}>{sit.last_play}</div> : null}
+    </div>
+  );
+}
+
+/* Live football situation, NFL and college alike: who has the ball, down &
+ * distance, where the ball is, a red-zone tag, then the clock, with the last
+ * play underneath — the same row a live MLB leg already had, in the same order
+ * on kalshi-live's My Bets tab. `clock` is the game detail ("5:59 - 3rd"), set
+ * where and how baseball sets its inning. Callers gate on hasFootballSituation;
+ * the guard here only stops a stray call drawing an empty row. */
+function FootballSituation({ sit, clock, compact }) {
+  if (!sit || typeof sit.down_distance !== "string" || !sit.down_distance)
+    return null;
+  // ESPN pads the play text with a leading space (" M.Lloyd left tackle…").
+  const play = typeof sit.last_play === "string" ? sit.last_play.trim() : "";
+  return (
+    <div style={compact ? S.sitRowCompact : S.sitRow}>
+      {sit.possession_abbr ? (
+        <span
+          style={S.fbPoss}
+          aria-label={`${sit.possession_abbr} has the ball`}
+        >
+          <span style={S.fbPossDot} />
+          {sit.possession_abbr}
+        </span>
+      ) : null}
+      <span style={S.fbDownGroup}>
+        <span style={S.fbDown}>{sit.down_distance}</span>
+        {sit.spot ? <span style={S.fbSpot}>{`at ${sit.spot}`}</span> : null}
+      </span>
+      {sit.is_red_zone === true ? (
+        <span style={S.fbRedZone}>Red zone</span>
+      ) : null}
+      {/* Baseball's inning label, kept whole: "5:59 -" / "3rd" split across
+          two lines is the orphan the sub line's clock was fixed for. */}
+      {clock ? (
+        <span style={{ ...S.sitInning, whiteSpace: "nowrap" }}>{clock}</span>
+      ) : null}
+      {play ? <div style={S.sitPlay}>{play}</div> : null}
     </div>
   );
 }
@@ -2159,7 +2269,8 @@ function TotalPace({ leg }) {
 }
 
 /* Game-card header: the matchup, its league, and — for a real (non-parlay)
- * game — the live/final score and, when in progress, the base/count situation.
+ * game — the live/final score and, when in progress, the base/count or down &
+ * distance situation.
  * Pre-game shows the scheduled time instead. */
 /* Time left on a crypto window, ticking once a second.
  *
@@ -2315,7 +2426,9 @@ function GameHeader({ grp, onHide }) {
   const sit = g && g.situation;
   // A baseball-style situation (count / outs / runners) renders its own row
   // below — with the inning inside it — so we don't also stamp the inning on
-  // the score line. Other live sports have no such row.
+  // the score line. Football's down & distance row does the same with the
+  // clock (hasFootballSituation — the parlay legs' rule, not a second copy).
+  // Other live sports have no such row.
   const hasSit = !!(
     live &&
     sit &&
@@ -2325,9 +2438,12 @@ function GameHeader({ grp, onHide }) {
       sit.on_second ||
       sit.on_third)
   );
-  // Live clock/period shown by the score (a basketball "Q3 5:23", or a baseball
-  // "Top 9th" between innings). Skipped when the situation row carries it.
-  const liveStatus = live && !hasSit ? g.detail || "Live" : null;
+  const hasFootball = !!(live && hasFootballSituation({ game: g }));
+  // Live clock/period shown by the score (a basketball "Q3 5:23", a baseball
+  // "Top 9th" between innings, a football clock between plays or at the half).
+  // Skipped when a situation row carries it.
+  const liveStatus =
+    live && !hasSit && !hasFootball ? g.detail || "Live" : null;
   // A parlay header has nothing under the title block (no score, schedule, or
   // situation row), so without this the first leg's hairline sits flush against
   // the league label.
@@ -2387,6 +2503,7 @@ function GameHeader({ grp, onHide }) {
         <div style={S.schedRow}>{g.detail || "Live — score unavailable"}</div>
       ) : null}
       {hasSit ? <LiveSituation sit={sit} inning={g.detail} /> : null}
+      {hasFootball ? <FootballSituation sit={sit} clock={g.detail} /> : null}
     </div>
   );
 }
@@ -2605,10 +2722,13 @@ function ParlayRows({ b }) {
     // the same rule the single-game header uses (pre ? schedule : score).
     const hasScore =
       g && g.state !== "pre" && g.away_score != null && g.home_score != null;
-    // Live leg: show the base/count/outs block. It carries the inning, so
-    // the sub line drops the now-duplicated detail. Skipped once the leg is
-    // decided — a settled leg's live clock is noise.
+    // Live leg: show the base/count/outs block, or football's down & distance
+    // row. Either one carries the inning/clock, so the sub line drops the
+    // now-duplicated detail. Skipped once the leg is decided — a settled leg's
+    // live clock is noise.
     const showSit = hasLiveSituation(leg) && !legIsFinished(leg);
+    const showFootball = hasFootballSituation(leg) && !legIsFinished(leg);
+    const rowHasClock = showSit || showFootball;
     // Clicking the leg opens its ESPN game page, or its Kalshi event page
     // when there's no game behind it — a crypto leg inside a parlay only
     // knows its own market ticker, so the event ticker is derived from that.
@@ -2637,9 +2757,9 @@ function ParlayRows({ b }) {
           {/* The clock/period and the link arrow have to move as one unit —
               wrapping split "0:43 -" from "1st ↗" onto its own orphaned
               line, which read as a rendering bug (Patrick, 2026-09-12). */}
-          {(!showSit && gameDetail(g)) || link ? (
+          {(!rowHasClock && gameDetail(g)) || link ? (
             <span style={{ whiteSpace: "nowrap" }}>
-              {!showSit && gameDetail(g) ? ` · ${gameDetail(g)}` : ""}
+              {!rowHasClock && gameDetail(g) ? ` · ${gameDetail(g)}` : ""}
               {link ? <span style={S.linkArrow}> ↗</span> : null}
             </span>
           ) : null}
@@ -2647,6 +2767,9 @@ function ParlayRows({ b }) {
         <TotalPace leg={leg} />
         {showSit ? (
           <LiveSituation sit={g.situation} inning={g.detail} compact />
+        ) : null}
+        {showFootball ? (
+          <FootballSituation sit={g.situation} clock={g.detail} compact />
         ) : null}
       </Row>
     );
