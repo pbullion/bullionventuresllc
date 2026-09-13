@@ -27,6 +27,8 @@ const API = `${ROOT}/kalshi-card/cards/${CARD_ID}`;
 const CONFIRM_MS = 5000;
 const REFRESH_MS = 60000;
 const PLACED_KEY = `kalshi-card:${CARD_ID}:placed`;
+const PENDING_KEY = `kalshi-card:${CARD_ID}:pending`;
+const PENDING_STALE_MS = 30 * 60 * 1000;
 
 const card = { ...panelStyle, borderRadius: 14, padding: 16 };
 
@@ -37,7 +39,8 @@ const inputStyle = {
   border: `1px solid ${C.border}`,
   background: C.chipBg,
   color: C.text,
-  fontSize: 14,
+  // 16px: iOS Safari zooms into any smaller input on focus.
+  fontSize: 16,
   fontWeight: 700,
 };
 
@@ -90,6 +93,32 @@ const readPlaced = () => {
 const writePlaced = (v) => {
   try {
     localStorage.setItem(PLACED_KEY, JSON.stringify(v));
+  } catch {
+    /* per-browser convenience only */
+  }
+};
+
+// A placement that went out but never came back with a certain answer: a
+// refresh or closed tab mid-click, or an unconfirmed fill. The server keeps
+// going either way, so the ticket carries a "check My Bets" warning until
+// dismissed. Written to storage outside React state, so it still lands if
+// the page unmounts while the request is out.
+const readPending = () => {
+  try {
+    const all = JSON.parse(localStorage.getItem(PENDING_KEY) || "{}") || {};
+    const now = new Date().getTime();
+    return Object.fromEntries(
+      Object.entries(all).filter(
+        ([, at]) => now - Date.parse(at) < PENDING_STALE_MS,
+      ),
+    );
+  } catch {
+    return {};
+  }
+};
+const writePending = (v) => {
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify(v));
   } catch {
     /* per-browser convenience only */
   }
@@ -244,6 +273,7 @@ export default function NflCard() {
   const [allProgress, setAllProgress] = useState(null);
   const [results, setResults] = useState({});
   const [placed, setPlaced] = useState(readPlaced);
+  const [pending, setPending] = useState(readPending);
   const confirmTimer = useRef(null);
 
   const load = useCallback(async () => {
@@ -255,8 +285,19 @@ export default function NflCard() {
         setNotLive(true);
         return;
       }
-      const body = await res.json();
-      if (!res.ok || !body.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      // A Heroku timeout answers with an HTML page, not JSON.
+      let body = null;
+      try {
+        body = await res.json();
+      } catch {
+        body = null;
+      }
+      if (!res.ok || !body || !body.ok) {
+        throw new Error(
+          (body && body.error) ||
+            `The server answered HTTP ${res.status}. Try Refresh in a minute.`,
+        );
+      }
       setNotLive(false);
       setData(body);
     } catch (e) {
@@ -291,6 +332,30 @@ export default function NflCard() {
   const openTickets = tickets.filter(canPlace);
   const busy = placing != null || allProgress != null;
 
+  // Leaving mid-placement stops only this page's record of the answer, not
+  // the server, so the browser asks first. In-app navigation can't be caught
+  // this way; the pending marker covers that case.
+  useEffect(() => {
+    if (!busy) return undefined;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [busy]);
+
+  const dismissPending = (size) => {
+    const stored = readPending();
+    delete stored[size];
+    writePending(stored);
+    setPending((prev) => {
+      const next = { ...prev };
+      delete next[size];
+      return next;
+    });
+  };
+
   const arm = (key) => {
     clearTimeout(confirmTimer.current);
     setConfirming(key);
@@ -304,6 +369,8 @@ export default function NflCard() {
   const placeOne = async (size) => {
     setPlacing(size);
     setResults((prev) => ({ ...prev, [size]: null }));
+    const startedAt = new Date().toISOString();
+    writePending({ ...readPending(), [size]: startedAt });
     let result;
     try {
       const res = await fetch(`${API}/place`, {
@@ -333,20 +400,27 @@ export default function NflCard() {
     } catch (e) {
       result = { ok: false, error: `Lost the connection: ${e.message}.` };
     }
-    setResults((prev) => ({ ...prev, [size]: result }));
-    if (result.ok && result.filled) {
-      setPlaced((prev) => {
-        const next = {
-          ...prev,
-          [size]: [
-            ...(prev[size] || []),
-            { at: new Date().toISOString(), cost: result.cost_dollars },
-          ],
-        };
-        writePlaced(next);
-        return next;
-      });
+    // Storage first, outside React state: if the page unmounted mid-request
+    // these writes still land, while the state updates are simply dropped.
+    const certain = Boolean(result.filled) || result.charged === false;
+    if (certain) {
+      dismissPending(size);
+    } else {
+      setPending((prev) => ({ ...prev, [size]: startedAt }));
     }
+    if (result.ok && result.filled) {
+      const prior = readPlaced();
+      const next = {
+        ...prior,
+        [size]: [
+          ...(prior[size] || []),
+          { at: new Date().toISOString(), cost: result.cost_dollars },
+        ],
+      };
+      writePlaced(next);
+      setPlaced(next);
+    }
+    setResults((prev) => ({ ...prev, [size]: result }));
     setPlacing(null);
     return result;
   };
@@ -364,7 +438,9 @@ export default function NflCard() {
 
   // Tickets not yet filled from this browser, smallest first. Stops at the
   // first answer that might have charged without saying so.
-  const allTargets = openTickets.filter((t) => !placed[t.size]);
+  const allTargets = openTickets.filter(
+    (t) => !placed[t.size] && !pending[t.size],
+  );
   const tapAll = async () => {
     if (busy || !stakeOk || allTargets.length === 0) return;
     if (confirming !== "all") {
@@ -404,6 +480,12 @@ export default function NflCard() {
         >
           The placing service isn't deployed yet. It's waiting on the backend
           merge. This page will fill in on its own once it is.
+        </div>
+      ) : null}
+
+      {loading && !data && !err && !notLive ? (
+        <div style={{ ...card, marginTop: 12, color: C.muted, fontSize: 13.5 }}>
+          Loading the card and live Kalshi prices…
         </div>
       ) : null}
 
@@ -642,6 +724,30 @@ export default function NflCard() {
                       ? `Placed ${timesPlaced}x · place again for ${money(stakeNum)}`
                       : `Place ${t.size}-leg · ${money(stakeNum)}`}
             </button>
+            {pending[t.size] && !results[t.size] && placing !== t.size ? (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: 12,
+                  borderRadius: 10,
+                  border: `1px solid ${C.amberBorder}`,
+                  color: C.amber,
+                  fontSize: 13,
+                  lineHeight: 1.45,
+                }}
+              >
+                A placement on this ticket started at{" "}
+                {new Date(pending[t.size]).toLocaleTimeString()} and never got
+                a certain answer on this page. It may have filled. Check My Bets
+                before placing it again.{" "}
+                <button
+                  onClick={() => dismissPending(t.size)}
+                  style={{ ...chipBtnStyle, padding: "2px 8px", marginLeft: 4 }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            ) : null}
             <Result r={results[t.size]} />
           </div>
         );
