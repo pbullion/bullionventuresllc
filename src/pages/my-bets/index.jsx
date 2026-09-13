@@ -1079,17 +1079,23 @@ const sideIsLeading = (g) => {
 
 /* A total whose line is already mathematically crossed is decided even mid-game
  * — points only go up, so once scored > line the over has won and the under has
- * lost, for good. Returns "won" | "lost" (from the held side) or null when not
- * yet crossed / not a total. Lets the UI treat a busted total as a final. */
+ * lost, for good. The other way round needs the game over: a completed game
+ * still under its line is the under's win. Without that, legAccent took the
+ * leg's lean from a price that can go stale before the last out, and a winning
+ * under could read "Final ▼" in red. Returns "won" | "lost" (from the held
+ * side) or null when not yet decided / not a total. Lets the UI treat a busted
+ * total as a final. Same rule as kalshi-live's totalDecided (src/legs.js). */
 const totalDecided = (leg) => {
   if (leg.market_type !== "total" || leg.line == null) return null;
   const g = leg.game;
   if (!g || g.pick_score == null || g.opp_score == null) return null;
   const scored = Number(g.pick_score) + Number(g.opp_score);
-  if (scored <= Number(leg.line)) return null; // line not crossed yet
-  const overWon = true; // scored is over the line
-  const heldOver = leg.side === "yes";
-  return heldOver === overWon ? "won" : "lost";
+  const line = Number(leg.line);
+  const heldOver = leg.side === "yes"; // YES on a total = the over
+  if (scored > line) return heldOver ? "won" : "lost";
+  // Strictly under: a whole-number line landed on exactly is a push.
+  if (g.completed === true && scored < line) return heldOver ? "lost" : "won";
+  return null;
 };
 
 /* A live game that's currently tied on the scoreboard (both scores present and
@@ -1716,16 +1722,41 @@ const chanceColor = (pct) => {
   return `hsl(${hue}, ${sat}%, ${light}%)`;
 };
 
+/* Should the leg read "Final"? The game decides when there is one: ESPN's
+ * `completed`, not state "post", which also holds a postponed or cancelled
+ * game. Only a leg with no game behind it (weather, crypto) goes by Kalshi
+ * settling it, so a leg settled while ESPN still has the game live keeps its
+ * percentage instead of reading Final beside a running clock. Narrower than
+ * legIsFinished on purpose — a total whose line is already crossed is decided,
+ * but its game is still being played. Same rule as kalshi-live's legGameOver
+ * (src/legs.js). */
+const legGameOver = (leg) => {
+  const g = leg.game;
+  if (g && g.state) return g.completed === true;
+  return leg.state === "won" || leg.state === "lost";
+};
+
 // The "% chance" chip: implied probability of the held side, colored by that
 // probability, plus a ▲/▼ marking whether the bet is currently winning or
 // losing on the field. Neutral/pre-game legs get no arrow. Null with no price.
+// Once the game is over it reads "Final" instead (Patrick, 2026-09-13: "if
+// final, say final instead of 99 percent") — a 99% on a finished game is only
+// Kalshi not having settled yet. A final is colored by its result rather than
+// its price, which can lag the whistle; the arrow still says won or lost.
 const chanceOf = (leg) => {
   if (leg.win_pct == null) return null;
   const pct = Math.round(Number(leg.win_pct));
   const lean = legKind(leg).lean;
+  const final = legGameOver(leg);
   return {
     pct,
-    color: chanceColor(pct),
+    final,
+    color:
+      final && lean === "win"
+        ? C.green
+        : final && lean === "lose"
+          ? C.red
+          : chanceColor(pct),
     arrow: lean === "win" ? "▲" : lean === "lose" ? "▼" : "",
   };
 };
@@ -2029,13 +2060,17 @@ function RowPick({ leg }) {
 }
 
 /* The right-aligned "6% chance ▼" chip, colored by the probability itself
- * (see chanceColor); the arrow marks the on-field lean. */
+ * (see chanceColor); the arrow marks the on-field lean. A finished game reads
+ * "Final ▲" instead, with the price kept on hover — see chanceOf. */
 function Chance({ leg }) {
   const ch = chanceOf(leg);
   if (!ch) return null;
   return (
-    <span style={{ ...S.rowChance, color: ch.color }}>
-      {ch.pct}% chance
+    <span
+      style={{ ...S.rowChance, color: ch.color }}
+      title={ch.final ? `${ch.pct}% chance` : undefined}
+    >
+      {ch.final ? "Final" : `${ch.pct}% chance`}
       {ch.arrow ? <span style={S.rowArrow}>{ch.arrow}</span> : null}
     </span>
   );
