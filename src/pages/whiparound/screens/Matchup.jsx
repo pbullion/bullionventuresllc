@@ -29,9 +29,11 @@ import { Footnote, LeadMark, Tag } from "./FantasyParts";
  *
  * THE STATE RULES (they are rules about the payload):
  *   - PROJECTED BASIS: nothing inverts — the big number is always `basis`.
- *     LEVEL is `level`, not gated on kickoff; a level row nobody has played (a
- *     projections outage, both on 0.0) says NOT STARTED in the centre, not
- *     TIED, and a level row that has played says TIED over two bright numbers.
+ *     LEVEL is `level`, not gated on kickoff; a level row nobody has kicked off
+ *     in (both on 0.0 with no projection — ESPN) says NOT STARTED in the
+ *     centre, not TIED, and a level row that has kicked off says TIED over two
+ *     bright numbers. A Sleeper projections outage is the second kind, not the
+ *     first — see `level` in models/fantasy.js.
  *   - LEGACY: `notStarted` INVERTS THE HIERARCHY: the projection takes the big
  *     number, each side says PROJECTED, the centre draws a level bar over NOT
  *     STARTED. A REAL TIE is `realTie`, never the wire's `tied` (true of every
@@ -197,7 +199,8 @@ function Side({ side, started, projected, color, end }) {
       : remaining > 0
         ? `${remaining} TO PLAY`
         : // Monday night after the last game the side is final, which is news.
-          // A projections outage sends 0 and 0, and that is not "all played".
+          // A lineup that came back empty sends 0 and 0, and that is not "all
+          // played".
           (played ?? 0) > 0
           ? "ALL PLAYED"
           : "";
@@ -256,10 +259,14 @@ function Centre({ m, started }) {
   if (m.bye) {
     // (nothing)
   } else if (m.projectedBasis) {
-    /* PROJECTED BASIS. Level before kickoff is NOT a tie: two lineups that
-     * have not played only project level when the projections upstream has
-     * failed and left both on 0.0, and that says NOT STARTED — the words the
-     * legacy screen uses for every pre-kickoff row. */
+    /* PROJECTED BASIS. Level before kickoff is NOT a tie. Two lineups nobody
+     * has kicked off in are level in practice only when neither has a
+     * projection and both sit on 0.0 — an ESPN matchup that came back with no
+     * projected total — and that says NOT STARTED, the words the legacy screen
+     * uses for every pre-kickoff row. A Sleeper projections outage never
+     * reaches this branch: the producer counts starters it cannot place on a
+     * team as played, so that row arrives `started` and says TIED. See `level`
+     * in models/fantasy.js. */
     if (m.level && !started) state = <Tag text="NOT STARTED" color={T.amber} />;
     else if (m.level) state = <StateNumber text="TIED" color={T.text} />;
     else state = <MarginNumber m={m} />;
@@ -347,8 +354,8 @@ function Bye() {
  * played pieces sit at both edges and the ones still to play meet in the
  * middle. The pieces narrow to fit (capped at PIP_MAX so five do not turn into
  * slabs). Nothing is drawn when either count is missing (an older backend),
- * when both are zero (a projections outage), or past PIP_LIMIT; the height is
- * reserved in every case. */
+ * when both are zero (a lineup that came back empty), or past PIP_LIMIT; the
+ * height is reserved in every case. */
 function Pips({ played, remaining, end }) {
   const box = { width: "100%", height: PIPS, flexShrink: 0 };
   const n = played == null || remaining == null ? 0 : played + remaining;

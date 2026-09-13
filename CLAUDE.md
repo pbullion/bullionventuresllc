@@ -681,15 +681,30 @@ so it stays out of the bundle every home-page visitor downloads.
     never draw a projected margin between two actual scores. Keep both paths.
   - **Matchup, projected:** the big number is `basis` always, before and after
     kickoff; the projected trailer is dimmed; the centre shows the margin (or
-    TIED, or NOT STARTED for a level row nobody has played — a projections
-    outage, not a tie) over a muted PROJECTED tag (MULTI-WEEK takes its
-    place); each side's detail slot is `0-0 · SCORE 120.4` once started,
-    `0-0 · NOT STARTED` in amber before.
+    TIED, or NOT STARTED for a level row nobody has kicked off in) over a
+    muted PROJECTED tag (MULTI-WEEK takes its place); each side's detail slot
+    is `0-0 · SCORE 120.4` once started, `0-0 · NOT STARTED` in amber before.
+    - **A Sleeper projections outage reads TIED, not NOT STARTED.** The
+      producer counts a starter it cannot place on a team as played ("actual
+      unless proven otherwise"), and with `getProjections` down only a DEF
+      slot can be placed, so the row arrives `started:true` with both sides on
+      0.0 and draws TIED between two undimmed 0.0s over `SCORE 0.0` — as the
+      legacy screen did. The only level row that reaches NOT STARTED has no
+      projection and no kickoff on either side: in practice ESPN sending no
+      projected total, which is `MOCK_FANTASY`'s sixth matchup. Making an
+      outage say NOT STARTED is a backend change, not a client one.
   - **Guillotine, projected:** big number `basis` always, hot only on the
     alarm; a muted PROJECTED tag whenever no pill is up; TIED FOR LAST / LAST
-    in amber until the alarm makes it hot; the not-yet wording (NOBODY HAS
-    PLAYED / 8 OF 18 PLAYED) only when `field_level`; detail
-    `NEEDS · SCORE · TO PLAY`.
+    until the alarm makes it hot; the not-yet wording (`fieldLabel`) only when
+    `field_level` — in practice a projections outage, which the producer
+    reports with every team played, so it reads `18 OF 18 PLAYED`, not NOBODY
+    HAS PLAYED; detail `NEEDS · SCORE · TO PLAY`.
+    - **The cut colour keeps its timing.** Won green, alarm hot, then amber
+      for last, for a level field, and for ANY standing while the field is
+      idle — a Tuesday's `+12.0 CLEAR` included, which turns green only once
+      `field_started` — so FIELD NOT READ stays amber as well. It is the
+      legacy colour order with the alarm and `field_level` put in front; the
+      first cut of the change drew that cushion green.
   - **The alarm did not move:** `safe === false && field_started && !won`,
     and `field_started` is still the actual-scores majority test — a timing
     gate, not a scoring basis. The reasons, rule by rule, are in

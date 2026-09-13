@@ -169,9 +169,18 @@ function parseMatchup(o, projectedBasis) {
    * `projectedBasis`, and deliberately NOT gated on `started`. The gate existed
    * because on points every pre-kickoff row is a 0-0; on projections two
    * lineups project different totals from Tuesday on, so a level row before
-   * kickoff is the exception — a projections outage leaving both on 0.0 —
-   * which Matchup.jsx labels NOT STARTED rather than TIED. Same `tied == null`
-   * fallback as `realTie`, so an old payload and a new one agree. */
+   * kickoff is the exception: both sides on 0.0 because neither has a
+   * projection — ESPN, the one source whose `projected` can be null — which
+   * Matchup.jsx labels NOT STARTED rather than TIED. Same `tied == null`
+   * fallback as `realTie`, so an old payload and a new one agree.
+   *
+   * A SLEEPER PROJECTIONS OUTAGE IS NOT THAT ROW, though it looks like one.
+   * With `getProjections` down the producer cannot place a numeric starter on
+   * a team, and a starter it cannot prove has not kicked off counts as PLAYED
+   * ("actual unless proven otherwise" — `projectedFor` in the backend's
+   * services/whiparoundFantasy.js). So that 0-0 arrives `started:true` and
+   * draws TIED between two 0.0s over SCORE 0.0, as the legacy screen did. Only
+   * the backend can make it say NOT STARTED. */
   const level =
     !bye && (tied === true || (tied == null && them != null && margin != null && Math.abs(margin) < 0.005));
   const toPlayLine = (() => {
@@ -274,7 +283,10 @@ function parseSurvivor(o, projectedBasis) {
    * field is level every Sunday morning and `fieldIdle` was the right gate for
    * the not-yet wording, but on projections a pre-kickoff standing IS news, so
    * that wording waits for a field that genuinely cannot be told apart — in
-   * practice a projections outage before kickoff. The legacy path ignores it. */
+   * practice a projections outage before kickoff, leaving everyone on 0.0.
+   * THAT OUTAGE COUNTS EVERY TEAM AS PLAYED (`level` above has why), so what
+   * `fieldLabel` prints over it is "18 OF 18 PLAYED", not NOBODY HAS PLAYED.
+   * The legacy path ignores it. */
   const fieldLevel = bool(o, "field_level", false);
 
   const toPlay = remaining ?? 0;
@@ -535,14 +547,26 @@ export function parseFantasy(o) {
  * `"them": null`, a multi-period ESPN league with a trailing-space team name
  * (17.2 up on points, 1.7 down projected, so the basis visibly flips it), a
  * projected TIE (110.2 apiece, the scores differ), Patrick's own BIGGER dynasty
- * screen (120.4 v 129.8 scored, 164.3 v 129.8 projected), and a projections
- * outage (all 0.0, `started:false` — level before kickoff, which says NOT
- * STARTED, not TIED). Six survivors: the 4pm emergency (alarm, two-way tie on
- * the lowest projection), a quiet Sunday (the same standing, no alarm, TIED FOR
- * LAST in amber), a won league, a safe league with another team named on the
- * block, a uniquely-last negative score (his own name on the block), and a
- * projections outage with `field_level` (NOBODY HAS PLAYED). `failed: 1` beside
- * TWO error keys, so the footnote's tag must say ONE. */
+ * screen (120.4 v 129.8 scored, 164.3 v 129.8 projected), and an ESPN row with
+ * no projected total on either side (`projected: null`, both on 0.0,
+ * `started:false`, nine to play a side — level before kickoff, which says NOT
+ * STARTED, not TIED: the one level row that really reaches NOT STARTED). Six
+ * survivors: the 4pm emergency (alarm, two-way tie on the lowest projection), a
+ * quiet Sunday (the same standing, no alarm, TIED FOR LAST in amber), a won
+ * league, a safe league with another team named on the block, a uniquely-last
+ * negative score (his own name on the block), and a projections outage before
+ * kickoff AS THE PRODUCER REALLY SENDS IT — eighteen entries on 0.0, so
+ * `field_level` and no alarm, but `started:true`, `played:18` and
+ * `remaining:1`, because with `getProjections` down only a DEF slot can be
+ * placed on a team and every other starter counts as played: 18 OF 18 PLAYED
+ * in amber over SCORE 0.0 · 1 TO PLAY, the wall's real, unhelpful words for an
+ * outage. Until the 2026-09-13 review the sixth matchup was a SLEEPER outage
+ * sent as `started:false` with `remaining` 0/0, and the sixth survivor sent
+ * `started:false`, `played:0` and previewed NOBODY HAS PLAYED; the producer
+ * sends neither (`level` has why — a real Sleeper outage matchup says TIED).
+ * `failed: 1` beside TWO error keys, a league (`sleeper:9`) and a provider
+ * (`projections`, which is also why the sixth guillotine row looks the way it
+ * does), so the footnote's tag must say ONE. */
 const MOCK_FANTASY = `
 {
   "active": true, "season": "2026", "week": 1,
@@ -608,12 +632,12 @@ const MOCK_FANTASY = `
       "started": true, "tied": false
     },
     {
-      "id": "sleeper:10", "source": "sleeper", "league": "Dirtbags Redraft",
+      "id": "espn:3", "source": "espn", "league": "Dirtbags Redraft",
       "week": 1,
-      "me":   { "name": "Urine Trouble", "record": "0-0",
-                "points": 0, "projected": 0, "remaining": 0, "played": 0 },
-      "them": { "name": "Team Butkus",   "record": "0-0",
-                "points": 0, "projected": 0, "remaining": 0, "played": 0 },
+      "me":   { "name": "Urine Trouble", "abbr": "URIN", "record": "0-0",
+                "points": 0, "projected": null, "remaining": 9, "played": 0 },
+      "them": { "name": "Team Butkus",   "abbr": "BUTK", "record": "0-0",
+                "points": 0, "projected": null, "remaining": 9, "played": 0 },
       "bye": false, "leading": false, "margin": 0,
       "started": false, "tied": true
     }
@@ -671,8 +695,8 @@ const MOCK_FANTASY = `
     {
       "id": "sleeper:13", "source": "sleeper", "league": "Guillotine 5",
       "name": "UrineSumTrouble", "logo": null,
-      "points": 0, "projected": 0, "remaining": 0,
-      "week": 1, "started": false, "field_started": false, "played": 0,
+      "points": 0, "projected": 0, "remaining": 1,
+      "week": 1, "started": true, "field_started": false, "played": 18,
       "rank": 1, "teams": 18,
       "on_the_block": { "name": null, "points": 0, "tied": 18, "mine": true },
       "margin": 0, "safe": false, "climb": null, "field_level": true

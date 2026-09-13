@@ -35,8 +35,12 @@ import { Footnote, Tag } from "./FantasyParts";
  * bases, and the chip, the score colour and the block line's colour all read
  * it. Add nothing hot here without routing it through `alarm`. On the projected
  * basis the not-yet wording appears only when `field_level` (the whole field
- * level on the projections — an outage); an ordinary early week says TIED FOR
- * LAST or LAST in amber instead, because a projected standing is news.
+ * level on the projections — a projections outage, which the producer reports
+ * with every team played, so it reads "18 OF 18 PLAYED"); an ordinary early
+ * week says TIED FOR LAST or LAST in amber instead, because a projected
+ * standing is news. The cut slot's COLOUR still keeps the points timing —
+ * amber for any standing, a clear one too, until `field_started` (see
+ * SurvivorRow).
  *
  * A WON LEAGUE READS AS A WIN: a green WINNER pill, WON THE LEAGUE, LAST TEAM
  * STANDING. NO LOGOS, for the half-SVG, half-webp reason in models/fantasy.js.
@@ -199,23 +203,33 @@ function SurvivorRow({ s, height }) {
   const projected = s.projectedBasis;
   const alarm = s.alarm;
   const cutColor = projected
-    ? /* PROJECTED BASIS. Hot if and only if `alarm`, tested straight after the
-       * win so nothing below can pre-empt it. Amber for last-but-no-alarm (he
+    ? /* PROJECTED BASIS: the WORDS moved onto the projections, the COLOURS KEPT
+       * THEIR TIMING. Hot if and only if `alarm`, tested straight after the win
+       * so nothing below can pre-empt it. Amber for last-but-no-alarm (he
        * projects last and the field has not played enough for the room to be
-       * told) and for a level field, whose words are `fieldLabel`. Green for a
-       * real cushion — on projections a +12.0 CLEAR on a Tuesday is a forecast
-       * like everything else on the screen. Muted when the field was not read. */
+       * told), for a level field, whose words are `fieldLabel`, and — exactly
+       * as on points — for ANY standing while `fieldIdle`, a clear one
+       * included. Green waits for the field's football the way hot does: a
+       * Tuesday's "+12.0 CLEAR" is amber and turns green once the cushion is
+       * being played for. That order also keeps FIELD NOT READ amber, the only
+       * colour it has ever drawn in (an empty or one-entry field is never
+       * `field_started`). It is the legacy order below with the alarm and the
+       * level field put in front of it. This branch's first cut (2026-09-13)
+       * tested `safe == null` first and dropped `fieldIdle`, which drew the
+       * Tuesday cushion green and FIELD NOT READ muted. */
       s.won
       ? T.up
       : alarm
         ? T.hot
-        : s.safe == null
-          ? T.muted
+        : s.safe === false
+          ? T.amber
           : s.fieldLevel
             ? T.amber
-            : s.safe === false
+            : s.fieldIdle
               ? T.amber
-              : T.up
+              : s.safe == null
+                ? T.muted
+                : T.up
     : /* LEGACY, in the Kotlin's order: green for a win, amber while the field
        * has not played enough for last place to mean anything (even when clear
        * — a cushion against teams that have not played is not a cushion),
