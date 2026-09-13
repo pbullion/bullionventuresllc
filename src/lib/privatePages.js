@@ -130,6 +130,12 @@ export const PRIVATE_GROUPS = [
         tagline: "NCAAF favorites ≥70% — one combo bet",
       },
       {
+        emoji: "🏈",
+        name: "NFL Card",
+        path: "/nfl-card",
+        tagline: "Week 1 parlay tickets — one button each",
+      },
+      {
         emoji: "📈",
         name: "Totals Value",
         path: "/totals-value",

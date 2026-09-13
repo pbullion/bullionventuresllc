@@ -1,0 +1,662 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import EnginePage from "../../components/engine/EnginePage.jsx";
+import { EngineHeader } from "../../components/engine/EngineChrome.jsx";
+import { C, panelStyle, money, pct } from "../../components/engine/theme.js";
+
+/* NFL Card — the Week 1 parlay tickets researched on 2026-09-12/13, one
+ * button each. Patrick: "make that into a list, i want to be able to click a
+ * btn and place those bets".
+ *
+ * Backend: sheline-art-website-api routes/kalshiCard.js.
+ *   GET  /kalshi-card/cards/:id        the card plus live leg asks
+ *   POST /kalshi-card/cards/:id/place  {size, stake_dollars, max_markup_pct}
+ *
+ * The legs live on the SERVER, in a checked-in card file. This page sends only
+ * which ticket and how much, so nothing here can change what gets bought.
+ * The server also owns the stake cap, the kickoff lock and the price guard.
+ * Read that file's header before changing how placing works.
+ *
+ * A placement takes up to ~20s: Kalshi market makers quote a combo through
+ * RFQ, and the server waits for a quote and then for the fill. "Not filled"
+ * is a normal outcome and charges nothing.
+ */
+
+const ROOT = "https://sheline-art-website-api.herokuapp.com";
+const CARD_ID = "nfl-2026-week1";
+const API = `${ROOT}/kalshi-card/cards/${CARD_ID}`;
+const CONFIRM_MS = 5000;
+const REFRESH_MS = 60000;
+const PLACED_KEY = `kalshi-card:${CARD_ID}:placed`;
+
+const card = { ...panelStyle, borderRadius: 14, padding: 16 };
+
+const inputStyle = {
+  width: 80,
+  padding: "6px 8px",
+  borderRadius: 8,
+  border: `1px solid ${C.border}`,
+  background: C.chipBg,
+  color: C.text,
+  fontSize: 14,
+  fontWeight: 700,
+};
+
+const chipBtnStyle = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: C.text,
+  background: C.chipBg,
+  border: `1px solid ${C.border}`,
+  borderRadius: 8,
+  padding: "6px 12px",
+  cursor: "pointer",
+};
+
+// Leg prices are whole cents; a combo is often a fraction of a cent.
+const legCents = (v) => (v == null ? "—" : `${Math.round(Number(v) * 100)}¢`);
+const comboCents = (v) => {
+  if (v == null) return "—";
+  const c = Number(v) * 100;
+  return `${c < 10 ? c.toFixed(2) : c.toFixed(1)}¢`;
+};
+
+const kickoffLabel = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Chicago",
+  }).format(d)} CT`;
+};
+
+const firstKickoff = (legs) =>
+  (legs || [])
+    .map((l) => l.kickoff_utc)
+    .filter((k) => !Number.isNaN(Date.parse(k)))
+    .sort((a, b) => Date.parse(a) - Date.parse(b))[0] || null;
+
+// Which tickets this browser has already filled, so a second tap says so.
+// Storage can be missing or throw (private mode); the page works without it.
+const readPlaced = () => {
+  try {
+    return JSON.parse(localStorage.getItem(PLACED_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+};
+const writePlaced = (v) => {
+  try {
+    localStorage.setItem(PLACED_KEY, JSON.stringify(v));
+  } catch {
+    /* per-browser convenience only */
+  }
+};
+
+function LegRow({ leg }) {
+  const askColor = !leg.open ? C.muted : leg.above_limit ? C.amber : C.green;
+  return (
+    <div
+      style={{
+        padding: "8px 2px",
+        borderBottom: `1px solid ${C.border}`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 10,
+        }}
+      >
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.text }}>
+            {leg.flag ? (
+              <span title="Flagged in review" style={{ color: C.amber }}>
+                ⚑{" "}
+              </span>
+            ) : null}
+            {leg.label}
+          </div>
+          <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>
+            {leg.game} · {kickoffLabel(leg.kickoff_utc)} · model{" "}
+            {pct(leg.our_prob)}
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: askColor }}>
+            {legCents(leg.live_ask)}
+          </div>
+          <div style={{ fontSize: 10.5, color: C.muted }}>
+            limit {legCents(leg.limit)}
+          </div>
+        </div>
+      </div>
+      {!leg.open ? (
+        <div style={{ fontSize: 11.5, color: C.red, marginTop: 3 }}>
+          {leg.blocked_reason}
+        </div>
+      ) : leg.above_limit ? (
+        <div style={{ fontSize: 11.5, color: C.amber, marginTop: 3 }}>
+          Above this morning's limit.
+        </div>
+      ) : null}
+      {leg.note ? (
+        <details style={{ marginTop: 3 }}>
+          <summary
+            style={{ fontSize: 11, color: C.muted, cursor: "pointer" }}
+          >
+            why
+          </summary>
+          <div
+            style={{
+              fontSize: 12,
+              color: C.muted,
+              lineHeight: 1.45,
+              marginTop: 4,
+            }}
+          >
+            {leg.note}
+          </div>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function Result({ r }) {
+  if (!r) return null;
+  const border = r.ok
+    ? r.filled
+      ? r.wrong_side
+        ? C.redBorder
+        : C.greenBorder
+      : C.amberBorder
+    : C.redBorder;
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: 12,
+        borderRadius: 10,
+        border: `1px solid ${border}`,
+        fontSize: 13,
+        lineHeight: 1.45,
+      }}
+    >
+      {r.ok && r.filled ? (
+        <>
+          <div style={{ color: C.green, fontWeight: 700 }}>
+            Filled: {r.contracts} contracts at {comboCents(r.quoted_price)}
+            {r.cost_dollars != null ? ` · cost ${money(r.cost_dollars)}` : ""}
+          </div>
+          <div style={{ color: C.muted, fontSize: 12 }}>
+            The legs on their own priced it at {comboCents(r.fair_price)}.
+          </div>
+          {r.wrong_side ? (
+            <div style={{ color: C.red, fontWeight: 700, marginTop: 6 }}>
+              Kalshi recorded this as NO, which pays only if the parlay
+              loses. Sell it in My Bets and don't place more until that's
+              understood.
+            </div>
+          ) : null}
+          {!r.readback_ok ? (
+            <div style={{ color: C.amber, fontSize: 12, marginTop: 4 }}>
+              The position didn't read back yet. Confirm it in My Bets.
+            </div>
+          ) : null}
+        </>
+      ) : r.ok ? (
+        <div style={{ color: C.amber }}>
+          <strong>Not filled.</strong> {r.reason}
+        </div>
+      ) : (
+        <>
+          <div style={{ color: C.red }}>{r.error}</div>
+          {r.blocked_legs && r.blocked_legs.length > 0 ? (
+            <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+              {r.blocked_legs.map((b) => `${b.label}: ${b.reason}`).join(" · ")}
+            </div>
+          ) : null}
+          {r.charged !== false ? (
+            <div style={{ color: C.amber, fontSize: 12, marginTop: 4 }}>
+              This may still have gone through. Check My Bets before trying
+              again.
+            </div>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function NflCard() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+  const [notLive, setNotLive] = useState(false);
+  const [stake, setStake] = useState(10);
+  const [markup, setMarkup] = useState(50);
+  const [confirming, setConfirming] = useState(null);
+  const [placing, setPlacing] = useState(null);
+  const [allProgress, setAllProgress] = useState(null);
+  const [results, setResults] = useState({});
+  const [placed, setPlaced] = useState(readPlaced);
+  const confirmTimer = useRef(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await fetch(API);
+      if (res.status === 404) {
+        setNotLive(true);
+        return;
+      }
+      const body = await res.json();
+      if (!res.ok || !body.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      setNotLive(false);
+      setData(body);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      await load();
+    })();
+    const id = setInterval(() => {
+      load();
+    }, REFRESH_MS);
+    return () => {
+      clearInterval(id);
+      clearTimeout(confirmTimer.current);
+    };
+  }, [load]);
+
+  const maxStake = (data && data.max_stake_dollars) || 100;
+  const stakeNum = Number(stake);
+  const stakeOk = stakeNum >= 1 && stakeNum <= maxStake;
+  const tickets = data
+    ? [...data.tickets].sort((a, b) => a.size - b.size)
+    : [];
+  // The server decides; it locks a ticket at its first kickoff and checks
+  // again on every click.
+  const canPlace = (t) => Boolean(t.placeable);
+  const openTickets = tickets.filter(canPlace);
+  const busy = placing != null || allProgress != null;
+
+  const arm = (key) => {
+    clearTimeout(confirmTimer.current);
+    setConfirming(key);
+    confirmTimer.current = setTimeout(() => setConfirming(null), CONFIRM_MS);
+  };
+  const disarm = () => {
+    clearTimeout(confirmTimer.current);
+    setConfirming(null);
+  };
+
+  const placeOne = async (size) => {
+    setPlacing(size);
+    setResults((prev) => ({ ...prev, [size]: null }));
+    let result;
+    try {
+      const res = await fetch(`${API}/place`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          size,
+          stake_dollars: stakeNum,
+          max_markup_pct: Number(markup),
+        }),
+      });
+      let body = {};
+      try {
+        body = await res.json();
+      } catch {
+        body = {};
+      }
+      result =
+        res.ok && body.ok
+          ? { ok: true, ...body }
+          : {
+              ok: false,
+              error: body.error || `The server answered HTTP ${res.status}.`,
+              blocked_legs: body.blocked_legs,
+              charged: body.charged,
+            };
+    } catch (e) {
+      result = { ok: false, error: `Lost the connection: ${e.message}.` };
+    }
+    setResults((prev) => ({ ...prev, [size]: result }));
+    if (result.ok && result.filled) {
+      setPlaced((prev) => {
+        const next = {
+          ...prev,
+          [size]: [
+            ...(prev[size] || []),
+            { at: new Date().toISOString(), cost: result.cost_dollars },
+          ],
+        };
+        writePlaced(next);
+        return next;
+      });
+    }
+    setPlacing(null);
+    return result;
+  };
+
+  const tapOne = async (size) => {
+    if (busy || !stakeOk) return;
+    if (confirming !== size) {
+      arm(size);
+      return;
+    }
+    disarm();
+    await placeOne(size);
+    load();
+  };
+
+  // Tickets not yet filled from this browser, smallest first. Stops at the
+  // first answer that might have charged without saying so.
+  const allTargets = openTickets.filter((t) => !placed[t.size]);
+  const tapAll = async () => {
+    if (busy || !stakeOk || allTargets.length === 0) return;
+    if (confirming !== "all") {
+      arm("all");
+      return;
+    }
+    disarm();
+    const sizes = allTargets.map((t) => t.size);
+    for (let i = 0; i < sizes.length; i++) {
+      setAllProgress({ i: i + 1, n: sizes.length });
+      const r = await placeOne(sizes[i]);
+      // Stop on anything that might have charged without a confirmed fill:
+      // an error that didn't say "charged: false", or an unconfirmed accept.
+      if (!r.filled && r.charged !== false) break;
+    }
+    setAllProgress(null);
+    load();
+  };
+
+  return (
+    <EnginePage mainWidth="760px">
+      <EngineHeader
+        title="🏈 NFL Week 1 Card"
+        subtitle="Eight parlay tickets, each placed as one Kalshi combo"
+        self="nflcard"
+      />
+
+      {notLive ? (
+        <div
+          style={{
+            ...card,
+            marginTop: 12,
+            borderColor: C.amberBorder,
+            color: C.amber,
+            fontSize: 13.5,
+          }}
+        >
+          The placing service isn't deployed yet. It's waiting on the backend
+          merge. This page will fill in on its own once it is.
+        </div>
+      ) : null}
+
+      <div style={{ ...card, marginTop: 12, marginBottom: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <label style={{ fontSize: 12.5, color: C.muted }}>
+            Stake per ticket ($)
+          </label>
+          <input
+            type="number"
+            min="1"
+            max={maxStake}
+            step="1"
+            value={stake}
+            onChange={(e) => setStake(e.target.value)}
+            style={inputStyle}
+          />
+          <label style={{ fontSize: 12.5, color: C.muted }}>Max markup %</label>
+          <input
+            type="number"
+            min="0"
+            max="300"
+            step="5"
+            value={markup}
+            onChange={(e) => setMarkup(e.target.value)}
+            style={inputStyle}
+          />
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{
+              ...chipBtnStyle,
+              marginLeft: "auto",
+              cursor: loading ? "default" : "pointer",
+            }}
+          >
+            {loading ? "Loading…" : "Refresh"}
+          </button>
+        </div>
+        <div
+          style={{ fontSize: 11.5, color: C.muted, marginTop: 8, lineHeight: 1.5 }}
+        >
+          Max markup refuses any quote more than that far above what the legs
+          cost on their own. Stakes run $1 to {money(maxStake)}.
+          {data ? ` Prices as of ${new Date(data.as_of).toLocaleTimeString()}.` : ""}
+        </div>
+        {!stakeOk ? (
+          <div style={{ color: C.red, fontSize: 12.5, marginTop: 6 }}>
+            Stake must be between $1 and {money(maxStake)}.
+          </div>
+        ) : null}
+        {err ? (
+          <div style={{ color: C.red, fontSize: 13, marginTop: 8 }}>{err}</div>
+        ) : null}
+
+        {data ? (
+          <button
+            onClick={tapAll}
+            disabled={busy || !stakeOk || allTargets.length === 0}
+            style={{
+              width: "100%",
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 10,
+              border: "none",
+              fontSize: 14.5,
+              fontWeight: 800,
+              color:
+                busy || !stakeOk || allTargets.length === 0
+                  ? C.muted
+                  : "#06210f",
+              background:
+                busy || !stakeOk || allTargets.length === 0
+                  ? C.chipBg
+                  : confirming === "all"
+                    ? C.amber
+                    : C.green,
+              cursor:
+                busy || !stakeOk || allTargets.length === 0
+                  ? "not-allowed"
+                  : "pointer",
+            }}
+          >
+            {allProgress
+              ? `Placing ${allProgress.i} of ${allProgress.n}…`
+              : allTargets.length === 0
+                ? "No unplaced tickets are open"
+                : confirming === "all"
+                  ? `Tap again: ${allTargets.length} tickets · ${money(stakeNum * allTargets.length)} total`
+                  : `Place all ${allTargets.length} open tickets · ${money(stakeNum)} each`}
+          </button>
+        ) : null}
+        {data ? (
+          <div style={{ fontSize: 11.5, color: C.muted, marginTop: 6 }}>
+            {openTickets.length} of {tickets.length} tickets can be placed right
+            now. A ticket locks when its first game kicks off.
+          </div>
+        ) : null}
+      </div>
+
+      {tickets.map((t) => {
+        const kick = firstKickoff(t.legs);
+        const disabled = busy || !stakeOk || !canPlace(t);
+        const isConfirming = confirming === t.size;
+        const timesPlaced = (placed[t.size] || []).length;
+        const edgeUp =
+          t.our_hit_prob != null && t.fair_price != null
+            ? t.our_hit_prob > t.fair_price
+            : null;
+        return (
+          <div key={t.size} style={{ ...card, marginBottom: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  color: C.text,
+                  background: C.chipBg,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 6,
+                  padding: "2px 8px",
+                }}
+              >
+                {t.size} legs
+              </span>
+              <div
+                style={{
+                  fontSize: 15.5,
+                  fontWeight: 800,
+                  color: C.text,
+                  minWidth: 0,
+                  flex: 1,
+                }}
+              >
+                {t.name}
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>
+                {comboCents(t.fair_price)}
+              </div>
+            </div>
+            {t.thesis ? (
+              <div
+                style={{
+                  fontSize: 12.5,
+                  color: C.muted,
+                  marginTop: 6,
+                  lineHeight: 1.45,
+                }}
+              >
+                {t.thesis}
+              </div>
+            ) : null}
+            <div
+              style={{
+                fontSize: 12,
+                color: C.muted,
+                marginTop: 6,
+                display: "flex",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <span>
+                {money(stakeNum || 0)} returns about{" "}
+                <strong style={{ color: C.text }}>
+                  {t.fair_price ? money((stakeNum || 0) / t.fair_price) : "—"}
+                </strong>
+              </span>
+              <span>
+                Model hit{" "}
+                <strong style={{ color: edgeUp ? C.green : C.amber }}>
+                  {t.our_hit_prob != null
+                    ? `${(t.our_hit_prob * 100).toFixed(2)}%`
+                    : "—"}
+                </strong>
+              </span>
+              {kick ? <span>Locks {kickoffLabel(kick)}</span> : null}
+              {t.above_limit_count > 0 ? (
+                <span style={{ color: C.amber }}>
+                  {t.above_limit_count} above limit
+                </span>
+              ) : null}
+            </div>
+
+            <div style={{ marginTop: 8 }}>
+              {t.legs.map((leg) => (
+                <LegRow key={leg.leg_id || leg.market_ticker} leg={leg} />
+              ))}
+            </div>
+
+            <button
+              onClick={() => tapOne(t.size)}
+              disabled={disabled}
+              style={{
+                width: "100%",
+                marginTop: 12,
+                padding: 12,
+                borderRadius: 10,
+                border: "none",
+                fontSize: 15,
+                fontWeight: 800,
+                color: disabled ? C.muted : "#06210f",
+                background: disabled
+                  ? C.chipBg
+                  : isConfirming
+                    ? C.amber
+                    : C.green,
+                cursor: disabled ? "not-allowed" : "pointer",
+              }}
+            >
+              {placing === t.size
+                ? "Placing… this can take 20 seconds"
+                : !canPlace(t)
+                  ? (t.blocked_legs || []).some(
+                      (b) => b.reason === "game has started",
+                    )
+                    ? "Locked: a game has started"
+                    : "Locked"
+                  : isConfirming
+                    ? `Tap again to place · ${money(stakeNum)}`
+                    : timesPlaced > 0
+                      ? `Placed ${timesPlaced}x · place again for ${money(stakeNum)}`
+                      : `Place ${t.size}-leg · ${money(stakeNum)}`}
+            </button>
+            <Result r={results[t.size]} />
+          </div>
+        );
+      })}
+
+      <div
+        style={{ color: C.muted, fontSize: 11.5, marginTop: 6, lineHeight: 1.5 }}
+      >
+        Each ticket is one real Kalshi combo. It pays only if every leg hits,
+        so one miss loses that ticket's whole stake. Filled tickets show up in{" "}
+        <a href="/my-bets" style={{ color: C.text }}>
+          My Bets
+        </a>
+        .
+      </div>
+    </EnginePage>
+  );
+}
