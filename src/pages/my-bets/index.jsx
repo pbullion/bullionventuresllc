@@ -880,6 +880,9 @@ const S = {
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
+  // The ticket's money line, at the TOP of a parlay card (see ParlayRows): its
+  // top border is the divider under the header, and the first leg row's own top
+  // border closes it, so nothing doubles up.
   parlayFoot: {
     display: "flex",
     flexWrap: "wrap",
@@ -1241,8 +1244,35 @@ const marketLabel = (leg) => {
   return cleaned || raw;
 };
 
-/* A plain team moneyline, sportsbook-style: "Virginia Tech ML" (yes) or "Not
- * Virginia Tech" (no) — each already says who's being bet on, so the row
+/* "Not Arizona" -> "Los Angeles C ML" (Patrick, 2026-09-13: "instead of NOT
+ * whoever can you just put the other team? so it is less confusing"). A NO on
+ * one team's game market is a bet on the other team, so the row names the team
+ * that actually has to win, read out of the market's own "A vs B" title.
+ *
+ * ONLY in sports where a game can't end level. With draws, NO on Arsenal wins on
+ * a Chelsea win OR a draw, so "Chelsea ML" would misstate the bet — those keep
+ * "Not Arsenal". Judged by ticker (Kalshi's own series), not the free-text league
+ * label. The NFL can technically tie, which "Not X" would also win; that is a
+ * handful of games a decade and accepted, and the leg's chance still prices the
+ * side actually held. If the pick matches neither half of the title the row keeps
+ * "Not X" rather than guess. Same rule in the other repo's copy. */
+const NO_DRAW_GAME_RE = /^KX(MLB|NFL|NCAAF|NBA|WNBA|NHL)GAME-/;
+const otherTeamOf = (leg, team) => {
+  if (!NO_DRAW_GAME_RE.test(String(leg.market_ticker || ""))) return null;
+  const sides = String(leg.matchup || "")
+    .split(":")[0]
+    .split(/\s+(?:vs\.?|at|@)\s+/i)
+    .map((x) => x.trim());
+  if (sides.length !== 2 || !sides[0] || !sides[1]) return null;
+  const t = team.toLowerCase();
+  if (sides[0].toLowerCase() === t) return sides[1];
+  if (sides[1].toLowerCase() === t) return sides[0];
+  return null;
+};
+
+/* A plain team moneyline, sportsbook-style: "Virginia Tech ML" (yes), and on a
+ * NO the other team's "… ML" (otherTeamOf, above; "Not Virginia Tech" only where
+ * that can't be read) — each already says who's being bet on, so the row
  * doesn't need a separate Yes/No badge in front of it (Patrick, 2026-09-12:
  * "i dont need to see 'Yes' before a team or bet. like Yes Virginia Tech,
  * should be just Virginia Tech ML"). Null for anything else, including a
@@ -1265,7 +1295,9 @@ const moneylineLabel = (leg) => {
   const not = toWin ? null : /^not\s+(.+)$/i.exec(raw);
   const team = toWin ? toWin[1].trim() : not ? not[1].trim() : null;
   if (!team || PROP_HINT_RE.test(team)) return null;
-  return toWin ? `${team} ML` : `Not ${team}`;
+  if (toWin) return `${team} ML`;
+  const other = otherTeamOf(leg, team);
+  return other ? `${other} ML` : `Not ${team}`;
 };
 
 // Stable grouping key for a single-leg position: the ESPN gameId (shared by
@@ -2442,15 +2474,42 @@ function SingleRow({ b, showWeather = true }) {
   );
 }
 
-/* A parlay (multi-game ticket): one row per leg — pick + chance, with the leg's
- * own game/score beneath — then a footer with the whole ticket's economics,
- * since cost/payout are ticket-level, not per-leg. */
+/* A parlay (multi-game ticket): the whole ticket's economics first, straight
+ * under the header, then one row per leg — pick + chance, with the leg's own
+ * game/score beneath. Cost/payout are ticket-level, not per-leg. They lead the
+ * card since 2026-09-13 (Patrick, arrowing the footer up to the header: "move
+ * this there") — on an eleven-leg slip a footer is a scroll away from the
+ * card it belongs to. */
 function ParlayRows({ b }) {
   const d = b.display || {};
   const legs = sortLegs(Array.isArray(d.legs) ? d.legs : []);
   const pnl = Number(d.total_pnl_dollars) || 0;
   return (
     <>
+      <div style={S.parlayFoot}>
+        <span style={S.parlayFootItem}>Cost {usd(d.cost_dollars)}</span>
+        <span style={S.parlayFootItem}>
+          Value {usd(d.current_value_dollars)}
+        </span>
+        {/* Carries its own up/down, same as a single row: this is what taking
+            the bid banks against cost, which is NOT the mark-to-market P&L at
+            the end of the same line. */}
+        {cashOutGap(d) != null && (
+          <span style={S.rowCashOut}>
+            Cash out {usd(cashOutGap(d))}{" "}
+            <span style={{ color: pnlColor(cashOutDelta(d)) }}>
+              ({pnlStr(cashOutDelta(d))})
+            </span>
+          </span>
+        )}
+        <span style={S.parlayFootItem}>
+          Pays out {usd0(d.max_payout_dollars)}
+        </span>
+        <span style={{ ...S.parlayFootItem, color: C.greenDim }}>
+          Profit +{usd(profitOf(d))}
+        </span>
+        <span style={{ color: pnlColor(pnl) }}>P&amp;L {pnlStr(pnl)}</span>
+      </div>
       {legs.map((leg, i) => {
         const g = leg.game;
         // ESPN reports a scheduled game's competitors as 0, so a pre-game leg
@@ -2520,30 +2579,6 @@ function ParlayRows({ b }) {
           </Row>
         );
       })}
-      <div style={S.parlayFoot}>
-        <span style={S.parlayFootItem}>Cost {usd(d.cost_dollars)}</span>
-        <span style={S.parlayFootItem}>
-          Value {usd(d.current_value_dollars)}
-        </span>
-        {/* Carries its own up/down, same as a single row: this is what taking
-            the bid banks against cost, which is NOT the mark-to-market P&L at
-            the end of the same line. */}
-        {cashOutGap(d) != null && (
-          <span style={S.rowCashOut}>
-            Cash out {usd(cashOutGap(d))}{" "}
-            <span style={{ color: pnlColor(cashOutDelta(d)) }}>
-              ({pnlStr(cashOutDelta(d))})
-            </span>
-          </span>
-        )}
-        <span style={S.parlayFootItem}>
-          Pays out {usd0(d.max_payout_dollars)}
-        </span>
-        <span style={{ ...S.parlayFootItem, color: C.greenDim }}>
-          Profit +{usd(profitOf(d))}
-        </span>
-        <span style={{ color: pnlColor(pnl) }}>P&amp;L {pnlStr(pnl)}</span>
-      </div>
     </>
   );
 }
