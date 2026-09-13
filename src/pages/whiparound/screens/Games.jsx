@@ -293,7 +293,10 @@ function Hero({ game, climbing, covered }) {
         </div>
 
         <div style={{ display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
-          <Text size={50} weight={W.black} lines={1} style={{ flex: "1 1 0" }}>
+          {/* One line tall even when a live game has no status and no clock —
+              a Compose Text("") still takes its line, and without the floor the
+              rows below it jump up. */}
+          <Text size={50} weight={W.black} lines={1} style={{ flex: "1 1 0", minHeight: 50 * LINE }}>
             {statusLine(game)}
           </Text>
           {/* Rides the clock line: both are the state of this game right now. */}

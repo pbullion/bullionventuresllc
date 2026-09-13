@@ -166,8 +166,29 @@ export function pinnedSlot(name) {
   if (PAGES.includes(upper)) return slot(upper, 0, 0);
   const cut = upper.lastIndexOf("_");
   if (cut < 0) return null;
-  const n = Number(upper.slice(cut + 1));
+  // Kotlin's toIntOrNull: an optional sign and digits, nothing else. Number()
+  // alone would also accept "0x2", " 2" and "2e0".
+  const tail = upper.slice(cut + 1);
+  if (!/^[+-]?\d+$/.test(tail)) return null;
+  const n = Number(tail);
   const base = upper.slice(0, cut);
-  if (!Number.isInteger(n) || n < 1 || !PAGES.includes(base)) return null;
+  if (n < 1 || !PAGES.includes(base)) return null;
   return slot(base, 0, n - 1);
+}
+
+/// Where slot `i` starts, in seconds into the cycle.
+export function slotStart(list, i) {
+  let start = 0;
+  for (let k = 0; k < i; k += 1) start += list[k].seconds;
+  return start;
+}
+
+/* Where a held slot (`{ listIndex, page, index }`) is in the current list: at
+ * its old place if the same screen is still there, otherwise its first
+ * occurrence — a screen can appear twice, because the double lap repeats every
+ * loud slot. -1 once it has left the rotation. */
+export function findSlot(list, ref) {
+  const at = list[ref.listIndex];
+  if (at && at.page === ref.page && at.index === ref.index) return ref.listIndex;
+  return list.findIndex((s) => s.page === ref.page && s.index === ref.index);
 }

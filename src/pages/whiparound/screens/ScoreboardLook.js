@@ -3,7 +3,6 @@
  * .jsx file here may export only components.
  */
 
-import { useEffect } from "react";
 import { LINE, T } from "../theme";
 
 /// The board's own surfaces, darker than the app's. A scoreboard reads as a
@@ -32,21 +31,9 @@ export const LAMP_DIM = "#6B5A16";
  * spend another afternoon on it. */
 export const MONO = '"Noto Sans Mono", "Droid Sans Mono", "Roboto Mono", Menlo, Consolas, monospace';
 
-const MONO_HREF = "https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@700;900&display=swap";
-const MONO_LINK_ID = "whip-scoreboard-mono";
-
-/// Loads the mono face once and leaves it loaded, so the board coming round
-/// again in the rotation never flashes the fallback.
-export function useMonoFont() {
-  useEffect(() => {
-    if (document.getElementById(MONO_LINK_ID)) return;
-    const link = document.createElement("link");
-    link.id = MONO_LINK_ID;
-    link.rel = "stylesheet";
-    link.href = MONO_HREF;
-    document.head.appendChild(link);
-  }, []);
-}
+// The face itself (900 only — nothing lighter uses it) is loaded by index.jsx
+// beside Roboto, so it is in the document before the first stadium board comes
+// round and leaves the shared <head> with the page.
 
 /* A Compose Text with maxLines = N and the default Clip overflow — NOT Ellipsis.
  * It wraps at the width it was given and draws only the first N lines, so a

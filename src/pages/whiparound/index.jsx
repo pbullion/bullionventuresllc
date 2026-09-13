@@ -3,9 +3,11 @@ import { FONT, LINE, STAGE_H, STAGE_W, T } from "./theme";
 import { Chip } from "./components";
 import StatusStrip from "./StatusStrip";
 import Controls from "./Controls";
-import { toggleFullscreen } from "./fullscreen";
+import { PageBoundary, ScreenBoundary } from "./Boundary";
+import { isFullscreen, toggleFullscreen } from "./fullscreen";
+import { reloadIfReachable } from "./reload";
 import { POLL_SECONDS, useBoard } from "./useBoard";
-import { pinnedSlot, position, slots } from "./slots";
+import { findSlot, pinnedSlot, position, slotStart, slots } from "./slots";
 import { boardFor } from "./models/scoreboards";
 import { WeatherScreen } from "./screens/Weather";
 import { TropicsScreen } from "./screens/Tropics";
@@ -81,10 +83,21 @@ function titleOf(slot) {
 const STALE_AFTER_S = POLL_SECONDS * 3;
 
 /* A tab left on a monitor for days never picks up a deploy. After twelve hours
- * it reloads — but never while the Fullscreen API is holding the page, because
- * a reload ends that and only a click can restart it. Browser-level full screen
- * (⌃⌘F) survives, so that is the mode to leave a wall in. */
+ * it reloads — but only when the site answers (see reload.js), and never while
+ * the Fullscreen API is holding the page, because a reload ends that and only a
+ * click can restart it. Browser-level full screen (⌃⌘F) survives, so that is
+ * the mode to leave a wall in. */
 const RELOAD_AFTER_MS = 12 * 60 * 60 * 1000;
+
+/* Roboto in the weights the board uses, and Noto Sans Mono 900 for the stadium
+ * boards' numerals (see screens/ScoreboardLook.js). Added on mount and removed
+ * on unmount — one SPA, one document head — and the mono face is loaded here
+ * rather than by its screen so it is in the document before the first stadium
+ * board comes round. */
+const FONT_HREFS = [
+  "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800;900&display=swap",
+  "https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@900&display=swap",
+];
 
 /// Screen switch — a port of the `when (page)` in Board.kt. Every branch falls
 /// back to the games page rather than asserting: a rotation bug should cost one
@@ -145,6 +158,8 @@ function Stage({ board, slot }) {
   const down = Object.keys(slate.errors);
   const ageS =
     board.lastSuccess == null ? 0 : Math.max(0, Math.floor((board.now - board.lastSuccess) / 1000));
+  // A screen that threw gets another attempt on the next good poll.
+  const retry = board.lastSuccess ?? 0;
 
   return (
     <div
@@ -182,13 +197,17 @@ function Stage({ board, slot }) {
           key={`${slot.page}:${slot.index}`}
           style={{ flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column" }}
         >
-          <Screen slot={slot} board={board} />
+          <ScreenBoundary resetKey={retry}>
+            <Screen slot={slot} board={board} />
+          </ScreenBoundary>
         </div>
-        <StatusStrip
-          slate={slate}
-          showNext={slate.live.length > 0}
-          showWeather={slot.page !== "WEATHER"}
-        />
+        <ScreenBoundary resetKey={retry}>
+          <StatusStrip
+            slate={slate}
+            showNext={slate.live.length > 0}
+            showWeather={slot.page !== "WEATHER"}
+          />
+        </ScreenBoundary>
       </div>
       {/* THE STALE SIGNAL: a rail, not a row — it takes no height, so the layout
           is identical whether the board is fresh or not. */}
@@ -203,44 +222,70 @@ function stageScale() {
   return Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
 }
 
-export default function WhipAround() {
+function WhipAround() {
   const [params] = useState(readParams);
   const board = useBoard({ mock: params.mock });
   const [scale, setScale] = useState(stageScale);
   const [skewMs, setSkewMs] = useState(0);
-  const [pausedAt, setPausedAt] = useState(null);
+  // The slot a pause is holding — see togglePause. Null while the rotation runs.
+  const [paused, setPaused] = useState(null);
   const [awake, setAwake] = useState(true);
-  const [hovering, setHovering] = useState(false);
   const idleTimer = useRef(null);
   const actions = useRef(null);
 
   const pinned = pinnedSlot(params.page);
   const list = slots(board, params.fast);
-  const pos = position(list, (pausedAt ?? board.now) - board.startedAt + skewMs);
-  const slot = pinned ?? pos.slot;
   const canSkip = !pinned && list.length > 1;
+  const elapsedMs = board.now - board.startedAt + skewMs;
+  const held = paused ? findSlot(list, paused) : -1;
+  let pos;
+  if (held >= 0) {
+    pos = { slot: list[held], index: held, into: Math.min(paused.into, list[held].seconds - 1) };
+  } else {
+    // A held slot that has left the rotation falls back to the clock frozen at
+    // the moment of the pause, so the wall still does not move while paused.
+    pos = position(list, paused ? paused.elapsedMs : elapsedMs);
+  }
+  const slot = pinned ?? pos.slot;
 
-  /* Skipping moves the rotation's clock, not a counter — the position is still
-   * derived from elapsed time, so the cycle carries on from wherever it lands. */
+  /* Skipping jumps to the START of the neighbouring slot by moving the
+   * rotation's clock — position is still derived from elapsed time, so the cycle
+   * carries on from there. While paused it moves the held slot instead. */
   const skip = (direction) => {
     if (!canSkip || pos.index < 0) return;
-    const current = list[pos.index];
-    if (direction > 0) {
-      setSkewMs((s) => s + (current.seconds - pos.into) * 1000);
-    } else {
-      const previous = list[(pos.index - 1 + list.length) % list.length];
-      setSkewMs((s) => s - (pos.into + previous.seconds) * 1000);
+    const next = (pos.index + direction + list.length) % list.length;
+    const target = list[next];
+    if (paused) {
+      setPaused({ ...paused, listIndex: next, page: target.page, index: target.index, into: 0 });
+      return;
     }
+    setSkewMs(slotStart(list, next) * 1000 - (board.now - board.startedAt));
   };
 
+  /* PAUSE HOLDS A SCREEN, NOT A MOMENT. It records which slot is up — its page,
+   * its matchup index and its place in the list — and keeps showing that slot
+   * even when the data reshapes the rotation underneath it. A game ending changes
+   * every live/idle duration at once, and a frozen clock alone would land on a
+   * different screen while the controls still said "paused". Resume restarts the
+   * rotation from the held slot, at the point it was paused. */
   const togglePause = () => {
-    if (!canSkip) return;
-    if (pausedAt == null) {
-      setPausedAt(board.now);
-    } else {
-      setSkewMs((s) => s - (board.now - pausedAt));
-      setPausedAt(null);
+    if (!canSkip || pos.index < 0) return;
+    if (!paused) {
+      setPaused({
+        listIndex: pos.index,
+        page: pos.slot.page,
+        index: pos.slot.index,
+        into: pos.into,
+        elapsedMs,
+      });
+      return;
     }
+    const i = findSlot(list, paused);
+    if (i >= 0) {
+      const into = Math.min(paused.into, list[i].seconds - 1);
+      setSkewMs((slotStart(list, i) + into) * 1000 - (board.now - board.startedAt));
+    }
+    setPaused(null);
   };
 
   useEffect(() => {
@@ -253,22 +298,25 @@ export default function WhipAround() {
     idleTimer.current = setTimeout(() => setAwake(false), 2500);
   }, []);
 
-  // Title, the weights of Roboto the board uses, and noindex — added on mount
-  // and removed on unmount, because this SPA shares one document head.
+  // Title, fonts and noindex — added on mount and removed on unmount, because
+  // this SPA shares one document head.
   useEffect(() => {
     const previousTitle = document.title;
     document.title = "Whip-Around";
-    const font = document.createElement("link");
-    font.rel = "stylesheet";
-    font.href = "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800;900&display=swap";
-    document.head.appendChild(font);
+    const added = FONT_HREFS.map((href) => {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      document.head.appendChild(link);
+      return link;
+    });
     const robots = document.createElement("meta");
     robots.name = "robots";
     robots.content = "noindex, nofollow";
     document.head.appendChild(robots);
     return () => {
       document.title = previousTitle;
-      font.remove();
+      added.forEach((link) => link.remove());
       robots.remove();
     };
   }, []);
@@ -306,13 +354,16 @@ export default function WhipAround() {
   }, []);
 
   // Keep the monitor awake. The lock is dropped whenever the tab is hidden, so
-  // it is re-requested each time it comes back.
+  // it is re-requested each time it comes back — and never twice at once, or
+  // the second sentinel would outlive the page.
   useEffect(() => {
     if (params.shot || !("wakeLock" in navigator)) return undefined;
     let alive = true;
     let lock = null;
+    let pending = false;
     const acquire = async () => {
-      if (!alive || lock || document.visibilityState !== "visible") return;
+      if (!alive || lock || pending || document.visibilityState !== "visible") return;
+      pending = true;
       try {
         const next = await navigator.wakeLock.request("screen");
         if (!alive) {
@@ -325,6 +376,8 @@ export default function WhipAround() {
         });
       } catch {
         // Denied (battery saver, or no permission). The OS sleep setting wins.
+      } finally {
+        pending = false;
       }
     };
     acquire();
@@ -338,13 +391,15 @@ export default function WhipAround() {
 
   useEffect(() => {
     const loadedAt = Date.now();
-    const check = () => {
-      if (
-        Date.now() - loadedAt > RELOAD_AFTER_MS &&
-        document.visibilityState === "visible" &&
-        !document.fullscreenElement
-      ) {
-        window.location.reload();
+    let checking = false;
+    const check = async () => {
+      if (checking || Date.now() - loadedAt <= RELOAD_AFTER_MS) return;
+      if (document.visibilityState !== "visible" || isFullscreen()) return;
+      checking = true;
+      try {
+        await reloadIfReachable();
+      } finally {
+        checking = false;
       }
     };
     const id = setInterval(check, 10 * 60 * 1000);
@@ -384,7 +439,7 @@ export default function WhipAround() {
 
   const detail = pinned
     ? "pinned by ?page="
-    : pausedAt != null
+    : paused
       ? `${pos.index + 1} of ${list.length} · paused`
       : `${pos.index + 1} of ${list.length} · ${Math.max(0, slot.seconds - pos.into)}s left`;
 
@@ -397,7 +452,15 @@ export default function WhipAround() {
         inset: 0,
         background: T.bg,
         overflow: "hidden",
-        cursor: awake || hovering ? "default" : "none",
+        // Hidden with the controls, even with the pointer resting on them — an
+        // arrow parked on a wall board reads as a computer someone walked away
+        // from.
+        cursor: awake ? "default" : "none",
+        // A double-click toggles full screen; without this it also selects the
+        // word under the pointer, and a highlight in the strip survives the
+        // whole rotation.
+        userSelect: "none",
+        WebkitUserSelect: "none",
       }}
     >
       <div
@@ -418,17 +481,24 @@ export default function WhipAround() {
       </div>
       {!params.shot && (
         <Controls
-          visible={awake || hovering}
+          visible={awake}
           label={titleOf(slot)}
           detail={detail}
           canSkip={canSkip}
-          paused={pausedAt != null}
+          paused={paused != null}
           onPrev={() => skip(-1)}
           onNext={() => skip(1)}
           onTogglePause={togglePause}
-          onHoverChange={setHovering}
         />
       )}
     </div>
+  );
+}
+
+export default function WhipAroundPage() {
+  return (
+    <PageBoundary>
+      <WhipAround />
+    </PageBoundary>
   );
 }

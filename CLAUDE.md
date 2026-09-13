@@ -635,10 +635,22 @@ so it stays out of the bundle every home-page visitor downloads.
   permission prompt). For a monitor left on the board for days, use the
   browser's own full screen (⌃⌘F), which survives reloads: the page reloads
   itself after 12 hours to pick up deploys, but never while the Fullscreen API
-  holds it. A screen wake lock keeps the display awake while the tab is visible.
-- **Keys:** ←/→ skip a screen, space pauses. Skip moves the rotation's clock
-  (position is still derived from elapsed time, never a counter); a reload
-  forgets it. The controls and the cursor hide after a few idle seconds.
+  holds it, and only once the site answers — a reload while offline would swap
+  a working board for the browser's error page (`reload.js`; it accepts a 404,
+  because every deep route here answers 404 while rendering fine). A screen
+  wake lock keeps the display awake while the tab is visible.
+- **Keys:** ←/→ jump to the start of the neighbouring screen, space pauses.
+  Skip moves the rotation's clock (position is still derived from elapsed time,
+  never a counter); a reload forgets it. **Pause holds a SCREEN, not the
+  clock** — a game ending changes every live/idle duration at once, so a frozen
+  clock alone lands on a different screen; skipping while paused moves the held
+  screen. The controls and the cursor hide after a few seconds without mouse
+  movement, even with the pointer resting on them.
+- **A screen that throws costs that screen, not the wall.** Each screen and the
+  strip sit in a `ScreenBoundary` that retries on the next good poll; anything
+  that throws outside them hits `PageBoundary`, which says so in one line and
+  reloads once a minute as soon as the site answers. React's default — unmount
+  everything — would also have killed the poll loop and the wake lock.
 - **URL flags, none sticky:** `?page=SCORE_NFL` pins a screen (`FANTASY_2` is
   the second matchup), `?mock=1` shows the Fire TV's preview fixtures with a
   MOCK DATA chip (the slate and the radar are never mocked), `?fast=1` runs four
@@ -647,7 +659,10 @@ so it stays out of the bundle every home-page visitor downloads.
   slate every 10s, CFB and the NHC geometry on 5–10 minute clocks, the stadium
   boards and fantasy on their payloads' own `live` flags. Each interval matches a
   server cache, so don't shorten any of them. Polling pauses while the tab is
-  hidden and refetches the moment it is visible.
+  hidden; coming back refetches the slate at once, and after ten minutes or more
+  hidden it refetches every feed (the slow feeds' clocks stop while hidden). A
+  200 whose body is not a JSON object is treated as a failure, so every feed
+  keeps its last good copy.
 
 ## `/fantasy/lineup` and `/fantasy/waivers` — Fantasy Watch
 

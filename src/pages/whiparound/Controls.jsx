@@ -17,6 +17,11 @@ import {
  * couple of seconds without movement, and takes the cursor with it — a wall
  * board with an arrow parked on it reads as a computer someone walked away from.
  *
+ * IT FADES EVEN WITH THE POINTER RESTING ON IT. The obvious hover-to-keep-open
+ * rule left the panel on the wall indefinitely right after the most common click
+ * of all — Full screen — because the pointer is still sitting on that button.
+ * Moving the mouse over the panel keeps it up; stopping lets it go.
+ *
  * Nothing here changes data. Skip and pause only move the rotation, and a
  * reload forgets both.
  */
@@ -50,7 +55,6 @@ export default function Controls({
   onPrev,
   onNext,
   onTogglePause,
-  onHoverChange,
 }) {
   const [full, setFull] = useState(isFullscreen);
   const [screens, setScreens] = useState(null);
@@ -86,8 +90,6 @@ export default function Controls({
 
   return (
     <div
-      onMouseEnter={() => onHoverChange(true)}
-      onMouseLeave={() => onHoverChange(false)}
       onDoubleClick={(e) => e.stopPropagation()}
       style={{
         position: "absolute",

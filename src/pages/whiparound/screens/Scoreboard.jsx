@@ -19,7 +19,6 @@ import {
   evenRow,
   railColor,
   teamWeight,
-  useMonoFont,
 } from "./ScoreboardLook";
 
 /* THE STADIUM BOARD — a port of whiparound-firetv's ui/Scoreboard.kt. One team,
@@ -47,7 +46,6 @@ const grow = (w) => ({ flex: `${w} 1 0`, minWidth: 0, minHeight: 0 });
 const spacer = { flex: "1 1 0", minWidth: 0, minHeight: 0 };
 
 export function ScoreboardScreen({ board }) {
-  useMonoFont();
   const rail = railColor(board.teamColorHex);
   return (
     <div style={{ ...grow(1), display: "flex", flexDirection: "column", gap: 12 }}>

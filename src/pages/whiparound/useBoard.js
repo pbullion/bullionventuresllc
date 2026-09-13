@@ -25,6 +25,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { isObj } from "./models/wire";
 import { EMPTY_SLATE, parseSlate } from "./models/slate";
 import { mockCfb, parseCfb } from "./models/cfb";
 import { EMPTY_SCOREBOARDS, mockScoreboards, parseScoreboards } from "./models/scoreboards";
@@ -58,13 +59,21 @@ const DEFAULT_TIMEOUT_MS = 9_000;
 /// Fantasy is a four-hop chain on a cold cache — see Api.kt.
 const FANTASY_TIMEOUT_MS = 15_000;
 
+/* Every feed this board reads answers with a JSON OBJECT. Anything else — an
+ * array, a bare string, a proxy's error text that happens to parse — is thrown
+ * here, the way `JSONObject(text)` throws on the stick, so it lands in each
+ * feed's catch and the last good copy stays on the wall instead of a 200 with a
+ * nonsense body quietly emptying a screen (and, for the slate, counting as a
+ * successful poll). */
 async function getJson(url, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
     const res = await fetch(url, { signal: ctl.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    const body = await res.json();
+    if (!isObj(body)) throw new Error("response is not a JSON object");
+    return body;
   } finally {
     clearTimeout(timer);
   }
@@ -104,6 +113,7 @@ export function useBoard({ mock }) {
     let timer = null;
     let running = false;
     let resumeOnVisible = false;
+    let hiddenAt = 0;
     let tick = 0;
     // What the next poll decides from. Loop-local, so deciding never waits on
     // a render.
@@ -245,6 +255,7 @@ export function useBoard({ mock }) {
     const run = async () => {
       if (!alive || running) return;
       if (document.visibilityState === "hidden") {
+        if (!resumeOnVisible) hiddenAt = Date.now();
         resumeOnVisible = true;
         return;
       }
@@ -257,9 +268,18 @@ export function useBoard({ mock }) {
       if (alive) timer = setTimeout(run, POLL_SECONDS * 1000);
     };
 
+    /* THE SLOW FEEDS' CLOCKS STOP WHILE HIDDEN. `tick` only advances inside
+     * poll(), so a board hidden overnight (screen lock, display sleep) would
+     * wake on a tick that is not a multiple of 30 or 60 and keep last night's
+     * CFB, fantasy, tropics and storm geometry for up to ten more minutes — with
+     * the stale rail off, because the slate did refresh. Hidden for at least the
+     * slowest interval, the resume poll starts again from tick 0, which every
+     * modulo satisfies: one full round, the same as a page load. A shorter
+     * absence costs nothing extra. */
     const onVisibility = () => {
       if (document.visibilityState === "visible" && resumeOnVisible) {
         resumeOnVisible = false;
+        if (Date.now() - hiddenAt >= TROPICS_EVERY * POLL_SECONDS * 1000) tick = 0;
         run();
       }
     };
