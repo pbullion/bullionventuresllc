@@ -1779,22 +1779,22 @@ const totalPaceOf = (leg) => {
   return { line, scored, remaining, projected, onTarget, heldOver, decided };
 };
 
-/* Order legs so finished games sink to the bottom, leaving live/upcoming ones
- * (the ones still in play) up top. Stable within each group — preserves the
- * original leg order otherwise. */
-/* Leg order inside a parlay slip: unsettled legs first, then by chance,
- * highest first, so a slip reads the same direction as the Win % sort above it
- * (it used to keep raw API order within each group, which showed as an
- * unsorted 59/95/63/61 column). Settled legs stay last on purpose even at
- * 100% — a decided leg is reference, not the live action. API order breaks
- * ties; a leg with no price sinks within its group. */
+/* Leg order inside a parlay slip: unsettled legs first, then by chance, LOWEST
+ * first (Patrick, 2026-09-13: "sort these opposite by card, lowest percentage
+ * at the top"). The leg most likely to bust the slip is the one to watch, so it
+ * leads; before this it was highest first, mirroring the grid's Win % sort.
+ * That grid sort is untouched — this only orders the legs inside each card.
+ * Settled legs stay last on purpose even at 0% — a decided leg is reference,
+ * not the live action. A leg with no price sorts after the priced ones rather
+ * than reading as 0%: an unknown is not a long shot. API order breaks ties.
+ * Same order as kalshi-live's sortLegs (src/legs.js). */
 const sortLegs = (legs) =>
   legs
     .map((leg, i) => ({ leg, i, done: legIsFinished(leg) }))
     .sort(
       (a, b) =>
         a.done - b.done ||
-        (b.leg.win_pct ?? -1) - (a.leg.win_pct ?? -1) ||
+        (a.leg.win_pct ?? 101) - (b.leg.win_pct ?? 101) ||
         a.i - b.i,
     )
     .map((x) => x.leg);
