@@ -32,8 +32,13 @@ import { C, panelStyle, money } from "../../components/engine/theme.js";
  *
  * Games already under way are listed too, with a LIVE tag, because their
  * price is a live in-game price, not a pregame one (Patrick, 2026-09-13: show
- * them, marked LIVE). They start UNCHECKED and Select all / Top N skip them,
- * so a live game only goes into a combo when it's ticked by hand.
+ * them, marked LIVE). They start UNCHECKED and Top N skips them, so a fresh
+ * load or a Top N slate never carries a live leg. Select all DOES take them:
+ * it skipped them at first, and on a Sunday afternoon with 7 of 8 games under
+ * way it checked one game, which reads as a broken button (Patrick,
+ * 2026-09-13: "clicking select all is not selecting all"). Because a live leg
+ * is no longer only ever a hand-ticked choice, the count of LIVE games in the
+ * bet is printed under Create Bet.
  *
  * kalshi-live builds from 2026-09-13 call these same two routes. Builds
  * installed before that use `/quick-bets/ncaaf` + `/ncaaf-combo`, which the
@@ -217,7 +222,7 @@ export default function QuickBets() {
   // back on restores what was checked), but those never count and never bet.
   const visible = (candidates || []).filter((c) => !hiddenLeagues.has(c.league));
   const selectedVisible = visible.filter((c) => selected.has(c.market_ticker));
-  // What Select all and Top N choose from — never a LIVE game.
+  // What Top N chooses from — never a LIVE game. Select all takes `visible`.
   const pregame = visible.filter((c) => !c.started);
 
   const toggleLeague = (key) => {
@@ -249,7 +254,7 @@ export default function QuickBets() {
     );
   };
   const selectAll = () => {
-    replaceVisibleSelection(pregame.map((c) => c.market_ticker));
+    replaceVisibleSelection(visible.map((c) => c.market_ticker));
   };
   const deselectAll = () => {
     replaceVisibleSelection([]);
@@ -267,6 +272,7 @@ export default function QuickBets() {
   };
 
   const selectedCount = selectedVisible.length;
+  const liveCount = selectedVisible.filter((c) => c.started).length;
   const canCreate = selectedCount >= 2 && Number(stake) > 0 && !placing;
   const leagueNames = joinLabels(leagues.map((l) => l.label));
   // Only the leagues that actually loaded — "no MLB favorites" is a claim the
@@ -512,6 +518,12 @@ export default function QuickBets() {
       {selectedCount < 2 ? (
         <div style={{ color: C.muted, fontSize: 12, marginTop: 8, textAlign: "center" }}>
           A combo needs at least 2 games selected.
+        </div>
+      ) : null}
+      {liveCount > 0 ? (
+        <div style={{ color: C.amber, fontSize: 12, marginTop: 8, textAlign: "center" }}>
+          Includes {liveCount} LIVE game{liveCount === 1 ? "" : "s"} at in-game
+          prices.
         </div>
       ) : null}
 
