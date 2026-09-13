@@ -32,6 +32,9 @@ const PENDING_KEY = `kalshi-card:${CARD_ID}:pending`;
 const DOUBLE_TAP_GUARD_MS = 600;
 // Heroku answers or cuts off within 30s; past this, stop waiting.
 const PLACE_TIMEOUT_MS = 40000;
+// A marker younger than this may belong to a request still out, here or in
+// another tab, so its banner offers no "which way did it go" buttons yet.
+const PENDING_SETTLE_MS = PLACE_TIMEOUT_MS + 60000;
 
 const card = { ...panelStyle, borderRadius: 14, padding: 16 };
 
@@ -284,6 +287,11 @@ export default function NflCard() {
   const [results, setResults] = useState({});
   const [placed, setPlaced] = useState(readPlaced);
   const [pending, setPending] = useState(readPending);
+  // Tickets the server said are already held; the next deliberate
+  // single-ticket tap buys more.
+  const [againOk, setAgainOk] = useState({});
+  // A clock for the pending banner, set from a timer, never read in render.
+  const [now, setNow] = useState(0);
   const confirmTimer = useRef(null);
   const armedAt = useRef(0);
   const mounted = useRef(true);
@@ -340,8 +348,13 @@ export default function NflCard() {
       }
     };
     window.addEventListener("storage", onStorage);
+    const tick = () => setNow(Date.now());
+    const firstTick = setTimeout(tick, 0);
+    const clock = setInterval(tick, 5000);
     return () => {
       mounted.current = false;
+      clearTimeout(firstTick);
+      clearInterval(clock);
       clearInterval(id);
       clearTimeout(confirmTimer.current);
       window.removeEventListener("storage", onStorage);
@@ -396,7 +409,12 @@ export default function NflCard() {
 
   // Patrick checked My Bets and says which way an uncertain placement went.
   const resolvePending = (size, filled) => {
-    if (filled) {
+    const since = pending[size] || readPending()[size] || "";
+    // A fill already recorded after this marker started is the same fill.
+    const alreadyRecorded = (readPlaced()[size] || []).some(
+      (p) => p.at >= since,
+    );
+    if (filled && !alreadyRecorded) {
       const prior = readPlaced();
       const next = {
         ...prior,
@@ -440,12 +458,13 @@ export default function NflCard() {
     setConfirming(null);
   };
 
-  const placeOne = async (size) => {
+  const placeOne = async (size, { again = false } = {}) => {
     setPlacing(size);
     setResults((prev) => ({ ...prev, [size]: null }));
     // An earlier uncertain attempt's marker is kept, never overwritten: a
     // certain answer on THIS attempt says nothing about that one.
-    const priorPending = readPending()[size] || null;
+    // State too: when storage is blocked, the marker lives only there.
+    const priorPending = readPending()[size] || pending[size] || null;
     const startedAt = priorPending || new Date().toISOString();
     if (!priorPending) writePending({ ...readPending(), [size]: startedAt });
     let result;
@@ -462,6 +481,7 @@ export default function NflCard() {
           size,
           stake_dollars: stakeNum,
           max_markup_pct: Number(markup),
+          again,
         }),
       });
       let body = {};
@@ -479,18 +499,15 @@ export default function NflCard() {
               error: body.error || `The server answered HTTP ${res.status}.`,
               blocked_legs: body.blocked_legs,
               charged: body.charged,
+              already_held: body.already_held,
             };
     } catch (e) {
       result = { ok: false, error: `Lost the connection: ${e.message}.` };
     }
     // Storage first, outside React state: if the page unmounted mid-request
     // these writes still land, while the state updates are simply dropped.
-    const certain = Boolean(result.filled) || result.charged === false;
-    if (certain && !priorPending) {
-      dismissPending(size);
-    } else if (!certain) {
-      setPending((prev) => ({ ...prev, [size]: startedAt }));
-    }
+    // The fill is recorded before any marker is cleared, so there is never a
+    // moment with neither.
     if (result.ok && result.filled) {
       const prior = readPlaced();
       const next = {
@@ -502,6 +519,20 @@ export default function NflCard() {
       };
       writePlaced(next);
       setPlaced(next);
+    }
+    if (result.already_held) {
+      setAgainOk((prev) => ({ ...prev, [size]: true }));
+    }
+    const certain = Boolean(result.filled) || result.charged === false;
+    if (certain && !priorPending) {
+      dismissPending(size);
+    } else if (!certain) {
+      // Save to storage again as well: something may have cleared the marker
+      // while this request was out (a resolve button in another tab, or
+      // another attempt's certain answer), and state alone dies with the page.
+      const stored = readPending();
+      if (!stored[size]) writePending({ ...stored, [size]: startedAt });
+      setPending((prev) => ({ ...prev, [size]: startedAt }));
     }
     setResults((prev) => ({ ...prev, [size]: result }));
     setPlacing(null);
@@ -517,7 +548,11 @@ export default function NflCard() {
     if (stamp - armedAt.current < DOUBLE_TAP_GUARD_MS) return;
     disarm();
     if (syncFromStorage()) return;
-    await placeOne(size);
+    // Buying more of a ticket already held is only ever this deliberate
+    // single-ticket tap; the server refuses a repeat without `again`.
+    await placeOne(size, {
+      again: (placed[size] || []).length > 0 || Boolean(againOk[size]),
+    });
     load();
   };
 
@@ -695,6 +730,10 @@ export default function NflCard() {
 
       {tickets.map((t) => {
         const kick = firstKickoff(t.legs);
+        const settled =
+          Boolean(pending[t.size]) &&
+          now > 0 &&
+          now - Date.parse(pending[t.size]) >= PENDING_SETTLE_MS;
         const disabled = busy || !stakeOk || !canPlace(t);
         const isConfirming = confirming === t.size;
         const timesPlaced = (placed[t.size] || []).length;
@@ -822,7 +861,9 @@ export default function NflCard() {
                     ? `Tap again to place · ${money(stakeNum)}`
                     : timesPlaced > 0
                       ? `Placed ${timesPlaced}x · place again for ${money(stakeNum)}`
-                      : `Place ${t.size}-leg · ${money(stakeNum)}`}
+                      : againOk[t.size]
+                        ? `Already held · buy more for ${money(stakeNum)}`
+                        : `Place ${t.size}-leg · ${money(stakeNum)}`}
             </button>
             {pending[t.size] && placing !== t.size ? (
               <div
@@ -837,10 +878,11 @@ export default function NflCard() {
                 }}
               >
                 A placement on this ticket started at{" "}
-                {new Date(pending[t.size]).toLocaleTimeString()} and never got
-                a certain answer. It may have filled. Check My Bets, which can
-                take a minute to show a new fill, then say which it was. Place
-                all skips this ticket until then.
+                {new Date(pending[t.size]).toLocaleTimeString()}
+                {settled
+                  ? " and never got a certain answer. It may have filled. Check My Bets, then say which it was. Place all skips this ticket until then."
+                  : " and may still be running, here or in another tab. Wait a minute before deciding anything. Place all skips this ticket."}
+                {settled ? (
                 <div
                   style={{
                     display: "flex",
@@ -862,6 +904,7 @@ export default function NflCard() {
                     My Bets shows nothing
                   </button>
                 </div>
+                ) : null}
               </div>
             ) : null}
             <Result r={results[t.size]} />
