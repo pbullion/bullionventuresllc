@@ -28,6 +28,9 @@ const CONFIRM_MS = 5000;
 const REFRESH_MS = 60000;
 const PLACED_KEY = `kalshi-card:${CARD_ID}:placed`;
 const PENDING_KEY = `kalshi-card:${CARD_ID}:pending`;
+// When each ticket's latest attempt started, so a retry over an old marker
+// restarts the banner's settle clock.
+const ATTEMPT_KEY = `kalshi-card:${CARD_ID}:attempt`;
 // The second click of a double-click is not a confirmation.
 const DOUBLE_TAP_GUARD_MS = 600;
 // Heroku answers or cuts off within 30s; past this, stop waiting.
@@ -122,6 +125,20 @@ const readPending = () => {
 const writePending = (v) => {
   try {
     localStorage.setItem(PENDING_KEY, JSON.stringify(v));
+  } catch {
+    /* per-browser convenience only */
+  }
+};
+const readAttempts = () => {
+  try {
+    return JSON.parse(localStorage.getItem(ATTEMPT_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+};
+const writeAttempts = (v) => {
+  try {
+    localStorage.setItem(ATTEMPT_KEY, JSON.stringify(v));
   } catch {
     /* per-browser convenience only */
   }
@@ -288,6 +305,7 @@ export default function NflCard() {
   const [results, setResults] = useState({});
   const [placed, setPlaced] = useState(readPlaced);
   const [pending, setPending] = useState(readPending);
+  const [attempts, setAttempts] = useState(readAttempts);
   // Tickets the server said are already held; the next deliberate
   // single-ticket tap buys more.
   const [againOk, setAgainOk] = useState({});
@@ -343,9 +361,14 @@ export default function NflCard() {
     }, REFRESH_MS);
     // A placement made in another tab of this browser shows up here too.
     const onStorage = (e) => {
-      if (e.key === PLACED_KEY || e.key === PENDING_KEY) {
+      if (
+        e.key === PLACED_KEY ||
+        e.key === PENDING_KEY ||
+        e.key === ATTEMPT_KEY
+      ) {
         setPlaced(readPlaced());
         setPending(readPending());
+        setAttempts(readAttempts());
       }
     };
     window.addEventListener("storage", onStorage);
@@ -429,6 +452,9 @@ export default function NflCard() {
       };
       writePlaced(next);
       setPlaced(next);
+    } else if (filled) {
+      // Already recorded, possibly by a request this page never saw finish.
+      setPlaced(readPlaced());
     }
     dismissPending(size);
   };
@@ -462,7 +488,10 @@ export default function NflCard() {
     setConfirming(null);
   };
 
-  const placeOne = async (size, { again = false } = {}) => {
+  const placeOne = async (
+    size,
+    { again = false, fromPlaceAll = false } = {},
+  ) => {
     setPlacing(size);
     setResults((prev) => ({ ...prev, [size]: null }));
     // An earlier uncertain attempt's marker is kept, never overwritten: a
@@ -471,6 +500,10 @@ export default function NflCard() {
     const priorPending = readPending()[size] || pending[size] || null;
     const startedAt = priorPending || new Date().toISOString();
     if (!priorPending) writePending({ ...readPending(), [size]: startedAt });
+    // Every attempt restarts the settle clock, even over an older marker.
+    const attemptAt = new Date().toISOString();
+    writeAttempts({ ...readAttempts(), [size]: attemptAt });
+    setAttempts((prev) => ({ ...prev, [size]: attemptAt }));
     let result;
     try {
       // Past this something between here and Heroku is stuck. Aborting lands
@@ -487,6 +520,9 @@ export default function NflCard() {
           max_markup_pct: Number(markup),
           again,
           allow_started: allowStarted,
+          // Place all refuses to buy blind when the server can't read
+          // whether the ticket is already held.
+          require_position_read: fromPlaceAll,
         }),
       });
       let body = {};
@@ -564,7 +600,7 @@ export default function NflCard() {
   // Tickets not yet filled from this browser, smallest first. Stops at the
   // first answer that might have charged without saying so.
   const allTargets = openTickets.filter(
-    (t) => !placed[t.size] && !pending[t.size],
+    (t) => !placed[t.size] && !pending[t.size] && !againOk[t.size],
   );
   const tapAll = async (e) => {
     const stamp = e.timeStamp;
@@ -585,7 +621,7 @@ export default function NflCard() {
       // this ticket pending since the loop started.
       if (readPlaced()[sizes[i]] || readPending()[sizes[i]]) continue;
       setAllProgress({ i: i + 1, n: sizes.length });
-      const r = await placeOne(sizes[i]);
+      const r = await placeOne(sizes[i], { fromPlaceAll: true });
       // Stop on anything short of a fill confirmed on the YES side: an
       // uncertain answer, a wrong-side fill, or a fill that didn't read back.
       if (!r.filled && r.charged !== false) break;
@@ -757,10 +793,16 @@ export default function NflCard() {
 
       {tickets.map((t) => {
         const kick = firstKickoff(t.legs);
+        // The clock runs from the latest attempt, not the marker's first one:
+        // a retry over an old marker may still be in flight.
+        const lastTry =
+          attempts[t.size] && attempts[t.size] > (pending[t.size] || "")
+            ? attempts[t.size]
+            : pending[t.size];
         const settled =
           Boolean(pending[t.size]) &&
           now > 0 &&
-          now - Date.parse(pending[t.size]) >= PENDING_SETTLE_MS;
+          now - Date.parse(lastTry) >= PENDING_SETTLE_MS;
         const disabled = busy || !stakeOk || !canPlace(t);
         const isConfirming = confirming === t.size;
         const timesPlaced = (placed[t.size] || []).length;
