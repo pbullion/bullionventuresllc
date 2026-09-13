@@ -281,6 +281,7 @@ export default function NflCard() {
   const [notLive, setNotLive] = useState(false);
   const [stake, setStake] = useState(10);
   const [markup, setMarkup] = useState(50);
+  const [allowStarted, setAllowStarted] = useState(false);
   const [confirming, setConfirming] = useState(null);
   const [placing, setPlacing] = useState(null);
   const [allProgress, setAllProgress] = useState(null);
@@ -378,7 +379,10 @@ export default function NflCard() {
     : [];
   // The server decides; it locks a ticket at its first kickoff and checks
   // again on every click.
-  const canPlace = (t) => Boolean(t.placeable);
+  // "Allow games underway" (Patrick, 2026-09-13: "still place them, its still
+  // early enough") lets started legs through at their live prices.
+  const canPlace = (t) =>
+    allowStarted ? Boolean(t.placeable_with_started) : Boolean(t.placeable);
   const openTickets = tickets.filter(canPlace);
   const busy = placing != null || allProgress != null;
 
@@ -482,6 +486,7 @@ export default function NflCard() {
           stake_dollars: stakeNum,
           max_markup_pct: Number(markup),
           again,
+          allow_started: allowStarted,
         }),
       });
       let body = {};
@@ -651,6 +656,16 @@ export default function NflCard() {
             style={inputStyle}
           />
           <button
+            onClick={() => setAllowStarted((v) => !v)}
+            style={{
+              ...chipBtnStyle,
+              background: allowStarted ? C.amber : C.chipBg,
+              color: allowStarted ? "#06210f" : C.text,
+            }}
+          >
+            {allowStarted ? "Games underway: allowed" : "Allow games underway"}
+          </button>
+          <button
             onClick={load}
             disabled={loading}
             style={{
@@ -669,6 +684,18 @@ export default function NflCard() {
           cost on their own. Stakes run $1 to {money(maxStake)}.
           {data ? ` Prices as of ${new Date(data.as_of).toLocaleTimeString()}.` : ""}
         </div>
+        {allowStarted ? (
+          <div
+            style={{
+              color: C.amber,
+              fontSize: 12.5,
+              marginTop: 6,
+              lineHeight: 1.45,
+            }}
+          >
+            Legs already underway are priced at live odds, not this morning's.
+          </div>
+        ) : null}
         {!stakeValid ? (
           <div style={{ color: C.red, fontSize: 12.5, marginTop: 6 }}>
             Stake must be between $1 and {money(maxStake)}.
@@ -852,7 +879,8 @@ export default function NflCard() {
               {placing === t.size
                 ? "Placing… this can take 20 seconds"
                 : !canPlace(t)
-                  ? (t.blocked_legs || []).some(
+                  ? !allowStarted &&
+                    (t.blocked_legs || []).some(
                       (b) => b.reason === "game has started",
                     )
                     ? "Locked: a game has started"
