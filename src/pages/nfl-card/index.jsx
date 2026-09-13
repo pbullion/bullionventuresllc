@@ -499,7 +499,11 @@ export default function NflCard() {
     // State too: when storage is blocked, the marker lives only there.
     const priorPending = readPending()[size] || pending[size] || null;
     const startedAt = priorPending || new Date().toISOString();
-    if (!priorPending) writePending({ ...readPending(), [size]: startedAt });
+    // The write keys on storage alone: state can hold a marker that storage
+    // has already lost, and this request needs one on disk before it goes out.
+    if (!readPending()[size]) {
+      writePending({ ...readPending(), [size]: startedAt });
+    }
     // Every attempt restarts the settle clock, even over an older marker.
     const attemptAt = new Date().toISOString();
     writeAttempts({ ...readAttempts(), [size]: attemptAt });
@@ -550,16 +554,12 @@ export default function NflCard() {
     // The fill is recorded before any marker is cleared, so there is never a
     // moment with neither.
     if (result.ok && result.filled) {
+      const rec = { at: new Date().toISOString(), cost: result.cost_dollars };
       const prior = readPlaced();
-      const next = {
-        ...prior,
-        [size]: [
-          ...(prior[size] || []),
-          { at: new Date().toISOString(), cost: result.cost_dollars },
-        ],
-      };
-      writePlaced(next);
-      setPlaced(next);
+      writePlaced({ ...prior, [size]: [...(prior[size] || []), rec] });
+      // Merge into state, not from storage: when storage throws, readPlaced()
+      // is {} and replacing state with it would wipe the other tickets.
+      setPlaced((prev) => ({ ...prev, [size]: [...(prev[size] || []), rec] }));
     }
     if (result.already_held) {
       setAgainOk((prev) => ({ ...prev, [size]: true }));
@@ -693,6 +693,9 @@ export default function NflCard() {
           />
           <button
             onClick={() => setAllowStarted((v) => !v)}
+            // Locked while placing: a running Place all keeps the setting it
+            // started with, so flipping it mid-loop would only look like a change.
+            disabled={busy}
             style={{
               ...chipBtnStyle,
               background: allowStarted ? C.amber : C.chipBg,
