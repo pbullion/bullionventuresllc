@@ -289,6 +289,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/hrw` | `/hrw` (reviews only — restaurant data is the static `public/data/hrw-2026.json`, see above) |
 | `/fantasy`, `/fantasy/matchups` | `/fantasy-football` (added 2026-09-09; undocumented here until now) |
 | `/fantasy/lineup`, `/fantasy/waivers` | `/fantasy-watch` (added 2026-09-10 — see the section below) |
+| `/whiparound` | `/whiparound/games`, `/whiparound/cfb`, `/whiparound/scoreboards`, `/whiparound/fantasy`, `/whiparound/tropics`, and `/nhc/current-storms` for the radar geometry; RainViewer directly (added 2026-09-13 — see the section below) |
 
 - The site does **not** call `/bullion-ventures` (that backend route is
   push-notification plumbing, not a website API) and does **not** call
@@ -605,6 +606,48 @@ republish. Reviving Opportune calendar data here means Microsoft Graph with a
 registered app and tenant admin consent — do not wire another ICS URL. (The
 `/calendar` route on the backend was deleted in the same pass; Briefly's
 per-user iCal feeds are unrelated and untouched.)
+
+## `/whiparound` — the Whip-Around wall board, in a browser
+
+A web port of `../whiparound-firetv` (Kotlin/Compose, "The Smokehouse Live"),
+built 2026-09-13 so the board can run full screen on an external monitor with a
+computer behind it instead of a Fire TV stick (Patrick: "a whip around screen
+like the fire tv one that i can make full screen on an external monitor").
+`src/pages/whiparound/`. Cardless; in `PRIVATE_GROUPS`; lazy-loaded in `App.jsx`
+so it stays out of the bundle every home-page visitor downloads.
+
+- **It is a PORT, and the two boards must stay in step.** The rotation
+  (`slots.js` ← `ui/Board.kt`'s `slots()`), the poll cadences (`useBoard.js` ←
+  `BoardState.kt`), the parsers (`models/` ← the Kotlin models) and every screen
+  (`screens/` ← `ui/`) carry the Fire TV's rules and durations. The reasons live
+  in `whiparound-firetv/CLAUDE.md` — read the section for a screen before
+  changing it here, and change a rule on both boards or on neither.
+- **A fixed 1920×1080 stage, scaled with one transform.** Every size is the
+  Kotlin's tvOS point 1:1 (`34.pt` → `34`; a raw `1.dp` → `2`), and the stage is
+  scaled to the window and letterboxed on the board's own background. Nothing
+  may be gated on the window's CSS width (the `/drive` lesson), and row budgets
+  measure the stage with `useMeasuredSize`, so a 1440p panel and a 4K one lay out
+  identically. 34px is the floor for anything read from ten feet.
+- **Full screen.** The button (top right, shown on mouse move), `F`, or a
+  double-click use the Fullscreen API, which ENDS on reload. In Chrome with a
+  second display attached, "Choose display…" sends the board full screen onto
+  the external monitor from the laptop's own screen (Window Management API, one
+  permission prompt). For a monitor left on the board for days, use the
+  browser's own full screen (⌃⌘F), which survives reloads: the page reloads
+  itself after 12 hours to pick up deploys, but never while the Fullscreen API
+  holds it. A screen wake lock keeps the display awake while the tab is visible.
+- **Keys:** ←/→ skip a screen, space pauses. Skip moves the rotation's clock
+  (position is still derived from elapsed time, never a counter); a reload
+  forgets it. The controls and the cursor hide after a few idle seconds.
+- **URL flags, none sticky:** `?page=SCORE_NFL` pins a screen (`FANTASY_2` is
+  the second matchup), `?mock=1` shows the Fire TV's preview fixtures with a
+  MOCK DATA chip (the slate and the radar are never mocked), `?fast=1` runs four
+  seconds a screen, `?shot=1` hides the controls for screenshots.
+- **One more client of the shared backend, on the sticks' own clocks** — the
+  slate every 10s, CFB and the NHC geometry on 5–10 minute clocks, the stadium
+  boards and fantasy on their payloads' own `live` flags. Each interval matches a
+  server cache, so don't shorten any of them. Polling pauses while the tab is
+  hidden and refetches the moment it is visible.
 
 ## `/fantasy/lineup` and `/fantasy/waivers` — Fantasy Watch
 

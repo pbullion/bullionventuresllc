@@ -91,6 +91,12 @@ export const PRIVATE_GROUPS = [
         tagline: "In-car dashboard for the Tesla browser",
       },
       {
+        emoji: "📺",
+        name: "Whip-Around",
+        path: "/whiparound",
+        tagline: "The Smokehouse wall board — full screen on a monitor",
+      },
+      {
         emoji: "🍷",
         name: "Blind Tasting",
         path: "/tasting",

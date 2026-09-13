@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 function ScrollToTop() {
@@ -90,6 +90,10 @@ import TastingResults from "./pages/tasting/Results.jsx";
 import HrwRestaurant from "./pages/hrw/Restaurant.jsx";
 import KidsEatFree from "./pages/kids-eat-free/index.jsx";
 
+// Lazy, unlike the pages above: a 1920x1080 wall board has no business in the
+// bundle every home-page visitor downloads.
+const WhipAround = lazy(() => import("./pages/whiparound/index.jsx"));
+
 export default function App() {
   const location = useLocation();
   const isTeslaDashboard = location.pathname.startsWith("/tesla-dashboard");
@@ -141,6 +145,10 @@ export default function App() {
   // Blind wine tasting — a ballot on a phone and a slideshow on a television.
   // Full-screen for both, and unlisted like the rest of the private pages.
   const isTasting = location.pathname.startsWith("/tasting");
+  // The Whip-Around wall board, a web port of whiparound-firetv: a fixed
+  // 1920x1080 stage scaled to the window and meant to be made full screen on
+  // an external monitor. The navbar would sit on top of the stage.
+  const isWhipAround = location.pathname.startsWith("/whiparound");
   const hideChrome =
     isTeslaDashboard ||
     isMothersDay ||
@@ -165,7 +173,8 @@ export default function App() {
     isProspects ||
     isPatrickBoard ||
     isDrive ||
-    isTasting;
+    isTasting ||
+    isWhipAround;
   return (
     <div
       style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
@@ -289,6 +298,14 @@ export default function App() {
           <Route path="/jump" element={<Jump />} />
           <Route path="/status" element={<Status />} />
           <Route path="/drive" element={<Drive />} />
+          <Route
+            path="/whiparound"
+            element={
+              <Suspense fallback={null}>
+                <WhipAround />
+              </Suspense>
+            }
+          />
           <Route path="/hrw" element={<Hrw />} />
           <Route path="/hrw/:slug" element={<HrwRestaurant />} />
           {/* Keeps the site chrome, like /hrw — it's a directory somebody
