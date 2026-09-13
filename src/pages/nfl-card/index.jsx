@@ -28,7 +28,10 @@ const CONFIRM_MS = 5000;
 const REFRESH_MS = 60000;
 const PLACED_KEY = `kalshi-card:${CARD_ID}:placed`;
 const PENDING_KEY = `kalshi-card:${CARD_ID}:pending`;
-const PENDING_STALE_MS = 30 * 60 * 1000;
+// The second click of a double-click is not a confirmation.
+const DOUBLE_TAP_GUARD_MS = 600;
+// Heroku answers or cuts off within 30s; past this, stop waiting.
+const PLACE_TIMEOUT_MS = 40000;
 
 const card = { ...panelStyle, borderRadius: 14, padding: 16 };
 
@@ -103,15 +106,12 @@ const writePlaced = (v) => {
 // going either way, so the ticket carries a "check My Bets" warning until
 // dismissed. Written to storage outside React state, so it still lands if
 // the page unmounts while the request is out.
+// No expiry on purpose: letting a marker lapse would quietly make a ticket
+// that may have filled a Place-all target again. It clears only on a certain
+// answer or when Patrick says which way My Bets shows it went.
 const readPending = () => {
   try {
-    const all = JSON.parse(localStorage.getItem(PENDING_KEY) || "{}") || {};
-    const now = new Date().getTime();
-    return Object.fromEntries(
-      Object.entries(all).filter(
-        ([, at]) => now - Date.parse(at) < PENDING_STALE_MS,
-      ),
-    );
+    return JSON.parse(localStorage.getItem(PENDING_KEY) || "{}") || {};
   } catch {
     return {};
   }
@@ -202,7 +202,9 @@ function Result({ r }) {
       ? r.wrong_side
         ? C.redBorder
         : C.greenBorder
-      : C.amberBorder
+      : r.charged === false
+        ? C.amberBorder
+        : C.redBorder
     : C.redBorder;
   return (
     <div
@@ -218,7 +220,11 @@ function Result({ r }) {
       {r.ok && r.filled ? (
         <>
           <div style={{ color: C.green, fontWeight: 700 }}>
-            Filled: {r.contracts} contracts at {comboCents(r.quoted_price)}
+            Filled:{" "}
+            {r.contracts == null
+              ? "an unconfirmed number of"
+              : Number(Number(r.contracts).toFixed(2))}{" "}
+            contracts at {comboCents(r.quoted_price)}
             {r.cost_dollars != null ? ` · cost ${money(r.cost_dollars)}` : ""}
           </div>
           <div style={{ color: C.muted, fontSize: 12 }}>
@@ -237,6 +243,10 @@ function Result({ r }) {
             </div>
           ) : null}
         </>
+      ) : r.ok && r.charged !== false ? (
+        <div style={{ color: C.red }}>
+          <strong>Not confirmed. This may have filled.</strong> {r.reason}
+        </div>
       ) : r.ok ? (
         <div style={{ color: C.amber }}>
           <strong>Not filled.</strong> {r.reason}
@@ -275,6 +285,9 @@ export default function NflCard() {
   const [placed, setPlaced] = useState(readPlaced);
   const [pending, setPending] = useState(readPending);
   const confirmTimer = useRef(null);
+  const armedAt = useRef(0);
+  const mounted = useRef(true);
+  const busyRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -282,7 +295,10 @@ export default function NflCard() {
     try {
       const res = await fetch(API);
       if (res.status === 404) {
+        // Clear the tickets too, so stale ones can't be placed under the
+        // not-deployed banner.
         setNotLive(true);
+        setData(null);
         return;
       }
       // A Heroku timeout answers with an HTML page, not JSON.
@@ -308,21 +324,42 @@ export default function NflCard() {
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
     (async () => {
       await load();
     })();
     const id = setInterval(() => {
-      load();
+      // Not mid-placement: a refresh then would reshuffle what's on screen.
+      if (!busyRef.current) load();
     }, REFRESH_MS);
+    // A placement made in another tab of this browser shows up here too.
+    const onStorage = (e) => {
+      if (e.key === PLACED_KEY || e.key === PENDING_KEY) {
+        setPlaced(readPlaced());
+        setPending(readPending());
+      }
+    };
+    window.addEventListener("storage", onStorage);
     return () => {
+      mounted.current = false;
       clearInterval(id);
       clearTimeout(confirmTimer.current);
+      window.removeEventListener("storage", onStorage);
     };
   }, [load]);
 
   const maxStake = (data && data.max_stake_dollars) || 100;
   const stakeNum = Number(stake);
-  const stakeOk = stakeNum >= 1 && stakeNum <= maxStake;
+  const stakeValid = stakeNum >= 1 && stakeNum <= maxStake;
+  // A blank markup would reach the server as 0%, not the 50% default.
+  const markupNum = Number(markup);
+  const markupOk =
+    markup !== "" &&
+    Number.isFinite(markupNum) &&
+    markupNum >= 0 &&
+    markupNum <= 300;
+  // Every place button gates on this one flag.
+  const stakeOk = stakeValid && markupOk;
   const tickets = data
     ? [...data.tickets].sort((a, b) => a.size - b.size)
     : [];
@@ -336,6 +373,7 @@ export default function NflCard() {
   // the server, so the browser asks first. In-app navigation can't be caught
   // this way; the pending marker covers that case.
   useEffect(() => {
+    busyRef.current = busy;
     if (!busy) return undefined;
     const warn = (e) => {
       e.preventDefault();
@@ -356,7 +394,43 @@ export default function NflCard() {
     });
   };
 
-  const arm = (key) => {
+  // Patrick checked My Bets and says which way an uncertain placement went.
+  const resolvePending = (size, filled) => {
+    if (filled) {
+      const prior = readPlaced();
+      const next = {
+        ...prior,
+        [size]: [
+          ...(prior[size] || []),
+          { at: new Date().toISOString(), cost: null, confirmed_by_hand: true },
+        ],
+      };
+      writePlaced(next);
+      setPlaced(next);
+    }
+    dismissPending(size);
+  };
+
+  // Storage is the truth across tabs and remounts. If it knows about a
+  // placement this page hasn't shown, show it and make the tap start over.
+  const syncFromStorage = () => {
+    const p = readPlaced();
+    const q = readPending();
+    const newer =
+      Object.keys(p).some(
+        (s) => (p[s] || []).length > (placed[s] || []).length,
+      ) || Object.keys(q).some((s) => !pending[s]);
+    if (newer) {
+      setPlaced(p);
+      setPending(q);
+    }
+    return newer;
+  };
+
+  // `stamp` is the click event's timeStamp: it measures the double-tap gap
+  // without calling a clock inside the component.
+  const arm = (key, stamp) => {
+    armedAt.current = stamp;
     clearTimeout(confirmTimer.current);
     setConfirming(key);
     confirmTimer.current = setTimeout(() => setConfirming(null), CONFIRM_MS);
@@ -369,11 +443,19 @@ export default function NflCard() {
   const placeOne = async (size) => {
     setPlacing(size);
     setResults((prev) => ({ ...prev, [size]: null }));
-    const startedAt = new Date().toISOString();
-    writePending({ ...readPending(), [size]: startedAt });
+    // An earlier uncertain attempt's marker is kept, never overwritten: a
+    // certain answer on THIS attempt says nothing about that one.
+    const priorPending = readPending()[size] || null;
+    const startedAt = priorPending || new Date().toISOString();
+    if (!priorPending) writePending({ ...readPending(), [size]: startedAt });
     let result;
     try {
+      // Past this something between here and Heroku is stuck. Aborting lands
+      // in the catch below as an uncertain answer, which keeps the marker.
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), PLACE_TIMEOUT_MS);
       const res = await fetch(`${API}/place`, {
+        signal: ctrl.signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -388,6 +470,7 @@ export default function NflCard() {
       } catch {
         body = {};
       }
+      clearTimeout(timer);
       result =
         res.ok && body.ok
           ? { ok: true, ...body }
@@ -403,9 +486,9 @@ export default function NflCard() {
     // Storage first, outside React state: if the page unmounted mid-request
     // these writes still land, while the state updates are simply dropped.
     const certain = Boolean(result.filled) || result.charged === false;
-    if (certain) {
+    if (certain && !priorPending) {
       dismissPending(size);
-    } else {
+    } else if (!certain) {
       setPending((prev) => ({ ...prev, [size]: startedAt }));
     }
     if (result.ok && result.filled) {
@@ -425,13 +508,15 @@ export default function NflCard() {
     return result;
   };
 
-  const tapOne = async (size) => {
+  const tapOne = async (size, stamp) => {
     if (busy || !stakeOk) return;
     if (confirming !== size) {
-      arm(size);
+      arm(size, stamp);
       return;
     }
+    if (stamp - armedAt.current < DOUBLE_TAP_GUARD_MS) return;
     disarm();
+    if (syncFromStorage()) return;
     await placeOne(size);
     load();
   };
@@ -441,20 +526,30 @@ export default function NflCard() {
   const allTargets = openTickets.filter(
     (t) => !placed[t.size] && !pending[t.size],
   );
-  const tapAll = async () => {
+  const tapAll = async (e) => {
+    const stamp = e.timeStamp;
     if (busy || !stakeOk || allTargets.length === 0) return;
     if (confirming !== "all") {
-      arm("all");
+      arm("all", stamp);
       return;
     }
+    if (stamp - armedAt.current < DOUBLE_TAP_GUARD_MS) return;
     disarm();
+    if (syncFromStorage()) return;
     const sizes = allTargets.map((t) => t.size);
     for (let i = 0; i < sizes.length; i++) {
+      // Left the page: stop rather than keep buying with nothing on screen.
+      // The request already out is covered by its pending marker.
+      if (!mounted.current) break;
+      // Another tab, or this page's own earlier loop, may have placed or left
+      // this ticket pending since the loop started.
+      if (readPlaced()[sizes[i]] || readPending()[sizes[i]]) continue;
       setAllProgress({ i: i + 1, n: sizes.length });
       const r = await placeOne(sizes[i]);
-      // Stop on anything that might have charged without a confirmed fill:
-      // an error that didn't say "charged: false", or an unconfirmed accept.
+      // Stop on anything short of a fill confirmed on the YES side: an
+      // uncertain answer, a wrong-side fill, or a fill that didn't read back.
       if (!r.filled && r.charged !== false) break;
+      if (r.filled && (r.wrong_side || !r.readback_ok)) break;
     }
     setAllProgress(null);
     load();
@@ -539,9 +634,14 @@ export default function NflCard() {
           cost on their own. Stakes run $1 to {money(maxStake)}.
           {data ? ` Prices as of ${new Date(data.as_of).toLocaleTimeString()}.` : ""}
         </div>
-        {!stakeOk ? (
+        {!stakeValid ? (
           <div style={{ color: C.red, fontSize: 12.5, marginTop: 6 }}>
             Stake must be between $1 and {money(maxStake)}.
+          </div>
+        ) : null}
+        {!markupOk ? (
+          <div style={{ color: C.red, fontSize: 12.5, marginTop: 6 }}>
+            Max markup must be between 0 and 300.
           </div>
         ) : null}
         {err ? (
@@ -691,7 +791,7 @@ export default function NflCard() {
             </div>
 
             <button
-              onClick={() => tapOne(t.size)}
+              onClick={(e) => tapOne(t.size, e.timeStamp)}
               disabled={disabled}
               style={{
                 width: "100%",
@@ -724,7 +824,7 @@ export default function NflCard() {
                       ? `Placed ${timesPlaced}x · place again for ${money(stakeNum)}`
                       : `Place ${t.size}-leg · ${money(stakeNum)}`}
             </button>
-            {pending[t.size] && !results[t.size] && placing !== t.size ? (
+            {pending[t.size] && placing !== t.size ? (
               <div
                 style={{
                   marginTop: 10,
@@ -738,14 +838,30 @@ export default function NflCard() {
               >
                 A placement on this ticket started at{" "}
                 {new Date(pending[t.size]).toLocaleTimeString()} and never got
-                a certain answer on this page. It may have filled. Check My Bets
-                before placing it again.{" "}
-                <button
-                  onClick={() => dismissPending(t.size)}
-                  style={{ ...chipBtnStyle, padding: "2px 8px", marginLeft: 4 }}
+                a certain answer. It may have filled. Check My Bets, which can
+                take a minute to show a new fill, then say which it was. Place
+                all skips this ticket until then.
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginTop: 8,
+                    flexWrap: "wrap",
+                  }}
                 >
-                  Dismiss
-                </button>
+                  <button
+                    onClick={() => resolvePending(t.size, true)}
+                    style={chipBtnStyle}
+                  >
+                    My Bets shows it filled
+                  </button>
+                  <button
+                    onClick={() => resolvePending(t.size, false)}
+                    style={chipBtnStyle}
+                  >
+                    My Bets shows nothing
+                  </button>
+                </div>
               </div>
             ) : null}
             <Result r={results[t.size]} />
