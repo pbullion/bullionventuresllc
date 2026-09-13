@@ -5,35 +5,49 @@
  * `start` on the wire is UTC, and ESPN's own `status` label on a scheduled game
  * is EASTERN ("9/5 - 12:30 PM EDT"). This wall is in Houston, so every kickoff
  * is formatted here against an explicit America/Chicago. The browser's CLOCK
- * still matters (TODAY vs TOMORROW is a question about now); its TIMEZONE does
- * not.
+ * still matters (TODAY vs TOMORROW, and which games COMING UP keeps, are
+ * questions about now); its TIMEZONE does not.
  */
 
 const CENTRAL = "America/Chicago";
+const EASTERN = "America/New_York";
 
-const PARTS = new Intl.DateTimeFormat("en-US", {
-  timeZone: CENTRAL,
-  year: "numeric",
-  month: "numeric",
-  day: "numeric",
-  weekday: "short",
-  hour: "numeric",
-  minute: "2-digit",
-  second: "2-digit",
-  hourCycle: "h23",
-});
+const FORMATTERS = new Map();
+
+function partsFormatter(zone) {
+  let f = FORMATTERS.get(zone);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      weekday: "short",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    FORMATTERS.set(zone, f);
+  }
+  return f;
+}
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/// { year, month (1-12), day, weekday ("Sun"), hour (0-23), minute, second } in Central.
-export function centralParts(ms) {
+function zoneParts(ms, zone) {
   const out = {};
-  for (const p of PARTS.formatToParts(new Date(ms))) {
+  for (const p of partsFormatter(zone).formatToParts(new Date(ms))) {
     if (p.type === "weekday") out.weekday = p.value;
     else if (p.type !== "literal") out[p.type] = Number(p.value);
   }
   out.hour %= 24;
   return out;
+}
+
+/// { year, month (1-12), day, weekday ("Sun"), hour (0-23), minute, second } in Central.
+export function centralParts(ms) {
+  return zoneParts(ms, CENTRAL);
 }
 
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -42,8 +56,8 @@ const pad2 = (n) => String(n).padStart(2, "0");
  * yyyy MMM MM M dd d EEE HH h mm a, and 'quoted' literals. Built from parts
  * rather than Intl's own time string, which puts a narrow no-break space before
  * AM/PM on current engines. */
-export function formatCentral(ms, pattern) {
-  const p = centralParts(ms);
+function formatIn(ms, pattern, zone) {
+  const p = zoneParts(ms, zone);
   const h12 = p.hour % 12 === 0 ? 12 : p.hour % 12;
   return pattern.replace(/yyyy|MMM|MM|M|dd|d|EEE|HH|h|mm|a|'[^']*'/g, (tok) => {
     switch (tok) {
@@ -75,6 +89,10 @@ export function formatCentral(ms, pattern) {
   });
 }
 
+export function formatCentral(ms, pattern) {
+  return formatIn(ms, pattern, CENTRAL);
+}
+
 /// Minutes Central is ahead of UTC at that instant (-300 in summer, -360 in winter).
 function offsetMinutes(ms) {
   const p = centralParts(ms);
@@ -91,19 +109,14 @@ export function centralMidnight(year, month, day) {
   return t;
 }
 
-/// Midnight Central at the start of the day after tomorrow.
-export function endOfTomorrow(now) {
-  const p = centralParts(now);
-  return centralMidnight(p.year, p.month, p.day + 2);
-}
-
 export function isSaturdayCentral(now) {
   return centralParts(now).weekday === "Sat";
 }
 
 /* ESPN's own format through the backend: "2026-08-23T23:00Z". Seconds and a
- * fraction are accepted too. An unparseable start is not worth dropping a game
- * over — it simply does not count as imminent. */
+ * fraction are accepted too. Null when it does not parse — not a crash, but a
+ * game that cannot be placed on a day, so COMING UP leaves it off (see
+ * comingUpToday in screens/SlateLayout.js). */
 export function startMillis(game) {
   const raw = game?.start;
   if (!raw) return null;
@@ -112,21 +125,51 @@ export function startMillis(game) {
   return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0));
 }
 
-/* { day: "TODAY" | "TOMORROW" | "SUN 9/13", time: "7:00 PM" }, or null when
- * `start` does not parse. No "CT" — everything on this wall is Central. */
+/* A GAME WITH NO KICKOFF TIME YET IS DATED, NOT TIMED.
+ *
+ * ESPN publishes a game whose time is not set with the status "TBD" and a
+ * `start` of MIDNIGHT EASTERN on its date — 04:00Z in September, 05:00Z in
+ * November. Read in Central that is 11 PM the night before, so a Monday game
+ * with no time became a card saying SUN · 11:00 PM: the wrong day, and a time
+ * nobody published. Such a game is on the Eastern date ESPN gave it, and its
+ * time is the status itself. (Slate.kt's NO_TIME, 2026-09-13.)
+ */
+const NO_TIME = /^TB[AD]\b/i;
+
+function noTime(game) {
+  return game.status != null && NO_TIME.test(game.status);
+}
+
+/// The zone `start` has to be read in to land on the day the game is on.
+function dayZone(game) {
+  return noTime(game) ? EASTERN : CENTRAL;
+}
+
+/// The calendar day a scheduled game is on, as yyyyMMdd; null when `start` does not parse.
+export function gameDay(game) {
+  const ms = startMillis(game);
+  return ms == null ? null : formatIn(ms, "yyyyMMdd", dayZone(game));
+}
+
+/* { day: "TODAY" | "TOMORROW" | "SUN 9/13", time: "7:00 PM" | "TBD" }, or null
+ * when `start` does not parse. No "CT" — everything on this wall is Central. */
 export function kickoff(game, now) {
   const ms = startMillis(game);
   if (ms == null) return null;
-  const date = formatCentral(ms, "yyyyMMdd");
+  const zone = dayZone(game);
+  const date = formatIn(ms, "yyyyMMdd", zone);
   let day;
   if (date === formatCentral(now, "yyyyMMdd")) day = "TODAY";
   else if (date === formatCentral(now + 24 * 60 * 60 * 1000, "yyyyMMdd")) day = "TOMORROW";
-  else day = formatCentral(ms, "EEE M/d").toUpperCase();
-  return { day, time: formatCentral(ms, "h:mm a").toUpperCase() };
+  else day = formatIn(ms, "EEE M/d", zone).toUpperCase();
+  const time = noTime(game) ? game.status.toUpperCase() : formatCentral(ms, "h:mm a").toUpperCase();
+  return { day, time };
 }
 
-/// The same kickoff as one string, falling back to ESPN's status verbatim.
-export function kickoffLabel(game, now) {
+/// The same kickoff as one string — or the time alone, for a list that is all
+/// today — falling back to ESPN's status verbatim.
+export function kickoffLabel(game, now, withDay = true) {
   const k = kickoff(game, now);
-  return k ? `${k.day} · ${k.time}` : (game.status ?? "");
+  if (!k) return game.status ?? "";
+  return withDay ? `${k.day} · ${k.time}` : k.time;
 }

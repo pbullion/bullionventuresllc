@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { Chip, Heading, Note, TeamLogo, Text } from "../components";
 import { useMeasuredSize } from "../hooks";
-import { endOfTomorrow, kickoff } from "../format";
+import { kickoff } from "../format";
 import { LINE, T, W, edge, side } from "../theme";
 import {
   BLOCK_GAP,
@@ -11,10 +11,11 @@ import {
   NOTE,
   PER_ROW,
   TITLE_GAP,
+  comingUpToday,
   finalTag,
   groupBlocks,
-  isImminent,
   layoutBlocks,
+  noGamesTodayText,
   sharedDay,
   shortChannel,
 } from "./SlateLayout";
@@ -23,13 +24,14 @@ import {
  * (TonightScreen, FinalsScreen and their cards; RaceScreen is Race.jsx).
  *
  * The two questions the live screens cannot answer — "what else is on" and
- * "what did I miss" — spending the up-to-forty upcoming and forty finals the
- * backend already sends. CARDS IN LEAGUE BLOCKS (Patrick, 2026-08-31: "seperate
- * out the games by league… make them more card like with additional info"): the
- * league is said once per block instead of as a chip on every row, and the room
- * that buys goes to the kickoff in CENTRAL, the channel, and both records on a
- * final. Fewer games fit, and each heading says "16 OF 24" so the truncation
- * belongs to a league. The layout rules live in SlateLayout.js.
+ * "what did I miss" — spending the upcoming and final games the backend already
+ * sends (COMING UP only the part still to come TODAY, since 2026-09-13). CARDS
+ * IN LEAGUE BLOCKS (Patrick, 2026-08-31: "seperate out the games by league…
+ * make them more card like with additional info"): the league is said once per
+ * block instead of as a chip on every row, and the room that buys goes to the
+ * kickoff in CENTRAL, the channel, and both records on a final. Fewer games
+ * fit, and each heading says "16 OF 24" so the truncation belongs to a league.
+ * The layout rules live in SlateLayout.js.
  *
  * The small type on the cards (26 time, 22 channel chip, 24 record, 28 count)
  * is the Kotlin's own, and the height budget is built on it — see CARD_MIN.
@@ -37,33 +39,63 @@ import {
 
 const spacer = (width) => <div style={{ width, flexShrink: 0 }} />;
 
-/* WHAT IS COMING, with tonight picked out by BRIGHTNESS rather than membership.
- * The raw forty was a season fixture list; windowed to today+tomorrow it was
- * five rows, a 90%-empty panel repeating the bottom strip. So everything shows,
- * and the Central-time window decides which cards read at full strength. */
-export function TonightScreen({ games, now }) {
-  const cutoff = endOfTomorrow(now);
-  const soon = games.filter((g) => isImminent(g, cutoff)).length;
+/* WHAT IS STILL TO COME TODAY — and a sentence when nothing is (Patrick,
+ * 2026-09-13: "dont display nhl, nba, on the coming up. only display games
+ * coming up that day, if no games, say that").
+ *
+ * The screen's fourth version. The third showed every upcoming game with today
+ * and tomorrow picked out by brightness, which that afternoon put NHL preseason,
+ * an October NBA game and nineteen November college basketball rows under
+ * today's eight real games. The rule itself is comingUpToday in SlateLayout.js;
+ * index.jsx only draws this once the slate has loaded. */
+export function TonightScreen({ slate, now }) {
+  const games = comingUpToday(slate.upcoming, now);
+  if (games.length === 0) return <NoGamesToday message={noGamesTodayText(slate, now)} />;
   return (
     <LeagueBlocks
-      title={
-        soon > 0
-          ? `COMING UP · ${soon} TODAY & TOMORROW OF ${games.length}`
-          : `COMING UP · ${games.length} SCHEDULED`
-      }
+      title={`COMING UP TODAY · ${games.length}`}
       games={games}
       chronological
-      dayOf={(g) => kickoff(g, now)?.day ?? null}
-      card={(g, height, day) => (
-        <ScheduledCard
-          game={g}
-          now={now}
-          imminent={isImminent(g, cutoff)}
-          height={height}
-          blockDay={day}
-        />
-      )}
+      // Every card is today and the title says so once, so a card carries only its time.
+      card={(g, height) => <ScheduledCard game={g} now={now} height={height} blockDay="TODAY" />}
     />
+  );
+}
+
+/* NOTHING LEFT TODAY, SAID IN WORDS.
+ *
+ * The screen stays in the rotation rather than standing down, because the answer
+ * is what he asked for — a wall that silently skips COMING UP says nothing about
+ * whether anything is on. Headline type, centred, one line: the panel is the
+ * sentence. "NO MORE" once the day has had a game, so Sunday at 11 PM does not
+ * read as though nothing was on. */
+function NoGamesToday({ message }) {
+  return (
+    <div
+      style={{
+        flex: "1 1 0",
+        minHeight: 0,
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <Heading text="COMING UP TODAY" style={{ flexShrink: 0 }} />
+      <div
+        style={{
+          flex: "1 1 0",
+          minHeight: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text size={86} weight={W.black} spacing={2} align="center" lines={1}>
+          {message}
+        </Text>
+      </div>
+    </div>
   );
 }
 
@@ -77,16 +109,21 @@ export function FinalsScreen({ games }) {
   );
 }
 
-/* One scheduled game. The day is dropped when the block heading already carries
- * it — compared, not assumed, so a card that differs from its block still says
- * its own day. With no parseable `start` it falls back to ESPN's label: a
- * wrong-zone time beats a card that does not say when. */
-function ScheduledCard({ game, now, imminent, height, blockDay }) {
+/* One scheduled game. EVERY ONE IS BRIGHT, AND NONE CARRIES AN ACCENT EDGE:
+ * both used to mark the games happening today or tomorrow against the fixtures
+ * behind them, and since COMING UP became today's games only there is nothing
+ * behind them to mark against.
+ *
+ * The day is dropped when the block heading already carries it — compared, not
+ * assumed, so a card that differs from its block still says its own day. With
+ * no parseable `start` it falls back to ESPN's label: a wrong-zone time beats a
+ * card that does not say when. */
+function ScheduledCard({ game, now, height, blockDay }) {
   const k = kickoff(game, now);
   const left = k ? (k.day === blockDay ? k.time : `${k.day} · ${k.time}`) : (game.status ?? "");
   return (
-    <Card imminent={imminent} height={height}>
-      <Matchup game={game} joiner="at" bright={imminent} />
+    <Card height={height}>
+      <Matchup game={game} joiner="at" bright />
       <Meta left={left} right={game.broadcast} />
     </Card>
   );
@@ -97,7 +134,7 @@ function ScheduledCard({ game, now, imminent, height, blockDay }) {
  * result did to the season. */
 function FinalCard({ game, height }) {
   return (
-    <Card imminent={false} height={height}>
+    <Card height={height}>
       <SideLine
         team={game.away}
         leads={game.awayLeads}
@@ -202,10 +239,12 @@ function Meta({ left, right }) {
   );
 }
 
-/* THE CARD. Imminent is the EDGE in the accent (2dp = 4 stage px) plus the
- * brightness; an inset rail down the left was tried and read as a thicker
- * border while costing every card its width. */
-function Card({ imminent, height, children }) {
+/* THE CARD. It carried an accent edge (2dp = 4 stage px) for an imminent game
+ * until 2026-09-13, when COMING UP became today's games only and every card on
+ * it would have carried one; see ScheduledCard. An inset rail down the left was
+ * tried before the edge and read as a thicker border — worth knowing before
+ * reaching for either again. */
+function Card({ height, children }) {
   return (
     <div
       style={{
@@ -214,7 +253,7 @@ function Card({ imminent, height, children }) {
         boxSizing: "border-box",
         background: T.panel,
         borderRadius: 12,
-        ...edge(imminent ? T.accent : T.border, imminent ? 4 : 2),
+        ...edge(T.border, 2),
         padding: "10px 16px",
         display: "flex",
         flexDirection: "column",
@@ -228,8 +267,8 @@ function Card({ imminent, height, children }) {
 }
 
 /* The screen: a title, then one block per league. `dayOf` opts a screen into
- * the shared-day heading; FINAL TODAY passes none — its title already says the
- * day. */
+ * the shared-day heading; neither screen passes one today — FINAL TODAY's title
+ * already says the day, and so does COMING UP TODAY's. */
 function LeagueBlocks({ title, games, chronological = false, dayOf = null, card }) {
   const blocks = groupBlocks(games, chronological);
   return (

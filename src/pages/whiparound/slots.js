@@ -9,9 +9,10 @@
  *   - The ranking BOARD screen left the rotation on 2026-08-30. It survives only
  *     as the fallback when every other screen stands down, or when a pinned
  *     screen has no data.
- *   - EVERY SCREEN STANDS DOWN WHEN IT HAS NOTHING TO SAY — absent means no —
- *     so the fifteen kinds of screen are a ceiling, and an ordinary day is far
- *     fewer.
+ *   - EVERY SCREEN BUT COMING UP STANDS DOWN WHEN IT HAS NOTHING TO SAY —
+ *     absent means no — so the fifteen kinds of screen are a ceiling, and an
+ *     ordinary day is far fewer. COMING UP says NO GAMES TODAY instead, once
+ *     the slate has loaded (2026-09-13).
  *   - FANTASY is one page value standing for one screen PER MATCHUP, told apart
  *     by `index`.
  *   - "Every other lap" (the quiet stadium boards, the college team midweek) is
@@ -21,6 +22,7 @@
  */
 
 import { isSaturdayCentral } from "./format";
+import { comingUpToday } from "./screens/SlateLayout";
 
 export const PAGES = [
   "BOARD",
@@ -50,7 +52,7 @@ function slot(page, seconds, index = 0) {
 }
 
 export function slots(state, fast = false) {
-  const { slate, cfb, scoreboards, tropics, tracks, fantasy, now } = state;
+  const { slate, cfb, scoreboards, tropics, tracks, fantasy, now, lastSuccess } = state;
   const live = slate.live.length > 0;
   // Out of season there is no college football on the wall at all.
   const cfbOn = cfb != null && cfb.inSeason;
@@ -71,7 +73,15 @@ export function slots(state, fast = false) {
     fantasy.matchups.forEach((_, i) => others.push(slot("FANTASY", live ? 18 : 24, i)));
   }
   if (fantasy.hasSurvivor) others.push(slot("SURVIVOR", live ? 26 : 34));
-  if (slate.upcoming.length > 0) others.push(slot("TONIGHT", live ? 30 : 40));
+  /* COMING UP: TODAY'S GAMES, AND A SENTENCE WHEN THERE ARE NONE (Patrick,
+   * 2026-09-13: "if no games, say that"). So it no longer stands down on an
+   * empty list — only before the first good slate, because lastSuccess is what
+   * tells "no games today" from "starting up", and a board that has not heard
+   * from the backend has no business saying either. The sentence gets a short
+   * slot: there is one line to read. */
+  const today = comingUpToday(slate.upcoming, now);
+  if (today.length > 0) others.push(slot("TONIGHT", live ? 30 : 40));
+  else if (lastSuccess != null) others.push(slot("TONIGHT", 12));
   if (slate.final.length > 0) others.push(slot("FINALS", live ? 26 : 34));
   if (cfbOn) {
     if (cfb.poll) {
@@ -127,7 +137,13 @@ export function slots(state, fast = false) {
   ];
   const quiet = [...scoreQuiet, ...(!theirDay && !teamEveryLap ? teamSlots : [])];
 
-  if (loud.length === 0 && quiet.length === 0) return [slot("BOARD", 60)];
+  /* Nothing in the rotation, or nothing but COMING UP saying there are no games
+   * left: a single sentence on a loop is not a rotation. The board shows the
+   * live games when there are any and, when there are none, its own COMING UP
+   * TODAY panel with the same sentence, so both cases fall back to it. (every()
+   * is true of an empty list.) */
+  const nothingButNoGames = [...loud, ...quiet].every((s) => s.page === "TONIGHT") && today.length === 0;
+  if (nothingButNoGames) return [slot("BOARD", 60)];
 
   const cycle = quiet.length === 0 ? loud : [...loud, ...quiet, ...loud];
   // `?fast=1` — the web's DEV_FAST_ROTATE. A URL flag rather than a constant,

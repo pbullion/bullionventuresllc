@@ -62,7 +62,7 @@ const TITLES = {
   RADAR: "Storm radar",
   FANTASY: "Fantasy",
   SURVIVOR: "Guillotine",
-  TONIGHT: "Coming up",
+  TONIGHT: "Coming up today",
   FINALS: "Final today",
   RACE: "Standings",
   POLL: "College poll",
@@ -119,7 +119,10 @@ function Screen({ slot, board }) {
     case "SURVIVOR":
       return fantasy.hasSurvivor ? <SurvivorScreen fantasy={fantasy} /> : games;
     case "TONIGHT":
-      return <TonightScreen games={slate.upcoming} now={now} />;
+      // Only once the slate has loaded. Before that an empty list is not "no
+      // games today", so a pinned COMING UP falls back like any screen with no
+      // data; the rotation never adds the slot that early anyway.
+      return board.lastSuccess != null ? <TonightScreen slate={slate} now={now} /> : games;
     case "FINALS":
       return <FinalsScreen games={slate.final} />;
     case "RACE":
@@ -204,6 +207,7 @@ function Stage({ board, slot }) {
         <ScreenBoundary resetKey={retry}>
           <StatusStrip
             slate={slate}
+            now={board.now}
             showNext={slate.live.length > 0}
             showWeather={slot.page !== "WEATHER"}
           />

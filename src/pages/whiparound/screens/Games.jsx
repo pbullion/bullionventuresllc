@@ -1,6 +1,7 @@
-import { AdaptiveRows, BaseDiamond, Chip, Heading, HeatBar, Panel, TeamLogo, Text } from "../components";
+import { AdaptiveRows, BaseDiamond, Chip, Heading, HeatBar, Note, Panel, TeamLogo, Text } from "../components";
 import { useMeasuredSize } from "../hooks";
 import { kickoffLabel } from "../format";
+import { comingUpToday, noGamesTodayText } from "./SlateLayout";
 import { LINE, T, W, heat, side, streakColor } from "../theme";
 
 /* The board fallback — a port of GamesPage and everything under it (Hero,
@@ -596,6 +597,7 @@ function StandingRowView({ row, isPlaying, isLeader }) {
  * is coming instead of an empty panel. */
 function EmptyBoard({ state }) {
   const { slate } = state;
+  const today = comingUpToday(slate.upcoming, state.now);
   return (
     <Split
       left={
@@ -628,9 +630,16 @@ function EmptyBoard({ state }) {
       }
       right={
         <Panel style={{ flex: "1 1 0" }}>
-          <Heading text="COMING UP" style={{ flexShrink: 0 }} />
+          {/* The COMING UP screen's question, so the COMING UP screen's answer:
+              today's games without the NHL or the NBA, and the sentence when
+              there are none. Before the first fetch the panel on the left
+              already says "connecting…". */}
+          <Heading text="COMING UP TODAY" style={{ flexShrink: 0 }} />
+          {today.length === 0 && state.lastSuccess != null && (
+            <Note text={noGamesTodayText(slate, state.now)} />
+          )}
           <AdaptiveRows
-            items={slate.upcoming}
+            items={today}
             height={72}
             noun="scheduled"
             renderRow={(game) => <ComingUpRow game={game} now={state.now} />}
@@ -649,9 +658,10 @@ function ComingUpRow({ game, now }) {
       <Text size={42} weight={W.bold} style={{ flex: "1 1 0", ...CLIP }}>
         {`${game.away.abbr} at ${game.home.abbr}`}
       </Text>
-      {/* CENTRAL, not ESPN's Eastern `status`. */}
+      {/* CENTRAL, not ESPN's Eastern `status` — and the time alone, because
+          every row is today and the heading says so. */}
       <Text size={32} weight={W.bold} color={T.muted} style={{ flexShrink: 0, whiteSpace: "nowrap" }}>
-        {kickoffLabel(game, now)}
+        {kickoffLabel(game, now, false)}
       </Text>
     </div>
   );

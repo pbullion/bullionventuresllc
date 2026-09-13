@@ -1,18 +1,25 @@
 import { T, W, edge } from "./theme";
 import { Text } from "./components";
+import { comingUpToday } from "./screens/SlateLayout";
 
 /* The bottom strip — a port of StatusStrip in whiparound-firetv's ui/Board.kt.
  *
  * NEXT is TWO matchups, not six: at 36pt six truncated in the middle of an
  * abbreviation ("SJSU@U…"), which reads as a strip that broke. It only shows
- * while something is live; COMING UP carries the full schedule.
+ * while something is live; COMING UP carries the rest of today's games.
+ *
+ * NEXT IS ON COMING UP'S TERMS (Patrick, 2026-09-13): today's games, no NHL or
+ * NBA. Read raw, the strip said "NEXT  DEN@KC  MTL@TOR" under NO MORE GAMES
+ * TODAY once Sunday night's game had kicked off — Monday's game and a hockey
+ * preseason game six days out, neither dated. With nothing left today the NEXT
+ * half stands down on its own.
  *
  * Weather drops its last clause (wind) when it shares the strip and is whole on
  * its own. On the weather SCREEN the weather half stands down — it would be the
  * same sentence the panel above is already shouting.
  */
-export default function StatusStrip({ slate, showNext, showWeather }) {
-  const next = showNext ? slate.upcoming.slice(0, 2) : [];
+export default function StatusStrip({ slate, now, showNext, showWeather }) {
+  const next = showNext ? comingUpToday(slate.upcoming, now).slice(0, 2) : [];
   const weather = showWeather ? slate.weather : null;
   if (next.length === 0 && !weather) return null;
   const alone = next.length === 0;

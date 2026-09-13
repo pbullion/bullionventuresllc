@@ -8,7 +8,7 @@
  * are commented where they live below.
  */
 
-import { startMillis } from "../format";
+import { formatCentral, gameDay } from "../format";
 
 /* FINAL TODAY's block order, and deliberately NOT COMING UP's.
  *
@@ -64,11 +64,45 @@ export function shortChannel(raw) {
   return short.length < name.length ? short : name;
 }
 
-/// Imminent = kicks off before midnight Central at the end of tomorrow. An
-/// unparseable start is not imminent — it renders as a later fixture.
-export function isImminent(game, cutoff) {
-  const ms = startMillis(game);
-  return ms != null && ms < cutoff;
+/* WHAT IS STILL TO COME TODAY, WITHOUT THE NHL OR THE NBA — comingUpToday in
+ * Slate.kt (Patrick, 2026-09-13: "dont display nhl, nba, on the coming up. only
+ * display games coming up that day, if no games, say that"). COMING UP, the
+ * strip's NEXT, the rotation and the board fallback's COMING UP TODAY panel all
+ * ask this one filter.
+ *
+ * THE TWO LEAGUES COME OFF COMING UP ONLY. Their live games, their finals and
+ * the Rockets' stadium board are untouched, which is why this is not HIDDEN in
+ * models/slate.js: that takes a league off the whole wall, and he named "the
+ * coming up".
+ *
+ * "Today" is Central by this computer's clock. A game with no time yet counts on
+ * the Eastern date ESPN gave it (gameDay in format.js), and a game whose start
+ * does not parse cannot be shown to be today, so it is not shown.
+ *
+ * WHAT THIS CANNOT SEE: /whiparound/games sends the first forty upcoming games
+ * across every league, soonest first, so on a day with more than forty of them
+ * (a college Saturday) the tail of today is cut upstream and the count reads low.
+ */
+const NOT_COMING_UP = new Set(["nhl", "nba"]);
+
+export function comingUpToday(upcoming, now) {
+  const today = formatCentral(now, "yyyyMMdd");
+  return upcoming.filter((g) => !NOT_COMING_UP.has(g.league) && gameDay(g) === today);
+}
+
+/// Whether the day has already had a game on these terms — the difference between
+/// "NO GAMES TODAY" and "NO MORE GAMES TODAY". A live game counts whatever day it
+/// started on; the finals list carries yesterday's too, so a final has to be today's.
+export function playedToday(slate, now) {
+  const today = formatCentral(now, "yyyyMMdd");
+  return (
+    slate.live.some((g) => !NOT_COMING_UP.has(g.league)) ||
+    slate.final.some((g) => !NOT_COMING_UP.has(g.league) && gameDay(g) === today)
+  );
+}
+
+export function noGamesTodayText(slate, now) {
+  return playedToday(slate, now) ? "NO MORE GAMES TODAY" : "NO GAMES TODAY";
 }
 
 /* "FINAL/OT" ONLY. ESPN distinguishes Final from Final/OT and only the
