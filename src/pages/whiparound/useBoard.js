@@ -208,6 +208,22 @@ export function useBoard({ mock, cowboysTakeover = true }) {
       return { scoreboards: sb };
     };
 
+    /* START THE TAKEOVER as soon as a feed lands that proves it: the Cowboys'
+     * board live — or, for the first minutes of a game while the backend still
+     * serves the pregame board it cached before kickoff, that pregame board with
+     * the slate saying the game is on. Checked as each of those two feeds lands,
+     * not after the whole round: a cold fantasy fetch takes up to 15s, and a page
+     * loaded mid-game should not rotate for that long. */
+    const maybeStart = () => {
+      if (!takeover || !alive || mem.cowboysOnly) return;
+      const phase = cowboysPhase(mem.scoreboards);
+      if (phase === "live" || (phase === "pre" && mem.cowboysOnSlate)) {
+        mem.cowboysOnly = true;
+        mem.unsure = 0;
+        merge({ cowboysOnly: true });
+      }
+    };
+
     const poll = async () => {
       /* The game is over. Every other feed is as old as it is, so this poll
        * runs a full round from tick 0 — and the wall is handed back only once
@@ -295,6 +311,8 @@ export function useBoard({ mock, cowboysTakeover = true }) {
         jobs.push(
           getScoreboards().then((sb) => {
             if (sb) takeScoreboards(sb);
+            // Not mid-hand-back: that flips cowboysOnly itself, after the slate.
+            if (handBack == null) maybeStart();
           }),
         );
       }
@@ -336,6 +354,7 @@ export function useBoard({ mock, cowboysTakeover = true }) {
           mem.previousScores = scores;
           mem.cowboysOnSlate = takeover && cowboysInGames(slate.live);
           merge({ slate, climbing, lastSuccess: Date.now(), lastError: null });
+          if (handBack == null) maybeStart();
         })
         // The previous slate stays on screen; the stale rail says so.
         .catch((e) =>
@@ -353,19 +372,8 @@ export function useBoard({ mock, cowboysTakeover = true }) {
         merge(sb ? { cowboysOnly: false, scoreboards: sb, scoreboardsAt: Date.now() } : { cowboysOnly: false });
       }
       await Promise.all(jobs);
-
-      /* START THE TAKEOVER once the round has landed, off the boards it holds:
-       * the Cowboys' board live — or, for the first minutes of a game, while the
-       * backend still serves the pregame board it cached before kickoff, that
-       * pregame board with the slate saying the game is on. */
-      if (takeover && alive && !mem.cowboysOnly) {
-        const phase = cowboysPhase(mem.scoreboards);
-        if (phase === "live" || (phase === "pre" && mem.cowboysOnSlate)) {
-          mem.cowboysOnly = true;
-          mem.unsure = 0;
-          merge({ cowboysOnly: true });
-        }
-      }
+      // The hand-back poll's only chance to start one; a no-op if a feed already did.
+      maybeStart();
     };
 
     const run = async () => {
