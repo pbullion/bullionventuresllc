@@ -41,6 +41,10 @@ import { GamesPage } from "./screens/Games";
  * made to the other is two walls disagreeing. The Fire TV repo's CLAUDE.md
  * holds the reasons — read it before "improving" a rule here.
  *
+ * EXCEPT ONE RULE, ON PURPOSE: while the Cowboys play, their stadium board is the
+ * only screen and the only feed polled — no rotation, no strip (Patrick,
+ * 2026-09-13, for this board by name). A pin or ?mock=1 turns it off.
+ *
  * URL flags, all off by default and none of them sticky — a reload without the
  * flag is the real board:
  *   ?page=SCORE_NFL   pin one screen (FANTASY_2 = the second matchup)
@@ -157,12 +161,16 @@ function Screen({ slot, board }) {
 /// The board — a port of `Board()` in Board.kt, at 1920x1080 stage px.
 function Stage({ board, slot }) {
   const { slate, mock } = board;
+  /* THE COWBOYS HOLD THE WALL: their board and nothing else — no strip, and no
+   * DOWN chip, because the slate both read stopped being polled at kickoff. The
+   * stadium boards are the one live feed, so their clock is the stale rail's. */
+  const solo = board.cowboysOnly;
+  const freshAt = solo ? board.scoreboardsAt : board.lastSuccess;
   // A league whose fetch failed renders exactly like a league with nothing on.
-  const down = Object.keys(slate.errors);
-  const ageS =
-    board.lastSuccess == null ? 0 : Math.max(0, Math.floor((board.now - board.lastSuccess) / 1000));
+  const down = solo ? [] : Object.keys(slate.errors);
+  const ageS = freshAt == null ? 0 : Math.max(0, Math.floor((board.now - freshAt) / 1000));
   // A screen that threw gets another attempt on the next good poll.
-  const retry = board.lastSuccess ?? 0;
+  const retry = freshAt ?? 0;
 
   return (
     <div
@@ -204,14 +212,16 @@ function Stage({ board, slot }) {
             <Screen slot={slot} board={board} />
           </ScreenBoundary>
         </div>
-        <ScreenBoundary resetKey={retry}>
-          <StatusStrip
-            slate={slate}
-            now={board.now}
-            showNext={slate.live.length > 0}
-            showWeather={slot.page !== "WEATHER"}
-          />
-        </ScreenBoundary>
+        {!solo && (
+          <ScreenBoundary resetKey={retry}>
+            <StatusStrip
+              slate={slate}
+              now={board.now}
+              showNext={slate.live.length > 0}
+              showWeather={slot.page !== "WEATHER"}
+            />
+          </ScreenBoundary>
+        )}
       </div>
       {/* THE STALE SIGNAL: a rail, not a row — it takes no height, so the layout
           is identical whether the board is fresh or not. */}
@@ -228,16 +238,21 @@ function stageScale() {
 
 function WhipAround() {
   const [params] = useState(readParams);
-  const board = useBoard({ mock: params.mock });
+  const pinned = pinnedSlot(params.page);
+  // A pinned screen is being inspected, so a Cowboys game never takes it over.
+  const board = useBoard({ mock: params.mock, cowboysTakeover: pinned == null });
   const [scale, setScale] = useState(stageScale);
   const [skewMs, setSkewMs] = useState(0);
   // The slot a pause is holding — see togglePause. Null while the rotation runs.
-  const [paused, setPaused] = useState(null);
+  const [pause, setPaused] = useState(null);
+  /* A Cowboys game outranks a pause: the wall shows the game and the controls say
+   * so, not "paused". The hold itself is kept, so a screen paused before kickoff
+   * is still the one held after the final whistle. */
+  const paused = board.cowboysOnly ? null : pause;
   const [awake, setAwake] = useState(true);
   const idleTimer = useRef(null);
   const actions = useRef(null);
 
-  const pinned = pinnedSlot(params.page);
   const list = slots(board, params.fast);
   const canSkip = !pinned && list.length > 1;
   const elapsedMs = board.now - board.startedAt + skewMs;
@@ -421,6 +436,7 @@ function WhipAround() {
       ready: board.lastSuccess != null,
       page: slot.page,
       index: slot.index,
+      cowboysOnly: board.cowboysOnly,
       slots: list.map((s) => `${s.page}${s.page === "FANTASY" ? `#${s.index + 1}` : ""}:${s.seconds}s`),
       lastError: board.lastError,
       data: {
@@ -441,11 +457,13 @@ function WhipAround() {
     };
   });
 
-  const detail = pinned
-    ? "pinned by ?page="
-    : paused
-      ? `${pos.index + 1} of ${list.length} · paused`
-      : `${pos.index + 1} of ${list.length} · ${Math.max(0, slot.seconds - pos.into)}s left`;
+  const detail = board.cowboysOnly
+    ? "Cowboys live · the only screen until the game ends"
+    : pinned
+      ? "pinned by ?page="
+      : paused
+        ? `${pos.index + 1} of ${list.length} · paused`
+        : `${pos.index + 1} of ${list.length} · ${Math.max(0, slot.seconds - pos.into)}s left`;
 
   return (
     <div
@@ -486,7 +504,7 @@ function WhipAround() {
       {!params.shot && (
         <Controls
           visible={awake}
-          label={titleOf(slot)}
+          label={board.cowboysOnly ? "Cowboys" : titleOf(slot)}
           detail={detail}
           canSkip={canSkip}
           paused={paused != null}

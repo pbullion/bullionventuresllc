@@ -4,6 +4,11 @@
  * a web board that rotates differently from the sticks beside it is a second
  * opinion nobody asked for.
  *
+ * ONE DELIBERATE EXCEPTION, web only: while the Cowboys are playing, their
+ * stadium board is the whole rotation (Patrick, 2026-09-13, asked for this
+ * board by name). The sticks were not asked about and still rotate. Don't port
+ * it to Board.kt unasked, and don't delete it here as drift.
+ *
  * What still governs it (the long history is in Board.kt):
  *
  *   - The ranking BOARD screen left the rotation on 2026-08-30. It survives only
@@ -52,6 +57,13 @@ function slot(page, seconds, index = 0) {
 }
 
 export function slots(state, fast = false) {
+  /* THE COWBOYS, LIVE, ARE THE WHOLE WALL (Patrick, 2026-09-13: "if the cowboys
+   * are playing only show/update that screen, nothing else"). One slot is that
+   * screen permanently — position() never moves off it, and skip and pause have
+   * nothing to move to — and useBoard polls no other feed until the backend
+   * stops calling the game live. `cowboysOnly` is useBoard's, so the rotation
+   * and the poll loop cannot disagree about whether the game is on. */
+  if (state.cowboysOnly) return [slot("SCORE_NFL", 60)];
   const { slate, cfb, scoreboards, tropics, tracks, fantasy, now, lastSuccess } = state;
   const live = slate.live.length > 0;
   // Out of season there is no college football on the wall at all.

@@ -209,6 +209,33 @@ export function boardFor(scoreboards, key) {
   return scoreboards.boards.find((b) => b.key === key) ?? null;
 }
 
+/* THE COWBOYS TAKE THE WHOLE WALL WHILE THEY PLAY (Patrick, 2026-09-13: "if the
+ * cowboys are playing only show/update that screen, nothing else"). THE WEB
+ * BOARD'S ALONE — he asked for bvllc's by name, and the sticks still rotate
+ * through a Cowboys game.
+ *
+ * Keyed on the TEAM, not on "the football board is live": WHIPAROUND_NFL_TEAM
+ * can point the board at another club, and that club does not inherit the
+ * takeover. ESPN's id first, the abbreviation of our side as a second opinion.
+ * "Playing" is the backend's `live` relevance — kickoff to final, halftime
+ * included — so pregame and the eighteen hours after stay in the rotation. */
+const COWBOYS = { key: "nfl", teamId: "6", abbr: "DAL" };
+
+export function cowboysLive(scoreboards) {
+  const b = boardFor(scoreboards, COWBOYS.key);
+  if (b == null || b.relevance !== "live") return false;
+  const ours = b.mySide === "home" ? b.home : b.mySide === "away" ? b.away : null;
+  return b.teamId === COWBOYS.teamId || ours?.abbr === COWBOYS.abbr;
+}
+
+/// The slate's live games — /whiparound/games rows — include the Cowboys. Only a
+/// hint to fetch the stadium boards early; the takeover itself waits for them.
+export function cowboysInGames(games) {
+  return games.some(
+    (g) => g.league === COWBOYS.key && (g.away.abbr === COWBOYS.abbr || g.home.abbr === COWBOYS.abbr),
+  );
+}
+
 /* ── Mock.kt's fixtures ─────────────────────────────────────────────────────
  *
  * JSON run through the real parser rather than hand-built objects, so a wire

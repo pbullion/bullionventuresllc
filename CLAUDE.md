@@ -621,7 +621,30 @@ so it stays out of the bundle every home-page visitor downloads.
   `BoardState.kt`), the parsers (`models/` ← the Kotlin models) and every screen
   (`screens/` ← `ui/`) carry the Fire TV's rules and durations. The reasons live
   in `whiparound-firetv/CLAUDE.md` — read the section for a screen before
-  changing it here, and change a rule on both boards or on neither.
+  changing it here, and change a rule on both boards or on neither (one
+  deliberate exception, the next bullet).
+- **THE ONE RULE THAT IS THE WEB BOARD'S ALONE: WHILE THE COWBOYS PLAY, THEY ARE
+  THE WHOLE WALL** (Patrick, 2026-09-13: *"for the bvllc whiparound, if the
+  cowboys are playing only show/update that screen, nothing else"*). While
+  `/whiparound/scoreboards` has the NFL board at `relevance: "live"` for ESPN
+  team 6 / DAL (`cowboysLive` in `models/scoreboards.js`), `slots()` returns the
+  Cowboys stadium board alone, the status strip and the DOWN chip go, and
+  `useBoard` polls that one endpoint and nothing else — the stale rail reads its
+  `scoreboardsAt` rather than the slate's clock. The poll that sees the game
+  leave `live` carries straight on as a full round from tick 0, so the rotation
+  comes back on fresh data, not on feeds three hours old.
+  - "Playing" is kickoff to final, halftime included. Pregame (`today`) and the
+    eighteen `recent` hours after stay ordinary rotation.
+  - Keyed on the TEAM, not the board: pointing `WHIPAROUND_NFL_TEAM` at another
+    club does not hand that club the takeover.
+  - A live Cowboys row on the slate makes every poll ask for the stadium boards,
+    so the takeover starts within a poll or two of kickoff instead of on the
+    five-minute idle tick. The takeover itself still waits for the board.
+  - A pin (`?page=`) or `?mock=1` turns it off — a pin is inspecting a screen,
+    and the mock fixture has the Cowboys live permanently. A pause taken before
+    kickoff is kept and is still holding after the final whistle.
+  - **The sticks do not do this.** He asked for this board by name. Don't port it
+    to `Board.kt` unasked, and don't strip it from here as drift in a re-sync.
 - **A fixed 1920×1080 stage, scaled with one transform.** Every size is the
   Kotlin's tvOS point 1:1 (`34.pt` → `34`; a raw `1.dp` → `2`), and the stage is
   scaled to the window and letterboxed on the board's own background. Nothing
