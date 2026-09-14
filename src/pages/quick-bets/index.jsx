@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import EnginePage from "../../components/engine/EnginePage.jsx";
 import { EngineHeader } from "../../components/engine/EngineChrome.jsx";
 import { C, panelStyle, money } from "../../components/engine/theme.js";
+import BestTicket from "./BestTicket.jsx";
+import Record from "./Record.jsx";
 
 /* Quick Bets — one click, every NCAAF/NFL/MLB favorite ≥70% to win, one
  * combo bet.
@@ -43,6 +45,13 @@ import { C, panelStyle, money } from "../../components/engine/theme.js";
  * kalshi-live builds from 2026-09-13 call these same two routes. Builds
  * installed before that use `/quick-bets/ncaaf` + `/ncaaf-combo`, which the
  * backend keeps (pregame games only, since those builds can't show LIVE).
+ *
+ * Best N (2026-09-14) sits above all of this in BestTicket.jsx, with its
+ * graded record and the morning desk's lessons below in Record.jsx. It is a
+ * separate path on purpose: its own endpoints, its own state, and a buy that
+ * sends a saved ticket id rather than a leg list — nothing in this file's
+ * list, Top N, Select all or Create Bet reads or resets it. It shares only the
+ * stake box and the tomorrow toggle, passed down as props.
  */
 
 const ROOT = "https://sheline-art-website-api.herokuapp.com";
@@ -179,6 +188,8 @@ export default function QuickBets() {
   const [placing, setPlacing] = useState(false);
   const [result, setResult] = useState(null);
   const [includeTomorrow, setIncludeTomorrow] = useState(false);
+  // Bumped after a Best N build or fill so Record refetches. Not touched by load().
+  const [recordKey, setRecordKey] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -324,6 +335,12 @@ export default function QuickBets() {
         self="quickbets"
       />
 
+      <BestTicket
+        stake={stake}
+        includeTomorrow={includeTomorrow}
+        onRecorded={() => setRecordKey((k) => k + 1)}
+      />
+
       <div style={{ ...card, marginTop: 12, marginBottom: 12 }}>
         <div
           style={{
@@ -350,7 +367,8 @@ export default function QuickBets() {
               border: `1px solid ${C.border}`,
               background: C.chipBg,
               color: C.text,
-              fontSize: 14,
+              // 16px: iOS Safari zooms into any smaller input on focus.
+              fontSize: 16,
               fontWeight: 700,
             }}
           />
@@ -578,6 +596,8 @@ export default function QuickBets() {
         </a>{" "}
         once it fills.
       </div>
+
+      <Record refreshKey={recordKey} />
     </EnginePage>
   );
 }

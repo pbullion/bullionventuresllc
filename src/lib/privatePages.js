@@ -133,7 +133,7 @@ export const PRIVATE_GROUPS = [
         emoji: "⚡",
         name: "Quick Bets",
         path: "/quick-bets",
-        tagline: "NCAAF favorites ≥70% — one combo bet",
+        tagline: "Best-chance parlays + favorites combos",
       },
       {
         emoji: "🏈",
