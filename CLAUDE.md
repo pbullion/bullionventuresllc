@@ -625,26 +625,44 @@ so it stays out of the bundle every home-page visitor downloads.
   deliberate exception, the next bullet).
 - **THE ONE RULE THAT IS THE WEB BOARD'S ALONE: WHILE THE COWBOYS PLAY, THEY ARE
   THE WHOLE WALL** (Patrick, 2026-09-13: *"for the bvllc whiparound, if the
-  cowboys are playing only show/update that screen, nothing else"*). While
-  `/whiparound/scoreboards` has the NFL board at `relevance: "live"` for ESPN
-  team 6 / DAL (`cowboysLive` in `models/scoreboards.js`), `slots()` returns the
-  Cowboys stadium board alone, the status strip and the DOWN chip go, and
-  `useBoard` polls that one endpoint and nothing else — the stale rail reads its
-  `scoreboardsAt` rather than the slate's clock. The poll that sees the game
-  leave `live` carries straight on as a full round from tick 0, so the rotation
-  comes back on fresh data, not on feeds three hours old.
-  - "Playing" is kickoff to final, halftime included. Pregame (`today`) and the
-    eighteen `recent` hours after stay ordinary rotation.
-  - Keyed on the TEAM, not the board: pointing `WHIPAROUND_NFL_TEAM` at another
-    club does not hand that club the takeover.
-  - A live Cowboys row on the slate makes every poll ask for the stadium boards,
-    so the takeover starts within a poll or two of kickoff instead of on the
-    five-minute idle tick. The takeover itself still waits for the board.
+  cowboys are playing only show/update that screen, nothing else"*). While the
+  takeover holds, `slots()` returns the Cowboys stadium board alone, the status
+  strip and the DOWN chip go, and `useBoard` polls `/whiparound/scoreboards` and
+  nothing else — the stale rail reads its `scoreboardsAt` rather than the
+  slate's clock. `cowboysOnly` is state the poll loop sets, never derived from a
+  payload in render.
+  - **It starts** when the football board is the Cowboys' (ESPN team 6 / DAL)
+    and in progress — or is still their PREGAME board while the slate already
+    has DAL in progress, because the backend serves a board from its five-minute
+    idle cache for up to five minutes after kickoff. A DAL game in progress on
+    the slate also makes every poll ask for the boards.
+  - **ONLY POSITIVE EVIDENCE ENDS IT** (`cowboysPhase` in `models/scoreboards.js`):
+    their board final (`state: "post"`), or the board belonging to another team.
+    The backend answers 200 WITHOUT a live Cowboys board mid-game — a timed-out
+    ESPN summary drops the board for five minutes, and a failed league feed
+    labels a game in progress `recent` — and the first cut (`14603f4`) read both
+    as the final whistle; review caught it the same evening. A failed fetch, a
+    missing board or a lingering pregame board holds the last good frame under
+    the stale rail, and six such polls in a row ask `/whiparound/games` once,
+    which ends it only if that slate's NFL feed is healthy and has no DAL game in
+    progress. The board's STATE outranks its relevance both ways — a board
+    cached at the final can read `live` with `post`.
+  - **Handing back:** the poll that ends it runs a full round from tick 0 and
+    clears `cowboysOnly` only once that round's slate has landed, so the rotation
+    never comes back on pre-kickoff feeds under a red rail.
+  - Pregame and the eighteen `recent` hours after are ordinary rotation, and
+    pointing `WHIPAROUND_NFL_TEAM` at another club does not hand it the takeover.
   - A pin (`?page=`) or `?mock=1` turns it off — a pin is inspecting a screen,
     and the mock fixture has the Cowboys live permanently. A pause taken before
     kickoff is kept and is still holding after the final whistle.
   - **The sticks do not do this.** He asked for this board by name. Don't port it
     to `Board.kt` unasked, and don't strip it from here as drift in a re-sync.
+  - **Backend root cause, NOT fixed:** `getBoard` in `routes/whiparound.js`
+    caches a failed (null) build for the five-minute IDLE TTL even mid-game, so
+    one slow ESPN summary blanks the football board for every client, the sticks
+    included. Caching that null at `BOARD_LIVE_TTL_MS` when it replaced a live
+    board would fix it at the source — a shared-backend deploy nobody has asked
+    for yet.
 - **A fixed 1920×1080 stage, scaled with one transform.** Every size is the
   Kotlin's tvOS point 1:1 (`34.pt` → `34`; a raw `1.dp` → `2`), and the stage is
   scaled to the window and letterboxed on the board's own background. Nothing

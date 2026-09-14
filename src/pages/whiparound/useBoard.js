@@ -21,9 +21,9 @@
  *
  * What is the web board's alone: WHILE THE COWBOYS PLAY, THE STADIUM BOARDS ARE
  * THE ONLY FEED (Patrick, 2026-09-13: "only show/update that screen, nothing
- * else"). Every other feed stops until the backend stops calling the game live,
- * and the poll that sees the final whistle carries on as a full round, the way
- * a page load does.
+ * else"). Every other feed stops until the Cowboys' own board says the game is
+ * over, and the poll that sees the final whistle carries on as a full round, the
+ * way a page load does, before the rotation gets the wall back.
  *
  * What is different, because a browser is not a stick: polling pauses while the
  * tab is hidden and resumes with an immediate fetch when it comes back, and the
@@ -37,7 +37,7 @@ import { mockCfb, parseCfb } from "./models/cfb";
 import {
   EMPTY_SCOREBOARDS,
   cowboysInGames,
-  cowboysLive,
+  cowboysPhase,
   mockScoreboards,
   parseScoreboards,
 } from "./models/scoreboards";
@@ -65,6 +65,10 @@ const FANTASY_EVERY = 6;
 const FANTASY_EVERY_IDLE = 60;
 /// A live game whose excitement score jumped this much since the last poll.
 const CLIMB_THRESHOLD = 15;
+/// Takeover polls in a row with no board saying live or over — a failed fetch,
+/// a payload missing the football board, a pregame board still cached past
+/// kickoff — before the slate is asked, once, whether the Cowboys are still on.
+const TAKEOVER_UNSURE_CHECK = 6;
 
 /// The backend's own ESPN timeout is 8s; past 9 it is the network.
 const DEFAULT_TIMEOUT_MS = 9_000;
@@ -105,6 +109,9 @@ const INITIAL = {
   // The last good /whiparound/scoreboards. While the Cowboys hold the wall it is
   // the only feed polled, so it — not the slate — is what the stale rail reads.
   scoreboardsAt: null,
+  // The Cowboys hold the wall. Set by the poll loop, never derived from a
+  // payload, so the rotation cannot disagree with what is being polled.
+  cowboysOnly: false,
   climbing: new Set(),
 };
 
@@ -143,39 +150,77 @@ export function useBoard({ mock, cowboysTakeover = true }) {
       tracksAny: false,
       fantasyLive: false,
       previousScores: new Map(),
-      // The Cowboys' board came back live: poll it and nothing else.
+      // The Cowboys hold the wall: poll their board and nothing else.
       cowboysOnly: false,
-      // The slate has the Cowboys live — ask for the stadium boards every poll.
+      // The slate has the Cowboys in progress — ask for the boards every poll.
       cowboysOnSlate: false,
+      // The last stadium boards that parsed; what a takeover starts from.
+      scoreboards: null,
+      // Takeover polls in a row with no board saying live or over.
+      unsure: 0,
     };
     const merge = (patch) => {
       if (alive) setData((d) => ({ ...d, ...patch }));
     };
 
-    const fetchScoreboards = () =>
+    // Parsed, or null on any failure — each caller decides what a miss means.
+    const getScoreboards = () =>
       getJson(`${API}/whiparound/scoreboards`)
-        .then((j) => {
-          const scoreboards = parseScoreboards(j);
-          mem.scoreboardsLive = scoreboards.live;
-          mem.cowboysOnly = takeover && cowboysLive(scoreboards);
-          merge({ scoreboards, scoreboardsAt: Date.now() });
-        })
-        .catch(() => {});
+        .then(parseScoreboards)
+        .catch(() => null);
+
+    const takeScoreboards = (scoreboards) => {
+      mem.scoreboards = scoreboards;
+      mem.scoreboardsLive = scoreboards.live;
+      merge({ scoreboards, scoreboardsAt: Date.now() });
+    };
+
+    /* THE TAKEOVER POLL: the stadium boards and nothing else. Resolves null while
+     * the takeover holds, and `{ scoreboards }` (possibly null) once it is over.
+     *
+     * ONLY POSITIVE EVIDENCE ENDS IT. The backend answers 200 without a live
+     * Cowboys board in the middle of a game: a timed-out ESPN summary drops the
+     * board for its five-minute idle cache, and a failed league feed relabels a
+     * game in progress "recent". Read as the final whistle, either put the whole
+     * rotation back on the wall in the second quarter. So a failed fetch, a
+     * missing board and a pregame board still cached past kickoff all HOLD —
+     * the last good Cowboys board stays up under the stale rail — and only
+     * their board saying "post", or being another team's, ends it. A minute of
+     * that uncertainty asks the slate once, so a stadium-boards outage cannot
+     * hold the wall on a game that finished hours ago. */
+    const takeoverPoll = async () => {
+      const sb = await getScoreboards();
+      const phase = cowboysPhase(sb);
+      if (phase === "live" || phase === "pre") takeScoreboards(sb);
+      if (phase === "live") {
+        mem.unsure = 0;
+        return null;
+      }
+      if (phase !== "over") {
+        mem.unsure += 1;
+        if (mem.unsure % TAKEOVER_UNSURE_CHECK !== 0) return null;
+        const slate = await getJson(`${API}/whiparound/games`)
+          .then(parseSlate)
+          .catch(() => null);
+        // No slate, a failed NFL feed inside it, or the Cowboys still on: hold.
+        if (slate == null || slate.errors.nfl || cowboysInGames(slate.live)) return null;
+      }
+      return { scoreboards: sb };
+    };
 
     const poll = async () => {
-      /* THE COWBOYS ARE ON: THE STADIUM BOARDS AND NOTHING ELSE. A failed fetch
-       * keeps the last copy, and with it the takeover, so an outage holds the
-       * game on the wall under the stale rail rather than dropping back to a
-       * rotation of feeds that stopped at kickoff. */
-      let scoreboardsFetched = false;
+      /* The game is over. Every other feed is as old as it is, so this poll
+       * runs a full round from tick 0 — and the wall is handed back only once
+       * that round's slate has landed, so the rotation never comes back on
+       * pre-kickoff data under a red rail. The live-score memory is from before
+       * kickoff too: a game live on both sides of the break has not climbed. */
+      let handBack = null;
       if (mem.cowboysOnly) {
-        await fetchScoreboards();
-        if (mem.cowboysOnly || !alive) return;
-        /* The game is over and every other feed is as old as it is, so this
-         * poll carries straight on as a full round from tick 0. The live-score
-         * memory is from before kickoff — a game still live on both sides of
-         * the break has not climbed in the last ten seconds. */
-        scoreboardsFetched = true;
+        handBack = await takeoverPoll();
+        if (handBack == null || !alive) return;
+        mem.cowboysOnly = false;
+        mem.unsure = 0;
+        mem.scoreboards = handBack.scoreboards;
         tick = 0;
         mem.previousScores = new Map();
       }
@@ -242,12 +287,16 @@ export function useBoard({ mock, cowboysTakeover = true }) {
         // is the heaviest endpoint the backend has.
         merge({ scoreboards: mockScoreboards() });
       } else if (
-        !scoreboardsFetched &&
+        handBack?.scoreboards == null &&
         // The slate saw the Cowboys kick off: ask now, not on the next
         // five-minute tick, so the takeover starts with the game.
         (mem.scoreboardsLive || mem.cowboysOnSlate || t % SCOREBOARD_EVERY === 0)
       ) {
-        jobs.push(fetchScoreboards());
+        jobs.push(
+          getScoreboards().then((sb) => {
+            if (sb) takeScoreboards(sb);
+          }),
+        );
       }
 
       const fantasyEvery = mem.fantasyLive ? FANTASY_EVERY : FANTASY_EVERY_IDLE;
@@ -271,33 +320,52 @@ export function useBoard({ mock, cowboysTakeover = true }) {
         }
       }
 
-      jobs.push(
-        getJson(`${API}/whiparound/games`)
-          .then((j) => {
-            const slate = parseSlate(j);
-            const scores = new Map(
-              slate.live.filter((g) => g.score != null).map((g) => [g.id, g.score]),
-            );
-            // Only a game present in BOTH polls can be said to have climbed — a
-            // game that just went live has no previous score.
-            const climbing = new Set();
-            for (const [id, score] of scores) {
-              const was = mem.previousScores.get(id);
-              if (was != null && score - was >= CLIMB_THRESHOLD) climbing.add(id);
-            }
-            mem.previousScores = scores;
-            mem.cowboysOnSlate = takeover && cowboysInGames(slate.live);
-            merge({ slate, climbing, lastSuccess: Date.now(), lastError: null });
-          })
-          // The previous slate stays on screen; the stale rail says so.
-          .catch((e) =>
-            merge({
-              lastError: e?.name === "AbortError" ? "timed out" : e?.message || "request failed",
-            }),
-          ),
-      );
+      const slateJob = getJson(`${API}/whiparound/games`)
+        .then((j) => {
+          const slate = parseSlate(j);
+          const scores = new Map(
+            slate.live.filter((g) => g.score != null).map((g) => [g.id, g.score]),
+          );
+          // Only a game present in BOTH polls can be said to have climbed — a
+          // game that just went live has no previous score.
+          const climbing = new Set();
+          for (const [id, score] of scores) {
+            const was = mem.previousScores.get(id);
+            if (was != null && score - was >= CLIMB_THRESHOLD) climbing.add(id);
+          }
+          mem.previousScores = scores;
+          mem.cowboysOnSlate = takeover && cowboysInGames(slate.live);
+          merge({ slate, climbing, lastSuccess: Date.now(), lastError: null });
+        })
+        // The previous slate stays on screen; the stale rail says so.
+        .catch((e) =>
+          merge({
+            lastError: e?.name === "AbortError" ? "timed out" : e?.message || "request failed",
+          }),
+        );
+      jobs.push(slateJob);
 
+      if (handBack) {
+        await slateJob;
+        if (!alive) return;
+        const sb = handBack.scoreboards;
+        if (sb) mem.scoreboardsLive = sb.live;
+        merge(sb ? { cowboysOnly: false, scoreboards: sb, scoreboardsAt: Date.now() } : { cowboysOnly: false });
+      }
       await Promise.all(jobs);
+
+      /* START THE TAKEOVER once the round has landed, off the boards it holds:
+       * the Cowboys' board live — or, for the first minutes of a game, while the
+       * backend still serves the pregame board it cached before kickoff, that
+       * pregame board with the slate saying the game is on. */
+      if (takeover && alive && !mem.cowboysOnly) {
+        const phase = cowboysPhase(mem.scoreboards);
+        if (phase === "live" || (phase === "pre" && mem.cowboysOnSlate)) {
+          mem.cowboysOnly = true;
+          mem.unsure = 0;
+          merge({ cowboysOnly: true });
+        }
+      }
     };
 
     const run = async () => {
@@ -346,7 +414,6 @@ export function useBoard({ mock, cowboysTakeover = true }) {
     now: clock.now,
     startedAt: clock.startedAt,
     mock,
-    // Read off the same payload the poll loop decided from, so the two agree.
-    cowboysOnly: takeover && cowboysLive(data.scoreboards),
+    cowboysOnly: takeover && data.cowboysOnly,
   };
 }

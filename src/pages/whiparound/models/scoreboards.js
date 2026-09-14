@@ -216,16 +216,31 @@ export function boardFor(scoreboards, key) {
  *
  * Keyed on the TEAM, not on "the football board is live": WHIPAROUND_NFL_TEAM
  * can point the board at another club, and that club does not inherit the
- * takeover. ESPN's id first, the abbreviation of our side as a second opinion.
- * "Playing" is the backend's `live` relevance — kickoff to final, halftime
- * included — so pregame and the eighteen hours after stay in the rotation. */
+ * takeover. ESPN's id first, the abbreviation of our side as a second opinion. */
 const COWBOYS = { key: "nfl", teamId: "6", abbr: "DAL" };
 
-export function cowboysLive(scoreboards) {
-  const b = boardFor(scoreboards, COWBOYS.key);
-  if (b == null || b.relevance !== "live") return false;
+/* Where the Cowboys' game stands, read off one /whiparound/scoreboards payload:
+ *
+ *   "live"    their board, in progress — halftime, overtime and a delay too.
+ *   "over"    POSITIVE evidence the takeover should end: their board is final,
+ *             or the football board is some other team's.
+ *   "pre"     their board, not kicked off.
+ *   "unknown" no payload, or no football board in it. NOT the same as over: the
+ *             backend drops the board for its five-minute idle cache whenever
+ *             one ESPN summary fetch times out, in the middle of a game.
+ *
+ * THE BOARD'S STATE OUTRANKS ITS RELEVANCE, both ways. A failed ESPN league feed
+ * sends a game in progress as "recent" (the schedule fallback labels any past
+ * kickoff that way), and a board built at the final whistle can be cached with
+ * relevance "live" and state "post". */
+export function cowboysPhase(scoreboards) {
+  const b = scoreboards == null ? null : boardFor(scoreboards, COWBOYS.key);
+  if (b == null) return "unknown";
   const ours = b.mySide === "home" ? b.home : b.mySide === "away" ? b.away : null;
-  return b.teamId === COWBOYS.teamId || ours?.abbr === COWBOYS.abbr;
+  if (b.teamId !== COWBOYS.teamId && ours?.abbr !== COWBOYS.abbr) return "over";
+  if (b.state === "post") return "over";
+  if (b.state === "in" || b.relevance === "live") return "live";
+  return "pre";
 }
 
 /// The slate's live games — /whiparound/games rows — include the Cowboys. Only a
