@@ -25,11 +25,17 @@ import {
  * server-side and graded from final scores; Record.jsx shows how they did.
  *
  * Buying sends only the saved ticket's id and the stake. The server reloads
- * the legs it stored, re-checks every one against live Kalshi prices, and
- * refuses the whole ticket (409, `dropped`) if any leg started, closed or
- * moved — nothing is bought on a partial ticket. A ticket with a DraftKings
- * spread or total in it is tracked and graded but is not a Kalshi market, so
- * it can't be bought; the server says why in `not_placeable_reason`.
+ * the legs it stored and re-checks each one KALSHI AGAINST KALSHI: the live
+ * price (the mid, or the best YES bid when the book is too wide for one)
+ * against Kalshi's own price when the leg was saved — never against the
+ * blended DK+Kalshi win %. It refuses the whole ticket (409, `dropped`, with
+ * `p_then_pct` / `p_now_pct` on a price move) if any leg started, closed,
+ * vanished or fell more than 5 points — nothing is bought on a partial ticket.
+ *
+ * `placeable` is decided server-side: Kalshi-only mode, every leg a Kalshi
+ * moneyline in a league the combo path can buy (NCAAF, NFL, MLB) with a price
+ * it can re-check. Anything else is tracked and graded but not bought, and
+ * `not_placeable_reason` is shown exactly as the server wrote it.
  *
  * This state lives in this component, not in index.jsx, so the favorites
  * list's load() — which resets the list selection on every Refresh and on
@@ -85,10 +91,13 @@ const stepBtn = {
   textAlign: "center",
 };
 
-const kalshiCents = (v) =>
-  v == null || !Number.isFinite(Number(v))
-    ? null
-    : `${Math.round(Number(v) * 100)}¢`;
+// kalshi_yes_ask is dollars (0.45). The server reads a missing ask as 0, and
+// Kalshi quotes an empty ask side as $1 (a pinned favourite: bid 99¢, nobody
+// selling — seen on the real 9/19 capture), so neither end is a price to show.
+const kalshiCents = (v) => {
+  const n = Number(v);
+  return v == null || !(n > 0 && n < 1) ? null : `${Math.round(n * 100)}¢`;
+};
 
 function LegsTable({ legs }) {
   return (
@@ -199,10 +208,14 @@ function LeagueStatus({ leagues }) {
     >
       {leagues.map((l) => {
         const label = l.label || String(l.key || "").toUpperCase();
+        // The server's note already says the status in words ("preseason
+        // only — not priced"), so it replaces the local text rather than
+        // repeating it. An "ok" league keeps its count; its only note is a
+        // Kalshi read failure.
         const text =
           l.status === "ok"
-            ? `${l.eligible ?? 0} of ${l.games ?? 0} games eligible`
-            : LEAGUE_STATUS_TEXT[l.status] || l.status || "—";
+            ? `${l.eligible ?? 0} of ${l.games ?? 0} games eligible${l.note ? ` — ${l.note}` : ""}`
+            : l.note || LEAGUE_STATUS_TEXT[l.status] || l.status || "—";
         return (
           <span
             key={l.key || label}
@@ -212,7 +225,6 @@ function LeagueStatus({ leagues }) {
               {label}
             </strong>{" "}
             {text}
-            {l.note ? ` — ${l.note}` : ""}
           </span>
         );
       })}
@@ -234,15 +246,30 @@ function BuyResult({ r, legs, onRebuild, rebuildDisabled }) {
     (legs || []).find((l) => l.kalshi_market_ticker === ticker)?.pick_label ||
     ticker ||
     "a leg";
+  const dropped = Array.isArray(r.dropped) ? r.dropped : [];
+  // A price-moved entry says Kalshi's price then and now (0–100), when known.
+  const moved = (d) => {
+    if (d.p_then_pct == null) return null;
+    return d.p_now_pct == null
+      ? ` (was ${pct1(d.p_then_pct)} → no live price now)`
+      : ` (was ${pct1(d.p_then_pct)} → now ${pct1(d.p_now_pct)})`;
+  };
   return (
     <div style={{ ...card, marginTop: 12, marginBottom: 0, borderColor: border }}>
       {r.ok ? (
         r.filled ? (
-          <div style={{ color: C.green, fontWeight: 700, fontSize: 14 }}>
-            Filled: {r.contracts_filled} contract
-            {r.contracts_filled === 1 ? "" : "s"} @ {money(r.price_dollars)} ={" "}
-            {money(r.spent_dollars)} across {r.legs_used} games.
-          </div>
+          <>
+            <div style={{ color: C.green, fontWeight: 700, fontSize: 14 }}>
+              Filled: {r.contracts_filled} contract
+              {r.contracts_filled === 1 ? "" : "s"} @ {money(r.price_dollars)} ={" "}
+              {money(r.spent_dollars)} across {r.legs_used} games.
+            </div>
+            {r.warning ? (
+              <div style={{ color: C.amber, fontSize: 12.5, marginTop: 6, lineHeight: 1.45 }}>
+                {r.warning}
+              </div>
+            ) : null}
+          </>
         ) : (
           <div style={{ color: C.amber, fontSize: 13.5 }}>
             <strong>Not filled.</strong> {r.unfilled_reason}
@@ -263,24 +290,29 @@ function BuyResult({ r, legs, onRebuild, rebuildDisabled }) {
               again.
             </div>
           ) : null}
-          {r.dropped && r.dropped.length > 0 ? (
+          {dropped.length > 0 ? (
             <div style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.5 }}>
               <div style={{ color: C.muted }}>
                 {/nothing was bought/i.test(r.error || "")
                   ? "These legs no longer check out:"
                   : "Nothing was bought. These legs no longer check out:"}
               </div>
-              {r.dropped.map((d, i) => (
+              {dropped.map((d, i) => (
                 <div key={`${d.market_ticker}-${i}`} style={{ color: C.text }}>
                   {legName(d.market_ticker)}{" "}
                   <span style={{ color: C.amber }}>
                     {DROP_REASON[d.reason] || d.reason}
+                    {d.reason === "price-moved" ? moved(d) : null}
                   </span>
                 </div>
               ))}
             </div>
           ) : null}
-          {r.conflict ? (
+          {/* A 409 is also a duplicate in-flight buy or a ticket that can't be
+              bought (both `dropped: []`) — a rebuild fixes neither, so only a
+              409 that names changed legs offers one. The error text above
+              says what happened either way. */}
+          {r.conflict && dropped.length > 0 ? (
             <button
               type="button"
               onClick={onRebuild}
@@ -296,9 +328,9 @@ function BuyResult({ r, legs, onRebuild, rebuildDisabled }) {
           ) : null}
         </>
       )}
-      {r.ok && r.dropped && r.dropped.length > 0 ? (
+      {r.ok && dropped.length > 0 ? (
         <div style={{ color: C.muted, fontSize: 11.5, marginTop: 6 }}>
-          Dropped: {r.dropped.length}
+          Dropped: {dropped.length}
         </div>
       ) : null}
     </div>
@@ -370,8 +402,9 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
   const buyBlock = !ticket
     ? null
     : !ticket.placeable
-      ? ticket.not_placeable_reason ||
-        "This ticket isn't made of Kalshi markets, so it can't be bought."
+      ? // The server's reason, verbatim — it knows which rule failed.
+        (ticket.not_placeable_reason && String(ticket.not_placeable_reason)) ||
+        "This ticket can't be bought on Kalshi. It is still saved and graded."
       : ticket.id == null
         ? "This ticket wasn't saved, so it can't be bought. Build again."
         : !stakeOk
@@ -544,8 +577,8 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
       </div>
       {mode === "any" ? (
         <div style={{ fontSize: 11.5, color: C.muted, marginTop: 6, lineHeight: 1.45 }}>
-          A ticket with a spread or total in it is saved and graded, but it
-          isn't a Kalshi market, so it can't be bought here.
+          Tickets built this way are saved and graded but can't be bought —
+          switch to Kalshi only to buy.
         </div>
       ) : null}
 
@@ -574,7 +607,16 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
       ) : null}
 
       {body ? (
-        <div style={{ marginTop: 12 }}>
+        // Dimmed while a Rebuild is in flight: this is the previous ticket,
+        // about to be replaced.
+        <div
+          aria-busy={building}
+          style={{
+            marginTop: 12,
+            opacity: building ? 0.45 : 1,
+            transition: "opacity 150ms ease",
+          }}
+        >
           {stale ? (
             <div style={{ color: C.amber, fontSize: 12, marginBottom: 8 }}>
               Built for {built.legs} legs,{" "}
@@ -802,8 +844,9 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
                     lineHeight: 1.45,
                   }}
                 >
-                  Uses the stake below. The server re-checks every leg against
-                  live Kalshi prices first and buys nothing if any has moved.
+                  Uses the stake below. The server re-checks every leg's live
+                  Kalshi price first and buys nothing if any leg has started,
+                  closed or dropped more than 5 points.
                 </div>
               ) : null}
               <BuyResult
