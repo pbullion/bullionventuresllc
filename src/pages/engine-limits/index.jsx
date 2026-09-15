@@ -84,12 +84,17 @@ const outlineChip = (color) => ({
   whiteSpace: "nowrap",
 });
 
-/* How the backend names a cap's basis, in words. Rendered from
- * `headline.daily_cap_basis` rather than asserted by this page: the basis is
- * NOT uniform across every row — the sports card's "CFB daily stake cap" bounds
- * GROSS STAKE, not loss — so a blanket claim on the page would be false for it.
- * Each row's own help text carries its own semantics. */
-const BASIS = { "net-loss": "net loss, CT day", stake: "gross stake, CT day" };
+/* How the backend names the HEADLINE daily cap's basis, in words. Rendered
+ * from `headline.daily_cap_basis` rather than asserted by this page, and it
+ * describes that one number only — on all four engines the net-loss cap for
+ * the CT day. The rows under it are NOT uniform: the sports card's per-league
+ * stake caps (CFB, NFL) bound GROSS STAKE per SLATE — the ticker's ET game
+ * date, not the CT day — and the per-game cap bounds one game. So `stake`
+ * names no window: every stake cap the backend has is a non-CT-day one, and a
+ * label here must not claim a window it cannot vouch for. Each row's own label
+ * and help text carry its own basis. An unknown value still renders as itself,
+ * and a missing one renders nothing. */
+const BASIS = { "net-loss": "net loss, CT day", stake: "gross stake" };
 
 /** The three numbers the page exists to answer, per engine. */
 function Headline({ headline }) {
@@ -304,12 +309,13 @@ export default function EngineLimits() {
 
       <div style={{ fontSize: 12.5, color: C.muted, margin: "6px 0 14px" }}>
         Every limit on all four engines, which all fund from the one Kalshi
-        account. Each daily cap says its own basis underneath it —{" "}
+        account. Each engine’s daily cap says its basis underneath it —{" "}
         <strong style={{ color: C.text }}>net loss</strong> means a day that
         finishes up never touches it, while a{" "}
         <strong style={{ color: C.text }}>stake</strong> cap counts gross money
-        put at risk, win or lose. Tap any row for what it does. Read-only: tap
-        an engine to change a value behind the PIN.
+        put at risk, win or lose. Not every cap runs on the CT day: some count
+        per game, per slate or per window, so tap any row for what it counts.
+        Read-only: tap an engine to change a value behind the PIN.
       </div>
 
       {loading && !data && (
