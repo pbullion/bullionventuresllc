@@ -52,7 +52,7 @@ export const PRIVATE_GROUPS = [
         emoji: "🏆",
         name: "Fantasy Standings",
         path: "/fantasy",
-        tagline: "Records and points across all six leagues",
+        tagline: "Records and points across all my leagues",
       },
       {
         emoji: "⚔️",
@@ -70,7 +70,7 @@ export const PRIVATE_GROUPS = [
         emoji: "🔪",
         name: "Fantasy — Guillotine",
         path: "/fantasy/guillotine",
-        tagline: "Both survivor leagues — who's on the block",
+        tagline: "Guillotine — who's on the block",
       },
       {
         emoji: "🚨",

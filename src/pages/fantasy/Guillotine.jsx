@@ -2,10 +2,12 @@
  *
  *   GET https://sheline-art-website-api.herokuapp.com/fantasy-football/matchups/guillotine
  *
- * Guillotine + Guillotine 2, both 18 teams, side by side on a desktop.
+ * "Guillotine", 18 teams. There were two until 2026-09-15, when Patrick was
+ * eliminated from Guillotine 2 and the backend blocklisted it; the grid still
+ * lays out any number of leagues.
  *
  * GUILLOTINE IS NOT A SET OF GAMES, which is why this screen exists separately
- * and why it has no Lineup on it. Both leagues are settings.type 3 (survivor):
+ * and why it has no Lineup on it. A guillotine is settings.type 3 (survivor):
  * they return 18 distinct matchup_ids with one roster each and no opponent, so
  * there is nothing head-to-head to draw. `games` is always [] here and the
  * payload's `race` — a ranked scoring board with the lowest score on the block
@@ -18,7 +20,7 @@
  * every week. Hence a SET of ids, empty until somebody scores, with the
  * singular key still read so an older payload keeps working. The only thing
  * changed in the move is presentational: the rows take their height from
- * --fp-row so two 18-row tables fit one screen.
+ * --fp-row so 18-row tables fit one screen.
  *
  * Ordering comes from theme.js's orderGuillotine, the same function /fantasy
  * standings uses — two copies is exactly how the two views would come to
@@ -170,9 +172,9 @@ export default function FantasyGuillotine() {
 
   const leagues = useMemo(() => asArray(body && body.leagues), [body]);
 
-  /* 18 teams today in both leagues — read from the payload, because a league
-     that loses a team to elimination still lists it and a third league would
-     not necessarily be 18. */
+  /* 18 teams today — read from the payload, because a league that loses a
+     team to elimination still lists it and another league would not
+     necessarily be 18. */
   const rows = useMemo(() => {
     let n = 1;
     leagues.forEach((l) => {
@@ -229,7 +231,27 @@ export default function FantasyGuillotine() {
           </StatePanel>
         </div>
       ) : (
-        <div style={{ ...S.matchGrid, ...rowHeightVar(FIXED, rows) }}>
+        <div
+          style={
+            leagues.length === 1
+              ? {
+                  ...rowHeightVar(FIXED, rows),
+                  /* ONE LEAGUE IS CAPPED AT 1200px AND CENTRED, the same call
+                     ESPN.jsx makes for the same reason. Since Guillotine 2 was
+                     dropped (2026-09-15) the auto-fit S.matchGrid stretched the
+                     lone card across the whole wide Shell, parking Points and
+                     Status ~1800px from the team name. Two or more leagues
+                     keep the full-width grid. */
+                  display: "grid",
+                  gap: 14,
+                  maxWidth: 1200,
+                  margin: "0 auto",
+                  width: "100%",
+                  minWidth: 0,
+                }
+              : { ...S.matchGrid, ...rowHeightVar(FIXED, rows) }
+          }
+        >
           {leagues.map((l, i) => (
             <LeagueCard key={l.leagueId || i} league={l} flush>
               <LeagueBody league={l} week={week} />
