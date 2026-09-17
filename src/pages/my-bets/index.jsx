@@ -811,10 +811,21 @@ const S = {
   schedRow: { fontSize: 14, color: C.muted, fontWeight: 600, marginTop: 12 },
 
   // One position within a game card. Every row carries a top hairline, so the
-  // first row also draws the divider under the game header.
+  // first row also draws the divider under the game header — except a live
+  // row (posRowLive), whose washed block is the divider.
   posRow: {
     padding: "16px 0",
     borderTop: `1px solid ${C.border}`,
+  },
+  // A live row (rowLook): a rounded block reaching 12px into the card's 20px
+  // side padding, so its text stays level with every other row's. The block
+  // is its own divider, so it drops the hairline, which would bend round the
+  // corners, and keeps 8px clear of its neighbours. Wash and bar are in MB_CSS.
+  posRowLive: {
+    padding: "16px 12px",
+    margin: "8px -12px",
+    borderTop: "none",
+    borderRadius: 12,
   },
   rowLine1: {
     display: "flex",
@@ -935,6 +946,16 @@ const MB_CSS = `
    own type colors; a faint wash marks it as hoverable. */
 .mb-poslink { display: block; color: inherit; text-decoration: none; }
 .mb-poslink:hover { background: rgba(255, 255, 255, 0.035); }
+/* A row whose game is live (rowLook): its chance colour as a wash plus a bar
+   down the left edge. The hover rule is spelled out so a linked live row keeps
+   its wash under the same faint white lift instead of losing it. */
+.mb-live {
+  background: var(--mb-live-wash);
+  box-shadow: inset 3px 0 0 var(--mb-live-bar);
+}
+.mb-poslink.mb-live:hover {
+  background: linear-gradient(rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.035)), var(--mb-live-wash);
+}
 /* Portfolio numbers: inline in the top bar on desktop, a slim strip on mobile.
    Default (mobile-first) hides the desktop top-bar stats. */
 .mb-topstats { display: none; }
@@ -1282,19 +1303,73 @@ const marketLabel = (leg) => {
  * label. The NFL can technically tie, which "Not X" would also win; that is a
  * handful of games a decade and accepted, and the leg's chance still prices the
  * side actually held. If the pick matches neither half of the title the row keeps
- * "Not X" rather than guess. Same rule in the other repo's copy. */
+ * "Not X" rather than guess. Same rule in the other repo's copy.
+ *
+ * The title doesn't always name the teams the way the market does (Patrick,
+ * 2026-09-17: "you are still doing 'Not Detroit' for football"). Most Kalshi
+ * game titles are "Philadelphia vs Chicago", but that night's Lions game was
+ * titled "DET Lions vs BUF Bills" while its market still said "Detroit", so
+ * the exact-name match found neither half. Kalshi retitles every NFL game that
+ * way about a week before kickoff, and the abbreviation isn't always the
+ * ticker's: "NY Jets" is NYJ, "LA Rams" is LAR.
+ *
+ * So the market's own half is the one exactly matching its name, and failing
+ * that, the one the TICKER says: the event segment lists both team codes in
+ * title order ("…26SEP20GBNYJ-NYJ" -> NYJ is the second half). Measured
+ * 2026-09-17 over 3,363 two-team Kalshi game events in all six leagues: the
+ * order agreed with the names on every one of 3,526 markets where names could
+ * tell, and the rule named the wrong team on none of 6,726 NO legs ("Not X"
+ * went from 1,325 of them to 2, both the WNBA All-Star game's "Team Coop").
+ * Where name and ticker disagree it answers nothing rather than pick one.
+ * Fuzzier name matching (a team code or city leading the half) was tried and
+ * dropped: on a mixed title like "Miami (OH) vs Hurricanes" it can land on the
+ * wrong half and show the side the bet is AGAINST. The other half is shown
+ * verbatim, so the Lions leg reads "BUF Bills ML", the way the title under it
+ * words the game. */
 const NO_DRAW_GAME_RE = /^KX(MLB|NFL|NCAAF|NBA|WNBA|NHL)GAME-/;
-const otherTeamOf = (leg, team) => {
-  if (!NO_DRAW_GAME_RE.test(String(leg.market_ticker || ""))) return null;
-  const sides = String(leg.matchup || "")
-    .split(":")[0]
-    .split(/\s+(?:vs\.?|at|@)\s+/i)
-    .map((x) => x.trim());
-  if (sides.length !== 2 || !sides[0] || !sides[1]) return null;
-  const t = team.toLowerCase();
-  if (sides[0].toLowerCase() === t) return sides[1];
-  if (sides[1].toLowerCase() === t) return sides[0];
+/* The two team halves of a game title. The colon doesn't always come after
+ * them: "Chicago WS vs Texas: Total Runs" has a market suffix, but a playoff
+ * game is "Game 5: New York at San Antonio", where the first piece is "Game 5".
+ * " vs " is tried in every piece before " at ", because "at" is also inside
+ * team names: "University at Albany vs Maine". */
+const titleTeams = (matchup) => {
+  const parts = String(matchup || "").split(":");
+  for (const sep of [/\s+vs\.?\s+/i, /\s+(?:at|@)\s+/i]) {
+    for (const part of parts) {
+      const sides = part.split(sep).map((x) => x.trim());
+      if (sides.length === 2 && sides[0] && sides[1]) return sides;
+    }
+  }
   return null;
+};
+/* Which title half the market's own team is, from the ticker alone: 0, 1, or
+ * null when the event segment doesn't settle it. The last segment is the
+ * market's own team code, the YES side that a "Not X" names. In
+ * "KXNFLGAME-26SEP20GBNYJ-NYJ", after the date (and an MLB start time,
+ * "26SEP171235"), "GBNYJ" ends with NYJ, so 1. A code at both ends, or at
+ * neither, settles nothing. */
+const tickerHalf = (ticker) => {
+  const parts = ticker.split("-");
+  if (parts.length < 3) return null;
+  const code = parts[parts.length - 1];
+  const teams = parts[1].replace(/^\d{2}[A-Z]{3}\d{2}\d{0,4}/, "");
+  if (!code || teams.length <= code.length) return null;
+  const first = teams.startsWith(code);
+  const last = teams.endsWith(code);
+  return first === last ? null : first ? 0 : 1;
+};
+const otherTeamOf = (leg, team) => {
+  const ticker = String(leg.market_ticker || "");
+  if (!NO_DRAW_GAME_RE.test(ticker)) return null;
+  const sides = titleTeams(leg.matchup);
+  if (!sides) return null;
+  const t = team.toLowerCase();
+  const byName = [0, 1].filter((i) => sides[i].toLowerCase() === t);
+  const own = tickerHalf(ticker);
+  if (byName.length === 1) {
+    return own == null || own === byName[0] ? sides[1 - byName[0]] : null;
+  }
+  return own == null ? null : sides[1 - own];
 };
 
 /* A plain team moneyline, sportsbook-style: "Virginia Tech ML" (yes), and on a
@@ -1799,6 +1874,52 @@ const chanceOf = (leg) => {
           ? C.red
           : chanceColor(pct),
     arrow: lean === "win" ? "▲" : lean === "lose" ? "▼" : "",
+  };
+};
+
+/* A leg whose game is being played right now gets its whole row washed in its
+ * chance colour, with a bar of that colour down the left edge (Patrick,
+ * 2026-09-17: "highlight the live games, maybe have color backgrounds on that
+ * whole section for that game based off percentage"). The colour is the chip's
+ * own, so the wash and the "59% chance" beside it can't disagree: green from
+ * GREEN_AT, yellow through the middle, red under RED_BELOW, deeper the further
+ * out. A live leg with no price is still live, so it gets a grey wash.
+ *
+ * "Live" is ESPN's in-progress state minus `completed`. A total already crossed
+ * mid-game stays highlighted: the leg is decided, but its game is still on.
+ *
+ * 12% is the ceiling, not a taste call. The grey sub line under the pick drops
+ * to 4.5:1 against a 12% wash of the faintest red (4.7:1 bare), and the chip
+ * itself from 3.6:1 to 3.2:1; any stronger and the score line goes first. */
+const LIVE_WASH_ALPHA = 0.12;
+const legIsLive = (leg) =>
+  !!(leg.game && leg.game.state === "in" && leg.game.completed !== true);
+/* The chip colour at the wash's alpha. chanceColor returns hsl(); the fallback
+ * greys are hex. */
+const withAlpha = (color, a) => {
+  const hsl = /^hsl\((.+)\)$/.exec(color);
+  if (hsl) return `hsla(${hsl[1]}, ${a})`;
+  const hex = /^#([0-9a-f]{6})$/i.exec(color);
+  if (!hex) return color;
+  const n = parseInt(hex[1], 16);
+  return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+};
+/* Style and class for a position row: the plain row, or the washed live one.
+ * The wash goes on through CSS variables and the `mb-live` class rather than
+ * an inline background, which would beat `.mb-poslink:hover` and leave a
+ * linked live row with no hover state (see MB_CSS). */
+const classes = (...names) => names.filter(Boolean).join(" ") || undefined;
+const rowLook = (leg) => {
+  if (!legIsLive(leg)) return { style: S.posRow, className: undefined };
+  const color = chanceOf(leg)?.color || C.muted;
+  return {
+    style: {
+      ...S.posRow,
+      ...S.posRowLive,
+      "--mb-live-wash": withAlpha(color, LIVE_WASH_ALPHA),
+      "--mb-live-bar": color,
+    },
+    className: "mb-live",
   };
 };
 
@@ -2589,16 +2710,20 @@ function SingleRow({ b, showWeather = true }) {
     (leg.game && leg.game.link) ||
     kalshiEventUrl(eventTickerOf(b.market, leg.market_ticker || b.ticker));
   const Row = link ? "a" : "div";
+  const look = rowLook(leg);
   const rowProps = link
     ? {
         href: link,
         target: "_blank",
         rel: "noopener noreferrer",
-        className: "mb-poslink",
       }
     : {};
   return (
-    <Row style={S.posRow} {...rowProps}>
+    <Row
+      style={look.style}
+      className={classes(link && "mb-poslink", look.className)}
+      {...rowProps}
+    >
       <div style={S.rowLine1}>
         <RowPick leg={leg} />
         <Chance leg={leg} />
@@ -2708,16 +2833,21 @@ function ParlayRows({ b }) {
     const link =
       (g && g.link) || kalshiEventUrl(eventTickerOf(null, leg.market_ticker));
     const Row = link ? "a" : "div";
+    const look = rowLook(leg);
     const rowProps = link
       ? {
           href: link,
           target: "_blank",
           rel: "noopener noreferrer",
-          className: "mb-poslink",
         }
       : {};
     return (
-      <Row style={S.posRow} key={leg.market_ticker || i} {...rowProps}>
+      <Row
+        style={look.style}
+        className={classes(link && "mb-poslink", look.className)}
+        key={leg.market_ticker || i}
+        {...rowProps}
+      >
         <div style={S.rowLine1}>
           <RowPick leg={leg} />
           <Chance leg={leg} />
@@ -3115,8 +3245,9 @@ export default function MyBets() {
   // pre-game groups the user-picked sort applies. Positions missing the
   // chosen metric sink to the bottom of their group in either direction.
   const isLive = (b) => {
-    if ((b.display?.legs || []).some((l) => l.game && l.game.state === "in"))
-      return true;
+    // Same test the row wash uses (legIsLive), so a card lifted to the top as
+    // live always has a washed row to show for it.
+    if ((b.display?.legs || []).some(legIsLive)) return true;
     /* Weather markets have no ESPN game, so the leg test can never fire — but
      * TODAY's high temp is resolving as you watch it (the station's running max
      * is climbing), which is exactly the "in progress" the sort is for.
