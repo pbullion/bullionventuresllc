@@ -19,7 +19,11 @@ import { Link, useLocation } from "react-router-dom";
  * - The row for the page you are already on is dropped. Both directories list
  *   themselves (that is how the privatePages.js convention makes a page
  *   discoverable), and a link to here from here is dead weight. Matching on
- *   pathname rather than a hardcoded path keeps working if a route moves. */
+ *   pathname rather than a hardcoded path keeps working if a route moves.
+ *   Trailing slashes are stripped first: the host 301s EVERY path to a
+ *   trailing slash (/jump → /jump/, measured 2026-09-16), so the pathname a
+ *   visitor actually lands on is "/jump/" and an exact compare never matched —
+ *   /jump listed itself from the day it shipped. */
 export default function LinkDirectory({
   groups,
   eyebrow,
@@ -29,6 +33,7 @@ export default function LinkDirectory({
   hideGroupLabels = false,
 }) {
   const { pathname } = useLocation();
+  const here = pathname.replace(/\/+$/, "") || "/";
 
   useEffect(() => {
     document.title = documentTitle;
@@ -50,7 +55,7 @@ export default function LinkDirectory({
     .filter(Boolean)
     .map((g) => ({
       ...g,
-      items: g.items.filter((t) => t.path !== pathname),
+      items: g.items.filter((t) => t.path !== here),
     }))
     .filter((g) => g.items.length > 0);
 
