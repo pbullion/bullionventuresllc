@@ -12,11 +12,16 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@kenjiuno/decompressrtf": "^0.1.4",
+    "@kenjiuno/msgreader": "^1.28.0",
     "@mui/icons-material": "^9.0.0",
     "@mui/material": "^9.0.0",
     "axios": "^1.16.0",
     "browser-detect": "^0.2.28",
+    "buffer": "^6.0.3",
     "date-fns": "^4.1.0",
+    "docx-preview": "^0.4.0",
+    "jszip": "^3.10.2",
     "leaflet": "^1.9.4",
     "moment": "^2.30.1",
     "moment-timezone": "^0.6.2",
@@ -25,7 +30,9 @@
     "react-dom": "^19.2.5",
     "react-loading": "^2.0.3",
     "react-router-dom": "^7.14.2",
-    "weather-icons-react": "^1.2.0"
+    "rtf-stream-parser": "^4.0.0",
+    "weather-icons-react": "^1.2.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

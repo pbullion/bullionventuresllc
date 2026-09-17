@@ -187,9 +187,9 @@ Three things about it are deliberate and easy to undo by accident:
 
 `src/pages/ash/index.jsx` is `/jump` over one group: the `ashley` group in
 `privatePages.js` (her client tracker, `/prospects`, `/mothers-day-2026`,
-File Drop's `/file-drop` and `/file-drop/download` — both hers since
-2026-09-16, when she took over the downloading too — and
-`/ash` itself). Patrick, 2026-09-16: "add a page like the jump for ashley so she
+File Drop's `/file-drop`, `/file-drop/download` — both hers since
+2026-09-16, when she took over the downloading too — `/file-drop/files`
+(2026-09-17) and `/ash` itself). Patrick, 2026-09-16: "add a page like the jump for ashley so she
 can get to all of her pages". **Add a page of hers to that group and it shows up
 on `/ash`, `/jump` and the modal at once** — never hand-list rows in `/ash`.
 
@@ -336,7 +336,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/fantasy`, `/fantasy/matchups` | `/fantasy-football` (added 2026-09-09; undocumented here until now) |
 | `/fantasy/lineup`, `/fantasy/waivers` | `/fantasy-watch` (added 2026-09-10 — see the section below) |
 | `/whiparound` | `/whiparound/games`, `/whiparound/cfb`, `/whiparound/scoreboards`, `/whiparound/fantasy`, `/whiparound/tropics`, and `/nhc/current-storms` for the radar geometry; RainViewer directly (added 2026-09-13 — see the section below) |
-| `/file-drop`, `/file-drop/download` | `/file-drop` (signing + S3 control-plane only — bytes go browser↔S3 directly; see the section below) |
+| `/file-drop`, `/file-drop/download`, `/file-drop/files`, `/file-drop/view` | `/file-drop` (signing + S3 control-plane only — bytes go browser↔S3 directly; see the section below) |
 
 - The site does **not** call `/bullion-ventures` (that backend route is
   push-notification plumbing, not a website API) and does **not** call
@@ -961,6 +961,64 @@ with the backend (2026-09-16); the code comments carry its rules.
   browser globals so they can be driven under node with a fake
   transport/api/storage/directory handle. Do that before changing either
   engine.
+
+### `/file-drop/files` and `/file-drop/view` — her own browser over what she sent
+
+Added 2026-09-17 (Patrick: "a new screen for ashley … browse all of the files
+she uploaded … search for things … not just download, but click and it open the
+file in a new window"). `/file-drop/files` (`Files.jsx`) lists, searches and
+filters the whole manifest; `/file-drop/view` (`View.jsx`) shows ONE file. Both
+are hers, both take the same admin code, and **neither can delete anything** —
+deleting stays on `/file-drop/download`, which is the page for that.
+
+- **All of it runs in the browser over one manifest read.** `library.js` builds
+  the folder tree, the search index, the year and kind facets and the
+  duplicate count from the same `{path, size}` rows the download page loads;
+  `filesPage.js` holds the page's own pure parts. Both import no browser
+  globals, so they are checkable under plain node — do that when changing
+  search or the counts.
+- **S3's `LastModified` is the UPLOAD date, not the file's date** — everything
+  was sent within minutes of everything else, so a date filter would be
+  useless. `yearOf()` reads the year out of the PATH instead ("…/2021/W-2.pdf",
+  "Report 11.20.2018.pdf"), which is where these years actually live. Don't
+  swap it for a timestamp.
+- **Only the folder is ever in a URL, and only in the fragment**
+  (`#folder=…` here, `#<path>` on the viewer). Amplify/CloudFront and Heroku
+  log query strings; a fragment is never sent. Keep file names out of query
+  strings, and out of this repo — it is public.
+- **`rel="opener"` on every file link is load-bearing.** `target="_blank"`
+  implies `noopener`, and a tab opened that way starts with EMPTY
+  sessionStorage — so the viewer would ask for the code on every file. The
+  viewer falls back to the code gate if it ever arrives without one.
+- **Two ways to show a file, both first-class.** For PDFs, photos, video, audio
+  and text the page asks `presign-get` for `disposition: "inline"` and, when
+  the backend grants it, hands that S3 URL straight to an `<iframe>`/`<img>`/
+  `<video>` — nothing is held in memory. A backend without that option (or a
+  type not on its allow-list) answers `attachment`, and the viewer fetches the
+  bytes and builds a Blob URL instead. **Until that backend option is
+  deployed, an iPhone shows only the first page of a PDF in the iframe** —
+  that is what the inline path fixes, and the "Open PDF" button on a touch
+  device appears only when the inline link exists.
+- **Word, Excel/`.xls`, Outlook `.msg` and zips are rendered CLIENT-SIDE** in
+  `viewers/` — docx-preview, SheetJS (pinned to the CDN tarball; the registry's
+  `xlsx` is an old vulnerable 0.18), `@kenjiuno/msgreader`, JSZip — each in its
+  own lazy chunk, none in the main bundle. No Microsoft/Google online viewer:
+  that would upload her files to a third party.
+- **Anything a document brings with it is treated as hostile.** An email body
+  and a docx `altChunk` only ever render inside `<iframe sandbox="" srcDoc>`
+  with `default-src 'none'` (no scripts, no remote images, no tracking
+  pixels); `cid:` images are swapped for `data:` URLs from the attachments;
+  non-`http(s)`/`mailto` links lose their href before insertion. The tab holds
+  the code in sessionStorage — a rendered document must never reach this
+  origin.
+- **`vite.config.js` aliases `stream` and `iconv-lite`** to tiny shims in
+  `viewers/shims/` for the `.msg` path (both packages are Node-first and a
+  browser build would replace them with empty modules mid-chunk). Exact-match
+  patterns; nothing else in the app imports either name.
+- Photo tiles in Grid are the photos themselves on presigned links, signed only
+  for the tiles on screen and re-signed before they expire. There is no
+  thumbnail service, so a folder of 20 MB photos is a 20 MB folder — hence the
+  note above the grid.
 
 ## Conventions
 

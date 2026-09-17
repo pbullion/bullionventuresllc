@@ -201,6 +201,12 @@ export const PRIVATE_GROUPS = [
        * 2026-09-16 Ashley sends AND downloads (one code), and this group is
        * still on /jump for Patrick. The code, not this list, protects them. */
       {
+        emoji: "🗂️",
+        name: "Your Files",
+        path: "/file-drop/files",
+        tagline: "Search and open everything you sent — same code",
+      },
+      {
         emoji: "📥",
         name: "Download Files",
         path: "/file-drop/download",

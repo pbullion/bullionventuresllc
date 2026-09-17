@@ -1,10 +1,11 @@
-/* File Drop — the one API module both pages use.
+/* File Drop — the one API module every File Drop page uses.
  *
  * Everything here talks to the shared backend's /file-drop route, which only
  * SIGNS S3 URLs and makes small control-plane calls. File bytes never go
  * through Heroku: `putWithProgress` below sends them straight from the
- * browser to S3 on a presigned URL. Keep it that way — the shared dyno serves
- * ~36 projects and has a 30s router timeout.
+ * browser to S3 on a presigned URL, and `fetchBytes` reads them straight back.
+ * Keep it that way — the shared dyno serves ~36 projects and has a 30s router
+ * timeout.
  *
  * The code travels ONLY in the `x-file-drop-code` header, never the query
  * string (Heroku's router logs full paths) and never the body.
@@ -114,8 +115,15 @@ export function createApi(code, opts = {}) {
     multipartParts: (b) => call("/multipart/parts", "POST", b),
     multipartComplete: (b) => call("/multipart/complete", "POST", b),
     multipartAbort: (b) => call("/multipart/abort", "POST", b),
-    presignGet: (paths, expiresIn) =>
-      call("/presign-get", "POST", expiresIn ? { paths, expiresIn } : { paths }),
+    /* opts.disposition: "inline" asks for URLs a browser tab can show (the
+     * backend only grants it to an allow-list of safe types — check each
+     * row's `disposition`, it falls back to "attachment"); "attachment" or
+     * nothing downloads. Without opts the body is exactly what it always was. */
+    presignGet: (paths, expiresIn, opts) => {
+      const body = expiresIn ? { paths, expiresIn } : { paths };
+      if (opts && opts.disposition) body.disposition = opts.disposition;
+      return call("/presign-get", "POST", body);
+    },
     deleteMany: (paths) => call("/delete", "POST", { paths }),
     /* { dryRun: true } aborts nothing and returns `uploads: [{ path,
      * initiated }]` — what a real call would throw away. */
@@ -126,6 +134,137 @@ export function createApi(code, opts = {}) {
       }),
   };
   return api;
+}
+
+function abortError() {
+  const err = httpError("Stopped", 0);
+  err.name = "AbortError";
+  err.aborted = true;
+  return err;
+}
+
+function asBytes(value) {
+  if (value instanceof Uint8Array) return value;
+  if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  return new Uint8Array(value);
+}
+
+/** GET a presigned S3 URL into memory → ArrayBuffer (the viewer's previews).
+ *  Reads `res.body` as a stream when there is one so `onProgress(loaded,
+ *  total)` can report as bytes arrive; `total` is the Content-Length, 0 when
+ *  there isn't one. A wrong Content-Length never truncates the result.
+ *
+ *  Non-2xx → Error with `.status` (and `.s3Code` when S3's XML says why — an
+ *  expired link is 403 AccessDenied). Network failure → `.status === 0`. The
+ *  signal firing → `.status === 0`, `.aborted`, name "AbortError".
+ *
+ *  Deliberately NO timeout: a big file can take minutes on a phone, so the
+ *  caller's signal is the only way to stop one. */
+export async function fetchBytes(url, { signal, onProgress, fetchImpl } = {}) {
+  const doFetch = fetchImpl || globalThis.fetch;
+  if (signal && signal.aborted) throw abortError();
+  let res;
+  try {
+    res = await doFetch(url, { signal });
+  } catch (e) {
+    if ((signal && signal.aborted) || (e && e.name === "AbortError")) throw abortError();
+    throw httpError("Couldn't download the file — check the internet connection", 0);
+  }
+  if (!res.ok) {
+    let text = "";
+    try {
+      text = await res.text();
+    } catch {
+      /* the status alone will do */
+    }
+    const code = /<Code>([^<]+)<\/Code>/.exec(text || "");
+    const err = httpError(
+      `Amazon S3 said HTTP ${res.status}${code ? ` (${code[1]})` : ""}`,
+      res.status,
+    );
+    if (code) err.s3Code = code[1];
+    throw err;
+  }
+
+  const header =
+    res.headers && typeof res.headers.get === "function" ? res.headers.get("content-length") : null;
+  const len = Number(header);
+  const total = header !== null && Number.isFinite(len) && len > 0 ? len : 0;
+  const report = (loaded) => {
+    if (onProgress) onProgress(loaded, total);
+  };
+
+  const reader = res.body && typeof res.body.getReader === "function" ? res.body.getReader() : null;
+  if (!reader) {
+    let buf;
+    try {
+      buf = await res.arrayBuffer();
+    } catch {
+      if (signal && signal.aborted) throw abortError();
+      throw httpError("The download from Amazon S3 was cut off", 0);
+    }
+    report(buf.byteLength);
+    return buf;
+  }
+
+  /* Cancelling ends a pending read() even when the stream doesn't know about
+   * the signal; the aborted check after each read turns that into an error
+   * instead of a short "success". */
+  const onAbort = () => {
+    reader.cancel().catch(() => {});
+  };
+  /* With a Content-Length, write into one buffer of that size rather than
+   * holding every chunk AND a joined copy — half the peak memory on a big
+   * file. If more arrives than promised, fall back to collecting chunks. */
+  let buf;
+  let chunks;
+  let loaded = 0;
+  if (signal) signal.addEventListener("abort", onAbort);
+  try {
+    if (signal && signal.aborted) {
+      onAbort();
+      throw abortError();
+    }
+    /* Reported BEFORE the buffer is reserved: a caller that caps the size
+     * (the viewer refuses to hold more than 200 MB) aborts inside this call,
+     * and `new Uint8Array(2e9)` would have thrown RangeError first. */
+    report(0);
+    if (signal && signal.aborted) throw abortError();
+    buf = total ? new Uint8Array(total) : null;
+    chunks = buf ? null : [];
+    for (;;) {
+      let step;
+      try {
+        step = await reader.read();
+      } catch {
+        if (signal && signal.aborted) throw abortError();
+        throw httpError("The download from Amazon S3 was cut off", 0);
+      }
+      if (signal && signal.aborted) throw abortError();
+      if (step.done) break;
+      if (!step.value || !step.value.byteLength) continue;
+      const bytes = asBytes(step.value);
+      if (buf && loaded + bytes.byteLength > buf.byteLength) {
+        chunks = [buf.subarray(0, loaded)];
+        buf = null;
+      }
+      if (buf) buf.set(bytes, loaded);
+      else chunks.push(bytes);
+      loaded += bytes.byteLength;
+      report(loaded);
+    }
+  } finally {
+    if (signal) signal.removeEventListener("abort", onAbort);
+  }
+
+  if (buf) return loaded === buf.byteLength ? buf.buffer : buf.slice(0, loaded).buffer;
+  const out = new Uint8Array(loaded);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out.buffer;
 }
 
 /* A PUT that stops moving is abandoned and retried. XHR has no idle timeout of

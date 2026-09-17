@@ -6,8 +6,9 @@ import { createPortal } from "react-dom";
  * Added 2026-09-16 (Patrick: "add it to that page as a modal"). The steps name
  * the real buttons on /file-drop and /file-drop/download, so if a label there
  * changes, change it here too: "Choose folder", "Check the list", "Start
- * upload", "Retry failed", "Download Files" (the /ash row), "Download
- * everything to a folder on this computer…", "Delete everything from S3…".
+ * upload", "Retry failed", "Your Files" and "Download Files" (the /ash rows),
+ * "Download everything to a folder on this computer…", "Delete everything from
+ * S3…".
  *
  * The dialog is portalled to <body> and the app root is made `inert` while it
  * is open, so a screen reader's cursor can't wander onto the rows behind it
@@ -178,6 +179,10 @@ export default function HowTo() {
                   the same folder — anything already downloaded is skipped.
                 </li>
               </ol>
+              <p style={S.tip}>
+                <b>Just want one file?</b> Tap <b>Your Files</b> on this page instead, search for it by name, and tap
+                the name — it opens in a new tab, on a phone or a computer. Nothing there can delete anything.
+              </p>
             </section>
 
             <section style={{ ...S.section, marginBottom: 0 }}>

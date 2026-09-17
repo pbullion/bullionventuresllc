@@ -98,6 +98,8 @@ const WhipAround = lazy(() => import("./pages/whiparound/index.jsx"));
 // a download engine) that no home-page visitor should pay for.
 const FileDropUpload = lazy(() => import("./pages/file-drop/Upload.jsx"));
 const FileDropDownload = lazy(() => import("./pages/file-drop/Download.jsx"));
+const FileDropFiles = lazy(() => import("./pages/file-drop/Files.jsx"));
+const FileDropView = lazy(() => import("./pages/file-drop/View.jsx"));
 
 export default function App() {
   const location = useLocation();
@@ -317,6 +319,24 @@ export default function App() {
           <Route path="/status" element={<Status />} />
           {/* The more specific /file-drop/download is listed first; React
               Router ranks by specificity anyway, but this keeps it obvious. */}
+          {/* Ashley's browser over everything sent, and the viewer it opens
+              each file in (a new tab; the path rides in the #fragment). */}
+          <Route
+            path="/file-drop/files"
+            element={
+              <Suspense fallback={null}>
+                <FileDropFiles />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/file-drop/view"
+            element={
+              <Suspense fallback={null}>
+                <FileDropView />
+              </Suspense>
+            }
+          />
           <Route
             path="/file-drop/download"
             element={
