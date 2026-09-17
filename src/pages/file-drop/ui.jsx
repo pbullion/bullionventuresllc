@@ -10,7 +10,8 @@ import { formatBytes, formatDuration } from "./helpers.js";
  *  (never localStorage), and hands `{ code, info }` up. A code already in
  *  this tab's sessionStorage is re-checked automatically.
  *  `requireAdmin`: only the download code gets in. `refuseAdmin`: the download
- *  code is turned away (the upload page — it shouldn't live in that tab). */
+ *  code is turned away. The upload page used it until 2026-09-16, when Ashley
+ *  started using the one admin code on both pages; nothing passes it today. */
 export function CodeGate({ storageKey, requireAdmin = false, refuseAdmin = false, onAuthed, label, hint }) {
   const [stored] = useState(() => readSession(storageKey));
   const [value, setValue] = useState("");

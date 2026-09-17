@@ -866,6 +866,15 @@ with the backend (2026-09-16); the code comments carry its rules.
   code (`FILE_DROP_ADMIN_CODE`) can do everything. Unset, <8 chars or equal
   codes → every endpoint 503s. Wrong code → 401; 10 failures per IP / 15 min
   (or 200 global / hour) → 429.
+- **In use today as ONE code** (Patrick, 2026-09-16): the uploader also does
+  the downloading and the files are offloaded the same day, so she uses the
+  ADMIN code on both pages and `FILE_DROP_UPLOAD_CODE` holds a random value
+  nobody is given (the backend still needs two different codes). `/file-drop`
+  therefore accepts the admin code — it refused it until then. Admin uploads
+  are not If-None-Match protected; the pre-flight's skip/rename is what keeps
+  a file from being replaced. Afterwards, rotate or unset
+  `FILE_DROP_ADMIN_CODE` (it can read and delete everything). Never write a
+  code's value into this public repo.
 - **Storage:** dedicated private bucket `bullion-file-drop` (us-east-1,
   created 2026-09-16), prefix `file-drop/`. Block Public Access on, ACLs off,
   SSE-S3, a TLS-only bucket policy, no versioning (so delete is forever), and a

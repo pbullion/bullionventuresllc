@@ -24,7 +24,15 @@ import { PROBE_PATH, UploadEngine } from "./uploadEngine.js";
  * api.js and uploadEngine.js for why bytes must never go through it.
  *
  * Unlisted and cardless (privatePages.js), noindex. The upload code can't
- * download or delete anything; that needs the separate admin code. */
+ * download or delete anything; that needs the separate admin code.
+ *
+ * THIS PAGE ACCEPTS THE ADMIN CODE TOO (Patrick, 2026-09-16: Ashley both sends
+ * and downloads, with one code, and the files are offloaded the same day). It
+ * used to refuse it via CodeGate's `refuseAdmin`. With the admin code her PUTs
+ * carry no If-None-Match, so S3 would let a racing upload replace a file — the
+ * pre-flight (skip same size, rename a different file on a taken path) is what
+ * prevents that in practice. To go back to two codes, set a separate
+ * FILE_DROP_UPLOAD_CODE, give her that, and restore `refuseAdmin` below. */
 
 export default function FileDropUpload() {
   useNoindex("Send files to Patrick");
@@ -94,7 +102,7 @@ export default function FileDropUpload() {
             Send files to Patrick
           </h1>
           <p className="fd-note" style={{ fontSize: 15.5 }}>
-            Files go straight into a private folder that only Patrick can open. Nothing is
+            Files go straight into a private folder that only you and Patrick can open. Nothing is
             shared publicly, and nothing on this computer is changed or deleted.
           </p>
         </header>
@@ -102,7 +110,6 @@ export default function FileDropUpload() {
         {!auth ? (
           <CodeGate
             storageKey={UPLOAD_CODE_KEY}
-            refuseAdmin
             onAuthed={onAuthed}
             label="Enter the code Patrick gave you"
             hint="The code is only kept while this tab is open."
