@@ -159,12 +159,27 @@ const kalshiCents = (v) => {
   return v == null || !(n > 0 && n < 1) ? null : `${Math.round(n * 100)}¢`;
 };
 
-// Kalshi's estimated payout if every leg hits, for a buy button's second line:
-// cents under $100 ("~$47.21"), whole dollars from there ("~$118") so it fits
-// a fifth of a phone-width row. null when there's no Kalshi cost to divide by.
-const payoutLabel = (stake, costPerDollar) => {
+// Kalshi's taker fee is 0.07·C·P·(1−P), and a combo buy's request for quote
+// sends the stake as target_cost_dollars, which Kalshi treats as fee INCLUDED:
+// a $10 button debits ~$10 and buys 10 / (P + 0.07·P·(1−P)) contracts, not
+// 10 / P. So kalshi_cost_per_dollar (the product of the leg asks) is not what
+// a $1 payout costs. Every Best N fill through 2026-09-16 paid out 5.4–6.6%
+// under stake / P, and within ~2% of stake / allInCost(P). null when there's
+// no Kalshi cost. Same rule as kalshi-live's allInCost; change one, change both.
+const KALSHI_TAKER_FEE_RATE = 0.07;
+const allInCost = (costPerDollar) => {
   const cost = Number(costPerDollar);
-  if (!(cost > 0)) return null;
+  if (costPerDollar == null || !(cost > 0 && cost < 1)) return null;
+  return cost * (1 + KALSHI_TAKER_FEE_RATE * (1 - cost));
+};
+
+// About what a buy pays if every leg hits, after Kalshi's fee, for a buy
+// button's second line: cents under $100 ("~$47.21"), whole dollars from there
+// ("~$118") so it fits a fifth of a phone-width row. null when there's no
+// Kalshi cost to divide by.
+const payoutLabel = (stake, costPerDollar) => {
+  const cost = allInCost(costPerDollar);
+  if (cost == null) return null;
   const p = stake / cost;
   // Grouped past $1,000 ("~$1,852" — a 10-leg ticket gets there on $25), the
   // same string kalshi-live's payoutEst draws; change one, change both.
@@ -494,9 +509,10 @@ export default function BestTicket({ includeTomorrow, onRecorded }) {
   const armedStake =
     canBuy && armed && armed.ticketId === ticket.id ? armed.stake : null;
   const legCount = ticket ? ticket.legs_used || (ticket.legs || []).length : 0;
+  // What $1 of payout costs with Kalshi's fee — see allInCost.
+  const feeCost = ticket ? allInCost(ticket.kalshi_cost_per_dollar) : null;
   // No Kalshi cost, no payout under any amount — and no helper text saying so.
-  const showPayouts =
-    Boolean(ticket) && payoutLabel(STAKES[0], ticket.kalshi_cost_per_dollar) != null;
+  const showPayouts = feeCost != null;
 
   const tapBuy = async (amount, e) => {
     if (!canBuy) return;
@@ -763,21 +779,20 @@ export default function BestTicket({ includeTomorrow, onRecorded }) {
                       {ticket.book_american || "—"}
                     </strong>
                   </div>
-                  {ticket.kalshi_cost_per_dollar != null ? (
+                  {showPayouts ? (
                     <div>
                       Kalshi est.{" "}
-                      <strong style={{ color: C.text }}>
-                        {comboCents(ticket.kalshi_cost_per_dollar)}
-                      </strong>{" "}
-                      per $1
+                      <strong style={{ color: C.text }}>{comboCents(feeCost)}</strong>{" "}
+                      per $1 with fee
                     </div>
                   ) : null}
                 </div>
               </div>
-              {ticket.kalshi_cost_per_dollar != null ? (
+              {showPayouts ? (
                 <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
-                  The Kalshi figure multiplies each leg's ask. Combos are priced
-                  by a market maker's quote, so the real price will differ.
+                  The Kalshi figure multiplies each leg's ask and adds Kalshi's
+                  fee. Combos are priced by a market maker's quote, so the real
+                  price will differ a little.
                 </div>
               ) : null}
 
@@ -1006,7 +1021,7 @@ export default function BestTicket({ includeTomorrow, onRecorded }) {
                   }}
                 >
                   {showPayouts
-                    ? "Under each amount is Kalshi's estimated payout if every leg hits. "
+                    ? "Under each amount is about what it pays if every leg hits, after Kalshi's fee. "
                     : null}
                   The server re-checks every leg's live Kalshi price first and
                   buys nothing if any leg has started, closed or dropped more
