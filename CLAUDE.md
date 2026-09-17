@@ -966,7 +966,11 @@ with the backend (2026-09-16); the code comments carry its rules.
 
 Added 2026-09-17 (Patrick: "a new screen for ashley … browse all of the files
 she uploaded … search for things … not just download, but click and it open the
-file in a new window"). `/file-drop/files` (`Files.jsx`) lists, searches and
+file in a new window"). **It is a page for a computer** — Patrick, same day:
+"it would only be on web on a computer" — so the copy says click, the list gets
+its own 1440px shell (`.fd-shell.fd-files-shell`; two classes, because
+`.fd-shell.wide` is two and a one-class rule loses on specificity), and the
+touch paths are kept only because they cost nothing. `/file-drop/files` (`Files.jsx`) lists, searches and
 filters the whole manifest; `/file-drop/view` (`View.jsx`) shows ONE file. Both
 are hers, both take the same admin code, and **neither can delete anything** —
 deleting stays on `/file-drop/download`, which is the page for that.
@@ -991,14 +995,15 @@ deleting stays on `/file-drop/download`, which is the page for that.
   sessionStorage — so the viewer would ask for the code on every file. The
   viewer falls back to the code gate if it ever arrives without one.
 - **Two ways to show a file, both first-class.** For PDFs, photos, video, audio
-  and text the page asks `presign-get` for `disposition: "inline"` and, when
-  the backend grants it, hands that S3 URL straight to an `<iframe>`/`<img>`/
-  `<video>` — nothing is held in memory. A backend without that option (or a
-  type not on its allow-list) answers `attachment`, and the viewer fetches the
-  bytes and builds a Blob URL instead. **Until that backend option is
-  deployed, an iPhone shows only the first page of a PDF in the iframe** —
-  that is what the inline path fixes, and the "Open PDF" button on a touch
-  device appears only when the inline link exists.
+  and text the page asks `presign-get` for `disposition: "inline"` and hands
+  that S3 URL straight to an `<iframe>`/`<img>`/`<video>` — nothing is held in
+  memory, and a 2 GB video costs the tab nothing. **That backend option is live
+  (sheline PR #79, v2530, 2026-09-17)** and verified in the browser: a `.pdf`
+  comes back `disposition: "inline"` with `application/pdf` forced. A backend
+  that lacks it — or a type not on its allow-list, e.g. `.docx` — answers
+  `attachment`, and the viewer fetches the bytes and builds a Blob URL instead.
+  **Keep both paths**: the fallback is what let this page ship before the API
+  deploy, and it is the only path for the client-rendered types below.
 - **Word, Excel/`.xls`, Outlook `.msg` and zips are rendered CLIENT-SIDE** in
   `viewers/` — docx-preview, SheetJS (pinned to the CDN tarball; the registry's
   `xlsx` is an old vulnerable 0.18), `@kenjiuno/msgreader`, JSZip — each in its
