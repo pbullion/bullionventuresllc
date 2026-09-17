@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ADMIN_CODE_KEY, createApi } from "./api.js";
 import { clickDownload, copyText, downloadBlob, useNoindex } from "./browser.js";
-import { DownloadEngine } from "./downloadEngine.js";
+import { DownloadEngine, SUBFOLDER } from "./downloadEngine.js";
 import { buildCurlScript, chunk, folderBreakdown, formatBytes } from "./helpers.js";
 import { CSS } from "./styles.js";
 import { CappedList, CodeGate, ProgressBar, Stat, TransferStats } from "./ui.jsx";
@@ -20,6 +20,11 @@ import { CappedList, CodeGate, ProgressBar, Stat, TransferStats } from "./ui.jsx
 
 const FILE_PAGE = 200;
 const DEFAULT_PREFIX = "file-drop/";
+/* "Clean up" aborts multipart uploads by when they STARTED (S3's Initiated),
+ * not when a part last arrived — so it can't tell an abandoned upload from a
+ * multi-GB file that's been resuming for days. A week, behind a confirm, and
+ * worded so it's clear what it throws away. */
+const CLEANUP_HOURS = 24 * 7;
 
 export default function FileDropDownload() {
   useNoindex("File Drop — download");
@@ -98,6 +103,7 @@ function Browser({ auth, files, loadMsg, loadError, onReload }) {
   const [deleting, setDeleting] = useState(null); // { done, total }
   const [deleteResult, setDeleteResult] = useState(null);
   const [cleanup, setCleanup] = useState(null); // { busy, text }
+  const [cleanupArmed, setCleanupArmed] = useState(false);
   const [script, setScript] = useState(null); // { busy, text }
   const [copied, setCopied] = useState(false);
 
@@ -209,22 +215,23 @@ function Browser({ auth, files, loadMsg, loadError, onReload }) {
   };
 
   const doCleanup = async () => {
-    setCleanup({ busy: true, text: "Looking for abandoned uploads…" });
+    setCleanupArmed(false);
+    setCleanup({ busy: true, text: "Looking for unfinished uploads…" });
     let aborted = 0;
     try {
       for (let i = 0; i < 20; i++) {
-        const res = await api.cleanup(24);
+        const res = await api.cleanup(CLEANUP_HOURS);
         aborted += res.aborted || 0;
         if (!res.remaining) break;
       }
       setCleanup({
         busy: false,
         text: aborted
-          ? `Cleaned up ${aborted} abandoned partial upload(s) older than 24 hours.`
-          : "No abandoned partial uploads older than 24 hours.",
+          ? `Threw away ${aborted} unfinished big-file upload(s) started more than 7 days ago.`
+          : "No unfinished big-file uploads started more than 7 days ago.",
       });
     } catch (err) {
-      setCleanup({ busy: false, text: `Cleanup failed: ${err.message}` });
+      setCleanup({ busy: false, text: `Cleanup failed after ${aborted} upload(s): ${err.message}` });
     }
   };
 
@@ -256,11 +263,18 @@ function Browser({ auth, files, loadMsg, loadError, onReload }) {
           </div>
         )}
         {files && files.length > 0 && (
-          <div className="fd-row" style={{ marginTop: 14 }}>
-            <button className="fd-btn big" type="button" onClick={() => startDownload(files)} disabled={busy}>
-              Download everything to a folder on this Mac…
-            </button>
-          </div>
+          <>
+            <div className="fd-row" style={{ marginTop: 14 }}>
+              <button className="fd-btn big" type="button" onClick={() => startDownload(files)} disabled={busy}>
+                Download everything to a folder on this Mac…
+              </button>
+            </div>
+            <p className="fd-note">
+              Files go into a &ldquo;{SUBFOLDER}&rdquo; folder inside the folder you pick (or straight
+              into it, if the one you pick is already called {SUBFOLDER}). Nothing already on this Mac
+              is overwritten.
+            </p>
+          </>
         )}
         {noPicker && (
           <div className="fd-warn" style={{ marginTop: 12 }}>
@@ -421,10 +435,31 @@ function Browser({ auth, files, loadMsg, loadError, onReload }) {
           >
             Delete everything from S3…
           </button>
-          <button className="fd-btn quiet" type="button" disabled={cleanup && cleanup.busy} onClick={doCleanup}>
-            {cleanup && cleanup.busy ? "Cleaning…" : "Clean up abandoned partial uploads"}
+          <button
+            className="fd-btn quiet"
+            type="button"
+            disabled={(cleanup && cleanup.busy) || cleanupArmed}
+            onClick={() => setCleanupArmed(true)}
+          >
+            {cleanup && cleanup.busy ? "Cleaning…" : "Clean up unfinished uploads older than 7 days…"}
           </button>
         </div>
+        {cleanupArmed && (
+          <div className="fd-bad" style={{ marginTop: 10 }} role="alertdialog" aria-label="Confirm cleanup">
+            This throws away the pieces already sent for every big-file upload that{" "}
+            <strong>started more than 7 days ago</strong> and hasn&apos;t finished — including one
+            that is still going or paused, which would then have to start that file over. Only do it
+            when nothing is being uploaded any more. Finished files aren&apos;t touched.
+            <div className="fd-row" style={{ marginTop: 10 }}>
+              <button className="fd-btn danger small" type="button" onClick={doCleanup}>
+                Yes, clean up
+              </button>
+              <button className="fd-btn quiet small" type="button" onClick={() => setCleanupArmed(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {armed && armed.key === "*" && (
           <DeleteConfirm armed={armed} onConfirm={doDelete} onCancel={() => setArmed(null)} />
         )}
@@ -468,10 +503,12 @@ function DownloadProgress({ snap, onCancel }) {
       <div className="fd-row" style={{ justifyContent: "space-between" }}>
         <h2 style={{ margin: 0 }}>
           {running
-            ? "Downloading…"
+            ? snap.waiting
+              ? "Waiting for the server…"
+              : "Downloading…"
             : snap.status === "cancelled"
               ? "Download stopped"
-              : snap.failedCount
+              : snap.failedCount || snap.conflictCount
                 ? "Download finished with problems"
                 : "Download finished"}
         </h2>
@@ -481,6 +518,22 @@ function DownloadProgress({ snap, onCancel }) {
           </button>
         )}
       </div>
+      {snap.savedInto && <p className="fd-note">Saving into {snap.savedInto}</p>}
+      {snap.fatal && (
+        <div className="fd-bad" style={{ marginTop: 10 }} role="alert">
+          {snap.fatal}
+        </div>
+      )}
+      {running && snap.waiting && (
+        <div className="fd-warn" style={{ marginTop: 10 }} role="status">
+          {snap.waiting.message} No file is marked failed while it waits; Stop ends it.
+          {snap.waiting.detail && (
+            <div className="fd-muted" style={{ color: "inherit", opacity: 0.8, marginTop: 6 }}>
+              Details: {snap.waiting.detail}
+            </div>
+          )}
+        </div>
+      )}
       <div style={{ marginTop: 12 }}>
         <ProgressBar done={snap.bytesDone} total={snap.bytesTotal} />
       </div>
@@ -506,6 +559,23 @@ function DownloadProgress({ snap, onCancel }) {
             </li>
           )}
         />
+      )}
+      {snap.conflictCount > 0 && (
+        <div className="fd-warn" style={{ marginTop: 12 }}>
+          {snap.conflictCount.toLocaleString()} file(s) weren&apos;t saved because something different
+          already has that name in the folder — nothing was overwritten. Move or rename those and run it
+          again, or use the Download button next to each file:
+          <CappedList
+            rows={snap.conflicts}
+            total={snap.conflictCount}
+            render={(f, i) => (
+              <li key={`${f.path}-${i}`} style={{ flexWrap: "wrap" }}>
+                <span className="fd-path">{f.path}</span>
+                <span>{f.error}</span>
+              </li>
+            )}
+          />
+        </div>
       )}
       {snap.failedCount > 0 && (
         <div className="fd-warn" style={{ marginTop: 12 }}>

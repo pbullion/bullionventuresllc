@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { UPLOAD_CODE_KEY, createApi, putWithProgress } from "./api.js";
-import { entriesFromDrop, useNoindex, walkEntries } from "./browser.js";
-import { chunk, folderBreakdown, formatBytes, isJunkFile, joinFolder } from "./helpers.js";
+import {
+  countUnfinishedUploads,
+  entriesFromDrop,
+  forgetThisComputer,
+  useNoindex,
+  walkEntries,
+} from "./browser.js";
+import { chunk, folderBreakdown, formatBytes, isJunkFile, joinFolder, planUploads } from "./helpers.js";
 import { CSS } from "./styles.js";
 import { CappedList, CodeGate, ProgressBar, Stat, TransferStats } from "./ui.jsx";
 import { UploadEngine } from "./uploadEngine.js";
@@ -27,6 +33,7 @@ export default function FileDropUpload() {
 
   const runSelfTest = async (code) => {
     setSelfTest({ state: "running" });
+    let stage = "server";
     try {
       const api = createApi(code);
       const res = await api.presignPut([
@@ -34,15 +41,21 @@ export default function FileDropUpload() {
       ]);
       const item = res.files && res.files[0];
       if (!item || !item.url) throw new Error(item?.error || "The server didn't return a test link");
+      stage = "s3";
       await putWithProgress(item.url, new Blob(["1"], { type: "text/plain" }), {
         contentType: item.contentType || "text/plain",
+        stallMs: 30000,
+        responseStallMs: 30000,
       });
       setSelfTest({ state: "ok" });
     } catch (err) {
-      /* putWithProgress's errors all say "Amazon S3"/"upload"; anything else
-       * came from the signing call to Patrick's server. */
-      const fromS3 = /Amazon S3|upload/i.test(String(err.message));
-      setSelfTest({ state: "fail", error: err.message, fromS3 });
+      /* Where it broke decides what to say. The signing call → Patrick's
+       * server. An answer from S3 itself (an XML <Code> such as AccessDenied or
+       * InvalidAccessKeyId) means the network let the upload through and S3
+       * refused the server's signature — a problem on Patrick's side, not this
+       * network's. No answer from S3 at all → the network is blocking it. */
+      const kind = stage === "server" ? "server" : err.s3Code ? "storage" : "network";
+      setSelfTest({ state: "fail", error: err.message, kind });
     }
   };
 
@@ -68,6 +81,7 @@ export default function FileDropUpload() {
         {!auth ? (
           <CodeGate
             storageKey={UPLOAD_CODE_KEY}
+            refuseAdmin
             onAuthed={onAuthed}
             label="Enter the code Patrick gave you"
             hint="The code is only kept while this tab is open."
@@ -91,7 +105,25 @@ function SelfTest({ test, onRetry }) {
   if (test.state === "ok") {
     return <div className="fd-ok" style={{ marginBottom: 16 }}>✅ Direct upload works on this network.</div>;
   }
-  if (!test.fromS3) {
+  if (test.kind === "storage") {
+    return (
+      <div className="fd-bad" style={{ marginBottom: 16 }}>
+        <strong>❌ Amazon S3 turned the test upload down.</strong>
+        <p style={{ margin: "6px 0 10px", lineHeight: 1.5 }}>
+          The upload got through this network, but Amazon S3 (where the files are stored) refused
+          it. That&apos;s a setting on Patrick&apos;s side, not a problem with this computer or
+          network. Let Patrick know before picking any files.
+        </p>
+        <div className="fd-muted" style={{ color: "inherit", opacity: 0.8, marginBottom: 10 }}>
+          Details: {test.error}
+        </div>
+        <button className="fd-btn danger-ghost small" type="button" onClick={onRetry}>
+          Test again
+        </button>
+      </div>
+    );
+  }
+  if (test.kind === "server") {
     return (
       <div className="fd-bad" style={{ marginBottom: 16 }}>
         <strong>❌ The upload test couldn&apos;t start.</strong>
@@ -138,9 +170,12 @@ function Sender({ code }) {
   const [engine, setEngine] = useState(null);
   const [snap, setSnap] = useState(null);
   const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
+  const [notice, setNotice] = useState("");
+  // Big-file uploads this browser started and never finished (localStorage).
+  const [unfinished] = useState(() => countUnfinishedUploads());
   const autoPaused = useRef(false);
 
-  const addFiles = (list) => {
+  const addFiles = (list, { hadErrors = false } = {}) => {
     const keep = [];
     let skipped = 0;
     for (const x of list) {
@@ -149,6 +184,14 @@ function Sender({ code }) {
     }
     if (keep.length) setPicked((prev) => prev.concat(keep));
     if (skipped) setJunk((n) => n + skipped);
+    // A click that adds nothing must not look like a click that did nothing.
+    setNotice(
+      !keep.length && !skipped && !hadErrors
+        ? "Nothing was added — there are no files in what you picked."
+        : !keep.length && skipped
+          ? "Nothing was added — everything you picked was system or temporary files."
+          : "",
+    );
   };
 
   const onInput = (e) => {
@@ -169,7 +212,7 @@ function Sender({ code }) {
     setScanning(0);
     const { files, errors } = await walkEntries(entries, (n) => setScanning(n));
     setScanning(null);
-    addFiles(files);
+    addFiles(files, { hadErrors: errors.length > 0 });
     if (errors.length) setReadErrors((prev) => prev.concat(errors));
   };
 
@@ -179,6 +222,7 @@ function Sender({ code }) {
     setReadErrors([]);
     setReview(null);
     setCheckError("");
+    setNotice("");
   };
 
   const pickedSize = useMemo(() => picked.reduce((s, p) => s + p.file.size, 0), [picked]);
@@ -208,32 +252,26 @@ function Sender({ code }) {
         for (let i = 0; i < batch.length; i++) results.push(rows[i] || { input: batch[i], error: "No answer" });
       }
       const invalid = [];
-      const byPath = new Map(); // later picks of the same path win
+      const entries = [];
       picked.forEach((p, i) => {
         const r = results[i];
         if (!r || r.error || !r.path) invalid.push({ path: inputs[i], error: r?.error || "Invalid name" });
-        else byPath.set(r.path, { ...p, path: r.path });
+        else entries.push({ ...p, path: r.path, size: p.file.size, lastModified: p.file.lastModified });
       });
-      const toUpload = [];
-      let alreadyCount = 0;
-      let alreadySize = 0;
-      for (const item of byPath.values()) {
-        if (there.get(item.path) === item.file.size) {
-          alreadyCount++;
-          alreadySize += item.file.size;
-        } else {
-          toUpload.push(item);
-        }
-      }
+      /* Same file picked twice → once. Two DIFFERENT files on one path (two
+       * "Resume.docx" from different folders), or a path already in S3 at a
+       * different size → the later one gets "name (2).ext". Nothing is ever
+       * dropped or overwritten. See helpers.planUploads. */
+      const plan = planUploads(entries, there);
       setReview({
         total: picked.length,
         totalSize: pickedSize,
-        unique: byPath.size,
-        duplicates: picked.length - invalid.length - byPath.size,
-        toUpload,
-        toUploadSize: toUpload.reduce((s, x) => s + x.file.size, 0),
-        alreadyCount,
-        alreadySize,
+        duplicates: plan.duplicates,
+        renamed: plan.renamed,
+        toUpload: plan.toUpload,
+        toUploadSize: plan.toUpload.reduce((s, x) => s + x.file.size, 0),
+        alreadyCount: plan.already.length,
+        alreadySize: plan.already.reduce((s, x) => s + x.file.size, 0),
         invalid,
       });
       setPhase("review");
@@ -268,7 +306,12 @@ function Sender({ code }) {
   };
 
   const status = snap?.status;
-  const working = status === "running" || status === "paused";
+  const working = status === "running" || status === "paused" || status === "waiting";
+  /* Stay awake through an outage wait or an offline auto-pause too — if the
+   * laptop sleeps, the page can't notice the connection coming back. A manual
+   * pause lets it sleep. */
+  const holdAwake =
+    status === "running" || status === "waiting" || (status === "paused" && offline);
 
   // Stop the engine (abort in-flight PUTs) when it is replaced or the page unmounts.
   useEffect(() => {
@@ -280,7 +323,7 @@ function Sender({ code }) {
   useEffect(() => {
     const goOffline = () => {
       setOffline(true);
-      if (engine && engine.status === "running") {
+      if (engine && (engine.status === "running" || engine.status === "waiting")) {
         autoPaused.current = true;
         engine.pause();
       }
@@ -313,7 +356,7 @@ function Sender({ code }) {
 
   // Keep the screen (and so the laptop) awake while uploading.
   useEffect(() => {
-    if (status !== "running" || typeof navigator === "undefined" || !navigator.wakeLock) return undefined;
+    if (!holdAwake || typeof navigator === "undefined" || !navigator.wakeLock) return undefined;
     let lock = null;
     let cancelled = false;
     const acquire = async () => {
@@ -335,7 +378,7 @@ function Sender({ code }) {
       document.removeEventListener("visibilitychange", onVis);
       if (lock) lock.release().catch(() => {});
     };
-  }, [status]);
+  }, [holdAwake]);
 
   /* ---------------- render ---------------- */
 
@@ -368,6 +411,19 @@ function Sender({ code }) {
           Pick whole folders — everything inside comes along, subfolders included. You can pick
           more than once; it all adds up into one list.
         </p>
+        {unfinished > 0 ? (
+          <div className="fd-warn" style={{ marginBottom: 14 }} role="status">
+            An earlier upload from this browser didn&apos;t finish — that&apos;s fine. Pick the same
+            folders again (and type the same folder name in step 2, if you used one). Anything already
+            uploaded is skipped, and big files carry on where they stopped.
+          </div>
+        ) : (
+          <p className="fd-note" style={{ marginTop: 0, marginBottom: 14 }}>
+            Picking up after an interruption (a closed tab, a restart)? Just pick the same folders
+            again, with the same folder name in step 2 if you used one. Anything already uploaded is
+            skipped, and big files carry on where they stopped.
+          </p>
+        )}
         <div className="fd-row">
           <label className="fd-btn big" style={{ display: "inline-block" }}>
             📁 Choose folder
@@ -407,6 +463,11 @@ function Sender({ code }) {
             ? `Reading folders… ${scanning.toLocaleString()} files found`
             : "…or drag folders and files here"}
         </div>
+        {notice && (
+          <p className="fd-note" role="status">
+            {notice}
+          </p>
+        )}
 
         {(picked.length > 0 || junk > 0) && (
           <div style={{ marginTop: 16 }}>
@@ -520,6 +581,23 @@ function ReviewPanel({ review, onStart, onBack }) {
           {review.duplicates.toLocaleString()} file(s) were picked twice — each goes up once.
         </p>
       )}
+      {review.renamed.length > 0 && (
+        <div className="fd-warn" style={{ marginTop: 12 }}>
+          {review.renamed.length.toLocaleString()} file(s) have the same name as a different file
+          (in this list, or already uploaded). Nothing gets replaced — these go up with a number
+          added:
+          <CappedList
+            rows={review.renamed}
+            cap={50}
+            render={(r, i) => (
+              <li key={i} style={{ flexWrap: "wrap" }}>
+                <span className="fd-path">{r.from}</span>
+                <span className="fd-path">→ {r.to}</span>
+              </li>
+            )}
+          />
+        </div>
+      )}
       {review.invalid.length > 0 && (
         <div className="fd-warn" style={{ marginTop: 12 }}>
           These will be left out:
@@ -560,6 +638,7 @@ function ReviewPanel({ review, onStart, onBack }) {
 
 function UploadProgress({ snap, offline, alreadyCount, alreadySize, onPause, onResume, onRetry, onMore }) {
   const done = snap.status === "done";
+  const waiting = snap.status === "waiting";
   const allGood = done && snap.failedCount === 0;
   const allFiles = snap.totalFiles + alreadyCount;
   return (
@@ -576,13 +655,24 @@ function UploadProgress({ snap, offline, alreadyCount, alreadySize, onPause, onR
           </div>
         ) : (
           <h2 style={{ marginBottom: 12 }}>
-            {snap.status === "paused" ? "Paused" : "Uploading…"}
+            {waiting ? "Waiting to carry on…" : snap.status === "paused" ? "Paused" : "Uploading…"}
           </h2>
         )}
         {offline && !done && (
           <div className="fd-warn" style={{ marginTop: 10 }}>
             The internet connection dropped. The upload paused itself and will carry on when it
             comes back.
+          </div>
+        )}
+        {waiting && snap.waiting && (
+          <div className="fd-warn" style={{ marginTop: 10 }} role="status">
+            {snap.waiting.message} It checks again every few minutes; &ldquo;Try now&rdquo; checks
+            straight away.
+            {snap.waiting.detail && (
+              <div className="fd-muted" style={{ color: "inherit", opacity: 0.8, marginTop: 6 }}>
+                Details: {snap.waiting.detail}
+              </div>
+            )}
           </div>
         )}
         {snap.fatal && (
@@ -600,12 +690,23 @@ function UploadProgress({ snap, offline, alreadyCount, alreadySize, onPause, onR
               Pause
             </button>
           )}
-          {snap.status === "paused" && (
+          {/* Resuming with a refused code can't work — the message says to reload. */}
+          {snap.status === "paused" && !snap.fatal && (
             <button className="fd-btn" type="button" onClick={onResume}>
               Resume
             </button>
           )}
-          {snap.failedCount > 0 && snap.status !== "paused" && (
+          {waiting && (
+            <>
+              <button className="fd-btn" type="button" onClick={onResume}>
+                Try now
+              </button>
+              <button className="fd-btn ghost" type="button" onClick={onPause}>
+                Pause
+              </button>
+            </>
+          )}
+          {snap.failedCount > 0 && snap.status !== "paused" && !waiting && (
             <button className="fd-btn ghost" type="button" onClick={onRetry}>
               Retry failed ({snap.failedCount.toLocaleString()})
             </button>
@@ -619,6 +720,7 @@ function UploadProgress({ snap, offline, alreadyCount, alreadySize, onPause, onR
         {!done && (
           <p className="fd-note">Keep this tab open. Pausing lets the files already sending finish.</p>
         )}
+        {allGood && <ForgetThisComputer />}
       </section>
 
       {snap.active.length > 0 && (
@@ -658,5 +760,32 @@ function UploadProgress({ snap, offline, alreadyCount, alreadySize, onPause, onR
         </section>
       )}
     </>
+  );
+}
+
+/* Uploads remember file paths (to resume big files) and the code (for this
+ * tab) in the browser. Once everything is up, let her wipe that. */
+function ForgetThisComputer() {
+  const [forgotten, setForgotten] = useState(false);
+  if (forgotten) {
+    return (
+      <p className="fd-note" role="status">
+        Done — this browser no longer remembers the code or any file names from this page.
+      </p>
+    );
+  }
+  return (
+    <div className="fd-row" style={{ marginTop: 12, alignItems: "center" }}>
+      <button
+        className="fd-btn quiet small"
+        type="button"
+        onClick={() => {
+          forgetThisComputer([UPLOAD_CODE_KEY]);
+          setForgotten(true);
+        }}
+      >
+        Finished on this computer? Clear what this page saved
+      </button>
+    </div>
   );
 }

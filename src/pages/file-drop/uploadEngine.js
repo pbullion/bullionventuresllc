@@ -18,6 +18,29 @@
  *   - pause() stops NEW work; in-flight PUTs finish (or fail and requeue).
  *   - subscribe(listener) gets throttled snapshots (~300ms), never one per
  *     progress event — 40k files must not re-render React 40k×N times.
+ *
+ * OUTAGES ARE NOT FILE FAILURES
+ *   Retry budgets are per file, and an outage would spend them all: with the
+ *   backend down (a dyno restart, the shared brute-force limiter's 429, a
+ *   router 503) or the connection gone while navigator.onLine stays true,
+ *   every file that took a slot would burn its retries in ~60s and land in
+ *   Failed — hundreds an hour. So the whole queue goes to status "waiting"
+ *   instead, and a timer probes (sign + PUT the 1-byte `.connection-test`,
+ *   30s → 5 min apart; plus one manifest page when a backend call tripped it,
+ *   since signing never touches S3 but multipart control calls do) until the
+ *   path works again, then carries on by itself:
+ *     - a backend call (signing or multipart control) that fails with 429, or
+ *       with 5xx/network twice more after quick retries → wait;
+ *     - S3 PUTs failing with 5xx/network on 3 DIFFERENT files with no success
+ *       in between → wait;
+ *     - a file that runs out of retries on a 5xx/network error probes first:
+ *       probe fails → wait (the file is requeued with a fresh budget); probe
+ *       works → the problem is that file, so it goes to Failed.
+ *   A successful probe disarms the two shortcuts until a real PUT succeeds, so
+ *   a file a proxy always refuses can't ping-pong the queue between waiting and
+ *   running forever — it takes the probe-first path to Failed instead.
+ *   A backend 401/403 is different again: the code itself was refused, so the
+ *   queue pauses for good with `fatal` set (resuming can't fix it).
  */
 
 import { putWithProgress } from "./api.js";
@@ -27,6 +50,8 @@ import {
   createSpeedMeter,
   fingerprint,
   humanError,
+  probeReadable,
+  unreadableError,
 } from "./helpers.js";
 
 export const MULTIPART_THRESHOLD = 64 * MiB;
@@ -35,6 +60,8 @@ export const PARTS_PER_FILE = 4;
 export const MAX_RETRIES = 6;
 export const PRESIGN_BATCH = 100;
 export const PART_SIGN_BATCH = 20;
+/** The reserved key the connectivity self-test and outage probes write. */
+export const PROBE_PATH = ".connection-test";
 /* Presigned URLs live 3600s. Treat them as stale well before that, so a URL
  * isn't handed to a PUT that will then spend minutes sending a big part. */
 const URL_FRESH_MS = 45 * 60 * 1000;
@@ -88,7 +115,13 @@ function defaultStorage() {
 
 const realSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/* Thrown when work must go back in the queue untouched: a pause, a wait for
+ * an outage, or a fatal code refusal. Never a file failure. */
 class Paused extends Error {}
+
+/* An S3 PUT that failed in a way an outage would also cause. */
+const isTransferFailure = (err) =>
+  Boolean(err) && !err.aborted && (err.status === 0 || err.status >= 500);
 
 export class UploadEngine {
   constructor({
@@ -105,6 +138,10 @@ export class UploadEngine {
     throttleMs = 300,
     backoffBase = 1000,
     backoffCap = 30000,
+    controlRetries = 2,
+    netFailTrip = 3,
+    waitBaseMs = 30000,
+    waitCapMs = 5 * 60 * 1000,
   } = {}) {
     if (!api) throw new Error("UploadEngine needs an api");
     Object.assign(this, {
@@ -121,16 +158,21 @@ export class UploadEngine {
       throttleMs,
       backoffBase,
       backoffCap,
+      controlRetries,
+      netFailTrip,
+      waitBaseMs,
+      waitCapMs,
     });
     this.listeners = new Set();
     this.controller = new AbortController();
     this.meter = createSpeedMeter(10000);
     this.emitTimer = null;
+    this.waitGen = 0;
     this._reset();
   }
 
   _reset() {
-    this.status = "idle"; // idle | running | paused | done | stopped
+    this.status = "idle"; // idle | running | paused | waiting | done | stopped
     this.small = []; // queue of small items
     this.smallHead = 0;
     this.smallRetry = []; // requeued after a pause, taken first
@@ -150,6 +192,12 @@ export class UploadEngine {
     this.transferred = 0; // monotonic, for speed only
     this.peakSlots = 0;
     this.fatal = null;
+    this._endWait();
+    this.outages = 0; // consecutive outage waits, for the wait backoff
+    this.netFails = new Set(); // files whose PUT failed on the network since the last success
+    this.breakerArmed = true;
+    this.probing = new Map(); // kind → in-flight probe
+    this.probes = 0;
   }
 
   /* ---------- public API ---------- */
@@ -187,14 +235,18 @@ export class UploadEngine {
     this._emit(true);
   }
 
+  /** Stop starting new work. Also cancels an outage wait. */
   pause() {
-    if (this.status !== "running") return;
+    if (this.status !== "running" && this.status !== "waiting") return;
+    this._endWait();
     this.status = "paused";
     this._emit(true);
   }
 
+  /** From a pause, or "try now" from an outage wait. */
   resume() {
-    if (this.status !== "paused") return;
+    if (this.status !== "paused" && this.status !== "waiting") return;
+    this._endWait();
     this.status = "running";
     this.fatal = null;
     this._pump();
@@ -218,14 +270,17 @@ export class UploadEngine {
         this.smallRetry.push(it);
       }
     }
+    this._endWait();
     this.status = "running";
     this._pump();
+    this._checkDone();
     this._emit(true);
   }
 
   /** Abort everything in flight and stop for good (page unmount). */
   stop() {
     this.status = "stopped";
+    this._endWait();
     this.controller.abort();
     if (this.emitTimer) clearTimeout(this.emitTimer);
     this.emitTimer = null;
@@ -276,6 +331,7 @@ export class UploadEngine {
       active,
       peakSlots: this.peakSlots,
       fatal: this.fatal,
+      waiting: this.waiting ? { ...this.waiting } : null,
     };
   }
 
@@ -387,17 +443,21 @@ export class UploadEngine {
     });
   }
 
-  /* The BACKEND refused the code (401/403 on a signing call). Every other file
-   * would hit the same wall — and each attempt counts against the brute-force
-   * limiter — so stop the whole queue and say why, instead of failing 40k
-   * files one by one. */
+  /* The BACKEND refused the code (401/403). Every other file would hit the
+   * same wall — and each attempt counts against the brute-force limiter — so
+   * stop the whole queue and say why, instead of failing 40k files one by one.
+   * Resuming with the same code can't help; the page hides Resume while
+   * `fatal` is set. */
   _fatal(err) {
     if (this.status === "stopped") return;
     this.fatal =
-      err.status === 401
-        ? "The code was refused — reload the page and enter it again."
-        : humanError(err);
-    if (this.status === "running") this.status = "paused";
+      err.status === 403
+        ? "That code isn't allowed to upload — reload the page and enter the upload code again."
+        : "The code was refused — reload the page and enter it again.";
+    if (this.status === "running" || this.status === "waiting") {
+      this._endWait();
+      this.status = "paused";
+    }
     this._emit(true);
   }
 
@@ -409,6 +469,190 @@ export class UploadEngine {
     item.error = humanError(err);
     item.loaded = 0;
     this.failed.push(item);
+  }
+
+  /* ---------- outages ---------- */
+
+  _endWait() {
+    this.waitGen++;
+    this.waiting = null;
+  }
+
+  _outageMessage(err) {
+    if (err && err.status === 429) {
+      return "Patrick's server asked this page to slow down for a few minutes. Nothing is lost — the upload carries on by itself.";
+    }
+    if (err && err.status >= 500 && !err.transfer) {
+      return "Patrick's server isn't answering right now. Nothing is lost — the upload carries on by itself when it's back.";
+    }
+    return "Uploads can't get through right now — the connection may have dropped. Nothing is lost — the upload carries on by itself when it's back.";
+  }
+
+  _waitDelay() {
+    return Math.min(this.waitCapMs, this.waitBaseMs * 2 ** Math.max(0, this.outages - 1));
+  }
+
+  /** Switch the whole queue to "waiting" and probe on a timer. No-op unless
+   *  running (a second trip, a pause or a stop already took over).
+   *  kind: "transfer" (S3 PUTs failing) or "control" (a backend call). */
+  _outage(err, kind = "transfer") {
+    if (this.status !== "running") return;
+    this.outages++;
+    this.netFails.clear();
+    this._endWait();
+    const gen = this.waitGen;
+    const delay = this._waitDelay();
+    this.status = "waiting";
+    this.waiting = {
+      message: this._outageMessage(err),
+      detail: (err && err.message) || "",
+      retryAt: this.now() + delay,
+    };
+    this._emit(true);
+    this._waitLoop(gen, delay, kind);
+  }
+
+  async _waitLoop(gen, firstDelay, kind) {
+    let delay = firstDelay;
+    for (;;) {
+      await this.sleep(delay);
+      if (gen !== this.waitGen || this.status !== "waiting") return;
+      let err = null;
+      try {
+        await this._probe(kind);
+      } catch (e) {
+        err = e;
+      }
+      if (gen !== this.waitGen || this.status !== "waiting") return;
+      if (!err) {
+        /* The path works. Until a real PUT succeeds, don't let the shortcuts
+         * trip again — see the header comment. */
+        this.breakerArmed = false;
+        this._endWait();
+        this.status = "running";
+        this._pump();
+        this._checkDone();
+        this._emit(true);
+        return;
+      }
+      if (this._isAuthError(err)) {
+        this._fatal(err);
+        return;
+      }
+      this.outages++;
+      delay = this._waitDelay();
+      this.waiting = {
+        message: this._outageMessage(err),
+        detail: err.message || "",
+        retryAt: this.now() + delay,
+      };
+      this._emit(true);
+    }
+  }
+
+  /** Sign and PUT the 1-byte reserved test object — the same round trip every
+   *  file needs (backend + S3). A "control" probe also reads one manifest page,
+   *  the lightest upload-role call that makes the BACKEND talk to S3 (signing
+   *  is local to the backend, so it can pass while create/complete can't).
+   *  Shared per kind while one is in flight. */
+  _probe(kind = "transfer") {
+    const inFlight = this.probing.get(kind);
+    if (inFlight) return inFlight;
+    const p = (async () => {
+      this.probes++;
+      const res = await this.api.presignPut([
+        { path: PROBE_PATH, size: 1, contentType: "text/plain" },
+      ]);
+      const it = res && res.files && res.files[0];
+      if (!it || !it.url) {
+        throw Object.assign(new Error((it && it.error) || "No test link from the server"), {
+          status: 0,
+        });
+      }
+      const body =
+        typeof globalThis.Blob === "function" ? new globalThis.Blob(["1"], { type: "text/plain" }) : "1";
+      try {
+        await this.transport(it.url, body, {
+          contentType: it.contentType || "text/plain",
+          signal: this.controller.signal,
+        });
+      } catch (e) {
+        e.transfer = true;
+        throw e;
+      }
+      if (kind === "control" && typeof this.api.manifestPage === "function") {
+        await this.api.manifestPage(null);
+      }
+    })();
+    this.probing.set(kind, p);
+    p.finally(() => {
+      if (this.probing.get(kind) === p) this.probing.delete(kind);
+    }).catch(() => {});
+    return p;
+  }
+
+  /** A file ran out of retries on a 5xx/network error. Is it the file, or is
+   *  everything down? Resolves true when the caller should requeue the work
+   *  (outage, pause, stop), false when the file should go to Failed. */
+  async _requeueInsteadOfFail(kind = "transfer") {
+    if (this.status !== "running") return true;
+    try {
+      await this._probe(kind);
+    } catch (e) {
+      if (this.status !== "running") return true;
+      if (this._isAuthError(e)) this._fatal(e);
+      else this._outage(e, kind);
+      return true;
+    }
+    return this.status !== "running";
+  }
+
+  /** Count a network-ish PUT failure. Resolves true when the queue is no
+   *  longer running (it may just have tripped into "waiting"). */
+  _noteTransferFailure(item, err) {
+    if (this.breakerArmed && this.status === "running") {
+      this.netFails.add(item);
+      if (this.netFails.size >= this.netFailTrip) this._outage(err);
+    }
+    return this.status !== "running";
+  }
+
+  _noteSuccess() {
+    this.netFails.clear();
+    this.breakerArmed = true;
+    this.outages = 0;
+  }
+
+  /** A backend call (signing or multipart control). 401/403 → fatal pause.
+   *  429 → wait at once. 5xx/network → a couple of quick retries, then wait
+   *  (or, when the shortcut is disarmed, the full budget and a probe first).
+   *  Anything else is the caller's to handle. Throws Paused whenever the work
+   *  should simply be requeued. */
+  async _control(fn) {
+    for (let attempt = 0; ; attempt++) {
+      if (this.status !== "running") throw new Paused();
+      try {
+        return await fn();
+      } catch (err) {
+        if (err instanceof Paused) throw err;
+        if (this.status !== "running") throw new Paused();
+        if (this._isAuthError(err)) {
+          this._fatal(err);
+          throw new Paused();
+        }
+        const retryable = !err.status || err.status >= 500 || err.status === 429;
+        if (!retryable) throw err;
+        if (err.status === 429 || (this.breakerArmed && attempt >= this.controlRetries)) {
+          this._outage(err, "control");
+          throw new Paused();
+        }
+        if (attempt >= this.maxRetries) {
+          if (await this._requeueInsteadOfFail("control")) throw new Paused();
+          throw err;
+        }
+        await this.sleep(this._backoff(attempt));
+      }
+    }
   }
 
   /* ---------- small files ---------- */
@@ -439,8 +683,10 @@ export class UploadEngine {
         if (x && x !== item && !fresh(x)) batch.push(x);
       }
       const p = (async () => {
-        const res = await this.api.presignPut(
-          batch.map((x) => ({ path: x.path, size: x.size, contentType: x.contentType })),
+        const res = await this._control(() =>
+          this.api.presignPut(
+            batch.map((x) => ({ path: x.path, size: x.size, contentType: x.contentType })),
+          ),
         );
         const byPath = new Map();
         for (const r of res.files || []) byPath.set(r.path, r);
@@ -461,17 +707,15 @@ export class UploadEngine {
       try {
         await p;
       } catch (err) {
-        if (this._isAuthError(err)) {
-          this._fatal(err);
-          throw new Paused();
-        }
-        if (err.status === 400 || err.status === 413) err.permanent = true;
+        if (!(err instanceof Paused)) err.permanent = true; // _control already retried it
         throw err;
       } finally {
         if (this.presigning === p) this.presigning = null;
       }
       if (!item.url && !item.signError) {
-        throw new Error("The server didn't return an upload link for this file");
+        throw Object.assign(new Error("The server didn't return an upload link for this file"), {
+          permanent: true,
+        });
       }
     }
     if (!item.url) throw new Error("Couldn't get an upload link");
@@ -489,23 +733,29 @@ export class UploadEngine {
           await this._ensureSmallUrl(item);
           if (this.status !== "running") throw new Paused();
           let last = 0;
-          await this.transport(item.url, item.file, {
-            contentType: item.contentType,
-            signal: this.controller.signal,
-            onProgress: (loaded) => {
-              const d = loaded - last;
-              if (d > 0) {
-                this.transferred += d;
-                last = loaded;
-              }
-              run.loaded = Math.min(loaded, item.size);
-              this._emit();
-            },
-          });
+          try {
+            await this.transport(item.url, item.file, {
+              contentType: item.contentType,
+              signal: this.controller.signal,
+              onProgress: (loaded) => {
+                const d = loaded - last;
+                if (d > 0) {
+                  this.transferred += d;
+                  last = loaded;
+                }
+                run.loaded = Math.min(loaded, item.size);
+                this._emit();
+              },
+            });
+          } catch (e) {
+            if (e && typeof e === "object") e.transfer = true;
+            throw e;
+          }
           if (last < item.size) this.transferred += item.size - last;
           run.loaded = 0;
           this.bytesConfirmed += item.size;
           this.doneFiles++;
+          this._noteSuccess();
           item.file = null; // done — drop the Blob reference
           return;
         } catch (err) {
@@ -516,9 +766,22 @@ export class UploadEngine {
             this._fail(item, err);
             return;
           }
+          /* XHR reports an unreadable File (changed, locked, OneDrive
+           * placeholder) as a plain network error. Read a byte to tell. */
+          if (err.transfer && err.status === 0 && !err.stalled) {
+            const readErr = await probeReadable(item.file);
+            if (this.status === "stopped") return;
+            if (readErr) {
+              this._fail(item, unreadableError(readErr));
+              return;
+            }
+          }
           if (err.status === 403) item.url = null; // S3 refused the URL (expired?) → re-sign
+          const transferFailure = err.transfer && isTransferFailure(err);
+          if (transferFailure && this._noteTransferFailure(item, err)) throw new Paused();
           item.attempts++;
           if (item.attempts > this.maxRetries) {
+            if (transferFailure && (await this._requeueInsteadOfFail())) throw new Paused();
             this._fail(item, err);
             return;
           }
@@ -526,7 +789,10 @@ export class UploadEngine {
         }
       }
     } catch (err) {
-      if (err instanceof Paused) this.smallRetry.unshift(item);
+      if (err instanceof Paused && this.status !== "stopped") {
+        item.attempts = 0; // a pause or an outage isn't this file's fault
+        this.smallRetry.unshift(item);
+      }
     } finally {
       this.running.delete(run);
       this._release();
@@ -540,25 +806,6 @@ export class UploadEngine {
     return n < lf.partCount ? lf.partSize : lf.item.size - lf.partSize * (lf.partCount - 1);
   }
 
-  async _control(fn, item) {
-    // A backend call with its own retry budget (network / 5xx / 429 only).
-    for (let attempt = 0; ; attempt++) {
-      if (this.fatal) throw new Paused();
-      try {
-        return await fn();
-      } catch (err) {
-        if (this._isAuthError(err)) {
-          this._fatal(err);
-          throw new Paused();
-        }
-        const retryable = !err.status || err.status >= 500 || err.status === 429;
-        if (!retryable || attempt >= this.maxRetries || this.status === "stopped") throw err;
-        await this.sleep(this._backoff(attempt));
-        if (item && this.status === "stopped") throw err;
-      }
-    }
-  }
-
   async _openLarge(item) {
     const lf = {
       item,
@@ -569,7 +816,6 @@ export class UploadEngine {
       urls: new Map(),
       signing: null,
       failed: false,
-      restarted: false,
     };
     this.activeLarge.push(lf);
     this.controlOps++;
@@ -581,7 +827,7 @@ export class UploadEngine {
         this._dropLarge(lf);
         if (lf.partSize) this.bytesConfirmed -= this._confirmedFor(lf);
         lf.failed = true; // retire this handle; the item reopens on resume
-        this.large.push(item);
+        if (this.status !== "stopped") this.large.push(item);
       } else if (this.status !== "stopped") {
         this._closeLarge(lf, err);
       }
@@ -593,6 +839,10 @@ export class UploadEngine {
 
   async _prepareLarge(lf) {
     const { item } = lf;
+    /* Fail fast on a file that can't be read (an open .pst, a OneDrive
+     * placeholder) instead of discovering it part by part. */
+    const readErr = await probeReadable(item.file);
+    if (readErr) throw unreadableError(readErr);
     const key = fingerprint(item.path, item.size, item.lastModified);
     lf.key = key;
     let saved = null;
@@ -604,9 +854,8 @@ export class UploadEngine {
     let existing = [];
     if (saved && saved.uploadId && saved.partSize > 0) {
       try {
-        const res = await this._control(
-          () => this.api.multipartParts({ path: item.path, uploadId: saved.uploadId }),
-          item,
+        const res = await this._control(() =>
+          this.api.multipartParts({ path: item.path, uploadId: saved.uploadId }),
         );
         existing = res.parts || [];
       } catch (err) {
@@ -621,14 +870,12 @@ export class UploadEngine {
       saved = null;
     }
     if (!saved) {
-      const res = await this._control(
-        () =>
-          this.api.multipartCreate({
-            path: item.path,
-            size: item.size,
-            contentType: item.contentType,
-          }),
-        item,
+      const res = await this._control(() =>
+        this.api.multipartCreate({
+          path: item.path,
+          size: item.size,
+          contentType: item.contentType,
+        }),
       );
       saved = {
         uploadId: res.uploadId,
@@ -673,14 +920,12 @@ export class UploadEngine {
         if (m !== n && !(um && this.now() - um.at < URL_FRESH_MS)) nums.push(m);
       }
       const p = (async () => {
-        const res = await this._control(
-          () =>
-            this.api.multipartSign({
-              path: lf.item.path,
-              uploadId: lf.uploadId,
-              partNumbers: nums,
-            }),
-          lf.item,
+        const res = await this._control(() =>
+          this.api.multipartSign({
+            path: lf.item.path,
+            uploadId: lf.uploadId,
+            partNumbers: nums,
+          }),
         );
         const at = this.now();
         for (const [k, url] of Object.entries(res.urls || {})) {
@@ -715,6 +960,7 @@ export class UploadEngine {
           lf.pending.unshift(n);
           return;
         }
+        let blob = null;
         try {
           const url = await this._partUrl(lf, n);
           if (this.status !== "running" || lf.failed) {
@@ -722,20 +968,26 @@ export class UploadEngine {
             return;
           }
           const start = (n - 1) * lf.partSize;
-          const blob = item.file.slice(start, start + size);
+          blob = item.file.slice(start, start + size);
           let last = 0;
-          const res = await this.transport(url, blob, {
-            signal: this.controller.signal,
-            onProgress: (loaded) => {
-              const d = loaded - last;
-              if (d > 0) {
-                this.transferred += d;
-                last = loaded;
-              }
-              run.loaded = Math.min(loaded, size);
-              this._emit();
-            },
-          });
+          let res;
+          try {
+            res = await this.transport(url, blob, {
+              signal: this.controller.signal,
+              onProgress: (loaded) => {
+                const d = loaded - last;
+                if (d > 0) {
+                  this.transferred += d;
+                  last = loaded;
+                }
+                run.loaded = Math.min(loaded, size);
+                this._emit();
+              },
+            });
+          } catch (e) {
+            if (e && typeof e === "object") e.transfer = true;
+            throw e;
+          }
           if (last < size) this.transferred += size - last;
           if (!res || !res.etag) {
             throw Object.assign(
@@ -744,6 +996,7 @@ export class UploadEngine {
             );
           }
           run.loaded = 0;
+          this._noteSuccess();
           if (lf.failed) return;
           lf.etags.set(n, res.etag);
           this.bytesConfirmed += size;
@@ -759,9 +1012,39 @@ export class UploadEngine {
             this._closeLarge(lf, err);
             return;
           }
+          if (!err.transfer) {
+            // A backend call that _control already retried (or refused as 4xx).
+            this._closeLarge(lf, err);
+            return;
+          }
+          if (err.status === 0 && !err.stalled) {
+            const readErr = await probeReadable(blob);
+            if (this.status === "stopped" || lf.failed) return;
+            if (readErr) {
+              this._closeLarge(lf, unreadableError(readErr));
+              return;
+            }
+          }
+          if (err.status === 404) {
+            /* S3 NoSuchUpload: the multipart upload is gone (cleaned up from
+             * the download page?). Its parts went with it — start over once. */
+            this.storage.remove(lf.key);
+            if (!item.restarted) this._restartLarge(lf);
+            else this._closeLarge(lf, err);
+            return;
+          }
           if (err.status === 403) lf.urls.delete(n);
+          const transferFailure = isTransferFailure(err);
+          if (transferFailure && this._noteTransferFailure(item, err)) {
+            if (!lf.failed) lf.pending.unshift(n);
+            return;
+          }
           attempts++;
           if (attempts > this.maxRetries) {
+            if (transferFailure && (await this._requeueInsteadOfFail())) {
+              if (!lf.failed && this.status !== "stopped") lf.pending.unshift(n);
+              return;
+            }
             this._closeLarge(lf, err);
             return;
           }
@@ -816,34 +1099,60 @@ export class UploadEngine {
       throw new Error(`Only ${parts.length} of ${lf.partCount} parts were uploaded`);
     }
     try {
-      await this._control(
-        () =>
-          this.api.multipartComplete({
-            path: item.path,
-            uploadId: lf.uploadId,
-            size: item.size,
-            parts,
-          }),
-        item,
+      await this._control(() =>
+        this.api.multipartComplete({
+          path: item.path,
+          uploadId: lf.uploadId,
+          size: item.size,
+          parts,
+        }),
       );
     } catch (err) {
-      if (err.status === 404 && !item.restarted) {
-        // The upload vanished (cleaned up?) — start this file over once.
+      if (err instanceof Paused) throw err;
+      if (err.status === 404) {
+        /* S3 no longer knows this uploadId. Either it was aborted (cleanup),
+         * or an EARLIER complete succeeded and its answer was lost (a 30s
+         * timeout, a router 503, a dyno restart) — then the retry lands here.
+         * Look before re-sending gigabytes. */
         this.storage.remove(lf.key);
-        this.bytesConfirmed -= this._confirmedFor(lf);
-        this._dropLarge(lf);
-        lf.failed = true;
-        item.restarted = true;
-        this.large.push(item);
-        return;
+        if (await this._alreadyInS3(item)) {
+          this._finishLarge(lf);
+          return;
+        }
+        if (!item.restarted) {
+          this._restartLarge(lf);
+          return;
+        }
       }
       if (err.status === 409) this.storage.remove(lf.key); // size mismatch: don't resume a bad upload
       throw err;
     }
     this.storage.remove(lf.key);
+    this._finishLarge(lf);
+  }
+
+  /** Is `item.path` in the manifest at exactly `item.size`? (Same rule as the
+   *  page's pre-flight "already uploaded".) Throws Paused through _control. */
+  async _alreadyInS3(item) {
+    if (typeof this.api.manifestAll !== "function") return false;
+    const files = await this._control(() => this.api.manifestAll());
+    return (files || []).some((f) => f.path === item.path && f.size === item.size);
+  }
+
+  _finishLarge(lf) {
     this._dropLarge(lf);
     this.doneFiles++;
-    item.file = null;
+    lf.item.file = null;
+  }
+
+  /** The upload is gone: forget its parts and queue the file from scratch, once. */
+  _restartLarge(lf) {
+    if (lf.failed) return;
+    lf.failed = true;
+    if (lf.partSize) this.bytesConfirmed -= this._confirmedFor(lf);
+    this._dropLarge(lf);
+    lf.item.restarted = true;
+    this.large.push(lf.item);
   }
 
   _confirmedFor(lf) {

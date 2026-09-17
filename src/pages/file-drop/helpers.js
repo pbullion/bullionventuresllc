@@ -173,12 +173,122 @@ export function backoffMs(attempt, { base = 1000, cap = 30000, random = Math.ran
   return Math.round(raw * (0.5 + random() * 0.5));
 }
 
+export const UNREADABLE_MESSAGE =
+  "This computer couldn't read the file. It may have changed after it was picked, be open in " +
+  "another program (close Outlook before sending .pst files), or be a OneDrive online-only " +
+  "file (right-click it and choose \"Always keep on this device\"). Fix that, then pick the " +
+  "file again and send it — Retry alone won't help this one.";
+
 /** Turn a low-level file/network error into something she can act on. */
 export function humanError(err) {
   if (!err) return "Something went wrong";
-  if (err.name === "NotReadableError" || err.name === "NotFoundError") {
-    return "This computer couldn't read the file. If it's in OneDrive, right-click it and choose \"Always keep on this device\", then retry.";
+  if (err.unreadable || err.name === "NotReadableError" || err.name === "NotFoundError") {
+    return UNREADABLE_MESSAGE;
   }
   if (err.name === "SecurityError") return "The browser wouldn't let the page read this file";
   return err.message || String(err);
+}
+
+/** Can the first byte of this Blob be read? Resolves null when it can, or the
+ *  read error when it can't.
+ *
+ *  Why: Chrome refuses to read a File that changed after it was picked, is
+ *  locked by another program (an open Outlook .pst) or is a OneDrive
+ *  placeholder — but an XHR upload of that same File only reports a generic
+ *  network error (status 0). Reading one byte tells the two apart. Something
+ *  without slice/arrayBuffer (a test fake) counts as readable. */
+export async function probeReadable(blob) {
+  if (!blob || typeof blob.slice !== "function") return null;
+  let piece;
+  try {
+    piece = blob.slice(0, 1);
+  } catch (e) {
+    return e || new Error("unreadable");
+  }
+  if (!piece || typeof piece.arrayBuffer !== "function") return null;
+  try {
+    await piece.arrayBuffer();
+    return null;
+  } catch (e) {
+    return e || new Error("unreadable");
+  }
+}
+
+/** An Error the engines treat as "this file can't be read — don't retry". */
+export function unreadableError(cause) {
+  const e = new Error(UNREADABLE_MESSAGE);
+  e.unreadable = true;
+  e.permanent = true;
+  e.cause = cause;
+  return e;
+}
+
+/** "a/b/Resume.docx", 2 → "a/b/Resume (2).docx". A leading-dot name has no
+ *  extension to keep: ".profile", 2 → ".profile (2)". */
+export function numberedPath(path, n) {
+  const slash = path.lastIndexOf("/");
+  const dir = slash === -1 ? "" : path.slice(0, slash + 1);
+  const base = path.slice(slash + 1);
+  const dot = base.lastIndexOf(".");
+  const stem = dot > 0 ? base.slice(0, dot) : base;
+  const ext = dot > 0 ? base.slice(dot) : "";
+  return `${dir}${stem} (${n})${ext}`;
+}
+
+/** The upload pre-flight, as a pure function.
+ *
+ *  entries:  [{ path, size, lastModified, ...anything }] in pick order, `path`
+ *            already resolved by the server (names it rejected are left out).
+ *  existing: Map(path → size) of what is already in S3 (the manifest).
+ *
+ *  Nothing ever overwrites a DIFFERENT file:
+ *   - the same file picked twice (same path, size AND lastModified) goes up
+ *     once — that's a duplicate;
+ *   - a path already in S3 at the same size is "already uploaded" (this is
+ *     what makes re-picking the same folders resume);
+ *   - any other clash — two different files that resolve to one path, or a
+ *     path that is in S3 at a different size — gives the later file
+ *     "name (2).ext", the first number free in both S3 and this list. If that
+ *     numbered path is already in S3 at this file's size, it is already
+ *     uploaded (it went up as "(2)" last time).
+ *  Deterministic for the same picks in the same order, so an interrupted
+ *  multipart upload of a renamed file resumes under the same name.
+ *
+ *  → { toUpload: [entry with final path], already: [entry], duplicates,
+ *      renamed: [{ from, to }] } */
+export function planUploads(entries, existing) {
+  const claimed = new Map(); // path → { size, lastModified } taken by this plan
+  const toUpload = [];
+  const already = [];
+  const renamed = [];
+  let duplicates = 0;
+  const same = (c, e) => c.size === e.size && c.lastModified === e.lastModified;
+  for (const e of entries) {
+    const want = e.path;
+    let placed = false;
+    for (let n = 1; n < 100000 && !placed; n++) {
+      const path = n === 1 ? want : numberedPath(want, n);
+      const c = claimed.get(path);
+      if (c) {
+        if (same(c, e)) {
+          duplicates++;
+          placed = true;
+        }
+        continue; // taken by a different file in this list
+      }
+      if (existing.has(path)) {
+        if (existing.get(path) === e.size) {
+          claimed.set(path, { size: e.size, lastModified: e.lastModified });
+          already.push({ ...e, path });
+          placed = true;
+        }
+        continue; // a different file is already there under this name
+      }
+      claimed.set(path, { size: e.size, lastModified: e.lastModified });
+      toUpload.push({ ...e, path });
+      if (path !== want) renamed.push({ from: want, to: path });
+      placed = true;
+    }
+  }
+  return { toUpload, already, duplicates, renamed };
 }

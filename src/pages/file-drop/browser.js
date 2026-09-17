@@ -37,6 +37,40 @@ export function writeSession(key, value) {
   }
 }
 
+/* Resumable multipart uploads are remembered in localStorage under keys
+ * starting with this (see helpers.fingerprint). */
+const RESUME_PREFIX = "fileDrop.mp.";
+
+/** How many big-file uploads this browser started and never finished. */
+export function countUnfinishedUploads() {
+  try {
+    let n = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(RESUME_PREFIX)) n++;
+    }
+    return n;
+  } catch {
+    return 0;
+  }
+}
+
+/** Forget everything File Drop saved in this browser: resume records (they
+ *  hold file paths) and the code in sessionStorage. */
+export function forgetThisComputer(sessionKeys = []) {
+  try {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(RESUME_PREFIX)) keys.push(k);
+    }
+    for (const k of keys) localStorage.removeItem(k);
+  } catch {
+    /* blocked storage — nothing was saved there either */
+  }
+  for (const k of sessionKeys) writeSession(k, "");
+}
+
 export async function copyText(text) {
   try {
     if (navigator.clipboard?.writeText) {

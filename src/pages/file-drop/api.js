@@ -116,13 +116,26 @@ export function createApi(code, opts = {}) {
   return api;
 }
 
+/* A PUT that stops moving is abandoned and retried. XHR has no idle timeout of
+ * its own (xhr.timeout caps the WHOLE request, which a slow 64 MiB PUT can
+ * legitimately exceed), and a TLS-inspecting proxy or a half-open connection
+ * after sleep/VPN can leave a request pending forever — holding a slot. */
+export const PUT_STALL_MS = 2 * 60 * 1000; // no upload progress for this long
+export const PUT_RESPONSE_STALL_MS = 5 * 60 * 1000; // body sent, no answer
+
 /** PUT a Blob straight to S3 with XMLHttpRequest (fetch has no upload
  *  progress). Resolves { status, etag }; rejects with Error `.status`
- *  (0 = network/CORS/aborted — `.aborted` is set when the signal fired).
+ *  (0 = network/CORS/aborted/stalled — `.aborted` is set when the signal
+ *  fired, `.stalled` when the watchdog gave up; `.s3Code` carries S3's XML
+ *  <Code> when there was one).
  *
  *  `contentType` must be EXACTLY what the backend signed for a single PUT;
  *  pass nothing for multipart parts (their URLs don't sign it). */
-export function putWithProgress(url, body, { contentType, onProgress, signal } = {}) {
+export function putWithProgress(
+  url,
+  body,
+  { contentType, onProgress, signal, stallMs = PUT_STALL_MS, responseStallMs = PUT_RESPONSE_STALL_MS } = {},
+) {
   return new Promise((resolve, reject) => {
     const XHR = globalThis.XMLHttpRequest;
     if (!XHR) {
@@ -131,21 +144,46 @@ export function putWithProgress(url, body, { contentType, onProgress, signal } =
     }
     const xhr = new XHR();
     let settled = false;
+    let timer = null;
     const done = (fn, v) => {
       if (settled) return;
       settled = true;
+      if (timer) clearTimeout(timer);
       if (signal) signal.removeEventListener("abort", onAbort);
       fn(v);
     };
-    const onAbort = () => {
+    /* Settle FIRST, then abort: xhr.abort() fires onabort synchronously, and
+     * that handler must find the promise already settled with the right flag. */
+    const kill = () => {
       try {
         xhr.abort();
       } catch {
         /* already finished */
       }
+    };
+    const onAbort = () => {
       const e = httpError("Upload stopped", 0);
       e.aborted = true;
       done(reject, e);
+      kill();
+    };
+    const onStall = (bodySent) => {
+      const e = httpError(
+        bodySent
+          ? "Amazon S3 didn't answer after the upload was sent"
+          : "The upload to Amazon S3 stopped moving",
+        0,
+      );
+      e.stalled = true;
+      done(reject, e);
+      kill();
+    };
+    /* (Re)arm on every sign of life. Once the body is fully sent the only
+     * thing left is S3's answer, which gets the longer allowance. */
+    const arm = (bodySent) => {
+      if (settled) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => onStall(bodySent), bodySent ? responseStallMs : stallMs);
     };
     if (signal) {
       if (signal.aborted) {
@@ -156,26 +194,35 @@ export function putWithProgress(url, body, { contentType, onProgress, signal } =
     }
     xhr.open("PUT", url, true);
     if (contentType) xhr.setRequestHeader("Content-Type", contentType);
-    if (onProgress && xhr.upload) {
-      xhr.upload.onprogress = (ev) => onProgress(ev.loaded);
+    if (xhr.upload) {
+      xhr.upload.onprogress = (ev) => {
+        const sent = ev.lengthComputable && ev.total > 0 && ev.loaded >= ev.total;
+        arm(sent);
+        if (onProgress) onProgress(ev.loaded);
+      };
+      xhr.upload.onload = () => arm(true);
     }
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState >= 2 && xhr.readyState < 4) arm(true);
+    };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         done(resolve, { status: xhr.status, etag: xhr.getResponseHeader("ETag") });
       } else {
         const code = /<Code>([^<]+)<\/Code>/.exec(xhr.responseText || "");
-        done(
-          reject,
-          httpError(
-            `Amazon S3 said HTTP ${xhr.status}${code ? ` (${code[1]})` : ""}`,
-            xhr.status,
-          ),
+        const e = httpError(
+          `Amazon S3 said HTTP ${xhr.status}${code ? ` (${code[1]})` : ""}`,
+          xhr.status,
         );
+        if (code) e.s3Code = code[1];
+        done(reject, e);
       }
     };
     xhr.onerror = () =>
       done(reject, httpError("The upload connection to Amazon S3 failed", 0));
-    xhr.ontimeout = () => done(reject, httpError("The upload to Amazon S3 timed out", 0));
+    // Aborted by the browser itself (navigation, network change), not by us.
+    xhr.onabort = () => done(reject, httpError("The upload connection to Amazon S3 was cut off", 0));
+    arm(false);
     xhr.send(body);
   });
 }

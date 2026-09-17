@@ -8,8 +8,10 @@ import { formatBytes, formatDuration } from "./helpers.js";
 
 /** Code entry. Checks the code with POST /auth, keeps it in sessionStorage
  *  (never localStorage), and hands `{ code, info }` up. A code already in
- *  this tab's sessionStorage is re-checked automatically. */
-export function CodeGate({ storageKey, requireAdmin = false, onAuthed, label, hint }) {
+ *  this tab's sessionStorage is re-checked automatically.
+ *  `requireAdmin`: only the download code gets in. `refuseAdmin`: the download
+ *  code is turned away (the upload page — it shouldn't live in that tab). */
+export function CodeGate({ storageKey, requireAdmin = false, refuseAdmin = false, onAuthed, label, hint }) {
   const [stored] = useState(() => readSession(storageKey));
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(() => Boolean(stored));
@@ -23,6 +25,15 @@ export function CodeGate({ storageKey, requireAdmin = false, onAuthed, label, hi
           writeSession(storageKey, "");
           setBusy(false);
           setError("That's the upload code. This page needs the download code.");
+          return;
+        }
+        if (refuseAdmin && info.role === "admin") {
+          writeSession(storageKey, "");
+          setBusy(false);
+          setValue("");
+          setError(
+            "That's Patrick's download code — it isn't meant for this page. Ask Patrick for the upload code (and let him know, so he can change this one).",
+          );
           return;
         }
         writeSession(storageKey, code);

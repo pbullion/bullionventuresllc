@@ -873,14 +873,39 @@ with the backend (2026-09-16); the code comments carry its rules.
   multipart with `{uploadId, partSize}` in `localStorage` keyed by
   path|size|lastModified, so a reload resumes from `ListParts`. One pool of 6
   XHRs, ≤4 parts per file, 6 retries with 1s→30s backoff, re-sign on S3 403, a
-  backend 401/403 pauses the whole queue (so 40k files don't each hit the
-  brute-force limiter). Before uploading, the page pulls the manifest and
-  `resolve`s every path, so re-picking the same folders skips what's there.
-  The upload page self-tests a 1-byte PUT to `.connection-test` right after
-  the code — a network that blocks S3 shows ❌ immediately.
+  backend 401/403 pauses the whole queue with `fatal` (so 40k files don't each
+  hit the brute-force limiter; Resume is hidden — only a reload helps). PUTs
+  have a no-progress watchdog (`putWithProgress`: 2 min, 5 min once the body
+  is sent) because XHR never times out on a hung proxy connection.
+- **Outages are not file failures.** A backend 429, repeated 5xx/network on a
+  signing or multipart control call, or network failures on 3 different files
+  in a row put the whole upload in status `waiting`; it probes
+  (`.connection-test` PUT, plus a manifest page for control calls) 30s → 5 min
+  apart and carries on by itself. A file that exhausts its retries probes
+  first and only goes to Failed if the probe works. Don't "simplify" this back
+  to per-file retries — an hour-long outage would fail hundreds of files. The
+  harness has cases for each path, including a file a proxy always refuses
+  (it must end in Failed, not loop).
+- **Pre-flight never drops or overwrites a different file**
+  (`helpers.planUploads`): same path+size+mtime picked twice → once; same path
+  already in S3 at the same size → skipped (that's how re-picking resumes);
+  any other clash → `name (2).ext`, first number free in S3 and the list,
+  deterministic so a renamed multipart upload resumes. XHR reports an
+  unreadable File (changed, locked `.pst`, OneDrive placeholder) as status 0,
+  so the engine reads one byte to tell and fails it with a human message.
+  `multipart/complete` → 404 checks the manifest before re-uploading (the
+  first complete may have succeeded with its answer lost).
 - **Download engine** (`downloadEngine.js`): `showDirectoryPicker` (Chrome/Edge
-  only), 3 at a time, skips files already present at the same size — so
-  re-running into the same folder resumes.
+  only), 3 at a time, writes into a `file-drop` subfolder of the picked folder
+  (or into it if it's already called `file-drop`), skips files already present
+  at the same size — so re-running into the same folder resumes — and never
+  overwrites a different-size file (listed as a conflict; an empty leftover is
+  written over). A 2-minute no-data watchdog retries hung GETs; 401/403, a full
+  disk or a vanished folder stop the run with one message; backend trouble
+  while signing waits instead of failing files.
+- **"Clean up" aborts by upload START time** (S3 `Initiated`), not last
+  activity, so it can't tell abandoned from a slow multi-day upload. The page
+  asks for 7 days (`olderThanHours: 168`) behind a confirm.
 - **Fallbacks** on the download page: `aws s3 sync "s3://sheline-art-weddings/file-drop/" ~/Downloads/file-drop`
   (Patrick's default AWS profile can read the bucket), and a generated
   `file-drop-download.sh` of `curl -C -` commands with 12-hour links. Paths in
