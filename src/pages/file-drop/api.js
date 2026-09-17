@@ -28,7 +28,9 @@ function httpError(message, status) {
 }
 
 /** request(path, { method, body, code }) → parsed JSON.
- *  Non-2xx → Error(body.error || "HTTP n") with `.status`.
+ *  Non-2xx → Error(body.error || "HTTP n") with `.status`, plus `.code` when
+ *  the body has one (409 `code: "exists"` — the upload code may not replace a
+ *  file) and `.data` = the parsed body.
  *  Network failure / timeout → Error with `.status === 0`. */
 export async function request(
   path,
@@ -73,7 +75,12 @@ export async function request(
     const msg =
       (data && typeof data.error === "string" && data.error) ||
       (res.status === 503 ? "The server is unavailable right now" : `HTTP ${res.status}`);
-    throw httpError(msg, res.status);
+    const err = httpError(msg, res.status);
+    if (data && typeof data === "object") {
+      err.data = data;
+      if (typeof data.code === "string") err.code = data.code;
+    }
+    throw err;
   }
   if (data === null) throw httpError("The server sent something that wasn't JSON", res.status);
   return data;
@@ -110,8 +117,13 @@ export function createApi(code, opts = {}) {
     presignGet: (paths, expiresIn) =>
       call("/presign-get", "POST", expiresIn ? { paths, expiresIn } : { paths }),
     deleteMany: (paths) => call("/delete", "POST", { paths }),
-    cleanup: (olderThanHours) =>
-      call("/multipart/cleanup", "POST", olderThanHours ? { olderThanHours } : {}),
+    /* { dryRun: true } aborts nothing and returns `uploads: [{ path,
+     * initiated }]` — what a real call would throw away. */
+    cleanup: (olderThanHours, { dryRun = false } = {}) =>
+      call("/multipart/cleanup", "POST", {
+        ...(olderThanHours ? { olderThanHours } : {}),
+        ...(dryRun ? { dryRun: true } : {}),
+      }),
   };
   return api;
 }
@@ -129,12 +141,22 @@ export const PUT_RESPONSE_STALL_MS = 5 * 60 * 1000; // body sent, no answer
  *  fired, `.stalled` when the watchdog gave up; `.s3Code` carries S3's XML
  *  <Code> when there was one).
  *
- *  `contentType` must be EXACTLY what the backend signed for a single PUT;
- *  pass nothing for multipart parts (their URLs don't sign it). */
+ *  `contentType` must be EXACTLY what the backend returned for a single PUT;
+ *  pass nothing for multipart parts.
+ *  `ifNoneMatch`: pass the presign item's `ifNoneMatch` ("*") whenever it has
+ *  one. It is SIGNED into the URL — leave it off and S3 refuses the signature;
+ *  send it and S3 answers 412 when a file is already at that key. */
 export function putWithProgress(
   url,
   body,
-  { contentType, onProgress, signal, stallMs = PUT_STALL_MS, responseStallMs = PUT_RESPONSE_STALL_MS } = {},
+  {
+    contentType,
+    ifNoneMatch,
+    onProgress,
+    signal,
+    stallMs = PUT_STALL_MS,
+    responseStallMs = PUT_RESPONSE_STALL_MS,
+  } = {},
 ) {
   return new Promise((resolve, reject) => {
     const XHR = globalThis.XMLHttpRequest;
@@ -194,6 +216,7 @@ export function putWithProgress(
     }
     xhr.open("PUT", url, true);
     if (contentType) xhr.setRequestHeader("Content-Type", contentType);
+    if (ifNoneMatch) xhr.setRequestHeader("If-None-Match", ifNoneMatch);
     if (xhr.upload) {
       xhr.upload.onprogress = (ev) => {
         const sent = ev.lengthComputable && ev.total > 0 && ev.loaded >= ev.total;

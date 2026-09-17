@@ -34,27 +34,48 @@ export default function FileDropUpload() {
   const runSelfTest = async (code) => {
     setSelfTest({ state: "running" });
     let stage = "server";
+    const api = createApi(code);
     try {
-      const api = createApi(code);
       const res = await api.presignPut([
         { path: ".connection-test", size: 1, contentType: "text/plain" },
       ]);
       const item = res.files && res.files[0];
       if (!item || !item.url) throw new Error(item?.error || "The server didn't return a test link");
       stage = "s3";
-      await putWithProgress(item.url, new Blob(["1"], { type: "text/plain" }), {
-        contentType: item.contentType || "text/plain",
-        stallMs: 30000,
-        responseStallMs: 30000,
-      });
+      try {
+        await putWithProgress(item.url, new Blob(["1"], { type: "text/plain" }), {
+          contentType: item.contentType || "text/plain",
+          // Sent exactly as every real upload sends it, so a network that
+          // strips the header fails here rather than on file one.
+          ifNoneMatch: item.ifNoneMatch || undefined,
+          stallMs: 30000,
+          responseStallMs: 30000,
+        });
+      } catch (err) {
+        /* 412 = the test file is already there from an earlier test. S3 only
+         * says that after checking the signature, so the path works. */
+        if (err.status !== 412) throw err;
+      }
       setSelfTest({ state: "ok" });
     } catch (err) {
       /* Where it broke decides what to say. The signing call → Patrick's
        * server. An answer from S3 itself (an XML <Code> such as AccessDenied or
        * InvalidAccessKeyId) means the network let the upload through and S3
        * refused the server's signature — a problem on Patrick's side, not this
-       * network's. No answer from S3 at all → the network is blocking it. */
-      const kind = stage === "server" ? "server" : err.s3Code ? "storage" : "network";
+       * network's. No answer from S3 at all → the network is blocking it.
+       * SignatureDoesNotMatch is either: the server's AWS key is wrong, or a
+       * proxy changed the request (e.g. dropped the signed If-None-Match). The
+       * server's own S3 calls use that same key, so one manifest page tells
+       * them apart. */
+      let kind = stage === "server" ? "server" : err.s3Code ? "storage" : "network";
+      if (err.s3Code === "SignatureDoesNotMatch") {
+        try {
+          await api.manifestPage(null);
+          kind = "altered";
+        } catch {
+          kind = "storage";
+        }
+      }
       setSelfTest({ state: "fail", error: err.message, kind });
     }
   };
@@ -113,6 +134,24 @@ function SelfTest({ test, onRetry }) {
           The upload got through this network, but Amazon S3 (where the files are stored) refused
           it. That&apos;s a setting on Patrick&apos;s side, not a problem with this computer or
           network. Let Patrick know before picking any files.
+        </p>
+        <div className="fd-muted" style={{ color: "inherit", opacity: 0.8, marginBottom: 10 }}>
+          Details: {test.error}
+        </div>
+        <button className="fd-btn danger-ghost small" type="button" onClick={onRetry}>
+          Test again
+        </button>
+      </div>
+    );
+  }
+  if (test.kind === "altered") {
+    return (
+      <div className="fd-bad" style={{ marginBottom: 16 }}>
+        <strong>❌ This network changed the test upload on its way.</strong>
+        <p style={{ margin: "6px 0 10px", lineHeight: 1.5 }}>
+          The test upload reached Amazon S3 (where the files are stored), but something on this
+          network altered it along the way, so S3 couldn&apos;t accept it. Uploads from this network
+          won&apos;t work as they are. Let Patrick know before picking any files.
         </p>
         <div className="fd-muted" style={{ color: "inherit", opacity: 0.8, marginBottom: 10 }}>
           Details: {test.error}

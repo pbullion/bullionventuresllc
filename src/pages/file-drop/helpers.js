@@ -223,6 +223,22 @@ export function unreadableError(cause) {
   return e;
 }
 
+export const EXISTS_MESSAGE =
+  "A different file with this name is already uploaded, so this one wasn't sent — nothing is " +
+  "ever replaced. Pick this file again and it goes up with a number added to its name.";
+
+/** The upload code can't replace a file (the backend signs If-None-Match: *).
+ *  When the key turns out to be taken by a file of a DIFFERENT size — the
+ *  pre-flight renames those, so this only happens when something else
+ *  uploaded there in the meantime — the file fails with this. Retrying can't
+ *  help; picking it again renames it. */
+export function existsError() {
+  const e = new Error(EXISTS_MESSAGE);
+  e.exists = true;
+  e.permanent = true;
+  return e;
+}
+
 /** "a/b/Resume.docx", 2 → "a/b/Resume (2).docx". A leading-dot name has no
  *  extension to keep: ".profile", 2 → ".profile (2)". */
 export function numberedPath(path, n) {

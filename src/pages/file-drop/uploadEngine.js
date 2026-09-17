@@ -41,6 +41,17 @@
  *   running forever — it takes the probe-first path to Failed instead.
  *   A backend 401/403 is different again: the code itself was refused, so the
  *   queue pauses for good with `fatal` set (resuming can't fix it).
+ *
+ * NOTHING IS REPLACED
+ *   The upload code's URLs are signed with If-None-Match: * (the presign item
+ *   says `ifNoneMatch`), and its multipart create/complete answer 409
+ *   `code: "exists"` when the key is taken. The pre-flight already renames
+ *   clashes, so a taken key mostly means THIS file landed on an earlier try
+ *   whose answer was lost. Same rule as the pre-flight: there at the same
+ *   size → done; a different size → Failed with a "pick it again" message
+ *   (never retried); gone again → an ordinary retry. A single PUT's 412 has no
+ *   size, so it reads a manifest listing started after the 412 — shared, so a
+ *   burst of them costs one listing.
  */
 
 import { putWithProgress } from "./api.js";
@@ -48,6 +59,7 @@ import {
   MiB,
   backoffMs,
   createSpeedMeter,
+  existsError,
   fingerprint,
   humanError,
   probeReadable,
@@ -118,6 +130,12 @@ const realSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /* Thrown when work must go back in the queue untouched: a pause, a wait for
  * an outage, or a fatal code refusal. Never a file failure. */
 class Paused extends Error {}
+
+/* Thrown when a multipart file turns out to be in S3 already at its size. */
+class AlreadyUploaded extends Error {}
+
+/* The backend's "the upload code may not replace this key" answer. */
+const isExists = (err) => Boolean(err) && err.status === 409 && err.code === "exists";
 
 /* An S3 PUT that failed in a way an outage would also cause. */
 const isTransferFailure = (err) =>
@@ -198,6 +216,7 @@ export class UploadEngine {
     this.breakerArmed = true;
     this.probing = new Map(); // kind → in-flight probe
     this.probes = 0;
+    this.listing = null; // { startedAt, promise: Map(path → size) } — see _sizeInS3
   }
 
   /* ---------- public API ---------- */
@@ -574,11 +593,16 @@ export class UploadEngine {
       try {
         await this.transport(it.url, body, {
           contentType: it.contentType || "text/plain",
+          ifNoneMatch: it.ifNoneMatch || undefined,
           signal: this.controller.signal,
         });
       } catch (e) {
-        e.transfer = true;
-        throw e;
+        /* 412: the test file is already there, and S3 only says so after
+         * checking the signature — the whole round trip works. */
+        if (!(e && e.status === 412)) {
+          e.transfer = true;
+          throw e;
+        }
       }
       if (kind === "control" && typeof this.api.manifestPage === "function") {
         await this.api.manifestPage(null);
@@ -657,6 +681,13 @@ export class UploadEngine {
 
   /* ---------- small files ---------- */
 
+  _smallDone(item) {
+    this.bytesConfirmed += item.size;
+    this.doneFiles++;
+    this._noteSuccess();
+    item.file = null; // done — drop the Blob reference
+  }
+
   async _ensureSmallUrl(item) {
     for (let guard = 0; guard < 5; guard++) {
       if (item.url && this.now() - item.signedAt < URL_FRESH_MS) return;
@@ -698,6 +729,7 @@ export class UploadEngine {
             x.url = r.url;
             x.signedAt = at;
             if (r.contentType) x.contentType = r.contentType;
+            x.ifNoneMatch = r.ifNoneMatch || null; // signed into the URL: must be sent
           } else if (r.error) {
             x.signError = r.error;
           }
@@ -736,6 +768,7 @@ export class UploadEngine {
           try {
             await this.transport(item.url, item.file, {
               contentType: item.contentType,
+              ifNoneMatch: item.ifNoneMatch || undefined,
               signal: this.controller.signal,
               onProgress: (loaded) => {
                 const d = loaded - last;
@@ -753,10 +786,7 @@ export class UploadEngine {
           }
           if (last < item.size) this.transferred += item.size - last;
           run.loaded = 0;
-          this.bytesConfirmed += item.size;
-          this.doneFiles++;
-          this._noteSuccess();
-          item.file = null; // done — drop the Blob reference
+          this._smallDone(item);
           return;
         } catch (err) {
           run.loaded = 0;
@@ -765,6 +795,28 @@ export class UploadEngine {
           if (err.permanent || err.name === "NotReadableError" || err.name === "NotFoundError") {
             this._fail(item, err);
             return;
+          }
+          if (err.transfer && err.status === 412) {
+            /* S3: something is already at this key (see NOTHING IS REPLACED). */
+            let there;
+            try {
+              there = await this._sizeInS3(item.path, this.now());
+            } catch (e) {
+              if (e instanceof Paused) throw e;
+              if (this.status === "stopped") return;
+              this._fail(item, e);
+              return;
+            }
+            if (this.status === "stopped") return;
+            if (there === item.size) {
+              this._smallDone(item);
+              return;
+            }
+            if (there !== null) {
+              this._fail(item, existsError());
+              return;
+            }
+            // Gone again (deleted in between): an ordinary retry below.
           }
           /* XHR reports an unreadable File (changed, locked, OneDrive
            * placeholder) as a plain network error. Read a byte to tell. */
@@ -823,7 +875,11 @@ export class UploadEngine {
       await this._prepareLarge(lf);
       lf.ready = true; // _after → _pump starts its parts, or completes it if none are left
     } catch (err) {
-      if (err instanceof Paused) {
+      if (err instanceof AlreadyUploaded) {
+        // Nothing was confirmed for it yet (create is the first step that can say so).
+        this.bytesConfirmed += item.size;
+        this._finishLarge(lf);
+      } else if (err instanceof Paused) {
         this._dropLarge(lf);
         if (lf.partSize) this.bytesConfirmed -= this._confirmedFor(lf);
         lf.failed = true; // retire this handle; the item reopens on resume
@@ -870,13 +926,20 @@ export class UploadEngine {
       saved = null;
     }
     if (!saved) {
-      const res = await this._control(() =>
-        this.api.multipartCreate({
-          path: item.path,
-          size: item.size,
-          contentType: item.contentType,
-        }),
-      );
+      let res;
+      try {
+        res = await this._control(() =>
+          this.api.multipartCreate({
+            path: item.path,
+            size: item.size,
+            contentType: item.contentType,
+          }),
+        );
+      } catch (err) {
+        if (!isExists(err)) throw err;
+        if (err.data && err.data.size === item.size) throw new AlreadyUploaded();
+        throw existsError();
+      }
       saved = {
         uploadId: res.uploadId,
         partSize: res.partSize,
@@ -1109,6 +1172,16 @@ export class UploadEngine {
       );
     } catch (err) {
       if (err instanceof Paused) throw err;
+      if (isExists(err)) {
+        /* Another file reached this key first (or this one did, on a try whose
+         * answer was lost). The backend already threw these parts away. */
+        this.storage.remove(lf.key);
+        if (err.data && err.data.size === item.size) {
+          this._finishLarge(lf); // every part is already counted in bytesConfirmed
+          return;
+        }
+        throw existsError();
+      }
       if (err.status === 404) {
         /* S3 no longer knows this uploadId. Either it was aborted (cleanup),
          * or an EARLIER complete succeeded and its answer was lost (a 30s
@@ -1134,9 +1207,30 @@ export class UploadEngine {
   /** Is `item.path` in the manifest at exactly `item.size`? (Same rule as the
    *  page's pre-flight "already uploaded".) Throws Paused through _control. */
   async _alreadyInS3(item) {
-    if (typeof this.api.manifestAll !== "function") return false;
-    const files = await this._control(() => this.api.manifestAll());
-    return (files || []).some((f) => f.path === item.path && f.size === item.size);
+    return (await this._sizeInS3(item.path, this.now())) === item.size;
+  }
+
+  /** The size of `path` according to a manifest listing that STARTED at or
+   *  after `since` — so it reflects whatever S3 reported before then — or null
+   *  when the path isn't there. A listing still running (or done) that
+   *  started late enough is reused, so a burst of 412s costs one. Goes through
+   *  _control, so it can throw Paused. */
+  async _sizeInS3(path, since) {
+    if (typeof this.api.manifestAll !== "function") return null;
+    let snap = this.listing;
+    if (!snap || snap.startedAt < since) {
+      const startedAt = this.now();
+      const promise = this._control(() => this.api.manifestAll()).then(
+        (files) => new Map((files || []).map((f) => [f.path, f.size])),
+      );
+      snap = { startedAt, promise };
+      this.listing = snap;
+      promise.catch(() => {
+        if (this.listing === snap) this.listing = null;
+      });
+    }
+    const sizes = await snap.promise;
+    return sizes.has(path) ? sizes.get(path) : null;
   }
 
   _finishLarge(lf) {

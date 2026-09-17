@@ -103,7 +103,8 @@ function Browser({ auth, files, loadMsg, loadError, onReload }) {
   const [deleting, setDeleting] = useState(null); // { done, total }
   const [deleteResult, setDeleteResult] = useState(null);
   const [cleanup, setCleanup] = useState(null); // { busy, text }
-  const [cleanupArmed, setCleanupArmed] = useState(false);
+  // null | { loading: true } | { uploads: [{ path, days }], more } — the dry-run preview
+  const [cleanupArmed, setCleanupArmed] = useState(null);
   const [script, setScript] = useState(null); // { busy, text }
   const [copied, setCopied] = useState(false);
 
@@ -214,8 +215,32 @@ function Browser({ auth, files, loadMsg, loadError, onReload }) {
     }
   };
 
+  /* Step one: ask the backend what a cleanup WOULD throw away (dryRun aborts
+   * nothing) and show it. Nothing to throw away → say so, no confirm. */
+  const previewCleanup = async () => {
+    setCleanup(null);
+    setCleanupArmed({ loading: true });
+    try {
+      const res = await api.cleanup(CLEANUP_HOURS, { dryRun: true });
+      const at = Date.now();
+      const uploads = (res.uploads || []).map((u) => ({
+        path: u.path,
+        days: Math.max(0, Math.floor((at - Date.parse(u.initiated)) / 86400000)),
+      }));
+      if (!uploads.length && !res.remaining) {
+        setCleanupArmed(null);
+        setCleanup({ busy: false, text: "No unfinished big-file uploads started more than 7 days ago." });
+        return;
+      }
+      setCleanupArmed({ uploads, more: Boolean(res.remaining) });
+    } catch (err) {
+      setCleanupArmed(null);
+      setCleanup({ busy: false, text: `Couldn't check for unfinished uploads: ${err.message}` });
+    }
+  };
+
   const doCleanup = async () => {
-    setCleanupArmed(false);
+    setCleanupArmed(null);
     setCleanup({ busy: true, text: "Looking for unfinished uploads…" });
     let aborted = 0;
     try {
@@ -438,23 +463,43 @@ function Browser({ auth, files, loadMsg, loadError, onReload }) {
           <button
             className="fd-btn quiet"
             type="button"
-            disabled={(cleanup && cleanup.busy) || cleanupArmed}
-            onClick={() => setCleanupArmed(true)}
+            disabled={(cleanup && cleanup.busy) || Boolean(cleanupArmed)}
+            onClick={previewCleanup}
           >
-            {cleanup && cleanup.busy ? "Cleaning…" : "Clean up unfinished uploads older than 7 days…"}
+            {cleanup && cleanup.busy
+              ? "Cleaning…"
+              : cleanupArmed && cleanupArmed.loading
+                ? "Checking…"
+                : "Clean up unfinished uploads older than 7 days…"}
           </button>
         </div>
-        {cleanupArmed && (
+        {cleanupArmed && !cleanupArmed.loading && (
           <div className="fd-bad" style={{ marginTop: 10 }} role="alertdialog" aria-label="Confirm cleanup">
             This throws away the pieces already sent for every big-file upload that{" "}
             <strong>started more than 7 days ago</strong> and hasn&apos;t finished — including one
             that is still going or paused, which would then have to start that file over. Only do it
-            when nothing is being uploaded any more. Finished files aren&apos;t touched.
+            when nothing is being uploaded any more. Finished files aren&apos;t touched. Right now
+            that means:
+            <CappedList
+              rows={cleanupArmed.uploads}
+              cap={50}
+              render={(u, i) => (
+                <li key={`${u.path}-${i}`} style={{ flexWrap: "wrap" }}>
+                  <span className="fd-path">{u.path}</span>
+                  <span style={{ whiteSpace: "nowrap" }}>
+                    started {u.days.toLocaleString()} day{u.days === 1 ? "" : "s"} ago
+                  </span>
+                </li>
+              )}
+            />
+            {cleanupArmed.more && (
+              <p style={{ margin: "6px 0 0" }}>…and more than this list shows.</p>
+            )}
             <div className="fd-row" style={{ marginTop: 10 }}>
               <button className="fd-btn danger small" type="button" onClick={doCleanup}>
                 Yes, clean up
               </button>
-              <button className="fd-btn quiet small" type="button" onClick={() => setCleanupArmed(false)}>
+              <button className="fd-btn quiet small" type="button" onClick={() => setCleanupArmed(null)}>
                 Cancel
               </button>
             </div>

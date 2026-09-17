@@ -860,7 +860,8 @@ with the backend (2026-09-16); the code comments carry its rules.
 - **Two codes, two roles**, sent only in the `x-file-drop-code` header (never
   the query string — Heroku's router logs paths), kept in `sessionStorage`
   only. The **upload** code (`FILE_DROP_UPLOAD_CODE`) can list names/sizes,
-  resolve and upload — it can NOT download, delete or clean up. The **admin**
+  resolve and upload — it can NOT download, delete, clean up or replace an
+  existing file. The **admin**
   code (`FILE_DROP_ADMIN_CODE`) can do everything. Unset, <8 chars or equal
   codes → every endpoint 503s. Wrong code → 401; 10 failures per IP / 15 min
   (or 200 global / hour) → 429.
@@ -895,6 +896,19 @@ with the backend (2026-09-16); the code comments carry its rules.
   so the engine reads one byte to tell and fails it with a human message.
   `multipart/complete` → 404 checks the manifest before re-uploading (the
   first complete may have succeeded with its answer lost).
+- **The upload code can't replace a file, and the backend enforces it.** Its
+  presign items carry `ifNoneMatch: "*"`, which is SIGNED into the URL:
+  `putWithProgress` must send `If-None-Match: *` or S3 rejects the signature
+  (the connectivity self-test sends it too, so a proxy that strips it shows up
+  there — `SignatureDoesNotMatch` plus a working manifest read = "this network
+  altered the upload"). A taken key answers S3 412 on a single PUT, or 409
+  `{ code: "exists", size }` from `multipart/create` / `multipart/complete`.
+  Same rule as the pre-flight: there at the same size → counted uploaded
+  (usually this file's own earlier try whose answer was lost); a different size
+  → Failed with "pick it again" (re-picking renames it); a 412 with the key gone
+  again → ordinary retry. A PUT 412 has no size, so it reads a manifest listing
+  that started after the 412 (shared across a burst). The outage probe counts a
+  412 on `.connection-test` as success.
 - **Download engine** (`downloadEngine.js`): `showDirectoryPicker` (Chrome/Edge
   only), 3 at a time, writes into a `file-drop` subfolder of the picked folder
   (or into it if it's already called `file-drop`), skips files already present
@@ -905,7 +919,9 @@ with the backend (2026-09-16); the code comments carry its rules.
   while signing waits instead of failing files.
 - **"Clean up" aborts by upload START time** (S3 `Initiated`), not last
   activity, so it can't tell abandoned from a slow multi-day upload. The page
-  asks for 7 days (`olderThanHours: 168`) behind a confirm.
+  asks for 7 days (`olderThanHours: 168`) behind a confirm that first calls it
+  with `dryRun: true` (aborts nothing, returns `uploads: [{ path, initiated }]`,
+  ≤200) and lists what would be thrown away.
 - **Fallbacks** on the download page: `aws s3 sync "s3://sheline-art-weddings/file-drop/" ~/Downloads/file-drop`
   (Patrick's default AWS profile can read the bucket), and a generated
   `file-drop-download.sh` of `curl -C -` commands with 12-hour links. Paths in
