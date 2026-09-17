@@ -180,8 +180,8 @@ export default function HowTo() {
                 </li>
               </ol>
               <p style={S.tip}>
-                <b>Just want one file?</b> Tap <b>Your Files</b> on this page instead, search for it by name, and tap
-                the name — it opens in a new tab, on a phone or a computer. Nothing there can delete anything.
+                <b>Just want one file?</b> Open <b>Your Files</b> on this page instead, search for it by name, and
+                click the name — it opens in a new tab. Nothing on that page can delete anything.
               </p>
             </section>
 

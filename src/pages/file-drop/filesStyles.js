@@ -9,6 +9,11 @@ import { C } from "./styles.js";
 const FOCUS = `outline: 2px solid ${C.gold}; outline-offset: 2px;`;
 
 export const FILES_CSS = `
+/* This page is used on a computer (Patrick, 2026-09-17: "it would only be on
+ * web on a computer"), and it is a file list — the 1040px of the shared
+ * \`.fd-shell.wide\` wastes half a laptop screen on a 948-file folder. It still
+ * centres, and still collapses to one column on a narrow window. */
+.fd-files-shell { max-width: min(1440px, 100%); }
 html:has(.fd-files) { scroll-padding-top: 150px; }
 .fd-sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

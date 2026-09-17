@@ -114,7 +114,7 @@ export default function FileDropFiles() {
   return (
     <main className="fd-page fd-files">
       <style>{CSS + FILES_CSS}</style>
-      <div className="fd-shell wide">
+      <div className="fd-shell wide fd-files-shell">
         <header style={{ marginBottom: 16 }}>
           <Link className="fd-back" to="/ash">
             ← Ashley&apos;s pages
@@ -133,7 +133,7 @@ export default function FileDropFiles() {
             )}
           </div>
           <p className="fd-note" style={{ fontSize: 15 }}>
-            Everything you&apos;ve sent with File Drop. Tap a file to open it in a new tab.
+            Everything you&apos;ve sent with File Drop. Click a file&apos;s name to open it in a new tab.
           </p>
         </header>
 
@@ -683,7 +683,7 @@ function Library({ code, files }) {
           <>
             {thumbPaths.length > 0 && (
               <p className="fd-note fd-gridnote">
-                Photos load at full size, so a big folder can use a lot of data on a phone.
+                These are the photos themselves at full size, so a folder of big ones takes a moment to fill in.
               </p>
             )}
             <ul className="fd-tiles">
