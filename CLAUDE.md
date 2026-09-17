@@ -86,10 +86,13 @@ When you add a new tool/page, do **all** of these, not just the route:
      section below.
    - **`/jump` is cardless AND unlisted too** (2026-09-02). It renders the
      press-and-hold list as a bookmarkable page — see its own section below.
+   - **`/ash` is cardless AND unlisted too** (2026-09-16). Ashley's own copy of
+     `/jump`, showing only her group — see its own section below.
    - **Everything unlisted goes somewhere else.** The pages kept off the public
      home page — the Kalshi/betting screens (nine of them now; there were seven
      when Patrick made the call on 2026-07-30) plus `/patrick`, `/ffdraft`,
-     `/ashley` and `/prospects` (2026-08-26) and `/jump` (2026-09-02) — live in
+     `/ashley` and `/prospects` (2026-08-26), `/jump` (2026-09-02), and `/ash`
+     and `/mothers-day-2026` (2026-09-16) — live in
      `PRIVATE_GROUPS` in **`src/lib/privatePages.js`**.
      Add an unlisted page to the right group there instead of to `apps`/`tools`,
      and note that hiding it is obscurity only: every route but `/ashley` stays
@@ -98,13 +101,20 @@ When you add a new tool/page, do **all** of these, not just the route:
 ### The unlisted-pages list (`PRIVATE_GROUPS`)
 
 **`src/lib/privatePages.js` is the single source of truth** for what is unlisted
-— one array, grouped **Patrick / Betting / Banking**, with an `emoji`, `name`,
-`path` and `tagline` per row. Two things render it and neither owns it:
+— one array, grouped **Patrick / Betting / Ashley**, with an `emoji`, `name`,
+`path` and `tagline` per row. Three things render it and none owns it:
 
 | Surface | File | What it is |
 |---|---|---|
 | the press-and-hold modal | `src/components/PrivateTools.jsx` | the fast path, over whatever page you are on |
 | the `/jump` page | `src/pages/jump/index.jsx` | the same list at a bookmarkable URL |
+| the `/ash` page | `src/pages/ash/index.jsx` | the `ashley` group ONLY, for Ashley |
+
+**The Ashley group was "Banking" until 2026-09-16.** `/ash` finds it by
+`id: "ashley"` (exported as `ASHLEY_GROUP`), not by its label, so the heading
+can be renamed freely — but deleting the `id` breaks `/ash`. Its taglines are
+read by Ashley too, so write them to her ("Client transition book"), not about
+her.
 
 Add a page in **one** place: `privatePages.js`. It was inlined in
 `PrivateTools.jsx` until 2026-09-02 (with a comment explaining it could not be
@@ -150,6 +160,9 @@ Three things about it are deliberate and easy to undo by accident:
   `/prospects` and the betting screens, it is not in the `hideChrome` list in
   `src/App.jsx` — it is a directory, not an instrument, and the navbar's Home
   link and long-press wordmark are the right neighbours for it.
+- **Its body is `src/components/LinkDirectory.jsx`**, shared with `/ash`
+  since 2026-09-16. The noindex tag and the drop-its-own-row filter below live
+  in that component, so both pages get them; change the look there once.
 - **It drops its own row.** `/jump` is in `PRIVATE_GROUPS` (that is how the
   convention above makes it discoverable from the modal), and the page filters
   out whatever row matches the current `pathname` so it never links to itself.
@@ -163,6 +176,24 @@ Three things about it are deliberate and easy to undo by accident:
   *crawlable, human-readable* copy at a guessable URL, and there is no
   site-wide `robots.txt`, so this meta tag is the only thing pushing back. Keep
   it.
+
+### `/ash` — Ashley's pages, for Ashley
+
+`src/pages/ash/index.jsx` is `/jump` over one group: the `ashley` group in
+`privatePages.js` (her client tracker, `/prospects`, `/mothers-day-2026`, and
+`/ash` itself). Patrick, 2026-09-16: "add a page like the jump for ashley so she
+can get to all of her pages". **Add a page of hers to that group and it shows up
+on `/ash`, `/jump` and the modal at once** — never hand-list rows in `/ash`.
+
+- **The path is `/ash`, not `/ashley-…`,** because `isAshley` in `App.jsx` is
+  `startsWith("/ashley")` and would claim any `/ashley-*` path. For the same
+  reason `isAsh` is an EXACT match: `"/ashley".startsWith("/ash")` is true.
+- **It hides the site nav and footer, unlike `/jump`.** It is a launcher she
+  pins to her phone's home screen, and the marketing navbar (with Patrick's
+  long-press wordmark) is not for her. `document.title` is "Ashley's Pages"
+  because that is what iOS offers as the home-screen name.
+- **Obscurity, not access control**, same as every page here. `/ashley` still
+  needs her login; `/prospects` and `/mothers-day-2026` never had one.
 
 ## The build-time-data pages (`/hrw`, and now `/byob`)
 

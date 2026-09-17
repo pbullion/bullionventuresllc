@@ -1,8 +1,9 @@
 /* Every page on this site that is deliberately NOT on the public home page.
  *
- * ONE list, read by two things: the press-and-hold modal
- * (src/components/PrivateTools.jsx) and the full page at /jump
- * (src/pages/jump/index.jsx). It lives here rather than beside either of them
+ * ONE list, read by three things: the press-and-hold modal
+ * (src/components/PrivateTools.jsx), the full page at /jump
+ * (src/pages/jump/index.jsx), and — for the `ashley` group only — Ashley's own
+ * page at /ash (src/pages/ash/index.jsx). It lives here rather than beside any of them
  * because a second copy would drift the first time a page was added to one and
  * not the other — and because exporting a constant beside a component breaks
  * Fast Refresh (react-refresh/only-export-components), which is why
@@ -192,16 +193,25 @@ export const PRIVATE_GROUPS = [
     ],
   },
   {
-    /* Ashley's two pages. They are hers, not tools for site visitors — they are
-     * here so Patrick can reach them without typing the URL, which is the only
-     * reason this group exists. */
-    label: "Banking",
+    /* Ashley's pages. They are hers, not tools for site visitors. This group
+     * does two jobs: it is how Patrick reaches them from the modal and /jump,
+     * and it IS the page at /ash — Ashley's own directory renders exactly this
+     * group and nothing else (looked up by `id`, so relabelling the heading
+     * can't break it). Add a page of hers here and it appears on both.
+     *
+     * The taglines are read by Ashley on /ash as well as by Patrick, so write
+     * them for her: "Client transition book", not "Ashley's transition book".
+     *
+     * It was the "Banking" group, holding /ashley and /prospects, until
+     * 2026-09-16. */
+    id: "ashley",
+    label: "Ashley",
     items: [
       {
         emoji: "🏦",
         name: "Client Tracker",
         path: "/ashley",
-        tagline: "Ashley's transition book — real login",
+        tagline: "Client transition book — sign in",
       },
       {
         emoji: "📇",
@@ -209,6 +219,22 @@ export const PRIVATE_GROUPS = [
         path: "/prospects",
         tagline: "Houston C&I calling list",
       },
+      {
+        emoji: "🌸",
+        name: "Mother's Day 2026",
+        path: "/mothers-day-2026",
+        tagline: "Your spa day — from the two who love you most",
+      },
+      {
+        emoji: "💜",
+        name: "Ashley's Pages",
+        path: "/ash",
+        tagline: "This list, as a page for Ashley's phone",
+      },
     ],
   },
 ];
+
+/* The group /ash renders. Exported from here rather than found inside that page
+ * so the lookup lives beside the `id` it depends on. */
+export const ASHLEY_GROUP = PRIVATE_GROUPS.find((g) => g.id === "ashley");

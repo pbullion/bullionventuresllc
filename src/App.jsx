@@ -80,6 +80,7 @@ import Ashley from "./pages/ashley/index.jsx";
 import Prospects from "./pages/prospects/index.jsx";
 import PatrickBoard from "./pages/patrick/index.jsx";
 import Jump from "./pages/jump/index.jsx";
+import Ash from "./pages/ash/index.jsx";
 import Status from "./pages/status/index.jsx";
 import Drive from "./pages/drive";
 import Hrw from "./pages/hrw/index.jsx";
@@ -136,6 +137,10 @@ export default function App() {
   // Also full-screen and also unlisted — her Houston C&I calling list. Unlike
   // /ashley it has no login at all; see the header of src/pages/prospects/index.jsx.
   const isProspects = location.pathname.startsWith("/prospects");
+  // Ashley's own directory of her pages — a launcher for her phone, so no
+  // marketing nav. EXACT match, not startsWith: "/ashley".startsWith("/ash")
+  // is true, and a prefix check here would quietly claim every /ash* path.
+  const isAsh = location.pathname === "/ash" || location.pathname === "/ash/";
   // Patrick's own project board — a wall of mini todo boards, one per app he is
   // still finishing. Full-screen because the whole point is seeing every board
   // at once; unlisted and unauthenticated like /prospects.
@@ -171,6 +176,7 @@ export default function App() {
     isTripPlanner ||
     isAshley ||
     isProspects ||
+    isAsh ||
     isPatrickBoard ||
     isDrive ||
     isTasting ||
@@ -296,6 +302,9 @@ export default function App() {
           {/* The press-and-hold modal's list as a bookmarkable page. Keeps the
               site chrome, unlike the full-screen tools above it. */}
           <Route path="/jump" element={<Jump />} />
+          {/* The same directory over only Ashley's group, for Ashley. Hides
+              the chrome, unlike /jump — see src/pages/ash/index.jsx. */}
+          <Route path="/ash" element={<Ash />} />
           <Route path="/status" element={<Status />} />
           <Route path="/drive" element={<Drive />} />
           <Route
