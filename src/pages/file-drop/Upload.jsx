@@ -11,7 +11,7 @@ import {
 import { chunk, folderBreakdown, formatBytes, isJunkFile, joinFolder, planUploads } from "./helpers.js";
 import { CSS } from "./styles.js";
 import { CappedList, CodeGate, ProgressBar, Stat, TransferStats } from "./ui.jsx";
-import { UploadEngine } from "./uploadEngine.js";
+import { PROBE_PATH, UploadEngine } from "./uploadEngine.js";
 
 /* /file-drop — "Send files to Patrick".
  *
@@ -295,6 +295,10 @@ function Sender({ code }) {
       picked.forEach((p, i) => {
         const r = results[i];
         if (!r || r.error || !r.path) invalid.push({ path: inputs[i], error: r?.error || "Invalid name" });
+        /* The backend accepts this one name (it is the connection check's own
+         * object) and the manifest hides it, so a real file by that name would
+         * 412 against the check's copy and retry forever. Rename it instead. */
+        else if (r.path === PROBE_PATH) invalid.push({ path: inputs[i], error: "That name is reserved — rename the file and pick it again" });
         else entries.push({ ...p, path: r.path, size: p.file.size, lastModified: p.file.lastModified });
       });
       /* Same file picked twice → once. Two DIFFERENT files on one path (two
