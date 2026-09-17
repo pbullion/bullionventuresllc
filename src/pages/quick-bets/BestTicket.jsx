@@ -24,13 +24,24 @@ import {
  * favorite was ~67%, so a Best 3 had no leg inside it). Every build is saved
  * server-side and graded from final scores; Record.jsx shows how they did.
  *
- * Buying sends only the saved ticket's id and the stake. The server reloads
- * the legs it stored and re-checks each one KALSHI AGAINST KALSHI: the live
- * price (the mid, or the best YES bid when the book is too wide for one)
- * against Kalshi's own price when the leg was saved — never against the
- * blended DK+Kalshi win %. It refuses the whole ticket (409, `dropped`, with
- * `p_then_pct` / `p_now_pct` on a price move) if any leg started, closed,
- * vanished or fell more than 5 points — nothing is bought on a partial ticket.
+ * Buying sends only the saved ticket's id and a stake — one of five fixed
+ * amounts, a button each (STAKES, $5–$25), not the page's stake box, which
+ * feeds only the favorites list's Create Bet. The server buys a ticket AT
+ * MOST ONCE (a second buy of the same id 409s, and a rebuild of identical legs
+ * returns the same id), so a fill switches every button off for that ticket.
+ * The build response carries no `placed_at`, so the card can't ask whether a
+ * ticket was bought: it remembers the ids it saw fill in localStorage (a
+ * reload and a rebuild of the same legs is the same ticket), and a 409 "was
+ * already bought" — a fill it never saw, from a timed-out buy, another browser
+ * or kalshi-live — switches the buttons off the same way.
+ *
+ * The server reloads the legs it stored and re-checks each one KALSHI AGAINST
+ * KALSHI: the live price (the mid, or the best YES bid when the book is too
+ * wide for one) against Kalshi's own price when the leg was saved — never
+ * against the blended DK+Kalshi win %. It refuses the whole ticket (409,
+ * `dropped`, with `p_then_pct` / `p_now_pct` on a price move) if any leg
+ * started, closed, vanished or fell more than 5 points — nothing is bought on
+ * a partial ticket.
  *
  * `placeable` is decided server-side: Kalshi-only mode, every leg a Kalshi
  * moneyline in a league the combo path can buy (NCAAF, NFL, MLB) with a price
@@ -39,10 +50,13 @@ import {
  *
  * This state lives in this component, not in index.jsx, so the favorites
  * list's load() — which resets the list selection on every Refresh and on
- * "+ Tomorrow's games" — never wipes a built ticket. The page's stake and its
- * tomorrow toggle come in as props.
+ * "+ Tomorrow's games" — never wipes a built ticket. Only the page's tomorrow
+ * toggle comes in as a prop.
  */
 
+// One buy button per amount, in dollars (Patrick, 2026-09-16: "seperate btns
+// for 5,10,15,20,25 bets for the best bets combos").
+const STAKES = [5, 10, 15, 20, 25];
 const CONFIRM_MS = 6000;
 // The second click of a double-click is not a confirmation.
 const DOUBLE_TAP_GUARD_MS = 600;
@@ -51,6 +65,52 @@ const BUILD_TIMEOUT_MS = 35000;
 const PLACE_TIMEOUT_MS = 40000;
 const MIN_LEGS = 2;
 const MAX_LEGS = 10;
+
+// Ticket ids this browser knows are bought → the amount, or null when a 409
+// said "already bought" without one. See the header for why it's stored.
+const BOUGHT_KEY = "bv_quickbets_best_bought";
+// Ids only grow and an old ticket's games are over, so the newest are enough.
+const BOUGHT_KEEP = 200;
+
+const cleanBought = (raw) => {
+  const out = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [id, v] of Object.entries(raw)) {
+    if (v === null || (typeof v === "number" && v > 0)) out[id] = v;
+  }
+  return out;
+};
+
+const readBought = () => {
+  try {
+    return cleanBought(JSON.parse(localStorage.getItem(BOUGHT_KEY) || "{}"));
+  } catch {
+    return {};
+  }
+};
+
+const writeBought = (bought) => {
+  try {
+    // Merged with what's stored, so another tab's fills aren't overwritten
+    // (nor a known amount by a 409's unknown one).
+    const all = readBought();
+    for (const [id, v] of Object.entries(bought)) {
+      if (!(v === null && typeof all[id] === "number")) all[id] = v;
+    }
+    const keep = Object.keys(all)
+      .sort((a, b) => Number(b) - Number(a))
+      .slice(0, BOUGHT_KEEP);
+    localStorage.setItem(
+      BOUGHT_KEY,
+      JSON.stringify(Object.fromEntries(keep.map((id) => [id, all[id]]))),
+    );
+  } catch {
+    // Storage blocked (private window, site data off) — this visit still
+    // remembers; a reload forgets, and the server's 409 still guards the buy.
+  }
+};
+
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 
 const MODES = [
   { key: "kalshi", label: "Kalshi only (buyable)" },
@@ -97,6 +157,18 @@ const stepBtn = {
 const kalshiCents = (v) => {
   const n = Number(v);
   return v == null || !(n > 0 && n < 1) ? null : `${Math.round(n * 100)}¢`;
+};
+
+// Kalshi's estimated payout if every leg hits, for a buy button's second line:
+// cents under $100 ("~$47.21"), whole dollars from there ("~$118") so it fits
+// a fifth of a phone-width row. null when there's no Kalshi cost to divide by.
+const payoutLabel = (stake, costPerDollar) => {
+  const cost = Number(costPerDollar);
+  if (!(cost > 0)) return null;
+  const p = stake / cost;
+  // Grouped past $1,000 ("~$1,852" — a 10-leg ticket gets there on $25), the
+  // same string kalshi-live's payoutEst draws; change one, change both.
+  return p < 100 ? `~${money(p)}` : `~$${Math.round(p).toLocaleString("en-US")}`;
 };
 
 function LegsTable({ legs }) {
@@ -337,23 +409,31 @@ function BuyResult({ r, legs, onRebuild, rebuildDisabled }) {
   );
 }
 
-export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
+export default function BestTicket({ includeTomorrow, onRecorded }) {
   const [legs, setLegs] = useState(3);
   const [mode, setMode] = useState("kalshi");
   const [building, setBuilding] = useState(false);
   // The last good build, plus the controls it was built with.
   const [built, setBuilt] = useState(null);
   const [buildErr, setBuildErr] = useState(null);
-  // { ticketId, stake } — a confirm is for one ticket at one stake.
+  // { ticketId, stake } — a confirm is for one ticket at one of the STAKES.
   const [armed, setArmed] = useState(null);
-  const [placing, setPlacing] = useState(false);
+  // The amount in flight (null when nothing is), so its button can say so.
+  const [placingStake, setPlacingStake] = useState(null);
+  const placing = placingStake != null;
   const [buyResult, setBuyResult] = useState(null);
-  // Fills from this page view, per ticket id, so a second buy says so.
-  const [bought, setBought] = useState({});
+  // The amount each ticket id filled at (null: bought, amount unknown),
+  // remembered in this browser. The server buys a ticket at most once, so a
+  // bought ticket's buttons stay off — after a reload and a rebuild too.
+  const [bought, setBought] = useState(readBought);
   const armTimer = useRef(null);
   const armedAt = useRef(0);
 
   useEffect(() => () => clearTimeout(armTimer.current), []);
+
+  useEffect(() => {
+    writeBought(bought);
+  }, [bought]);
 
   // Leaving mid-buy loses this page's record of the answer, not the order,
   // so the browser asks first.
@@ -368,8 +448,6 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
   }, [placing]);
 
   const days = includeTomorrow ? 2 : 1;
-  const stakeNum = Number(stake);
-  const stakeOk = Number.isFinite(stakeNum) && stakeNum > 0;
   const ticket = built && built.body ? built.body.ticket : null;
 
   const disarm = () => {
@@ -407,39 +485,59 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
         "This ticket can't be bought on Kalshi. It is still saved and graded."
       : ticket.id == null
         ? "This ticket wasn't saved, so it can't be bought. Build again."
-        : !stakeOk
-          ? "Set a stake above $0 in the box below."
-          : null;
-  const canBuy = Boolean(ticket) && !buyBlock && !placing && !building;
-  const isArmed =
-    canBuy && armed && armed.ticketId === ticket.id && armed.stake === stakeNum;
+        : null;
+  // Whether this ticket is already bought, and at what amount if known.
+  const isBought = Boolean(ticket) && ticket.id != null && hasOwn(bought, ticket.id);
+  const boughtStake = isBought ? bought[ticket.id] : null;
+  const canBuy = Boolean(ticket) && !buyBlock && !isBought && !placing && !building;
+  // Which amount is waiting for its confirming second tap, if any.
+  const armedStake =
+    canBuy && armed && armed.ticketId === ticket.id ? armed.stake : null;
   const legCount = ticket ? ticket.legs_used || (ticket.legs || []).length : 0;
-  const boughtCount = ticket && ticket.id != null ? bought[ticket.id] || 0 : 0;
+  // No Kalshi cost, no payout under any amount — and no helper text saying so.
+  const showPayouts =
+    Boolean(ticket) && payoutLabel(STAKES[0], ticket.kalshi_cost_per_dollar) != null;
 
-  const tapBuy = async (e) => {
+  const tapBuy = async (amount, e) => {
     if (!canBuy) return;
     const stamp = e.timeStamp;
-    if (!isArmed) {
+    // A first tap — or a tap on a different amount while one is armed, which
+    // re-arms at the new amount rather than buying either.
+    if (armedStake !== amount) {
       armedAt.current = stamp;
       clearTimeout(armTimer.current);
-      setArmed({ ticketId: ticket.id, stake: stakeNum });
+      setArmed({ ticketId: ticket.id, stake: amount });
       armTimer.current = setTimeout(() => setArmed(null), CONFIRM_MS);
       return;
     }
-    if (stamp - armedAt.current < DOUBLE_TAP_GUARD_MS) return;
+    // Too soon after the last tap to be a confirmation. An ignored tap restarts
+    // the window, so a held Enter's key-repeat or a slow triple-click never
+    // reaches a buy — only a real pause before the second tap does.
+    if (stamp - armedAt.current < DOUBLE_TAP_GUARD_MS) {
+      armedAt.current = stamp;
+      return;
+    }
     disarm();
     const ticketId = ticket.id;
-    setPlacing(true);
+    setPlacingStake(amount);
     setBuyResult(null);
-    const r = await callApi("/combo", {
-      body: { ticket_id: ticketId, stake_dollars: stakeNum },
-      timeoutMs: PLACE_TIMEOUT_MS,
-    });
-    setPlacing(false);
+    let r;
+    try {
+      r = await callApi("/combo", {
+        body: { ticket_id: ticketId, stake_dollars: amount },
+        timeoutMs: PLACE_TIMEOUT_MS,
+      });
+    } catch (err) {
+      // callApi classifies every failure itself; this only keeps a future
+      // throw from leaving the buttons stuck on "Placing…".
+      r = { kind: "network", message: String((err && err.message) || err) };
+    } finally {
+      setPlacingStake(null);
+    }
     if (r.kind === "ok") {
       setBuyResult({ ok: true, ...r.body });
       if (r.body.filled) {
-        setBought((prev) => ({ ...prev, [ticketId]: (prev[ticketId] || 0) + 1 }));
+        setBought((prev) => ({ ...prev, [ticketId]: amount }));
         if (onRecorded) onRecorded();
       }
     } else if (r.kind === "not-deployed") {
@@ -454,6 +552,13 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
         error: `Lost the connection (${r.message}) before the server answered.`,
       });
     } else {
+      // "this ticket was already bought" is a fill this card never saw (a
+      // timed-out buy, another browser, kalshi-live): switch the buttons off
+      // as a fill would. Not "already being bought" (in flight — it clears) or
+      // a 409 with dropped legs, neither of which means it filled.
+      if (r.status === 409 && /already bought/i.test(r.message || "")) {
+        setBought((prev) => (hasOwn(prev, ticketId) ? prev : { ...prev, [ticketId]: null }));
+      }
       setBuyResult({
         ok: false,
         conflict: r.status === 409,
@@ -470,10 +575,6 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
     built &&
     (built.legs !== legs || built.mode !== mode || built.days !== days);
   const body = built ? built.body : null;
-  const payout =
-    ticket && ticket.kalshi_cost_per_dollar > 0 && stakeOk
-      ? stakeNum / Number(ticket.kalshi_cost_per_dollar)
-      : null;
 
   return (
     <div style={{ ...card, marginTop: 12, marginBottom: 0 }}>
@@ -669,13 +770,6 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
                         {comboCents(ticket.kalshi_cost_per_dollar)}
                       </strong>{" "}
                       per $1
-                      {payout != null ? (
-                        <>
-                          {" · "}
-                          {money(stakeNum)} pays ~
-                          <strong style={{ color: C.text }}>{money(payout)}</strong>
-                        </>
-                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -778,7 +872,11 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
 
           {ticket ? (
             <div style={{ marginTop: 14 }}>
-              {isArmed ? (
+              {/* The confirm prompt takes the label's place while an amount
+                  is armed, rather than stacking a second line on it. A ticket
+                  that can't be bought, or already was, gets no "Buy this"
+                  over its grey buttons — the line under the row says why. */}
+              {armedStake != null ? (
                 <div
                   style={{
                     color: C.amber,
@@ -788,41 +886,90 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
                     textAlign: "center",
                   }}
                 >
-                  Buy this {legCount}-leg ticket for {money(stakeNum)}?
+                  Buy this {legCount}-leg ticket for {money(armedStake)}?
+                </div>
+              ) : !buyBlock && !isBought ? (
+                <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 6 }}>
+                  Buy this {legCount}-leg ticket
                 </div>
               ) : null}
-              <button
-                type="button"
-                onClick={tapBuy}
-                disabled={!canBuy}
-                style={{
-                  width: "100%",
-                  padding: 13,
-                  borderRadius: 12,
-                  border: "none",
-                  fontSize: 15.5,
-                  fontWeight: 800,
-                  color: canBuy ? "#06210f" : C.muted,
-                  background: !canBuy ? C.chipBg : isArmed ? C.amber : C.green,
-                  cursor: canBuy ? "pointer" : "not-allowed",
-                }}
-              >
-                {placing
-                  ? "Placing… this can take 20 seconds"
-                  : isArmed
-                    ? `Confirm · ${money(stakeNum)}`
-                    : boughtCount > 0
-                      ? `Bought ${boughtCount}× · buy again for ${money(stakeOk ? stakeNum : 0)}`
-                      : `Buy ${legCount}-leg ticket · ${money(stakeOk ? stakeNum : 0)}`}
-              </button>
-              {isArmed ? (
+              {/* One row of five, flex 1 each, so it stays on one line down
+                  to a ~360px phone. */}
+              <div role="group" aria-label="Stake" style={{ display: "flex", gap: 6 }}>
+                {STAKES.map((amount) => {
+                  const isArmed = armedStake === amount;
+                  const inFlight = placingStake === amount;
+                  const sub = isArmed
+                    ? "Confirm"
+                    : inFlight
+                      ? "…"
+                      : payoutLabel(amount, ticket.kalshi_cost_per_dollar);
+                  return (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={(e) => tapBuy(amount, e)}
+                      disabled={!canBuy}
+                      aria-label={
+                        isArmed
+                          ? `Confirm buying ${legCount}-leg ticket for $${amount}`
+                          : `Buy ${legCount}-leg ticket for $${amount}`
+                      }
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        padding: "9px 2px",
+                        borderRadius: 12,
+                        border: "none",
+                        lineHeight: 1.15,
+                        fontVariantNumeric: "tabular-nums",
+                        color: canBuy ? "#06210f" : C.muted,
+                        background: !canBuy ? C.chipBg : isArmed ? C.amber : C.green,
+                        cursor: canBuy ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      <span style={{ display: "block", fontSize: 15.5, fontWeight: 800 }}>
+                        {`$${amount}`}
+                      </span>
+                      {sub ? (
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            marginTop: 2,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {sub}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+              {armedStake != null ? (
                 <div style={{ textAlign: "center", marginTop: 6 }}>
                   <button type="button" onClick={disarm} style={chipBtnStyle}>
                     Cancel
                   </button>
                 </div>
               ) : null}
-              {buyBlock ? (
+              {placing ? (
+                <div
+                  style={{
+                    color: C.muted,
+                    fontSize: 12,
+                    marginTop: 6,
+                    textAlign: "center",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Placing {money(placingStake)}… this can take 20 seconds
+                </div>
+              ) : buyBlock ? (
                 <div
                   style={{
                     color: C.muted,
@@ -834,7 +981,21 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
                 >
                   {buyBlock}
                 </div>
-              ) : !isArmed && !placing ? (
+              ) : isBought ? (
+                <div
+                  style={{
+                    color: C.muted,
+                    fontSize: 12,
+                    marginTop: 6,
+                    textAlign: "center",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {boughtStake != null ? `Bought ${money(boughtStake)}` : "Already bought"}{" "}
+                  — check My Bets. A ticket is bought at most once; build again
+                  for a new one.
+                </div>
+              ) : armedStake == null ? (
                 <div
                   style={{
                     color: C.muted,
@@ -844,9 +1005,12 @@ export default function BestTicket({ stake, includeTomorrow, onRecorded }) {
                     lineHeight: 1.45,
                   }}
                 >
-                  Uses the stake below. The server re-checks every leg's live
-                  Kalshi price first and buys nothing if any leg has started,
-                  closed or dropped more than 5 points.
+                  {showPayouts
+                    ? "Under each amount is Kalshi's estimated payout if every leg hits. "
+                    : null}
+                  The server re-checks every leg's live Kalshi price first and
+                  buys nothing if any leg has started, closed or dropped more
+                  than 5 points.
                 </div>
               ) : null}
               <BuyResult

@@ -34,13 +34,16 @@ import Record from "./Record.jsx";
  *
  * Games already under way are listed too, with a LIVE tag, because their
  * price is a live in-game price, not a pregame one (Patrick, 2026-09-13: show
- * them, marked LIVE). They start UNCHECKED and Top N skips them, so a fresh
- * load or a Top N slate never carries a live leg. Select all DOES take them:
- * it skipped them at first, and on a Sunday afternoon with 7 of 8 games under
- * way it checked one game, which reads as a broken button (Patrick,
- * 2026-09-13: "clicking select all is not selecting all"). Because a live leg
- * is no longer only ever a hand-ticked choice, the count of LIVE games in the
- * bet is printed under Create Bet.
+ * them, marked LIVE). Top N skips them, so a Top N slate never carries a live
+ * leg. Select all DOES take them: it skipped them at first, and on a Sunday
+ * afternoon with 7 of 8 games under way it checked one game, which reads as a
+ * broken button (Patrick, 2026-09-13: "clicking select all is not selecting
+ * all"). A fresh load checks them too — every game, the same set Select all
+ * picks, on first load, Refresh, "+ Tomorrow's games" and the reload after a
+ * fill. They used to start unchecked, until a slate with all 3 games LIVE
+ * opened on "0 of 3 selected" (Patrick, 2026-09-16: "also default to select
+ * all"). Because a live leg is no longer a hand-ticked choice, the count of
+ * LIVE games in the bet is printed under Create Bet.
  *
  * kalshi-live builds from 2026-09-13 call these same two routes. Builds
  * installed before that use `/quick-bets/ncaaf` + `/ncaaf-combo`, which the
@@ -51,7 +54,8 @@ import Record from "./Record.jsx";
  * separate path on purpose: its own endpoints, its own state, and a buy that
  * sends a saved ticket id rather than a leg list — nothing in this file's
  * list, Top N, Select all or Create Bet reads or resets it. It shares only the
- * stake box and the tomorrow toggle, passed down as props.
+ * tomorrow toggle, passed down as a prop — Best N buys at its own five fixed
+ * stakes ($5–$25), so the stake box here feeds Create Bet alone (2026-09-16).
  */
 
 const ROOT = "https://sheline-art-website-api.herokuapp.com";
@@ -206,12 +210,9 @@ export default function QuickBets() {
       setCandidates(body.candidates);
       setLeagues(body.supported_leagues || []);
       setUnavailable(body.unavailable_leagues || []);
-      // Every pregame game selected by default; a live one waits to be ticked.
-      setSelected(
-        new Set(
-          body.candidates.filter((c) => !c.started).map((c) => c.market_ticker),
-        ),
-      );
+      // Every game selected by default, LIVE ones included — the same set
+      // Select all picks (Patrick, 2026-09-16: "also default to select all").
+      setSelected(new Set(body.candidates.map((c) => c.market_ticker)));
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -336,7 +337,6 @@ export default function QuickBets() {
       />
 
       <BestTicket
-        stake={stake}
         includeTomorrow={includeTomorrow}
         onRecorded={() => setRecordKey((k) => k + 1)}
       />
