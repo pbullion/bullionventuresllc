@@ -31,47 +31,19 @@ export const PRIVATE_GROUPS = [
         path: "/patrick",
         tagline: "The todo wall — one board per app",
       },
-      {
-        emoji: "🏈",
-        name: "FF Draft War Room",
-        path: "/ffdraft",
-        tagline: "Live ESPN draft assistant",
-      },
-      /* ALL FOUR fantasy screens are listed, at Patrick's explicit request
-       * (2026-09-09: "make sure and add links on the /jump route", when there
-       * were two of them). They share a tab strip, so any row reaches the other
-       * three in one tap — but /jump is the page you open when you want to land
-       * directly on the one you meant, and printing the path is the whole point
-       * of it over the modal.
-       *
-       * THE TAGLINES HAVE TO NAME THE LEAGUES. Four of eleven rows in this
-       * group are now fantasy, and without the league names they read as
-       * near-duplicates of each other. If that still feels noisy, the cut is to
-       * two rows (Standings + Sleeper) since the tab strip reaches the rest —
-       * a one-line revert, not a rebuild. */
+      /* ONE row per fantasy SCREEN, not per league. All four league screens
+       * were listed from 2026-09-09 until Patrick cut it back on 2026-09-17:
+       * Sleeper, ESPN and Guillotine came off, Standings stayed. They are not
+       * gone — /fantasy, /fantasy/sleeper, /fantasy/espn and
+       * /fantasy/guillotine share the tab strip in src/pages/fantasy/ui.jsx, so
+       * Standings still reaches the other three in one tap. This is exactly the
+       * revert the old comment here described (four near-duplicate rows reading
+       * as noise); don't re-add them without being asked. */
       {
         emoji: "🏆",
         name: "Fantasy Standings",
         path: "/fantasy",
         tagline: "Records and points across all my leagues",
-      },
-      {
-        emoji: "⚔️",
-        name: "Fantasy — Sleeper",
-        path: "/fantasy/sleeper",
-        tagline: "My games in BIGGER and OG Dirtbag, full lineups",
-      },
-      {
-        emoji: "🏟",
-        name: "Fantasy — ESPN",
-        path: "/fantasy/espn",
-        tagline: "The League — my matchup, both lineups",
-      },
-      {
-        emoji: "🔪",
-        name: "Fantasy — Guillotine",
-        path: "/fantasy/guillotine",
-        tagline: "Guillotine — who's on the block",
       },
       {
         emoji: "🚨",
@@ -96,12 +68,6 @@ export const PRIVATE_GROUPS = [
         name: "Whip-Around",
         path: "/whiparound",
         tagline: "The Smokehouse wall board — full screen on a monitor",
-      },
-      {
-        emoji: "🍷",
-        name: "Blind Tasting",
-        path: "/tasting",
-        tagline: "Rank the glasses, reveal the bottles",
       },
       {
         emoji: "🩺",

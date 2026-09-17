@@ -72,7 +72,11 @@ When you add a new tool/page, do **all** of these, not just the route:
    - **`/ffdraft` is cardless AND unlisted too** (Patrick, 2026-08-21).
      Fantasy football draft war room (`src/pages/ffdraft/`) synced to his
      private ESPN league via sheline `/ffdraft`. Personal tool — do not add a
-     home page card; it's in `PRIVATE_GROUPS` instead.
+     home page card. It was in `PRIVATE_GROUPS` until 2026-09-17, when Patrick
+     took it off `/jump`; it is now in **neither** list and is reached only by
+     typing the URL. Same for **`/tasting`** (the blind-tasting game), dropped
+     from the list on the same day. Nothing else changed for either page — the
+     routes are live and public as ever.
    - **`/patrick` is cardless AND unlisted too.** Patrick's own project board
      (`src/pages/patrick/`) — one mini todo board per app he is still finishing.
      Not on the home page, no login. It's the first row of `PRIVATE_GROUPS`
@@ -88,12 +92,14 @@ When you add a new tool/page, do **all** of these, not just the route:
      press-and-hold list as a bookmarkable page — see its own section below.
    - **`/ash` is cardless AND unlisted too** (2026-09-16). Ashley's own copy of
      `/jump`, showing only her group — see its own section below.
-   - **Everything unlisted goes somewhere else.** The pages kept off the public
-     home page — the Kalshi/betting screens (nine of them now; there were seven
-     when Patrick made the call on 2026-07-30) plus `/patrick`, `/ffdraft`,
-     `/ashley` and `/prospects` (2026-08-26), `/jump` (2026-09-02), and `/ash`
-     and `/mothers-day-2026` (2026-09-16) — live in
-     `PRIVATE_GROUPS` in **`src/lib/privatePages.js`**.
+   - **Everything unlisted goes somewhere else — with a few deliberate
+     exceptions.** The pages kept off the public home page — the Kalshi/betting
+     screens (nine of them now; there were seven when Patrick made the call on
+     2026-07-30) plus `/patrick` and `/ashley` (2026-08-26), `/jump`
+     (2026-09-02), and `/ash` and `/mothers-day-2026` (2026-09-16) — live in
+     `PRIVATE_GROUPS` in **`src/lib/privatePages.js`**. `/prospects`,
+     `/ffdraft` and `/tasting` are in neither list on purpose (see above and the
+     `/prospects` section) — URL-only, not an oversight to "fix".
      Add an unlisted page to the right group there instead of to `apps`/`tools`,
      and note that hiding it is obscurity only: every route but `/ashley` stays
      public and unauthenticated.
