@@ -291,12 +291,12 @@ function Browser({ auth, files, loadMsg, loadError, onReload }) {
           <>
             <div className="fd-row" style={{ marginTop: 14 }}>
               <button className="fd-btn big" type="button" onClick={() => startDownload(files)} disabled={busy}>
-                Download everything to a folder on this Mac…
+                Download everything to a folder on this computer…
               </button>
             </div>
             <p className="fd-note">
               Files go into a &ldquo;{SUBFOLDER}&rdquo; folder inside the folder you pick (or straight
-              into it, if the one you pick is already called {SUBFOLDER}). Nothing already on this Mac
+              into it, if the one you pick is already called {SUBFOLDER}). Nothing already on this computer
               is overwritten.
             </p>
           </>

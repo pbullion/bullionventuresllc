@@ -31,6 +31,7 @@ export default function LinkDirectory({
   note,
   documentTitle,
   hideGroupLabels = false,
+  children,
 }) {
   const { pathname } = useLocation();
   const here = pathname.replace(/\/+$/, "") || "/";
@@ -69,6 +70,9 @@ export default function LinkDirectory({
           <div style={S.eyebrow}>{eyebrow}</div>
           <h1 style={S.title}>{title}</h1>
           <p style={S.note}>{typeof note === "function" ? note(total) : note}</p>
+          {/* A caller's extras under the heading — /ash puts its how-to button
+              here. /jump passes none, so its markup is unchanged. */}
+          {children}
         </header>
 
         {visible.map((group) => (

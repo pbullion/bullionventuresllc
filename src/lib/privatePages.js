@@ -103,16 +103,6 @@ export const PRIVATE_GROUPS = [
         path: "/tasting",
         tagline: "Rank the glasses, reveal the bottles",
       },
-      /* File Drop's download half. The upload half (/file-drop) is in the
-       * Ashley group below, so it shows on /ash. The two codes, not this list,
-       * are what protect either page — the upload code can't download or
-       * delete. */
-      {
-        emoji: "📥",
-        name: "File Drop — Download",
-        path: "/file-drop/download",
-        tagline: "Pull everything down to the Mac (admin code)",
-      },
       {
         emoji: "🩺",
         name: "Backend Status",
@@ -240,6 +230,15 @@ export const PRIVATE_GROUPS = [
         name: "Send Files",
         path: "/file-drop",
         tagline: "Upload files to a private folder — uses its own code",
+      },
+      /* Both File Drop pages sit here, not in Patrick's group: since
+       * 2026-09-16 Ashley sends AND downloads (one code), and this group is
+       * still on /jump for Patrick. The code, not this list, protects them. */
+      {
+        emoji: "📥",
+        name: "Download Files",
+        path: "/file-drop/download",
+        tagline: "Save everything that was sent — same code",
       },
       {
         emoji: "💜",

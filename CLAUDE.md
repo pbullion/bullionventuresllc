@@ -181,7 +181,8 @@ Three things about it are deliberate and easy to undo by accident:
 
 `src/pages/ash/index.jsx` is `/jump` over one group: the `ashley` group in
 `privatePages.js` (her client tracker, `/prospects`, `/mothers-day-2026`,
-`/file-drop` — File Drop's upload page, added 2026-09-16 — and
+File Drop's `/file-drop` and `/file-drop/download` — both hers since
+2026-09-16, when she took over the downloading too — and
 `/ash` itself). Patrick, 2026-09-16: "add a page like the jump for ashley so she
 can get to all of her pages". **Add a page of hers to that group and it shows up
 on `/ash`, `/jump` and the modal at once** — never hand-list rows in `/ash`.
@@ -195,6 +196,13 @@ on `/ash`, `/jump` and the modal at once** — never hand-list rows in `/ash`.
   because that is what iOS offers as the home-screen name.
 - **Obscurity, not access control**, same as every page here. `/ashley` still
   needs her login; `/prospects` and `/mothers-day-2026` never had one.
+- **File Drop instructions live on `/ash` as a modal** (`src/pages/ash/HowTo.jsx`,
+  2026-09-16): a button under the heading, or `/ash#how-to` to open it directly.
+  The steps quote the real button labels on `/file-drop` and
+  `/file-drop/download` — rename a button there, update it here. **Never put the
+  code in it**: this repo and page are public and that code can read and delete
+  everything. `LinkDirectory` renders `children` under the heading for this;
+  `/jump` passes none.
 
 ## The build-time-data pages (`/hrw`, and now `/byob`)
 

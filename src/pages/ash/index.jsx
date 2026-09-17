@@ -1,5 +1,6 @@
 import LinkDirectory from "../../components/LinkDirectory.jsx";
 import { ASHLEY_GROUP } from "../../lib/privatePages.js";
+import HowTo from "./HowTo.jsx";
 
 /* /ash — Ashley's pages, for Ashley.
  *
@@ -21,7 +22,10 @@ import { ASHLEY_GROUP } from "../../lib/privatePages.js";
  *
  * Obscurity, not access control, like everything in privatePages.js: /ash is a
  * public route and anyone with the URL sees these links. The pages themselves
- * are unchanged — /ashley still requires her login. */
+ * are unchanged — /ashley still requires her login.
+ *
+ * The how-to button under the heading opens File Drop's step-by-step
+ * instructions (HowTo.jsx; `/ash#how-to` opens it directly). */
 export default function Ash() {
   return (
     <LinkDirectory
@@ -31,6 +35,8 @@ export default function Ash() {
       title="Your pages"
       documentTitle="Ashley's Pages"
       note="Everything of yours on bullionventuresllc.com, in one place. Add this page to your home screen to keep it one tap away."
-    />
+    >
+      <HowTo />
+    </LinkDirectory>
   );
 }
