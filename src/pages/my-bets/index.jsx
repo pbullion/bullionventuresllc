@@ -30,36 +30,11 @@ const KALSHI_PORTFOLIO_URL = "https://kalshi.com/portfolio";
  *   and waiting on a signing that isn't coming (Patrick, 2026-07-25). */
 const ALWAYS_HIDDEN_TICKERS = new Set(["KXNEXTTEAMNBA-26LJAM-MIA"]);
 
-const WEATHER_TICKER_RE = /^KXHIGH/;
-
-/* A HIGH-TEMP position the market prices at 1% is decided in all but name —
- * the band is out of reach, nothing is moving, and there is nothing left to do
- * about it. Those cards are dropped for the same reason and in the same place
- * as the list above, which means "Show all" doesn't bring them back either:
- * this is a rule, not a dismissal.
- *
- * NARROWED TO WEATHER ONLY (Patrick, 2026-08-21). It used to apply to every
- * position, and that was wrong for the rest of the book: a 1% sports leg is a
- * long shot someone deliberately bought and it can still come in, where a 1%
- * temperature band needs the weather to change its mind. Hiding the former was
- * hiding a live bet.
- *
- * Rounded, not raw, so the test matches what the card WOULD have printed — a
- * 1.4% position renders "1%", and suppressing one "1%" card while keeping
- * another that also reads "1%" would look like a bug.
- *
- * The MONEY is not hidden. Every dollar figure in the header — value, cost,
- * P&L, max payout — reduces over `allBets`, before this filter, so it still
- * counts these positions; that money is genuinely still tied up on Kalshi.
- *
- * The open COUNT does drop, because it has always been `bets.length` (the
- * cards on screen) rather than a count of positions — the same is true of a
- * card you dismiss by hand. That is why the count is printed next to it. */
-const isDecidedBet = (b) => {
-  if (!WEATHER_TICKER_RE.test(b.ticker || "")) return false;
-  const prob = Number(b.display?.hit_probability);
-  return Number.isFinite(prob) && Math.round(prob) <= 1;
-};
+/* Nothing else is hidden in code. High-temp bands priced at 1% used to be
+ * dropped too ("N high temp decided (1%) not shown"), and the header had an
+ * "If all win" total; both removed 2026-09-16 on Patrick's ask: "dont display
+ * "if all win" and include the 1% ones". A 1% band now lists like any other
+ * position. */
 
 /* ─── Dark palette ─── */
 /* ─── Formatters ─── */
@@ -476,9 +451,8 @@ const S = {
     color: C.text,
     margin: "18px 4px 12px",
   },
-  // An ACTIVE filter announcing itself. Deliberately louder than S.muted (which
-  // the decided-count line uses): that one reports a rule the reader never set,
-  // this one reports a choice they can undo and may have forgotten making.
+  // An ACTIVE filter announcing itself. Deliberately louder than S.muted: it
+  // reports a choice the reader can undo and may have forgotten making.
   filterNotice: {
     color: C.amber,
     fontSize: 13,
@@ -1359,9 +1333,8 @@ const moneylineLabel = (leg) => {
 // else the market ticker so an unmatched position still stands alone.
 /* Weather positions (KXHIGH*) group by DAY, then by city inside the card —
  * eight separate city-day cards scattered through the grid was unreadable
- * (Patrick, 2026-08-19: "combine them by DAYS and then city level").
- * WEATHER_TICKER_RE itself is defined at the top of the file, because the 1%
- * rule up there needs it too. */
+ * (Patrick, 2026-08-19: "combine them by DAYS and then city level"). */
+const WEATHER_TICKER_RE = /^KXHIGH/;
 const weatherDayChunk = (ticker) => {
   const m = /-(\d{2}[A-Z]{3}\d{2})/.exec(String(ticker || ""));
   return m ? m[1] : null;
@@ -3175,9 +3148,7 @@ export default function MyBets() {
   // permanently-hidden dead markets. Totals below still count every position
   // (including both kinds of hidden) so the P&L/portfolio figures stay
   // accurate — that money is genuinely still tied up on Kalshi.
-  const hideable = allBets.filter(
-    (b) => !ALWAYS_HIDDEN_TICKERS.has(b.ticker) && !isDecidedBet(b),
-  );
+  const hideable = allBets.filter((b) => !ALWAYS_HIDDEN_TICKERS.has(b.ticker));
   const undismissed = hideable.filter((b) => !hidden.has(b.ticker));
   /* The filters are the last cut, so "N hidden · Show all" keeps counting
    * only the user's own dismissals and doesn't absorb the filtered cards.
@@ -3243,9 +3214,6 @@ export default function MyBets() {
     typeSel.size > 0 ||
     typeOptions.length > 1 ||
     (typeOptions.length === 1 && typeOptions[0].count < undismissed.length);
-  // Reported, not silent. Suppressing nine cards with no trace of them is how
-  // a filter turns into a bug report, so the count sits beside the sort row.
-  const decidedCount = allBets.filter(isDecidedBet).length;
   /* Re-pack the open grid whenever the card set or their order changes. The
      ResizeObserver inside catches height changes on its own (live scores), so
      these deps only cover cards appearing, disappearing or moving. Declared
@@ -3290,12 +3258,6 @@ export default function MyBets() {
   // live bets until they settle or are cashed out.
   const totalCost = allBets.reduce(
     (acc, b) => acc + (Number(b.display?.cost_dollars) || 0),
-    0,
-  );
-  // Best case: what every open position pays if it all hits (sum of the
-  // cards' "Pays if won" / "Max payout" boxes).
-  const maxPayoutTotal = allBets.reduce(
-    (acc, b) => acc + (Number(b.display?.max_payout_dollars) || 0),
     0,
   );
 
@@ -3529,12 +3491,6 @@ export default function MyBets() {
             <span style={S.topStatValue}>{usd(totalCost)}</span>
           </div>
           <div style={S.topStat}>
-            <span style={S.topStatLabel}>If all win</span>
-            <span style={{ ...S.topStatValue, color: C.green }}>
-              {usd(maxPayoutTotal)}
-            </span>
-          </div>
-          <div style={S.topStat}>
             <span style={S.topStatLabel}>Available</span>
             <span style={S.topStatValue}>{available}</span>
           </div>
@@ -3546,12 +3502,12 @@ export default function MyBets() {
           </div>
           {/* "4 of 11" while a filter is set, exactly as the tab and the mobile
               strip already say it. Every other figure in this row is computed
-              from `allBets` — unfiltered, and including the dismissed and the
-              decided — so a bare filtered count sitting beside them reads as a
-              discrepancy in the money, not as a filter the reader chose. The
-              denominator is `undismissed` rather than `allBets.length` to match
-              the other two: the decided high-temps are reported on their own
-              line and were never part of this count. */}
+              from `allBets` — unfiltered, and including the dismissed — so a
+              bare filtered count sitting beside them reads as a discrepancy in
+              the money, not as a filter the reader chose. The denominator is
+              `undismissed` rather than `allBets.length` to match the other two:
+              a card dismissed by hand is counted on its own "N hidden" button,
+              never in this one. */}
           <div style={S.topStat}>
             <span style={S.topStatLabel}>Open</span>
             <span style={S.topStatValue}>
@@ -3601,9 +3557,6 @@ export default function MyBets() {
             <span style={S.linkArrow}> ↗</span>
           </a>
           <span style={S.heroMobileStat}>{usd(totalCost)} in play</span>
-          <span style={{ ...S.heroMobileStat, color: C.green }}>
-            {usd(maxPayoutTotal)} if all win
-          </span>
           <span style={S.heroMobileStat}>{available} avail</span>
           <span style={{ ...S.heroMobileStat, color: pnlColor(totalPnl) }}>
             {pnlStr(totalPnl)}
@@ -3664,14 +3617,6 @@ export default function MyBets() {
                   </>
                 ) : null}
               </div>
-              {decidedCount > 0 ? (
-                <span style={S.muted}>
-                  {/* Names the kind of bet now that the rule only covers
-                      high-temp ones. "3 decided (1%) not shown" beside a
-                      visible 1% sports leg reads as a broken filter. */}
-                  {decidedCount} high temp decided (1%) not shown
-                </span>
-              ) : null}
               {hiddenCount > 0 ? (
                 <button style={S.showHiddenBtn} onClick={unhideAll}>
                   {hiddenCount} hidden · Show all
@@ -3780,9 +3725,7 @@ export default function MyBets() {
                   ? `Nothing open matches ${filterSummary} — the filters are hiding ${filteredCount === 1 ? "your 1 open position" : `all ${filteredCount} of your open positions`}. Use “Clear filters” to bring ${filteredCount === 1 ? "it" : "them"} back.`
                   : hiddenCount > 0
                     ? "All positions hidden. Use “Show all” to bring them back."
-                    : decidedCount > 0
-                      ? `No open positions left to watch — all ${decidedCount} are high-temp bands decided at 1%.`
-                      : "No open positions."}
+                    : "No open positions."}
               </div>
             ) : (
               (() => {

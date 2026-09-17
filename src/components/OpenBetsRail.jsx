@@ -139,7 +139,6 @@ export default function OpenBetsRail({ domain }) {
     (s, b) => s + (Number(b.display?.total_pnl_dollars) || 0),
     0,
   );
-  const totalProfit = bets.reduce((s, b) => s + profitOf(b.display || {}), 0);
 
   return (
     <aside className="bv-rail">
@@ -156,11 +155,6 @@ export default function OpenBetsRail({ domain }) {
         <div style={S.totals}>
           <span>{usd(totalValue)} value</span>
           <span style={{ color: pnlColor(totalPnl) }}>{pnlStr(totalPnl)}</span>
-          {/* The rail's equivalent of the "If all win" stat on /my-bets: what
-              every open position here clears if they all come in. */}
-          <span style={{ color: C.greenDim, fontWeight: 700 }}>
-            +{usd(totalProfit)} if all win
-          </span>
         </div>
       )}
 
