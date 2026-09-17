@@ -321,6 +321,7 @@ Full coupling map (verified 2026-07-24; details in `docs/HANDOFF.md`):
 | `/fantasy`, `/fantasy/matchups` | `/fantasy-football` (added 2026-09-09; undocumented here until now) |
 | `/fantasy/lineup`, `/fantasy/waivers` | `/fantasy-watch` (added 2026-09-10 — see the section below) |
 | `/whiparound` | `/whiparound/games`, `/whiparound/cfb`, `/whiparound/scoreboards`, `/whiparound/fantasy`, `/whiparound/tropics`, and `/nhc/current-storms` for the radar geometry; RainViewer directly (added 2026-09-13 — see the section below) |
+| `/file-drop`, `/file-drop/download` | `/file-drop` (signing + S3 control-plane only — bytes go browser↔S3 directly; see the section below) |
 
 - The site does **not** call `/bullion-ventures` (that backend route is
   push-notification plumbing, not a website API) and does **not** call
@@ -838,6 +839,57 @@ rows in `src/lib/privatePages.js`'s Patrick group, no `hideChrome` edit needed
   scoring/lineup/needs/recommend engine, the five Postgres tables — is
   entirely in `sheline-art-website-api/CLAUDE.md`'s "Fantasy Football and
   Fantasy Watch" section. This repo has no server-side logic to duplicate.
+
+## `/file-drop` — private two-code file transfer to S3
+
+`/file-drop` (`src/pages/file-drop/Upload.jsx`) uploads a large set of files
+— possibly tens of thousands of them, and multi-GB single files — into a
+private S3 prefix, and `/file-drop/download` (`Download.jsx`) is where Patrick
+pulls them down on his Mac. The background and threat model live in the
+backend repo, not here. Both are **cardless and unlisted** (rows in
+`PRIVATE_GROUPS` under Patrick), in `hideChrome`, inject `robots noindex`, and
+are lazy-loaded in `App.jsx`. The authoritative contract was a spec agreed
+with the backend (2026-09-16); the code comments carry its rules.
+
+- **Backend:** `routes/fileDrop.js` in `sheline-art-website-api`, mounted at
+  `/file-drop`. **No Postgres.** It only presigns URLs and makes small S3
+  control-plane calls (multipart create/sign/parts/complete/abort, list,
+  delete). **File bytes never pass through Heroku** — the browser PUTs/GETs
+  straight to S3. Never add a relay/proxy mode: it would push GBs through the
+  shared dyno that ~36 projects live on.
+- **Two codes, two roles**, sent only in the `x-file-drop-code` header (never
+  the query string — Heroku's router logs paths), kept in `sessionStorage`
+  only. The **upload** code (`FILE_DROP_UPLOAD_CODE`) can list names/sizes,
+  resolve and upload — it can NOT download, delete or clean up. The **admin**
+  code (`FILE_DROP_ADMIN_CODE`) can do everything. Unset, <8 chars or equal
+  codes → every endpoint 503s. Wrong code → 401; 10 failures per IP / 15 min
+  (or 200 global / hour) → 429.
+- **Storage:** bucket `sheline-art-weddings`, prefix `file-drop/` (private —
+  only `weddings/*` is public there; SSE-S3, no versioning, so delete is
+  forever). CORS allows PUT/GET from any origin and exposes `ETag`, which
+  multipart needs.
+- **Upload engine** (`uploadEngine.js`, plain JS): files ≤64 MiB are single
+  presigned PUTs signed ≤100 at a time as the queue drains; bigger files are
+  multipart with `{uploadId, partSize}` in `localStorage` keyed by
+  path|size|lastModified, so a reload resumes from `ListParts`. One pool of 6
+  XHRs, ≤4 parts per file, 6 retries with 1s→30s backoff, re-sign on S3 403, a
+  backend 401/403 pauses the whole queue (so 40k files don't each hit the
+  brute-force limiter). Before uploading, the page pulls the manifest and
+  `resolve`s every path, so re-picking the same folders skips what's there.
+  The upload page self-tests a 1-byte PUT to `.connection-test` right after
+  the code — a network that blocks S3 shows ❌ immediately.
+- **Download engine** (`downloadEngine.js`): `showDirectoryPicker` (Chrome/Edge
+  only), 3 at a time, skips files already present at the same size — so
+  re-running into the same folder resumes.
+- **Fallbacks** on the download page: `aws s3 sync "s3://sheline-art-weddings/file-drop/" ~/Downloads/file-drop`
+  (Patrick's default AWS profile can read the bucket), and a generated
+  `file-drop-download.sh` of `curl -C -` commands with 12-hour links. Paths in
+  that script are single-quoted (`'` → `'\''`) after `"$DEST"` — keep it that
+  way; a file named `$(…)` must stay a file name.
+- There are no tests in this repo; the engines and `helpers.js` import no
+  browser globals so they can be driven under node with a fake
+  transport/api/storage/directory handle. Do that before changing either
+  engine.
 
 ## Conventions
 

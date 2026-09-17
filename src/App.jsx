@@ -94,6 +94,10 @@ import KidsEatFree from "./pages/kids-eat-free/index.jsx";
 // Lazy, unlike the pages above: a 1920x1080 wall board has no business in the
 // bundle every home-page visitor downloads.
 const WhipAround = lazy(() => import("./pages/whiparound/index.jsx"));
+// File Drop: lazy for the same reason — two private pages (an upload engine and
+// a download engine) that no home-page visitor should pay for.
+const FileDropUpload = lazy(() => import("./pages/file-drop/Upload.jsx"));
+const FileDropDownload = lazy(() => import("./pages/file-drop/Download.jsx"));
 
 export default function App() {
   const location = useLocation();
@@ -154,6 +158,10 @@ export default function App() {
   // 1920x1080 stage scaled to the window and meant to be made full screen on
   // an external monitor. The navbar would sit on top of the stage.
   const isWhipAround = location.pathname.startsWith("/whiparound");
+  // File Drop — /file-drop (upload) and /file-drop/download (Patrick's Mac).
+  // Unlisted, noindex, and deliberately plain: no site nav to wander off into
+  // mid-upload.
+  const isFileDrop = location.pathname.startsWith("/file-drop");
   const hideChrome =
     isTeslaDashboard ||
     isMothersDay ||
@@ -180,7 +188,8 @@ export default function App() {
     isPatrickBoard ||
     isDrive ||
     isTasting ||
-    isWhipAround;
+    isWhipAround ||
+    isFileDrop;
   return (
     <div
       style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
@@ -306,6 +315,24 @@ export default function App() {
               the chrome, unlike /jump — see src/pages/ash/index.jsx. */}
           <Route path="/ash" element={<Ash />} />
           <Route path="/status" element={<Status />} />
+          {/* The more specific /file-drop/download is listed first; React
+              Router ranks by specificity anyway, but this keeps it obvious. */}
+          <Route
+            path="/file-drop/download"
+            element={
+              <Suspense fallback={null}>
+                <FileDropDownload />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/file-drop"
+            element={
+              <Suspense fallback={null}>
+                <FileDropUpload />
+              </Suspense>
+            }
+          />
           <Route path="/drive" element={<Drive />} />
           <Route
             path="/whiparound"

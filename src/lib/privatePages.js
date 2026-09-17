@@ -103,6 +103,21 @@ export const PRIVATE_GROUPS = [
         path: "/tasting",
         tagline: "Rank the glasses, reveal the bottles",
       },
+      /* File Drop: private two-code file transfer to S3. The two codes, not
+       * this list, are what protect it — the upload code can't download or
+       * delete. */
+      {
+        emoji: "📤",
+        name: "File Drop — Send",
+        path: "/file-drop",
+        tagline: "Upload files straight to a private S3 folder",
+      },
+      {
+        emoji: "📥",
+        name: "File Drop — Download",
+        path: "/file-drop/download",
+        tagline: "Pull everything down to the Mac (admin code)",
+      },
       {
         emoji: "🩺",
         name: "Backend Status",
