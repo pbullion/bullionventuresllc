@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { quotaMb } from "../../lib/backendQuota";
 
 /* /status — is the shared backend alive, and is it about to stop being?
  *
@@ -46,8 +47,6 @@ const TIMEOUT_MS = 15000;
  * several bars rather than one. Client-side only: nothing is persisted, so a
  * reload starts the history over, which is honest about what this page knows. */
 const HISTORY = 30;
-
-const QUOTA_MB = 1024; // Standard-2X. RSS above this is Heroku's R14.
 
 const fmtUptime = (s) => {
   if (!Number.isFinite(s)) return "—";
@@ -189,6 +188,9 @@ export default function Status() {
 
   const latest = checks[checks.length - 1] || null;
   const mem = latest?.body?.mem || null;
+  /* Live if /health ever reports it, the Performance-M fallback otherwise.
+   * See lib/backendQuota.js — this was hardcoded to 1024 and went stale. */
+  const QUOTA_MB = quotaMb(mem);
 
   /* THE RESTART DETECTOR — the thing a plain up/down light cannot tell you.
    *

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { quotaMb } from "../lib/backendQuota";
 
 /* One-line backend health strip for /morning-review.
  *
@@ -14,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * It is a compressed version of /status, keeping the two facts that outage
  * proved matter and an instantaneous green dot misses:
  *   - uptime_s RESETTING (a crash-loop answers 200 the whole way through), and
- *   - rss_mb climbing toward the 1024 MB quota BEFORE anything starts failing.
+ *   - rss_mb climbing toward its memory quota BEFORE anything starts failing.
  *
  * Deliberately NOT a green dot, for the same reason /status isn't one.
  */
@@ -37,8 +38,6 @@ const TIMEOUT_MS = 15000;
  * as a flap. Client-side only: a reload starts over, which is honest about
  * what this strip actually knows. */
 const HISTORY = 10;
-
-const QUOTA_MB = 1024; // Standard-2X. RSS above this is Heroku's R14.
 
 const C = {
   panel: "#151a24",
@@ -143,6 +142,9 @@ export default function BackendHealthStrip() {
 
   const latest = checks[checks.length - 1] || null;
   const mem = latest?.body?.mem || null;
+  /* Live if /health ever reports it, the Performance-M fallback otherwise.
+   * See lib/backendQuota.js — this was hardcoded to 1024 and went stale. */
+  const QUOTA_MB = quotaMb(mem);
 
   /* THE RESTART DETECTOR — what an up/down light cannot tell you. uptime_s
    * going DOWN means the process answering now is not the one that answered
