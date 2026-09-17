@@ -88,7 +88,7 @@ export default function FileDropDownload() {
 
 function Browser({ auth, files, loadMsg, loadError, onReload }) {
   const api = useMemo(() => createApi(auth.code), [auth.code]);
-  const bucket = auth.info.bucket || "sheline-art-weddings";
+  const bucket = auth.info.bucket || "bullion-file-drop";
   const prefix = auth.info.prefix || DEFAULT_PREFIX;
   const groups = useMemo(() => (files ? folderBreakdown(files) : []), [files]);
   const totalSize = useMemo(() => (files ? files.reduce((s, f) => s + f.size, 0) : 0), [files]);

@@ -180,7 +180,8 @@ Three things about it are deliberate and easy to undo by accident:
 ### `/ash` — Ashley's pages, for Ashley
 
 `src/pages/ash/index.jsx` is `/jump` over one group: the `ashley` group in
-`privatePages.js` (her client tracker, `/prospects`, `/mothers-day-2026`, and
+`privatePages.js` (her client tracker, `/prospects`, `/mothers-day-2026`,
+`/file-drop` — File Drop's upload page, added 2026-09-16 — and
 `/ash` itself). Patrick, 2026-09-16: "add a page like the jump for ashley so she
 can get to all of her pages". **Add a page of hers to that group and it shows up
 on `/ash`, `/jump` and the modal at once** — never hand-list rows in `/ash`.
@@ -865,10 +866,16 @@ with the backend (2026-09-16); the code comments carry its rules.
   code (`FILE_DROP_ADMIN_CODE`) can do everything. Unset, <8 chars or equal
   codes → every endpoint 503s. Wrong code → 401; 10 failures per IP / 15 min
   (or 200 global / hour) → 429.
-- **Storage:** bucket `sheline-art-weddings`, prefix `file-drop/` (private —
-  only `weddings/*` is public there; SSE-S3, no versioning, so delete is
-  forever). CORS allows PUT/GET from any origin and exposes `ETag`, which
-  multipart needs.
+- **Storage:** dedicated private bucket `bullion-file-drop` (us-east-1,
+  created 2026-09-16), prefix `file-drop/`. Block Public Access on, ACLs off,
+  SSE-S3, a TLS-only bucket policy, no versioning (so delete is forever), and a
+  lifecycle rule that aborts unfinished multipart uploads after 7 days — it
+  never expires files. **CORS lives on the bucket, not in this repo:**
+  PUT/GET/HEAD from `https://bullionventuresllc.com`, `https://www.…`,
+  `http://localhost:5181` and `:5182`, exposing `ETag` (multipart needs it).
+  Serving these pages from any other origin — an Amplify preview URL, another
+  dev port — makes every upload fail CORS until that origin is added with
+  `aws s3api put-bucket-cors`.
 - **Upload engine** (`uploadEngine.js`, plain JS): files ≤64 MiB are single
   presigned PUTs signed ≤100 at a time as the queue drains; bigger files are
   multipart with `{uploadId, partSize}` in `localStorage` keyed by
@@ -922,7 +929,7 @@ with the backend (2026-09-16); the code comments carry its rules.
   asks for 7 days (`olderThanHours: 168`) behind a confirm that first calls it
   with `dryRun: true` (aborts nothing, returns `uploads: [{ path, initiated }]`,
   ≤200) and lists what would be thrown away.
-- **Fallbacks** on the download page: `aws s3 sync "s3://sheline-art-weddings/file-drop/" ~/Downloads/file-drop`
+- **Fallbacks** on the download page: `aws s3 sync "s3://bullion-file-drop/file-drop/" ~/Downloads/file-drop`
   (Patrick's default AWS profile can read the bucket), and a generated
   `file-drop-download.sh` of `curl -C -` commands with 12-hour links. Paths in
   that script are single-quoted (`'` → `'\''`) after `"$DEST"` — keep it that

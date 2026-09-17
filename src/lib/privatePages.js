@@ -103,15 +103,10 @@ export const PRIVATE_GROUPS = [
         path: "/tasting",
         tagline: "Rank the glasses, reveal the bottles",
       },
-      /* File Drop: private two-code file transfer to S3. The two codes, not
-       * this list, are what protect it — the upload code can't download or
+      /* File Drop's download half. The upload half (/file-drop) is in the
+       * Ashley group below, so it shows on /ash. The two codes, not this list,
+       * are what protect either page — the upload code can't download or
        * delete. */
-      {
-        emoji: "📤",
-        name: "File Drop — Send",
-        path: "/file-drop",
-        tagline: "Upload files straight to a private S3 folder",
-      },
       {
         emoji: "📥",
         name: "File Drop — Download",
@@ -239,6 +234,12 @@ export const PRIVATE_GROUPS = [
         name: "Mother's Day 2026",
         path: "/mothers-day-2026",
         tagline: "Your spa day — from the two who love you most",
+      },
+      {
+        emoji: "📤",
+        name: "Send Files",
+        path: "/file-drop",
+        tagline: "Upload files to a private folder — uses its own code",
       },
       {
         emoji: "💜",
