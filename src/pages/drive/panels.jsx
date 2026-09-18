@@ -30,8 +30,20 @@ const humanize = (code) =>
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .trim() || "—";
 
-const clock = (iso) =>
-  iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—";
+/* Time alone when it lands today, the date in front otherwise. A bare
+ * "12:10 PM" on a market that closes on Saturday reads as lunchtime TODAY,
+ * which is how a Sep-20 sports close was presenting on this table while the
+ * row still read close_time (2026-09-17). The row reads expires_at now, so
+ * that particular gap is mostly gone — but a genuinely multi-day close is
+ * still multi-day and has to say so on its own. */
+const clock = (iso) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (d.toDateString() === new Date().toDateString()) return time;
+  return `${d.toLocaleDateString([], { month: "numeric", day: "numeric" })} ${time}`;
+};
 
 function Metric({ k, v, sub }) {
   return (
