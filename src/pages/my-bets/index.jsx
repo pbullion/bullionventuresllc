@@ -862,8 +862,10 @@ const S = {
     fontSize: 13,
     color: C.muted,
     fontWeight: 600,
-    // Three figures on this line now (cost / profit / payout); wrap rather than
-    // overflow the card when a big payout makes them too wide together.
+    // Used twice on a single row now — "cost / value / P&L" then "if it wins /
+    // pays out" — because five figures on one line wrapped differently from row
+    // to row depending on digit count. Still wraps rather than overflowing the
+    // card when a big payout makes even two or three too wide together.
     flexWrap: "wrap",
     rowGap: 2,
   },
@@ -2740,13 +2742,41 @@ function SingleRow({ b, showWeather = true }) {
           Both missing numbers were already on the payload and already drawn on
           parlay cards; only the single had no loss signal at all, and none when
           win_pct came back null and took the chance chip with it. "profit" also
-          had to go: it is the hold-to-win payout, not money made. */}
+          had to go: it is the hold-to-win payout, not money made.
+
+          TWO lines, not five figures on one. rowLine2 is space-between with
+          flexWrap, tuned back when it carried three; at five the break point
+          moved with the digit count, so neighbouring rows wrapped differently
+          and the column edges stopped lining up. Split where the meaning
+          splits — where it stands NOW, then what happens IF IT WINS — and each
+          line holds the two or three it was built for.
+
+          Both figures are dashed rather than zeroed when absent: the backend
+          drops display fields on an unenriched row (roughly one weather row in
+          thirteen), and "$0.00 value · +$0.00" on a live position is a
+          confident lie where "—" is just missing data. Pays out stays last on
+          its own line because the cash-out line below is right-aligned to sit
+          directly beneath it. */}
       <div style={S.rowLine2}>
         <span>{usd(d.cost_dollars)} cost</span>
-        <span>{usd(d.current_value_dollars)} value</span>
-        <span style={{ color: pnlColor(d.total_pnl_dollars), fontWeight: 600 }}>
-          {pnlStr(d.total_pnl_dollars)}
+        <span>
+          {d.current_value_dollars == null
+            ? "— value"
+            : `${usd(d.current_value_dollars)} value`}
         </span>
+        <span
+          style={{
+            color:
+              d.total_pnl_dollars == null
+                ? C.muted
+                : pnlColor(d.total_pnl_dollars),
+            fontWeight: 600,
+          }}
+        >
+          {d.total_pnl_dollars == null ? "—" : pnlStr(d.total_pnl_dollars)}
+        </span>
+      </div>
+      <div style={S.rowLine2}>
         <span style={S.rowProfit}>+{usd(profitOf(d))} if it wins</span>
         <span>
           Pays out {usd0(d.max_payout_dollars)}

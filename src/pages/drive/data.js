@@ -442,7 +442,7 @@ export async function fetchKalshi() {
        * (football) fallback, so this column was dating a game that finishes
        * tonight three days out. The backend computes the earlier of the two
        * (services/marketExpiry.js). Falls back for an older backend. */
-      closeTime: p.display.expires_at || p.display.close_time || null,
+      closeTime: p.display.expires_at ?? p.display.close_time ?? null,
       live: (p.display.legs || []).some((l) => l?.game?.state === "in"),
     }))
     .sort((a, b) => b.value - a.value);
