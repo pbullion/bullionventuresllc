@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { quotaMb } from "../lib/backendQuota";
+import { quotaMb, rssTone as rssToneOf, REGRESSION_MB } from "../lib/backendQuota";
 
 /* One-line backend health strip for /morning-review.
  *
@@ -170,7 +170,12 @@ export default function BackendHealthStrip() {
   const rssPct = Number.isFinite(rss) ? Math.round((rss / QUOTA_MB) * 100) : null;
   /* Three bands, and the middle one is the point: R14 fires above the quota,
    * but a dyno at 90% is already on the path that ends in a crash-loop. */
-  const rssTone = rssPct == null ? "idle" : rssPct >= 100 ? "bad" : rssPct >= 85 ? "warn" : "ok";
+  const rssTone = rssToneOf(rss, QUOTA_MB);
+  /* True only when the ABSOLUTE floor tripped and the percentage did not — the
+   * case the old quota-relative bands could not express at all. Worth saying
+   * out loud, because "amber at 75% of quota" is otherwise a puzzle. */
+  const rssRegression =
+    Number.isFinite(rss) && rss >= REGRESSION_MB && rssPct != null && rssPct < 85;
 
   const heapUsed = mem?.heap_used_mb;
   const heapLimit = mem?.heap_limit_mb;
@@ -232,7 +237,9 @@ export default function BackendHealthStrip() {
               .join(" and ") + ` in the last ${checks.length}`
           : [
               `up ${fmtUptime(latest?.body?.uptime_s)}`,
-              rssPct != null ? `RSS ${rss}/${QUOTA_MB} MB (${rssPct}%)` : null,
+              rssPct != null
+                ? `RSS ${rss}/${QUOTA_MB} MB (${rssPct}%${rssRegression ? " — above normal" : ""})`
+                : null,
               heapPct != null && heapTone !== "ok" ? `heap ${heapPct}%` : null,
               latest?.body?.db && latest.body.db !== "up" ? `db ${latest.body.db}` : null,
             ]

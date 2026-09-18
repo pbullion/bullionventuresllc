@@ -37,3 +37,38 @@ export const quotaMb = (mem) => {
   const live = mem?.quota_mb ?? mem?.cgroup_limit_mb;
   return Number.isFinite(live) && live > 0 ? live : FALLBACK_QUOTA_MB;
 };
+
+/* THE SECOND THRESHOLD, AND WHY A PERCENTAGE IS NOT ENOUGH.
+ *
+ * The bands below used to be purely quota-relative: warn at 85%, bad at 100%.
+ * On a 1024 MB Standard-2X that warned at 870 MB, which was under this app's
+ * normal resting size — it was always going to fire. On a 2560 MB
+ * Performance-M the same 85% warns at 2176 MB, and the resize moved it there
+ * silently. So a regression back to the 1930 MB idle peak measured during the
+ * 2026-09-12 outage now renders GREEN at 75%, which is exactly the blind spot
+ * this page was built to remove.
+ *
+ * The two thresholds answer different questions and both are worth having:
+ *   - the PERCENTAGE asks "how close to R14" — a property of the dyno, and it
+ *     should keep moving when the dyno is resized.
+ *   - REGRESSION_MB asks "is this process bigger than it has ever normally
+ *     been" — a property of the APP, and resizing the dyno does not make a
+ *     process that has doubled in size fine.
+ *
+ * 1900 is deliberately conservative. Measured steady state on Performance-M is
+ * 1300-1450 MB, and 1930 MB is the idle peak recorded during an actual outage,
+ * so this can only fire on something genuinely unprecedented and cannot cry
+ * wolf at today's normal. That caution is the point: the whole lesson of the
+ * stale 1024 above is that a status page nobody believes is worse than none.
+ *
+ * It is a floor set from a handful of short-uptime samples, though — there is
+ * no multi-day observation of this app on this dyno yet. If normal drift turns
+ * out to reach it, RAISE it rather than deleting it.
+ */
+export const REGRESSION_MB = 1900;
+
+export const rssTone = (rss, quota) => {
+  if (!Number.isFinite(rss)) return "idle";
+  if (rss / quota >= 1) return "bad";
+  return rss / quota >= 0.85 || rss >= REGRESSION_MB ? "warn" : "ok";
+};

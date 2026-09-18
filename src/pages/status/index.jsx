@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { quotaMb } from "../../lib/backendQuota";
+import { quotaMb, rssTone as rssToneOf, REGRESSION_MB } from "../../lib/backendQuota";
 
 /* /status — is the shared backend alive, and is it about to stop being?
  *
@@ -228,7 +228,12 @@ export default function Status() {
    * quota, but a dyno at 90% is already on the path that ends in a crash-loop —
    * the whole lesson of 2026-09-03 is that this is worth seeing BEFORE it is an
    * outage, not after. */
-  const rssTone = rssPct == null ? "idle" : rssPct >= 100 ? "bad" : rssPct >= 85 ? "warn" : "ok";
+  const rssTone = rssToneOf(rss, QUOTA_MB);
+  /* True only when the ABSOLUTE floor tripped and the percentage did not — the
+   * case the old quota-relative bands could not express at all. Worth saying
+   * out loud, because "amber at 75% of quota" is otherwise a puzzle. */
+  const rssRegression =
+    Number.isFinite(rss) && rss >= REGRESSION_MB && rssPct != null && rssPct < 85;
 
   const heapUsed = mem?.heap_used_mb;
   const heapLimit = mem?.heap_limit_mb;
@@ -277,7 +282,9 @@ export default function Status() {
     strained:
       `Answering every check, but RSS is ${rss} MB — ${rssPct}% of the ${QUOTA_MB} MB quota` +
       (heapPct != null && heapTone !== "ok" ? `, and the heap is at ${heapPct}% of its cap` : "") +
-      `. ${strain === "bad" ? "Over quota is Heroku's R14." : "This is the climb that precedes a crash-loop."} Nothing has failed yet.`,
+      `. ${strain === "bad" ? "Over quota is Heroku's R14." : (rssRegression
+            ? "Well inside the quota, but larger than this backend has ever normally run — the regression is the story here, not the quota."
+            : "This is the climb that precedes a crash-loop.")} Nothing has failed yet.`,
     flapping: `Answering right now, but not steadily: ${[
       restarts > 0 && `${restarts} restart${restarts === 1 ? "" : "s"}`,
       failures > 0 && `${failures} failed check${failures === 1 ? "" : "s"}`,
