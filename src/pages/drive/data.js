@@ -437,7 +437,12 @@ export async function fetchKalshi() {
       curPrice: Number(p.display.current_price_dollars) || null,
       maxPayout: Number(p.display.max_payout_dollars) || null,
       count: Number(p.display.count) || null,
-      closeTime: p.display.close_time || null,
+      /* expires_at, not close_time: on an OPEN sports market Kalshi sets
+       * close_time to latest_expiration_time, a fixed +69h (MLB) / +45h
+       * (football) fallback, so this column was dating a game that finishes
+       * tonight three days out. The backend computes the earlier of the two
+       * (services/marketExpiry.js). Falls back for an older backend. */
+      closeTime: p.display.expires_at || p.display.close_time || null,
       live: (p.display.legs || []).some((l) => l?.game?.state === "in"),
     }))
     .sort((a, b) => b.value - a.value);

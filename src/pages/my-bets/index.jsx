@@ -834,8 +834,13 @@ const S = {
     gap: 12,
   },
   rowPick: { fontSize: 16, fontWeight: 600, minWidth: 0, lineHeight: 1.3 },
-  sideYes: { color: C.green, fontWeight: 800 },
-  sideNo: { color: C.red, fontWeight: 800 },
+  /* NEUTRAL, both of them. These were green for Yes and red for No, sitting
+   * inches from a chance chip, a row wash and a P&L where green means WINNING
+   * and red means LOSING. A red "No" on a No bet that is winning says the
+   * opposite of the truth, and it only ever looked right by coincidence. The
+   * word already carries the side; colour on this page means direction. */
+  sideYes: { color: C.text, fontWeight: 800 },
+  sideNo: { color: C.text, fontWeight: 800 },
   rowDot: { color: C.muted, margin: "0 2px" },
   rowPickText: { color: C.text },
   rowChance: {
@@ -2730,9 +2735,19 @@ function SingleRow({ b, showWeather = true }) {
       </div>
       <TotalPace leg={leg} />
       {showWeather && <WeatherNow d={d} />}
+      {/* A single row used to read "$5.03 cost · +$6.97 profit · Pays out $11"
+          with the middle figure hard-coded green — on a position down $4.92.
+          Both missing numbers were already on the payload and already drawn on
+          parlay cards; only the single had no loss signal at all, and none when
+          win_pct came back null and took the chance chip with it. "profit" also
+          had to go: it is the hold-to-win payout, not money made. */}
       <div style={S.rowLine2}>
         <span>{usd(d.cost_dollars)} cost</span>
-        <span style={S.rowProfit}>+{usd(profitOf(d))} profit</span>
+        <span>{usd(d.current_value_dollars)} value</span>
+        <span style={{ color: pnlColor(d.total_pnl_dollars), fontWeight: 600 }}>
+          {pnlStr(d.total_pnl_dollars)}
+        </span>
+        <span style={S.rowProfit}>+{usd(profitOf(d))} if it wins</span>
         <span>
           Pays out {usd0(d.max_payout_dollars)}
           {link ? <span style={S.linkArrow}> ↗</span> : null}
